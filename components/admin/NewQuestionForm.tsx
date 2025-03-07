@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { ServiceCategory } from '@/types/database.types';
 
-// Define form validation schema
+// Define form validation schema with conditional logic fields
 const formSchema = z.object({
   service_category_id: z.string().uuid('Please select a service category'),
   question_text: z.string().min(5, 'Question text must be at least 5 characters'),
@@ -20,14 +20,15 @@ const formSchema = z.object({
   helper_video_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
   is_required: z.boolean().optional(),
   status: z.enum(['active', 'inactive']),
+  // Add conditional fields to the schema
+  conditional_question: z.string().optional(),
+  conditional_values: z.union([z.string().optional(), z.array(z.string()).optional()]),
+  conditional_operator: z.enum(['AND', 'OR']).optional()
 });
 
 type FormValues = z.infer<typeof formSchema> & {
   answer_options: string[];
   answer_images: string[];
-  conditional_question: string;
-  conditional_values: string | string[];
-  conditional_operator: 'AND' | 'OR';
 };
 
 interface NewQuestionFormProps {
@@ -122,6 +123,13 @@ export default function NewQuestionForm({ categories, categoryStepMap }: NewQues
     }
   }, [conditionalQuestionId, conditionalQuestions]);
   
+  // Register conditional values with the form when they change
+  useEffect(() => {
+    if (showConditionalLogic && conditionalValues.length > 0) {
+      setValue('conditional_values', conditionalValues);
+    }
+  }, [conditionalValues, setValue, showConditionalLogic]);
+
   const handleAddOption = () => {
     setAnswerOptions([...answerOptions, '']);
     setAnswerImages([...answerImages, '']);
@@ -149,107 +157,114 @@ export default function NewQuestionForm({ categories, categoryStepMap }: NewQues
   
   const handleConditionalValueChange = (value: string, checked: boolean) => {
     if (checked) {
-      setConditionalValues(prev => [...prev, value]);
+      const newValues = [...conditionalValues, value];
+      setConditionalValues(newValues);
+      setValue('conditional_values', newValues);
     } else {
-      setConditionalValues(prev => prev.filter(v => v !== value));
+      const newValues = conditionalValues.filter(v => v !== value);
+      setConditionalValues(newValues);
+      setValue('conditional_values', newValues);
     }
   };
   
- // Replace the onSubmit function with this more explicit version:
-
- const onSubmit = async (data: FormValues) => {
-  try {
-    setIsSubmitting(true);
-    setError(null);
-    
-    // Log all form values for debugging
-    console.log("Form values from hook:", data);
-    console.log("Conditional values state:", conditionalValues);
-    console.log("Selected question:", selectedQuestion);
-    console.log("Show conditional logic:", showConditionalLogic);
-    
-    // Prepare the base data
-    const formData: any = {
-      service_category_id: data.service_category_id,
-      question_text: data.question_text,
-      step_number: data.step_number,
-      display_order_in_step: data.display_order_in_step,
-      is_multiple_choice: data.is_multiple_choice || false,
-      allow_multiple_selections: data.is_multiple_choice ? data.allow_multiple_selections || false : false,
-      answer_options: data.is_multiple_choice ? 
-        answerOptions.filter(opt => opt.trim() !== '') : 
-        null,
-      answer_images: data.is_multiple_choice ?
-        answerOptions.map((opt, index) => answerImages[index]?.trim() || null)
-          .filter((_, index) => answerOptions[index].trim() !== '') :
-        null,
-      has_helper_video: data.has_helper_video || false,
-      helper_video_url: data.has_helper_video ? data.helper_video_url : null,
-      is_required: data.is_required || false,
-      status: data.status,
-      is_deleted: false,
-    };
-    
-    // Add conditional logic if enabled and a question is selected
-    if (showConditionalLogic && data.conditional_question) {
-      console.log("Conditional question selected:", data.conditional_question);
+  const onSubmit = async (data: FormValues) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
       
-      // Extract conditional values
-      let valuesArray: string[] = [];
+      // Log all form values for debugging
+      console.log("Form values from hook:", data);
+      console.log("Conditional values state:", conditionalValues);
+      console.log("Selected question:", selectedQuestion);
+      console.log("Show conditional logic:", showConditionalLogic);
       
-      if (conditionalValues.length > 0) {
-        // Use values from checkbox selection
-        valuesArray = conditionalValues;
-        console.log("Using values from checkboxes:", valuesArray);
-      } else if (typeof data.conditional_values === 'string' && data.conditional_values.trim()) {
-        // Use values from text input (comma-separated)
-        valuesArray = data.conditional_values.split(',').map(v => v.trim()).filter(v => v);
-        console.log("Using values from text input:", valuesArray);
-      } else if (Array.isArray(data.conditional_values)) {
-        // Handle case where it's already an array
-        valuesArray = data.conditional_values.filter(v => v);
-        console.log("Using values from array:", valuesArray);
+      // Prepare the base data
+      const formData: any = {
+        service_category_id: data.service_category_id,
+        question_text: data.question_text,
+        step_number: data.step_number,
+        display_order_in_step: data.display_order_in_step,
+        is_multiple_choice: data.is_multiple_choice || false,
+        allow_multiple_selections: data.is_multiple_choice ? data.allow_multiple_selections || false : false,
+        answer_options: data.is_multiple_choice ? 
+          answerOptions.filter(opt => opt.trim() !== '') : 
+          null,
+        answer_images: data.is_multiple_choice ?
+          answerOptions.map((opt, index) => answerImages[index]?.trim() || null)
+            .filter((_, index) => answerOptions[index].trim() !== '') :
+          null,
+        has_helper_video: data.has_helper_video || false,
+        helper_video_url: data.has_helper_video ? data.helper_video_url : null,
+        is_required: data.is_required || false,
+        status: data.status,
+        is_deleted: false,
+        conditional_display: null // Initialize as null by default
+      };
+      
+      // Add conditional logic if enabled and a question is selected
+      if (showConditionalLogic && data.conditional_question) {
+        console.log("Conditional question selected:", data.conditional_question);
+        
+        // Extract conditional values - prioritize the state over form values
+        let valuesArray: string[] = [];
+        
+        if (conditionalValues.length > 0) {
+          // Use values from checkbox selection state
+          valuesArray = conditionalValues;
+          console.log("Using values from conditionalValues state:", valuesArray);
+        } else if (Array.isArray(data.conditional_values) && data.conditional_values.length > 0) {
+          // Use values from form data if it's an array
+          valuesArray = data.conditional_values.filter(v => v);
+          console.log("Using values from form data array:", valuesArray);
+        } else if (typeof data.conditional_values === 'string' && data.conditional_values.trim()) {
+          // Use values from text input (comma-separated)
+          valuesArray = data.conditional_values.split(',').map(v => v.trim()).filter(v => v);
+          console.log("Using values from text input:", valuesArray);
+        }
+        
+        // Only set conditional_display if a question is selected and values are provided
+        if (data.conditional_question && valuesArray.length > 0) {
+          formData.conditional_display = {
+            dependent_on_question_id: data.conditional_question,
+            show_when_answer_equals: valuesArray,
+            logical_operator: data.conditional_operator || 'OR'
+          };
+          console.log("Created conditional display:", JSON.stringify(formData.conditional_display));
+        } else {
+          console.log("Not setting conditional_display - missing question or values");
+        }
+      } else {
+        console.log("Conditional logic not enabled or no question selected");
       }
       
-      // Only set conditional_display if a question is selected and values are provided
-      if (data.conditional_question && valuesArray.length > 0) {
-        formData.conditional_display = {
-          dependent_on_question_id: data.conditional_question,
-          show_when_answer_equals: valuesArray,
-          logical_operator: data.conditional_operator || 'OR'
-        };
-        console.log("Created conditional display:", JSON.stringify(formData.conditional_display));
+      // Debug output before submission
+      console.log("Full form data being submitted:", JSON.stringify(formData, null, 2));
+      
+      // Submit to Supabase
+      const supabase = createClient();
+      const { data: savedData, error } = await supabase
+        .from('FormQuestions')
+        .insert(formData)
+        .select();
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error(error.message);
       }
+      
+      console.log('Successfully saved question with data:', savedData);
+      
+      // Redirect back to questions list
+      router.push('/admin/form-questions');
+      router.refresh(); // Refresh the page to show the new question
+      
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while saving the question');
+      console.error('Error saving question:', err);
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    // Debug output before submission
-    console.log("Full form data being submitted:", JSON.stringify(formData, null, 2));
-    
-    // Submit to Supabase
-    const supabase = createClient();
-    const { data: savedData, error } = await supabase
-      .from('FormQuestions')
-      .insert(formData)
-      .select();
-    
-    if (error) {
-      console.error('Supabase error:', error);
-      throw new Error(error.message);
-    }
-    
-    console.log('Successfully saved question with data:', savedData);
-    
-    // Redirect back to questions list
-    router.push('/admin/form-questions');
-    router.refresh(); // Refresh the page to show the new question
-    
-  } catch (err: any) {
-    setError(err.message || 'An error occurred while saving the question');
-    console.error('Error saving question:', err);
-  } finally {
-    setIsSubmitting(false);
-  }
-}  
+  };
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {error && (
