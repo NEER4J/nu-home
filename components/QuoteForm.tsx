@@ -15,7 +15,7 @@ const formSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   phone: z.string().optional(),
   city: z.string().optional(),
-  postcode: z.string().min(1, 'Postcode is required'),
+  postcode: z.string().min(1, 'Postcode is required'), 
   // Dynamic answers will be added based on questions
 });
 

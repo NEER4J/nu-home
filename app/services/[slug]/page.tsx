@@ -1,7 +1,7 @@
 // app/services/[slug]/page.tsx
 import { createClient } from '@/utils/supabase/server';
 import { notFound } from 'next/navigation';
-import QuoteForm from '@/components/QuoteForm';
+import QuoteForm from '@/components/QuoteForm'; 
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const supabase = createClient();

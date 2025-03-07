@@ -1,7 +1,8 @@
 // app/admin/form-questions/new/page.tsx
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
-import NewQuestionForm from '@/components/admin/NewQuestionForm';
+import NewQuestionForm from '@/components/admin/NewQuestionForm'; 
+
 
 export const metadata = {
   title: 'Add New Question | Nu-Home Admin',

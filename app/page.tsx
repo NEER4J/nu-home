@@ -2,6 +2,7 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 
+
 export const metadata = {
   title: 'Nu-Home | Home Improvement Quote System',
   description: 'Get free, no-obligation quotes for home improvement services including EV chargers, solar panels, heating, cooling and more.'

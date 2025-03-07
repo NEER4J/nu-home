@@ -2,6 +2,7 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 
+
 export const metadata = {
   title: 'Service Categories | Nu-Home Admin',
   description: 'Manage service categories'
@@ -29,6 +30,7 @@ export default async function ServiceCategoriesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-6 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">Service Categories</h1>
+          
           <Link
             href="/admin/service-categories/new"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"

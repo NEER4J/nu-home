@@ -15,6 +15,7 @@ const formSchema = z.object({
   step_number: z.number().min(1, 'Step number must be at least 1'),
   display_order_in_step: z.number().min(1, 'Display order must be at least 1'),
   is_multiple_choice: z.boolean().optional(),
+  allow_multiple_selections: z.boolean().optional(),
   has_helper_video: z.boolean().optional(),
   helper_video_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
   is_required: z.boolean().optional(),
@@ -23,8 +24,9 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema> & {
   answer_options: string[];
+  answer_images: string[];
   conditional_question: string;
-  conditional_values: string[];
+  conditional_values: string | string[];
   conditional_operator: 'AND' | 'OR';
 };
 
@@ -38,14 +40,18 @@ export default function NewQuestionForm({ categories, categoryStepMap }: NewQues
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answerOptions, setAnswerOptions] = useState<string[]>(['']);
+  const [answerImages, setAnswerImages] = useState<string[]>(['']);
   const [conditionalQuestions, setConditionalQuestions] = useState<any[]>([]);
   const [showConditionalLogic, setShowConditionalLogic] = useState(false);
+  const [conditionalValues, setConditionalValues] = useState<string[]>([]);
+  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors }
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema as any),
@@ -53,22 +59,27 @@ export default function NewQuestionForm({ categories, categoryStepMap }: NewQues
       step_number: 1,
       display_order_in_step: 1,
       is_multiple_choice: false,
+      allow_multiple_selections: false,
       has_helper_video: false,
       is_required: true,
       status: 'active',
       answer_options: [''],
+      answer_images: [''],
       conditional_operator: 'OR',
     }
   });
   
   const selectedCategoryId = watch('service_category_id');
   const isMultipleChoice = watch('is_multiple_choice');
+  const allowMultipleSelections = watch('allow_multiple_selections');
   const hasHelperVideo = watch('has_helper_video');
+  const stepNumber = watch('step_number');
+  const conditionalQuestionId = watch('conditional_question');
   
   // Update step number suggestion when category changes
   useEffect(() => {
     if (selectedCategoryId && categoryStepMap[selectedCategoryId]) {
-      setValue('step_number', categoryStepMap[selectedCategoryId]);
+      setValue('step_number', categoryStepMap[selectedCategoryId] + 1);
     } else {
       setValue('step_number', 1);
     }
@@ -93,15 +104,27 @@ export default function NewQuestionForm({ categories, categoryStepMap }: NewQues
       }
       
       // Only show questions from earlier steps
-      const currentStep = watch('step_number');
-      setConditionalQuestions(data?.filter(q => q.step_number < currentStep) || []);
+      setConditionalQuestions(data?.filter(q => q.step_number < stepNumber) || []);
     }
     
     fetchQuestions();
-  }, [selectedCategoryId, watch]);
+  }, [selectedCategoryId, stepNumber]);
+  
+  // Update selected question when conditional question changes
+  useEffect(() => {
+    if (conditionalQuestionId) {
+      const question = conditionalQuestions.find(q => q.question_id === conditionalQuestionId);
+      setSelectedQuestion(question);
+      // Reset conditional values when question changes
+      setConditionalValues([]);
+    } else {
+      setSelectedQuestion(null);
+    }
+  }, [conditionalQuestionId, conditionalQuestions]);
   
   const handleAddOption = () => {
     setAnswerOptions([...answerOptions, '']);
+    setAnswerImages([...answerImages, '']);
   };
   
   const handleOptionChange = (index: number, value: string) => {
@@ -110,63 +133,123 @@ export default function NewQuestionForm({ categories, categoryStepMap }: NewQues
     setAnswerOptions(newOptions);
   };
   
+  const handleImageUrlChange = (index: number, value: string) => {
+    const newImages = [...answerImages];
+    newImages[index] = value;
+    setAnswerImages(newImages);
+  };
+  
   const handleRemoveOption = (index: number) => {
     if (answerOptions.length <= 1) return;
     const newOptions = answerOptions.filter((_, i) => i !== index);
+    const newImages = answerImages.filter((_, i) => i !== index);
     setAnswerOptions(newOptions);
+    setAnswerImages(newImages);
   };
   
-  const onSubmit = async (data: FormValues) => {
-    try {
-      setIsSubmitting(true);
-      setError(null);
-      
-      // Prepare the data
-      const formData: any = {
-        service_category_id: data.service_category_id,
-        question_text: data.question_text,
-        step_number: data.step_number,
-        display_order_in_step: data.display_order_in_step,
-        is_multiple_choice: data.is_multiple_choice || false,
-        answer_options: data.is_multiple_choice ? answerOptions.filter(opt => opt.trim() !== '') : null,
-        has_helper_video: data.has_helper_video || false,
-        helper_video_url: data.has_helper_video ? data.helper_video_url : null,
-        is_required: data.is_required || false,
-        status: data.status,
-        is_deleted: false,
-      };
-      
-      // Add conditional logic if enabled
-      if (showConditionalLogic && data.conditional_question) {
-        formData.conditional_display = {
-          dependent_on_question_id: data.conditional_question,
-          show_when_answer_equals: data.conditional_values || [],
-          logical_operator: data.conditional_operator || 'OR'
-        };
-      }
-      
-      // Submit to Supabase
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('FormQuestions')
-        .insert(formData);
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      // Redirect back to questions list
-      router.push('/admin/form-questions');
-      router.refresh(); // Refresh the page to show the new question
-      
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while saving the question');
-      console.error('Error saving question:', err);
-    } finally {
-      setIsSubmitting(false);
+  const handleConditionalValueChange = (value: string, checked: boolean) => {
+    if (checked) {
+      setConditionalValues(prev => [...prev, value]);
+    } else {
+      setConditionalValues(prev => prev.filter(v => v !== value));
     }
   };
   
+ // Replace the onSubmit function with this more explicit version:
+
+ const onSubmit = async (data: FormValues) => {
+  try {
+    setIsSubmitting(true);
+    setError(null);
+    
+    // Log all form values for debugging
+    console.log("Form values from hook:", data);
+    console.log("Conditional values state:", conditionalValues);
+    console.log("Selected question:", selectedQuestion);
+    console.log("Show conditional logic:", showConditionalLogic);
+    
+    // Prepare the base data
+    const formData: any = {
+      service_category_id: data.service_category_id,
+      question_text: data.question_text,
+      step_number: data.step_number,
+      display_order_in_step: data.display_order_in_step,
+      is_multiple_choice: data.is_multiple_choice || false,
+      allow_multiple_selections: data.is_multiple_choice ? data.allow_multiple_selections || false : false,
+      answer_options: data.is_multiple_choice ? 
+        answerOptions.filter(opt => opt.trim() !== '') : 
+        null,
+      answer_images: data.is_multiple_choice ?
+        answerOptions.map((opt, index) => answerImages[index]?.trim() || null)
+          .filter((_, index) => answerOptions[index].trim() !== '') :
+        null,
+      has_helper_video: data.has_helper_video || false,
+      helper_video_url: data.has_helper_video ? data.helper_video_url : null,
+      is_required: data.is_required || false,
+      status: data.status,
+      is_deleted: false,
+    };
+    
+    // Add conditional logic if enabled and a question is selected
+    if (showConditionalLogic && data.conditional_question) {
+      console.log("Conditional question selected:", data.conditional_question);
+      
+      // Extract conditional values
+      let valuesArray: string[] = [];
+      
+      if (conditionalValues.length > 0) {
+        // Use values from checkbox selection
+        valuesArray = conditionalValues;
+        console.log("Using values from checkboxes:", valuesArray);
+      } else if (typeof data.conditional_values === 'string' && data.conditional_values.trim()) {
+        // Use values from text input (comma-separated)
+        valuesArray = data.conditional_values.split(',').map(v => v.trim()).filter(v => v);
+        console.log("Using values from text input:", valuesArray);
+      } else if (Array.isArray(data.conditional_values)) {
+        // Handle case where it's already an array
+        valuesArray = data.conditional_values.filter(v => v);
+        console.log("Using values from array:", valuesArray);
+      }
+      
+      // Only set conditional_display if a question is selected and values are provided
+      if (data.conditional_question && valuesArray.length > 0) {
+        formData.conditional_display = {
+          dependent_on_question_id: data.conditional_question,
+          show_when_answer_equals: valuesArray,
+          logical_operator: data.conditional_operator || 'OR'
+        };
+        console.log("Created conditional display:", JSON.stringify(formData.conditional_display));
+      }
+    }
+    
+    // Debug output before submission
+    console.log("Full form data being submitted:", JSON.stringify(formData, null, 2));
+    
+    // Submit to Supabase
+    const supabase = createClient();
+    const { data: savedData, error } = await supabase
+      .from('FormQuestions')
+      .insert(formData)
+      .select();
+    
+    if (error) {
+      console.error('Supabase error:', error);
+      throw new Error(error.message);
+    }
+    
+    console.log('Successfully saved question with data:', savedData);
+    
+    // Redirect back to questions list
+    router.push('/admin/form-questions');
+    router.refresh(); // Refresh the page to show the new question
+    
+  } catch (err: any) {
+    setError(err.message || 'An error occurred while saving the question');
+    console.error('Error saving question:', err);
+  } finally {
+    setIsSubmitting(false);
+  }
+}  
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {error && (
@@ -293,6 +376,27 @@ export default function NewQuestionForm({ categories, categoryStepMap }: NewQues
               </div>
             </div>
             
+            {isMultipleChoice && (
+              <div className="sm:col-span-3">
+                <div className="flex items-start">
+                  <div className="flex items-center h-5">
+                    <input
+                      id="allow_multiple_selections"
+                      type="checkbox"
+                      {...register('allow_multiple_selections')}
+                      className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label htmlFor="allow_multiple_selections" className="font-medium text-gray-700">
+                      Allow Multiple Selections
+                    </label>
+                    <p className="text-gray-500">If enabled, user can select multiple options</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="sm:col-span-3">
               <div className="flex items-start">
                 <div className="flex items-center h-5">
@@ -320,29 +424,51 @@ export default function NewQuestionForm({ categories, categoryStepMap }: NewQues
             <div>
               <h3 className="text-lg font-medium leading-6 text-gray-900">Answer Options</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Define the options users can select from.
+                Define the options users can select from. Optionally include images for each option.
               </p>
             </div>
             
             <div className="space-y-4">
               {answerOptions.map((option, index) => (
-                <div key={index} className="flex items-center">
-                  <input
-                    type="text"
-                    value={option}
-                    onChange={(e) => handleOptionChange(index, e.target.value)}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                    placeholder={`Option ${index + 1}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveOption(index)}
-                    className="ml-2 p-1 text-red-600 hover:text-red-800"
-                  >
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                  <div className="md:col-span-5">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Option {index + 1} Text
+                    </label>
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      placeholder={`Option ${index + 1}`}
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Image URL (optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={answerImages[index] || ''}
+                      onChange={(e) => handleImageUrlChange(index, e.target.value)}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-1 flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveOption(index)}
+                      className="mb-1 p-2 text-red-600 hover:text-red-800 rounded-md hover:bg-red-50"
+                      aria-label="Remove option"
+                    >
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               ))}
               
@@ -432,58 +558,129 @@ export default function NewQuestionForm({ categories, categoryStepMap }: NewQues
           </div>
           
           {showConditionalLogic && (
-            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div className="sm:col-span-6">
-                <label htmlFor="conditional_question" className="block text-sm font-medium text-gray-700">
-                  Show this question when:
-                </label>
-                <div className="mt-1">
-                  <select
-                    id="conditional_question"
-                    {...register('conditional_question')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  >
-                    <option value="">Select a question</option>
-                    {conditionalQuestions.map((question) => (
-                      <option key={question.question_id} value={question.question_id}>
-                        {question.question_text} (Step {question.step_number})
-                      </option>
-                    ))}
-                  </select>
+            <div>
+              <div className="rounded-md bg-blue-50 p-4 mb-6">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1 md:flex md:justify-between">
+                    <p className="text-sm text-blue-700">
+                      Conditional logic allows this question to be shown or hidden based on answers to previous questions.
+                      Only questions from earlier steps in the same category can be used as dependencies.
+                    </p>
+                  </div>
                 </div>
               </div>
               
-              <div className="sm:col-span-3">
-                <label htmlFor="conditional_operator" className="block text-sm font-medium text-gray-700">
-                  Condition Type
-                </label>
-                <div className="mt-1">
-                  <select
-                    id="conditional_operator"
-                    {...register('conditional_operator')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  >
-                    <option value="OR">Any selected (OR)</option>
-                    <option value="AND">All selected (AND)</option>
-                  </select>
+              {conditionalQuestions.length === 0 && selectedCategoryId && (
+                <div className="rounded-md bg-yellow-50 p-4 mb-6">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">No available questions</h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>
+                          There are no questions from earlier steps in this category that can be used for conditional logic.
+                          Either add questions to earlier steps first, or increase the step number of this question.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
               
-              <div className="sm:col-span-6">
-                <label className="block text-sm font-medium text-gray-700">
-                  Answer Values (What the user selected)
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="text"
-                    {...register('conditional_values')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                    placeholder="Comma-separated values, e.g.: Mains Gas,LPG"
-                  />
+              <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div className="sm:col-span-6">
+                  <label htmlFor="conditional_question" className="block text-sm font-medium text-gray-700">
+                    Show this question when:
+                  </label>
+                  <div className="mt-1">
+                    <select
+                      id="conditional_question"
+                      {...register('conditional_question')}
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      disabled={conditionalQuestions.length === 0}
+                    >
+                      <option value="">Select a question</option>
+                      {conditionalQuestions.map((question) => (
+                        <option key={question.question_id} value={question.question_id}>
+                          {question.question_text} (Step {question.step_number})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <p className="mt-2 text-sm text-gray-500">
-                  Enter comma-separated values that the selected question must have for this question to appear.
-                </p>
+                
+                {selectedQuestion && (
+                  <>
+                    <div className="sm:col-span-3">
+                      <label htmlFor="conditional_operator" className="block text-sm font-medium text-gray-700">
+                        Condition Type
+                      </label>
+                      <div className="mt-1">
+                        <select
+                          id="conditional_operator"
+                          {...register('conditional_operator')}
+                          className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        >
+                          <option value="OR">Any selected (OR)</option>
+                          <option value="AND">All selected (AND)</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="sm:col-span-6">
+                      <fieldset>
+                        <legend className="block text-sm font-medium text-gray-700">
+                          When answer is: (select one or more)
+                        </legend>
+                        <div className="mt-2 space-y-2">
+                          {selectedQuestion.is_multiple_choice && selectedQuestion.answer_options ? (
+                            selectedQuestion.answer_options.map((option: any, idx: number) => (
+                              <div key={idx} className="flex items-start">
+                                <div className="flex items-center h-5">
+                                  <input
+                                    id={`condition-value-${idx}`}
+                                    type="checkbox"
+                                    value={option}
+                                    checked={conditionalValues.includes(option)}
+                                    onChange={(e) => handleConditionalValueChange(option, e.target.checked)}
+                                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                  />
+                                </div>
+                                <div className="ml-3 text-sm">
+                                  <label htmlFor={`condition-value-${idx}`} className="font-medium text-gray-700">
+                                    {option}
+                                  </label>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="mt-2">
+                              <input
+                                type="text"
+                                {...register('conditional_values')}
+                                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                placeholder="Comma-separated values, e.g.: Mains Gas,LPG"
+                                onChange={(e) => setConditionalValues(e.target.value.split(',').map(v => v.trim()).filter(v => v))}
+                              />
+                              <p className="mt-2 text-sm text-gray-500">
+                                Enter comma-separated values that the selected question must have for this question to appear.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </fieldset>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

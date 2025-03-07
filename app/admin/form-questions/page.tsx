@@ -32,8 +32,11 @@ export default async function AdminFormQuestionsPage() {
       .order('display_order_in_step');
     
     return (
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        
         <div className="mb-6 flex justify-between items-center">
+        
           <h1 className="text-2xl font-bold text-gray-900">Form Question Management</h1>
           <Link
             href="/admin/form-questions/new"
@@ -177,6 +180,7 @@ export default async function AdminFormQuestionsPage() {
         >
           Return to Home
         </Link>
+       
       </div>
     );
   }
