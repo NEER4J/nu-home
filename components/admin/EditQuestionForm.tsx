@@ -126,7 +126,7 @@ export default function EditQuestionForm({
       }
       
       // Submit to Supabase
-      const supabase = createClient();
+      const supabase = await createClient();
       const { error } = await supabase
         .from('FormQuestions')
         .update(formData)
@@ -157,7 +157,7 @@ export default function EditQuestionForm({
       setIsSubmitting(true);
       setError(null);
       
-      const supabase = createClient();
+      const supabase = await createClient();
       
       // We're using a soft delete by setting is_deleted to true
       const { error } = await supabase

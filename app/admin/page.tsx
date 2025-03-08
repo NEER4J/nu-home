@@ -9,7 +9,7 @@ export const metadata = {
 
 export default async function AdminDashboard() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get counts for dashboard
     const { count: questionsCount } = await supabase

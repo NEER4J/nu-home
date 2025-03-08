@@ -8,9 +8,22 @@ export const metadata = {
   description: 'Edit an existing form question'
 };
 
-export default async function EditQuestionPage({ params }: { params: { id: string } }) {
+// Remove the interface entirely
+// interface PageProps {
+//   params: {
+//     id: string;
+//   };
+// }
+
+// Use the standard Next.js page props pattern for App Router
+export default async function EditQuestionPage({
+  params,
+}: {
+  params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
   const questionId = params.id;
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Fetch the question
   const { data: question, error } = await supabase

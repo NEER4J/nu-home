@@ -49,7 +49,7 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
       setIsSubmitting(true);
       setError(null);
       
-      const supabase = createClient();
+      const supabase = await createClient();
       const { error } = await supabase
         .from('ServiceCategories')
         .update({

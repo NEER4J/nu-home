@@ -15,7 +15,7 @@ export default async function EditCategoryPage({
   params: { id: string }
 }) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Fetch the category
     const { data: category, error } = await supabase

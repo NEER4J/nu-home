@@ -15,7 +15,7 @@ export default async function EditSubmissionPage({
   params: { id: string }
 }) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Fetch the submission
     const { data: submission, error } = await supabase

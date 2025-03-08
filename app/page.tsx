@@ -9,7 +9,7 @@ export const metadata = {
 };
 
 export default async function HomePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: categories } = await supabase
     .from('ServiceCategories')
     .select('*')

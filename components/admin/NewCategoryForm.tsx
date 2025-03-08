@@ -58,7 +58,7 @@ export default function NewCategoryForm() {
       setIsSubmitting(true);
       setError(null);
       
-      const supabase = createClient();
+      const supabase = await createClient();
       const { error } = await supabase
         .from('ServiceCategories')
         .insert({

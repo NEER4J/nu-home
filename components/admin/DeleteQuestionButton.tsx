@@ -25,7 +25,7 @@ export function DeleteQuestionButton({ questionId, questionText }: DeleteQuestio
       console.log(`Attempting to delete question with ID: ${questionId}`);
       
       // Use the client-side Supabase instance
-      const supabase = createClient();
+      const supabase = await createClient();
       
       // Perform a soft delete by setting is_deleted = true
       const { data, error } = await supabase

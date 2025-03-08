@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import QuoteForm from '@/components/QuoteForm'; 
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: category } = await supabase
     .from('ServiceCategories')
     .select('*')
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export const dynamicParams = true;
 
 export async function generateStaticParams() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: categories } = await supabase
     .from('ServiceCategories')
     .select('slug')
@@ -39,7 +39,7 @@ export async function generateStaticParams() {
 }
 
 export default async function ServicePage({ params }: { params: { slug: string } }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: category } = await supabase
     .from('ServiceCategories')
     .select('*')

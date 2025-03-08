@@ -8,7 +8,7 @@ export const metadata = {
 };
 
 export default async function NewQuestionPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Fetch categories
   const { data: categories } = await supabase

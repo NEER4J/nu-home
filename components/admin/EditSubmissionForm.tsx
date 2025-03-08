@@ -39,7 +39,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
       setIsSubmitting(true);
       setError(null);
       
-      const supabase = createClient();
+      const supabase = await createClient();
       const { error } = await supabase
         .from('QuoteSubmissions')
         .update({

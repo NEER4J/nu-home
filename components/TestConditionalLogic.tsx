@@ -10,7 +10,7 @@ export default function TestConditionalLogic() {
   const testInsert = async () => {
     setLoading(true);
     try {
-      const supabase = createClient();
+      const supabase = await createClient();
       
       // Create a test object with conditional_display
       const testData = {

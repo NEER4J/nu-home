@@ -29,7 +29,7 @@ export default function QuoteForm({
   // Fetch questions on component mount
   useEffect(() => {
     async function loadQuestions() {
-      const supabase = createClient();
+      const supabase = await createClient();
       
       // First, fetch the standard form questions
       const { data, error } = await supabase

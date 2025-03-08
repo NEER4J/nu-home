@@ -14,7 +14,7 @@ export default async function QuoteSubmissionsPage({
   searchParams: { [key: string]: string | string[] | undefined }
 }) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get filter parameters
     const statusFilter = searchParams.status as string || '';

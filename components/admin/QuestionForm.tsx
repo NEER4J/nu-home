@@ -50,7 +50,7 @@ export default function QuestionForm({
   const [error, setError] = useState<string | null>(null);
   
   // Initialize answer options as an array of objects with text and image properties
-  const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: string }>>(
+  const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: string }>>( 
     question?.answer_options ? 
       // If we have existing answer_options, parse them
       (Array.isArray(question.answer_options) ? 
@@ -133,7 +133,7 @@ export default function QuestionForm({
     async function fetchQuestions() {
       if (!selectedCategoryId) return;
       
-      const supabase = createClient();
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('FormQuestions')
         .select('question_id, question_text, step_number, is_multiple_choice, answer_options')
@@ -236,7 +236,7 @@ export default function QuestionForm({
         }
       }
       
-      const supabase = createClient();
+      const supabase = await createClient();
       
       if (isEditMode && question) {
         // Update existing question
@@ -278,7 +278,7 @@ export default function QuestionForm({
       setIsSubmitting(true);
       setError(null);
       
-      const supabase = createClient();
+      const supabase = await createClient();
       
       // We're using a soft delete by setting is_deleted to true
       const { error } = await supabase

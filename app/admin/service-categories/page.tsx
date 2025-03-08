@@ -10,7 +10,7 @@ export const metadata = {
 
 export default async function ServiceCategoriesPage() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Fetch all service categories
     const { data: categories, error } = await supabase

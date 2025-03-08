@@ -15,7 +15,7 @@ export default async function AdminFormQuestionsPage({
   searchParams: { category?: string; status?: string }
 }) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Fetch all service categories
     const { data: categories } = await supabase
