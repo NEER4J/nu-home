@@ -1,13 +1,19 @@
 // app/admin/form-questions/page.tsx
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
+import { AdminFilterControls } from '@/components/admin/FilterControls';
+import { DeleteQuestionButton } from '@/components/admin/DeleteQuestionButton';
 
 export const metadata = {
   title: 'Form Question Management | Nu-Home Admin',
   description: 'Manage form questions for quote submission forms'
 };
 
-export default async function AdminFormQuestionsPage() {
+export default async function AdminFormQuestionsPage({
+  searchParams
+}: {
+  searchParams: { category?: string; status?: string }
+}) {
   try {
     const supabase = createClient();
     
@@ -17,8 +23,8 @@ export default async function AdminFormQuestionsPage() {
       .select('*')
       .order('name');
     
-    // Fetch all questions with their related service category
-    const { data: questions } = await supabase
+    // Base query for questions
+    let query = supabase
       .from('FormQuestions')
       .select(`
         *,
@@ -26,17 +32,26 @@ export default async function AdminFormQuestionsPage() {
           name
         )
       `)
-      .eq('is_deleted', false)
+      .eq('is_deleted', false);
+    
+    // Apply filters based on searchParams
+    if (searchParams.category) {
+      query = query.eq('service_category_id', searchParams.category);
+    }
+    
+    if (searchParams.status) {
+      query = query.eq('status', searchParams.status);
+    }
+    
+    // Fetch filtered questions
+    const { data: questions } = await query
       .order('service_category_id')
       .order('step_number')
       .order('display_order_in_step');
     
     return (
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        
         <div className="mb-6 flex justify-between items-center">
-        
           <h1 className="text-2xl font-bold text-gray-900">Form Question Management</h1>
           <Link
             href="/admin/form-questions/new"
@@ -49,41 +64,11 @@ export default async function AdminFormQuestionsPage() {
         {/* Filter by Service Category */}
         <div className="mb-6 bg-white p-4 rounded-md shadow-sm">
           <h2 className="text-lg font-medium text-gray-900 mb-3">Filter Questions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                Service Category
-              </label>
-              <select
-                id="category-filter"
-                name="category"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                defaultValue=""
-              >
-                <option value="">All Categories</option>
-                {categories?.map((category) => (
-                  <option key={category.service_category_id} value={category.service_category_id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                id="status-filter"
-                name="status"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                defaultValue="active"
-              >
-                <option value="">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
+          <AdminFilterControls 
+            categories={categories || []} 
+            selectedCategory={searchParams.category || ''} 
+            selectedStatus={searchParams.status || ''} 
+          />
         </div>
         
         {/* Questions Table */}
@@ -106,26 +91,36 @@ export default async function AdminFormQuestionsPage() {
                           {question.question_text}
                         </p>
                       </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                      <div className="mt-2 flex flex-wrap items-center text-sm text-gray-500">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2 mb-1">
                           {question.ServiceCategories?.name}
                         </span>
-                        <span className="mr-2">
+                        <span className="mr-2 mb-1">
                           Step {question.step_number} (Order: {question.display_order_in_step})
                         </span>
-                        <span className="mr-2">
+                        <span className="mr-2 mb-1">
                           {question.is_multiple_choice ? 'Multiple Choice' : 'Text Input'}
                         </span>
+                        {question.is_multiple_choice && question.allow_multiple_selections && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mr-2 mb-1">
+                            Multiple Selections
+                          </span>
+                        )}
                         {question.is_required && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 mr-2 mb-1">
                             Required
+                          </span>
+                        )}
+                        {question.has_helper_video && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mr-2 mb-1">
+                            Has Video
                           </span>
                         )}
                       </div>
                       {question.conditional_display && (
                         <div className="mt-1 text-xs text-gray-500">
                           <span className="font-medium">Conditional Display:</span> Shows when question {question.conditional_display.dependent_on_question_id.substring(0, 8)}... 
-                          is {question.conditional_display.logical_operator} {question.conditional_display.show_when_answer_equals.join(', ')}
+                          is {question.conditional_display.logical_operator === 'OR' ? 'any of' : 'all of'} {question.conditional_display.show_when_answer_equals.join(', ')}
                         </div>
                       )}
                     </div>
@@ -136,12 +131,10 @@ export default async function AdminFormQuestionsPage() {
                       >
                         Edit
                       </Link>
-                      <button
-                        type="button"
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-5 font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
+                      <DeleteQuestionButton 
+                        questionId={question.question_id} 
+                        questionText={question.question_text}
+                      />
                     </div>
                   </div>
                 </li>
@@ -180,7 +173,6 @@ export default async function AdminFormQuestionsPage() {
         >
           Return to Home
         </Link>
-       
       </div>
     );
   }
