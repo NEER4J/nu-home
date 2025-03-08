@@ -28,8 +28,7 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema> & {
-  answer_options: string[];
-  answer_images: string[];
+  answer_options: Array<{ text: string, image: string }>;
 };
 
 interface QuestionFormProps {
@@ -50,12 +49,25 @@ export default function QuestionForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Initialize answer options and images
-  const [answerOptions, setAnswerOptions] = useState<string[]>(
-    question?.answer_options || ['']
-  );
-  const [answerImages, setAnswerImages] = useState<string[]>(
-    question?.answer_images || ['']
+  // Initialize answer options as an array of objects with text and image properties
+  const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: string }>>(
+    question?.answer_options ? 
+      // If we have existing answer_options, parse them
+      (Array.isArray(question.answer_options) ? 
+        // If it's already an array of objects with text and image, use as is
+        (typeof question.answer_options[0] === 'object' && question.answer_options[0].hasOwnProperty('text') ?
+          question.answer_options as Array<{ text: string, image: string }> :
+          // Otherwise, it's an array of strings, convert to objects
+          question.answer_options.map((opt: string, index: number) => ({
+            text: opt,
+            image: question.answer_images && question.answer_images[index] ? question.answer_images[index] : ''
+          }))
+        ) :
+        // Fallback
+        [{ text: '', image: '' }]
+      ) :
+      // Default for new questions
+      [{ text: '', image: '' }]
   );
   
   // Extract conditional logic values if they exist (for edit mode)
@@ -93,8 +105,7 @@ export default function QuestionForm({
       helper_video_url: question?.helper_video_url || '',
       is_required: question?.is_required !== undefined ? question.is_required : true,
       status: (question?.status as 'active' | 'inactive') || 'active',
-      answer_options: question?.answer_options || [''],
-      answer_images: question?.answer_images || [''],
+      answer_options: answerOptions,
       conditional_question: conditionalLogic?.dependent_on_question_id || '',
       conditional_values: conditionalLogic?.show_when_answer_equals || [],
       conditional_operator: conditionalLogic?.logical_operator || 'OR',
@@ -167,28 +178,19 @@ export default function QuestionForm({
   }, [conditionalValues, setValue, showConditionalLogic]);
 
   const handleAddOption = () => {
-    setAnswerOptions([...answerOptions, '']);
-    setAnswerImages([...answerImages, '']);
+    setAnswerOptions([...answerOptions, { text: '', image: '' }]);
   };
   
-  const handleOptionChange = (index: number, value: string) => {
+  const handleOptionChange = (index: number, field: 'text' | 'image', value: string) => {
     const newOptions = [...answerOptions];
-    newOptions[index] = value;
+    newOptions[index][field] = value;
     setAnswerOptions(newOptions);
-  };
-  
-  const handleImageUrlChange = (index: number, value: string) => {
-    const newImages = [...answerImages];
-    newImages[index] = value;
-    setAnswerImages(newImages);
   };
   
   const handleRemoveOption = (index: number) => {
     if (answerOptions.length <= 1) return;
     const newOptions = answerOptions.filter((_, i) => i !== index);
-    const newImages = answerImages.filter((_, i) => i !== index);
     setAnswerOptions(newOptions);
-    setAnswerImages(newImages);
   };
   
   const onSubmit = async (data: FormValues) => {
@@ -204,13 +206,12 @@ export default function QuestionForm({
         display_order_in_step: data.display_order_in_step,
         is_multiple_choice: data.is_multiple_choice || false,
         allow_multiple_selections: data.is_multiple_choice ? data.allow_multiple_selections || false : false,
+        // Store the entire objects array as the answer_options
         answer_options: data.is_multiple_choice ? 
-          answerOptions.filter(opt => opt.trim() !== '') : 
+          answerOptions.filter(opt => opt.text.trim() !== '') : 
           null,
-        answer_images: data.is_multiple_choice ?
-          answerOptions.map((opt, index) => answerImages[index]?.trim() || null)
-            .filter((_, index) => answerOptions[index].trim() !== '') :
-          null,
+        // answer_images is no longer needed as we store image URLs in answer_options
+        answer_images: null,
         has_helper_video: data.has_helper_video || false,
         helper_video_url: data.has_helper_video ? data.helper_video_url : null,
         is_required: data.is_required || false,
@@ -469,7 +470,7 @@ export default function QuestionForm({
           </div>
         </div>
         
-        {/* Answer Options */}
+        {/* Answer Options - Updated to use combined text/image object */}
         {isMultipleChoice && (
           <div className="space-y-6 pt-6">
             <div>
@@ -488,8 +489,8 @@ export default function QuestionForm({
                     </label>
                     <input
                       type="text"
-                      value={option}
-                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                      value={option.text}
+                      onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
                       className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                       placeholder={`Option ${index + 1}`}
                     />
@@ -501,8 +502,8 @@ export default function QuestionForm({
                     </label>
                     <input
                       type="url"
-                      value={answerImages[index] || ''}
-                      onChange={(e) => handleImageUrlChange(index, e.target.value)}
+                      value={option.image}
+                      onChange={(e) => handleOptionChange(index, 'image', e.target.value)}
                       className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                       placeholder="https://example.com/image.jpg"
                     />

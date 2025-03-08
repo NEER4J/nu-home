@@ -45,23 +45,26 @@ export default function QuestionsStep({
   };
   
   // Handle multiple choice selection
-  const handleMultipleChoiceSelection = (questionId: string, option: string, allowMultiple: boolean) => {
+  const handleMultipleChoiceSelection = (questionId: string, option: string | { text: string; image: string }, allowMultiple: boolean) => {
+    // Get option value (handle both string and object formats)
+    const optionValue = typeof option === 'object' ? option.text : option;
+    
     if (allowMultiple) {
       // If the question allows multiple selections
       const currentValues = Array.isArray(formValues[questionId]) 
         ? [...formValues[questionId]] 
         : formValues[questionId] ? [formValues[questionId]] : [];
       
-      if (currentValues.includes(option)) {
+      if (currentValues.includes(optionValue)) {
         // Remove if already selected
-        onValueChange(questionId, currentValues.filter(val => val !== option));
+        onValueChange(questionId, currentValues.filter(val => val !== optionValue));
       } else {
         // Add if not selected
-        onValueChange(questionId, [...currentValues, option]);
+        onValueChange(questionId, [...currentValues, optionValue]);
       }
     } else {
       // Single selection (traditional radio button behavior)
-      onValueChange(questionId, option);
+      onValueChange(questionId, optionValue);
     }
   };
   
@@ -104,14 +107,17 @@ export default function QuestionsStep({
             {question.is_multiple_choice ? (
               <div className={`grid ${question.answer_options && question.answer_options.length > 2 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'} gap-6 max-w-2xl mx-auto`}>
                 {question.answer_options?.map((option, idx) => {
-                  const hasImage = question.answer_images && question.answer_images[idx];
+                  // Handle both old and new data formats
+                  const isOptionObject = typeof option === 'object' && option !== null;
+                  const optionText = isOptionObject ? option.text : option;
+                  const optionImage = isOptionObject ? option.image : (question.answer_images && question.answer_images[idx]);
                   
                   // Check if this option is selected
                   const isSelected = allowMultipleSelections
                     ? Array.isArray(formValues[question.question_id]) 
-                      ? formValues[question.question_id]?.includes(option)
-                      : formValues[question.question_id] === option
-                    : formValues[question.question_id] === option;
+                      ? formValues[question.question_id]?.includes(optionText)
+                      : formValues[question.question_id] === optionText
+                    : formValues[question.question_id] === optionText;
                   
                   return (
                     <div 
@@ -125,14 +131,14 @@ export default function QuestionsStep({
                       onClick={() => handleMultipleChoiceSelection(question.question_id, option, allowMultipleSelections)}
                     >
                       <div className="flex flex-col items-center">
-                        {hasImage && (
-                          <div className="mb-4 p-4">
+                        {optionImage && (
+                          <div className="">
                             <img 
-                              src={question.answer_images![idx]}
-                              alt={option}
-                              width={60}
-                              height={60}
-                              className="w-auto h-12"
+                              src={optionImage}
+                              alt={optionText}
+                              width={200}
+                              height={200}
+                              className="w-[140px] h-[140px]"
                             />
                           </div>
                         )}
@@ -146,7 +152,7 @@ export default function QuestionsStep({
                               )}
                             </div>
                           )}
-                          <span className="font-medium text-lg">{option}</span>
+                          <span className="font-medium text-lg">{optionText}</span>
                         </div>
                       </div>
                     </div>

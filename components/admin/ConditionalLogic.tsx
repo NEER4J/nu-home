@@ -29,6 +29,14 @@ export default function ConditionalLogic({
   selectedCategoryId
 }: ConditionalLogicProps) {
   
+  // Helper function to extract option text from either string or object format
+  const getOptionText = (option: any): string => {
+    if (typeof option === 'object' && option !== null && 'text' in option) {
+      return option.text;
+    }
+    return option;
+  };
+  
   const handleConditionalValueChange = (value: string, checked: boolean) => {
     if (checked) {
       const newValues = [...conditionalValues, value];
@@ -145,25 +153,30 @@ export default function ConditionalLogic({
                     </legend>
                     <div className="mt-2 space-y-2">
                       {selectedQuestion.is_multiple_choice && selectedQuestion.answer_options ? (
-                        selectedQuestion.answer_options.map((option: any, idx: number) => (
-                          <div key={idx} className="flex items-start">
-                            <div className="flex items-center h-5">
-                              <input
-                                id={`condition-value-${idx}`}
-                                type="checkbox"
-                                value={option}
-                                checked={conditionalValues.includes(option)}
-                                onChange={(e) => handleConditionalValueChange(option, e.target.checked)}
-                                className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                              />
+                        selectedQuestion.answer_options.map((option: any, idx: number) => {
+                          // Extract the text from the option (whether it's an object or a string)
+                          const optionText = getOptionText(option);
+                          
+                          return (
+                            <div key={idx} className="flex items-start">
+                              <div className="flex items-center h-5">
+                                <input
+                                  id={`condition-value-${idx}`}
+                                  type="checkbox"
+                                  value={optionText}
+                                  checked={conditionalValues.includes(optionText)}
+                                  onChange={(e) => handleConditionalValueChange(optionText, e.target.checked)}
+                                  className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                />
+                              </div>
+                              <div className="ml-3 text-sm">
+                                <label htmlFor={`condition-value-${idx}`} className="font-medium text-gray-700">
+                                  {optionText}
+                                </label>
+                              </div>
                             </div>
-                            <div className="ml-3 text-sm">
-                              <label htmlFor={`condition-value-${idx}`} className="font-medium text-gray-700">
-                                {option}
-                              </label>
-                            </div>
-                          </div>
-                        ))
+                          );
+                        })
                       ) : (
                         <div className="mt-2">
                           <input
