@@ -22,32 +22,16 @@ export default function QuestionsStep({
 }: QuestionsStepProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  // Check if a question should be displayed based on conditional logic
-  const shouldDisplayQuestion = (question: FormQuestion): boolean => {
-    if (!question.conditional_display) return true;
-    
-    const { dependent_on_question_id, show_when_answer_equals, logical_operator } = question.conditional_display;
-    const dependentAnswer = formValues[dependent_on_question_id];
-    
-    if (!dependentAnswer) return false;
-    
-    if (logical_operator === 'OR') {
-      return show_when_answer_equals.includes(dependentAnswer);
-    } else {
-      // AND logic
-      return show_when_answer_equals.every(value => {
-        if (Array.isArray(dependentAnswer)) {
-          return dependentAnswer.includes(value);
-        }
-        return dependentAnswer === value;
-      });
-    }
-  };
-  
-  // Handle multiple choice selection
+  // Handle multiple choice selection and auto proceed to next question
   const handleMultipleChoiceSelection = (questionId: string, option: string | { text: string; image: string }, allowMultiple: boolean) => {
+    // Ensure questionId is valid
+    if (!questionId || questionId === 'undefined') {
+      console.error('Invalid question ID in selection handler:', questionId);
+      return;
+    }
+    
     // Get option value (handle both string and object formats)
-    const optionValue = typeof option === 'object' ? option.text : option;
+    const optionValue = typeof option === 'object' && option !== null ? option.text : String(option);
     
     if (allowMultiple) {
       // If the question allows multiple selections
@@ -57,14 +41,35 @@ export default function QuestionsStep({
       
       if (currentValues.includes(optionValue)) {
         // Remove if already selected
-        onValueChange(questionId, currentValues.filter(val => val !== optionValue));
+        const newValues = currentValues.filter(val => val !== optionValue);
+        // Store as string with comma separator if there are multiple values
+        const formattedValue = newValues.length > 0 ? newValues.join(', ') : '';
+        onValueChange(questionId, formattedValue);
       } else {
         // Add if not selected
-        onValueChange(questionId, [...currentValues, optionValue]);
+        const newValues = [...currentValues, optionValue];
+        // Join multiple values with comma separator
+        const formattedValue = newValues.join(', ');
+        onValueChange(questionId, formattedValue);
       }
     } else {
-      // Single selection (traditional radio button behavior)
+      // Single selection - just use the option text
       onValueChange(questionId, optionValue);
+      
+      // Automatically proceed to next question for single-choice selections
+      onNext();
+    }
+  };
+  
+  // Handle text input change and check for Enter key press
+  const handleTextInputChange = (questionId: string, value: string) => {
+    onValueChange(questionId, value);
+  };
+  
+  const handleTextInputKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      validateResponses() && onNext();
     }
   };
   
@@ -73,7 +78,7 @@ export default function QuestionsStep({
     const newErrors: Record<string, string> = {};
     
     questions.forEach(question => {
-      if (shouldDisplayQuestion(question) && question.is_required && !formValues[question.question_id]) {
+      if (question.is_required && !formValues[question.question_id]) {
         newErrors[question.question_id] = 'This field is required';
       }
     });
@@ -82,18 +87,25 @@ export default function QuestionsStep({
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleNext = () => {
-    if (validateResponses()) {
-      onNext();
+  // Check if an option is selected in a multi-select question
+  const isOptionSelected = (questionId: string, optionText: string, allowMultiple: boolean) => {
+    const currentValue = formValues[questionId];
+    
+    if (!currentValue) return false;
+    
+    if (allowMultiple) {
+      // For multiple selections, check if the option exists in the comma-separated string
+      const selectedOptions = currentValue.split(', ');
+      return selectedOptions.includes(optionText);
+    } else {
+      // For single selection, direct comparison
+      return currentValue === optionText;
     }
   };
   
   return (
     <div>
       {questions.map(question => {
-        // Skip questions that shouldn't be displayed based on conditional logic
-        if (!shouldDisplayQuestion(question)) return null;
-        
         // Determine if multiple selections are allowed
         const allowMultipleSelections = question.is_multiple_choice && question.allow_multiple_selections;
         
@@ -115,11 +127,7 @@ export default function QuestionsStep({
                       : (question.answer_images && question.answer_images[idx]);
                   
                   // Check if this option is selected
-                  const isSelected = allowMultipleSelections
-                    ? Array.isArray(formValues[question.question_id]) 
-                      ? formValues[question.question_id]?.includes(optionText)
-                      : formValues[question.question_id] === optionText
-                    : formValues[question.question_id] === optionText;
+                  const isSelected = isOptionSelected(question.question_id, optionText, !!allowMultipleSelections);
                   
                   return (
                     <div 
@@ -166,7 +174,8 @@ export default function QuestionsStep({
                 <input
                   type="text"
                   value={formValues[question.question_id] || ''}
-                  onChange={(e) => onValueChange(question.question_id, e.target.value)}
+                  onChange={(e) => handleTextInputChange(question.question_id, e.target.value)}
+                  onKeyPress={handleTextInputKeyPress}
                   className="mt-1 block w-full px-4 py-3 text-lg border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Your answer"
                 />
@@ -212,17 +221,20 @@ export default function QuestionsStep({
             onClick={onPrevious}
             className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
-            Previous
+            Back
           </button>
         )}
         
-        <button
-          type="button"
-          onClick={handleNext}
-          className={`px-6 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 ${!showPrevious ? 'ml-auto' : ''}`}
-        >
-          Next
-        </button>
+        {/* Next button only shown for text input questions or multiple-selection questions */}
+        {questions.some(q => !q.is_multiple_choice || (q.is_multiple_choice && q.allow_multiple_selections)) && (
+          <button
+            type="button"
+            onClick={() => validateResponses() && onNext()}
+            className={`px-6 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 ${!showPrevious ? 'ml-auto' : ''}`}
+          >
+            Next
+          </button>
+        )}
       </div>
     </div>
   );
