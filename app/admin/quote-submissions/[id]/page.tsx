@@ -11,9 +11,13 @@ export const metadata = {
 export default async function ViewSubmissionPage({
   params
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   try {
+    // Resolve the params Promise
+    const resolvedParams = await params;
+    const submissionId = resolvedParams.id;
+    
     const supabase = await createClient();
     
     // Fetch the submission
@@ -26,7 +30,7 @@ export default async function ViewSubmissionPage({
           slug
         )
       `)
-      .eq('submission_id', params.id)
+      .eq('submission_id', submissionId)
       .single();
     
     if (error || !submission) {
@@ -39,7 +43,7 @@ export default async function ViewSubmissionPage({
           <h1 className="text-2xl font-bold text-gray-900">View Quote Submission</h1>
           <div className="flex space-x-3">
             <Link
-              href={`/admin/quote-submissions/${params.id}/edit`}
+              href={`/admin/quote-submissions/${submissionId}/edit`}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
             >
               Edit Submission

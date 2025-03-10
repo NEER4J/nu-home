@@ -12,8 +12,11 @@ export const metadata = {
 export default async function AdminFormQuestionsPage({
   searchParams
 }: {
-  searchParams: { category?: string; status?: string }
+  searchParams: Promise<{ category?: string; status?: string }>
 }) {
+  // Resolve the searchParams Promise
+  const resolvedSearchParams = await searchParams;
+  
   try {
     const supabase = await createClient();
     
@@ -34,13 +37,13 @@ export default async function AdminFormQuestionsPage({
       `)
       .eq('is_deleted', false);
     
-    // Apply filters based on searchParams
-    if (searchParams.category) {
-      query = query.eq('service_category_id', searchParams.category);
+    // Apply filters based on resolvedSearchParams
+    if (resolvedSearchParams.category) {
+      query = query.eq('service_category_id', resolvedSearchParams.category);
     }
     
-    if (searchParams.status) {
-      query = query.eq('status', searchParams.status);
+    if (resolvedSearchParams.status) {
+      query = query.eq('status', resolvedSearchParams.status);
     }
     
     // Fetch filtered questions
@@ -66,8 +69,8 @@ export default async function AdminFormQuestionsPage({
           <h2 className="text-lg font-medium text-gray-900 mb-3">Filter Questions</h2>
           <AdminFilterControls 
             categories={categories || []} 
-            selectedCategory={searchParams.category || ''} 
-            selectedStatus={searchParams.status || ''} 
+            selectedCategory={resolvedSearchParams.category || ''} 
+            selectedStatus={resolvedSearchParams.status || ''} 
           />
         </div>
         

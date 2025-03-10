@@ -1,4 +1,3 @@
-// app/api/quote-submissions/route.ts
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -51,7 +50,7 @@ export async function POST(req: NextRequest) {
         phone: formData.phone || null,
         city: formData.city || null,
         postcode: formData.postcode,
-        ip_address: req.headers.get('x-forwarded-for') || req.ip || null,
+        ip_address: req.headers.get('x-forwarded-for') || null,
         user_agent: req.headers.get('user-agent') || null,
         referral_source: req.headers.get('referer') || null,
         status: 'new',

@@ -11,16 +11,19 @@ export const metadata = {
 export default async function QuoteSubmissionsPage({
   searchParams
 }: {
-  searchParams: { [key: string]: string | string[] | undefined }
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   try {
-    const supabase = await createClient();
+    // Resolve the searchParams Promise
+    const resolvedSearchParams = await searchParams;
     
     // Get filter parameters
-    const statusFilter = searchParams.status as string || '';
-    const categoryFilter = searchParams.category as string || '';
-    const page = parseInt(searchParams.page as string || '1', 10);
+    const statusFilter = resolvedSearchParams.status as string || '';
+    const categoryFilter = resolvedSearchParams.category as string || '';
+    const page = parseInt(resolvedSearchParams.page as string || '1', 10);
     const pageSize = 10;
+    
+    const supabase = await createClient();
     
     // Fetch all service categories for filter dropdown
     const { data: categories } = await supabase

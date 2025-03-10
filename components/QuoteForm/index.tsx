@@ -1,4 +1,3 @@
-// components/QuoteForm/index.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -14,6 +13,12 @@ interface QuoteFormProps {
   onSubmitSuccess?: (data: any) => void;
 }
 
+// Define a type for the form values
+interface FormValues {
+  [key: string]: any;
+  option_images?: Record<string, string[]>;
+}
+
 export default function QuoteForm({ 
   serviceCategoryId, 
   serviceCategorySlug,
@@ -24,7 +29,7 @@ export default function QuoteForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [formValues, setFormValues] = useState<any>({});
+  const [formValues, setFormValues] = useState<FormValues>({});
   
   // Fetch questions on component mount
   useEffect(() => {
@@ -75,7 +80,7 @@ export default function QuoteForm({
           });
           
           // Store images in form values for use in components
-          setFormValues(prev => ({
+          setFormValues((prev: FormValues) => ({
             ...prev,
             option_images: optionImages
           }));
@@ -98,7 +103,7 @@ export default function QuoteForm({
         });
         
         if (Object.keys(optionImages).length > 0) {
-          setFormValues(prev => ({
+          setFormValues((prev: FormValues) => ({
             ...prev,
             option_images: optionImages
           }));
@@ -123,7 +128,7 @@ export default function QuoteForm({
         });
         
         if (Object.keys(optionImages).length > 0) {
-          setFormValues(prev => ({
+          setFormValues((prev: FormValues) => ({
             ...prev,
             option_images: optionImages
           }));
@@ -147,7 +152,7 @@ export default function QuoteForm({
   
   // Handle change of form values
   const handleValueChange = (questionId: string, value: any) => {
-    setFormValues(prev => ({
+    setFormValues((prev: FormValues) => ({
       ...prev,
       [questionId]: value
     }));

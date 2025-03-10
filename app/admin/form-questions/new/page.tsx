@@ -1,4 +1,3 @@
-// app/admin/form-questions/new/page.tsx
 import { createClient } from '@/utils/supabase/server';
 import { QuestionForm } from '@/components/admin/QuestionForm';
 
@@ -23,7 +22,8 @@ export default async function NewQuestionPage() {
     .order('step_number', { ascending: false });
   
   // Create a map of category_id to max step number
-  const categoryStepMap = {};
+  const categoryStepMap: Record<string | number, number> = {};
+  
   lastStepsData?.forEach(question => {
     const categoryId = question.service_category_id;
     if (!categoryStepMap[categoryId] || question.step_number > categoryStepMap[categoryId]) {

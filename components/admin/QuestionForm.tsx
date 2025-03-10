@@ -50,25 +50,41 @@ export default function QuestionForm({
   const [error, setError] = useState<string | null>(null);
   
   // Initialize answer options as an array of objects with text and image properties
-  const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: string }>>( 
-    question?.answer_options ? 
-      // If we have existing answer_options, parse them
-      (Array.isArray(question.answer_options) ? 
-        // If it's already an array of objects with text and image, use as is
-        (typeof question.answer_options[0] === 'object' && question.answer_options[0].hasOwnProperty('text') ?
-          question.answer_options as Array<{ text: string, image: string }> :
-          // Otherwise, it's an array of strings, convert to objects
-          question.answer_options.map((opt: string, index: number) => ({
-            text: opt,
-            image: question.answer_images && question.answer_images[index] ? question.answer_images[index] : ''
-          }))
-        ) :
-        // Fallback
-        [{ text: '', image: '' }]
-      ) :
-      // Default for new questions
-      [{ text: '', image: '' }]
-  );
+// Replace the problematic section with this code:
+// Replace the problematic section with this code:
+const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: string }>>(() => {
+  if (!question?.answer_options) {
+    return [{ text: '', image: '' }]; // Default for new questions
+  }
+  
+  if (!Array.isArray(question.answer_options)) {
+    return [{ text: '', image: '' }];
+  }
+  
+  if (question.answer_options.length === 0) {
+    return [{ text: '', image: '' }];
+  }
+  
+  // Check if the first item is an object with a 'text' property
+  const firstItem = question.answer_options[0];
+  if (typeof firstItem === 'object' && firstItem !== null && 'text' in firstItem) {
+    // It's already the right format, but we need to properly type it
+    return question.answer_options.map((opt: any) => ({
+      text: opt.text || '',
+      image: opt.image || ''
+    }));
+  }
+  
+  // Convert from array of strings to array of objects
+  return question.answer_options.map((opt: any, index: number) => ({
+    text: typeof opt === 'string' ? opt : '',
+    image: (question as any).answer_images && 
+           Array.isArray((question as any).answer_images) && 
+           (question as any).answer_images[index] 
+      ? (question as any).answer_images[index] 
+      : ''
+  }));
+});
   
   // Extract conditional logic values if they exist (for edit mode)
   const conditionalLogic = question?.conditional_display || null;
@@ -100,7 +116,7 @@ export default function QuestionForm({
       step_number: question?.step_number || 1,
       display_order_in_step: question?.display_order_in_step || 1,
       is_multiple_choice: question?.is_multiple_choice || false,
-      allow_multiple_selections: question?.allow_multiple_selections || false,
+      allow_multiple_selections: (question as any)?.allow_multiple_selections || false,
       has_helper_video: question?.has_helper_video || false,
       helper_video_url: question?.helper_video_url || '',
       is_required: question?.is_required !== undefined ? question.is_required : true,

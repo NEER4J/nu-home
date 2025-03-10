@@ -2,12 +2,19 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { ServiceCategory } from '@/types/database.types'; // Import your ServiceCategory type
+
+interface SubmissionFiltersProps {
+  statusFilter?: string;
+  categoryFilter?: string;
+  categories?: ServiceCategory[];
+}
 
 export default function SubmissionFilters({
   statusFilter,
   categoryFilter,
-  categories
-}) {
+  categories = []
+}: SubmissionFiltersProps) {
   const router = useRouter();
   const [status, setStatus] = useState(statusFilter || '');
   const [category, setCategory] = useState(categoryFilter || '');
@@ -39,12 +46,12 @@ export default function SubmissionFilters({
   };
 
   // Handle status change
-  const handleStatusChange = (e) => {
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setStatus(e.target.value);
   };
 
   // Handle category change
-  const handleCategoryChange = (e) => {
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setCategory(e.target.value);
   };
 
@@ -54,7 +61,7 @@ export default function SubmissionFilters({
     if (status !== statusFilter || category !== categoryFilter) {
       applyFilters();
     }
-  }, [status, category]);
+  }, [status, category, statusFilter, categoryFilter]);
 
   return (
     <div className="mb-6 bg-white p-4 rounded-md shadow-sm">

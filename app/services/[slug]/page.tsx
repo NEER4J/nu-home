@@ -2,12 +2,14 @@ import { createClient } from '@/utils/supabase/server';
 import { notFound } from 'next/navigation';
 import QuoteForm from '@/components/QuoteForm'; 
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = await params;
+  
   const supabase = await createClient();
   const { data: category } = await supabase
     .from('ServiceCategories')
     .select('*')
-    .eq('slug', params.slug)
+    .eq('slug', resolvedParams.slug)
     .eq('is_active', true)
     .single();
 
@@ -38,12 +40,14 @@ export async function generateStaticParams() {
   }));
 }
 
-export default async function ServicePage({ params }: { params: { slug: string } }) {
+export default async function ServicePage({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = await params;
+  
   const supabase = await createClient();
   const { data: category } = await supabase
     .from('ServiceCategories')
     .select('*')
-    .eq('slug', params.slug)
+    .eq('slug', resolvedParams.slug)
     .eq('is_active', true)
     .single();
 
@@ -54,17 +58,15 @@ export default async function ServicePage({ params }: { params: { slug: string }
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-       
-        
         <div className="">
           {/* Quote form section with enhanced styling */}
           <div className="p-6">
-                {/* QuoteForm is a client component, so we need to ensure it's properly loaded */}
-                <QuoteForm 
-                  serviceCategoryId={category.service_category_id} 
-                  serviceCategorySlug={category.slug}
-                />
-              </div>
+            {/* QuoteForm is a client component, so we need to ensure it's properly loaded */}
+            <QuoteForm 
+              serviceCategoryId={category.service_category_id} 
+              serviceCategorySlug={category.slug}
+            />
+          </div>
         </div>
       </div>
     </div>

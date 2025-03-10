@@ -12,16 +12,20 @@ export const metadata = {
 export default async function EditCategoryPage({
   params
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   try {
+    // Resolve the params Promise
+    const resolvedParams = await params;
+    const categoryId = resolvedParams.id;
+    
     const supabase = await createClient();
     
     // Fetch the category
     const { data: category, error } = await supabase
       .from('ServiceCategories')
       .select('*')
-      .eq('service_category_id', params.id)
+      .eq('service_category_id', categoryId)
       .single();
     
     if (error || !category) {
@@ -32,7 +36,7 @@ export default async function EditCategoryPage({
     const { count } = await supabase
       .from('FormQuestions')
       .select('*', { count: 'exact', head: true })
-      .eq('service_category_id', params.id)
+      .eq('service_category_id', categoryId)
       .eq('is_deleted', false);
     
     return (

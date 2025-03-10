@@ -24,16 +24,25 @@ export interface ServiceCategory {
     step_number: number;
     display_order_in_step: number;
     is_multiple_choice: boolean;
-    answer_options: string[] | null;
     has_helper_video: boolean;
     helper_video_url: string | null;
     is_required: boolean;
-    conditional_display: ConditionalDisplay | null;
     status: 'active' | 'inactive';
     created_by: string | null;
     created_at: string;
     updated_at: string;
-    is_deleted: boolean;
+    allow_multiple_selections?: boolean; // Add this property
+    answer_options?: any[];
+    answer_images?: string[];
+    conditional_display?: {
+      dependent_on_question_id: string;
+      show_when_answer_equals: any[];
+      logical_operator: 'AND' | 'OR';
+    };
+    is_deleted?: boolean;
+    ServiceCategories?: {
+      name: string;
+    };
   }
   
   export interface FormAnswer {

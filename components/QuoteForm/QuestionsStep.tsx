@@ -106,11 +106,13 @@ export default function QuestionsStep({
             
             {question.is_multiple_choice ? (
               <div className={`grid ${question.answer_options && question.answer_options.length > 2 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'} gap-6 max-w-2xl mx-auto`}>
-                {question.answer_options?.map((option, idx) => {
-                  // Handle both old and new data formats
-                  const isOptionObject = typeof option === 'object' && option !== null;
-                  const optionText = isOptionObject ? option.text : option;
-                  const optionImage = isOptionObject ? option.image : (question.answer_images && question.answer_images[idx]);
+                {question.answer_options?.map((option: any, idx) => {
+                    // Handle both old and new data formats with explicit typing
+                    const isOptionObject = typeof option === 'object' && option !== null;
+                    const optionText = isOptionObject ? (option as any).text : option as string;
+                    const optionImage = isOptionObject 
+                      ? (option as any).image 
+                      : (question.answer_images && question.answer_images[idx]);
                   
                   // Check if this option is selected
                   const isSelected = allowMultipleSelections
@@ -128,7 +130,7 @@ export default function QuestionsStep({
                           : 'border-gray-200 hover:border-blue-300'} 
                         cursor-pointer transition-all hover:shadow-lg text-center
                       `}
-                      onClick={() => handleMultipleChoiceSelection(question.question_id, option, allowMultipleSelections)}
+                      onClick={() => handleMultipleChoiceSelection(question.question_id, option, !!allowMultipleSelections)}
                     >
                       <div className="flex flex-col items-center">
                         {optionImage && (

@@ -3,26 +3,21 @@ import { createClient } from '@/utils/supabase/server';
 import { QuestionForm } from '@/components/admin/QuestionForm';
 import { notFound } from 'next/navigation';
 
-export const metadata = {
-  title: 'Edit Question | Nu-Home Admin',
-  description: 'Edit an existing form question'
-};
+// Define PageProps with params as a Promise
+interface PageProps {
+  params: Promise<{
+    id: string;
+  }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}
 
-// Remove the interface entirely
-// interface PageProps {
-//   params: {
-//     id: string;
-//   };
-// }
-
-// Use the standard Next.js page props pattern for App Router
 export default async function EditQuestionPage({
   params,
-}: {
-  params: { id: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
-  const questionId = params.id;
+}: PageProps) {
+  // Resolve the params Promise
+  const resolvedParams = await params;
+  const questionId = resolvedParams.id;
+  
   const supabase = await createClient();
   
   // Fetch the question
@@ -33,7 +28,6 @@ export default async function EditQuestionPage({
     .eq('is_deleted', false)
     .single();
   
-  // If question not found, show 404
   if (!question || error) {
     notFound();
   }
@@ -44,7 +38,7 @@ export default async function EditQuestionPage({
     .select('*')
     .order('name');
   
-  // Fetch potential conditional questions (from earlier steps in the same category)
+  // Fetch conditional questions
   const { data: conditionalQuestions } = await supabase
     .from('FormQuestions')
     .select('question_id, question_text, step_number, is_multiple_choice, answer_options')
