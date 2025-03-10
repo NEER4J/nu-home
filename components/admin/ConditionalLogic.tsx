@@ -1,17 +1,18 @@
+// components/admin/ConditionalLogic.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
-import { UseFormRegister, FieldErrors } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { FormQuestion } from '@/types/database.types';
 
 interface ConditionalLogicProps {
   showConditionalLogic: boolean;
   setShowConditionalLogic: (show: boolean) => void;
-  availableQuestions: any[];
-  selectedQuestion: any;
+  availableQuestions: FormQuestion[];
+  selectedQuestion: FormQuestion | null;
   conditionalValues: string[];
   setConditionalValues: (values: string[]) => void;
-  register: UseFormRegister<any>;
-  errors: FieldErrors<any>;
+  register: any; // React Hook Form's register function
+  errors: any; // React Hook Form's errors object
   stepNumber: number;
   selectedCategoryId: string;
 }
@@ -28,65 +29,83 @@ export default function ConditionalLogic({
   stepNumber,
   selectedCategoryId
 }: ConditionalLogicProps) {
+  const [availableOptions, setAvailableOptions] = useState<any[]>([]);
   
-  // Helper function to extract option text from either string or object format
-  const getOptionText = (option: any): string => {
-    if (typeof option === 'object' && option !== null && 'text' in option) {
-      return option.text;
+  // Update available options when selected question changes
+  useEffect(() => {
+    if (!selectedQuestion || !selectedQuestion.is_multiple_choice) {
+      setAvailableOptions([]);
+      return;
     }
-    return option;
-  };
+    
+    // Extract options from the selected question
+    try {
+      let options: string[] = [];
+      
+      if (selectedQuestion.answer_options) {
+        if (Array.isArray(selectedQuestion.answer_options)) {
+          // Handle different formats of answer_options
+          if (typeof selectedQuestion.answer_options[0] === 'string') {
+            // Format: ["Option 1", "Option 2", ...]
+            options = selectedQuestion.answer_options as string[];
+          } else if (typeof selectedQuestion.answer_options[0] === 'object') {
+            // Format: [{ text: "Option 1", ... }, { text: "Option 2", ... }, ...]
+            options = (selectedQuestion.answer_options as any[]).map(opt => 
+              typeof opt === 'object' && opt !== null && 'text' in opt ? opt.text : ''
+            ).filter(Boolean);
+          }
+        }
+      }
+      
+      setAvailableOptions(options);
+    } catch (error) {
+      console.error('Error parsing question options:', error);
+      setAvailableOptions([]);
+    }
+  }, [selectedQuestion]);
   
-  const handleConditionalValueChange = (value: string, checked: boolean) => {
-    if (checked) {
-      const newValues = [...conditionalValues, value];
-      setConditionalValues(newValues);
+  // Handle checkbox selection changes
+  const handleOptionChange = (option: string) => {
+    if (conditionalValues.includes(option)) {
+      // Remove from selection
+      setConditionalValues(conditionalValues.filter(val => val !== option));
     } else {
-      const newValues = conditionalValues.filter(v => v !== value);
-      setConditionalValues(newValues);
+      // Add to selection
+      setConditionalValues([...conditionalValues, option]);
     }
   };
   
   return (
     <div className="space-y-6 pt-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium leading-6 text-gray-900">Conditional Logic</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Optionally make this question only appear based on previous answers.
-          </p>
+      <div>
+        <h3 className="text-lg font-medium leading-6 text-gray-900">Conditional Display</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          Optionally show this question based on the answer to a previous question.
+        </p>
+      </div>
+      
+      <div className="flex items-start mb-4">
+        <div className="flex items-center h-5">
+          <input
+            id="show_conditional_logic"
+            type="checkbox"
+            checked={showConditionalLogic}
+            onChange={(e) => setShowConditionalLogic(e.target.checked)}
+            className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+          />
         </div>
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowConditionalLogic(!showConditionalLogic)}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            {showConditionalLogic ? 'Hide Conditional Logic' : 'Add Conditional Logic'}
-          </button>
+        <div className="ml-3 text-sm">
+          <label htmlFor="show_conditional_logic" className="font-medium text-gray-700">
+            Use Conditional Logic
+          </label>
+          <p className="text-gray-500">If enabled, this question will only show under certain conditions</p>
         </div>
       </div>
       
       {showConditionalLogic && (
-        <div>
-          <div className="rounded-md bg-blue-50 p-4 mb-6">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3 flex-1 md:flex md:justify-between">
-                <p className="text-sm text-blue-700">
-                  Conditional logic allows this question to be shown or hidden based on answers to previous questions.
-                  Only questions from earlier steps in the same category can be used as dependencies.
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {availableQuestions.length === 0 && selectedCategoryId && (
-            <div className="rounded-md bg-yellow-50 p-4 mb-6">
+        <div className="space-y-4 ml-7 border-l-2 border-blue-200 pl-4">
+          {availableQuestions.length === 0 ? (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
               <div className="flex">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -94,116 +113,95 @@ export default function ConditionalLogic({
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">No available questions</h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <p>
-                      There are no questions from earlier steps in this category that can be used for conditional logic.
-                      Either add questions to earlier steps first, or increase the step number of this question.
-                    </p>
-                  </div>
+                  <p className="text-sm text-yellow-700">
+                    {selectedCategoryId 
+                      ? 'No previous questions available. Add more questions to enable conditional logic.'
+                      : 'Select a service category first.'}
+                  </p>
                 </div>
               </div>
             </div>
-          )}
-          
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-            <div className="sm:col-span-6">
-              <label htmlFor="conditional_question" className="block text-sm font-medium text-gray-700">
-                Show this question when:
-              </label>
-              <div className="mt-1">
-                <select
-                  id="conditional_question"
-                  {...register('conditional_question')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                  disabled={availableQuestions.length === 0}
-                >
-                  <option value="">Select a question</option>
-                  {availableQuestions.map((question) => (
-                    <option key={question.question_id} value={question.question_id}>
-                      {question.question_text} (Step {question.step_number})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            
-            {selectedQuestion && (
-              <>
-                <div className="sm:col-span-3">
-                  <label htmlFor="conditional_operator" className="block text-sm font-medium text-gray-700">
-                    Condition Type
-                  </label>
-                  <div className="mt-1">
-                    <select
-                      id="conditional_operator"
-                      {...register('conditional_operator')}
-                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                    >
-                      <option value="OR">Any selected (OR)</option>
-                      <option value="AND">All selected (AND)</option>
-                    </select>
-                  </div>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="conditional_question" className="block text-sm font-medium text-gray-700">
+                  Dependent on Question
+                </label>
+                <div className="mt-1">
+                  <select
+                    id="conditional_question"
+                    {...register('conditional_question')}
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  >
+                    <option value="">Select a question</option>
+                    {availableQuestions.map((q) => (
+                      <option key={q.question_id} value={q.question_id}>
+                        Step {q.step_number}: {q.question_text}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                
-                <div className="sm:col-span-6">
-                  <fieldset>
-                    <legend className="block text-sm font-medium text-gray-700">
-                      When answer is: (select one or more)
-                    </legend>
-                    <div className="mt-2 space-y-2">
-                      {selectedQuestion.is_multiple_choice && selectedQuestion.answer_options ? (
-                        selectedQuestion.answer_options.map((option: any, idx: number) => {
-                          // Extract the text from the option (whether it's an object or a string)
-                          const optionText = getOptionText(option);
-                          
-                          return (
-                            <div key={idx} className="flex items-start">
-                              <div className="flex items-center h-5">
-                                <input
-                                  id={`condition-value-${idx}`}
-                                  type="checkbox"
-                                  value={optionText}
-                                  checked={conditionalValues.includes(optionText)}
-                                  onChange={(e) => handleConditionalValueChange(optionText, e.target.checked)}
-                                  className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                                />
-                              </div>
-                              <div className="ml-3 text-sm">
-                                <label htmlFor={`condition-value-${idx}`} className="font-medium text-gray-700">
-                                  {optionText}
-                                </label>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="mt-2">
-                          <input
-                            type="text"
-                            {...register('conditional_values')}
-                            className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                            placeholder="Comma-separated values, e.g.: Mains Gas,LPG"
-                            onChange={(e) => {
-                              const values = e.target.value.split(',').map(v => v.trim()).filter(v => v);
-                              setConditionalValues(values);
-                            }}
-                          />
-                          <p className="mt-2 text-sm text-gray-500">
-                            Enter comma-separated values that the selected question must have for this question to appear.
-                          </p>
-                        </div>
-                      )}
+                {errors.conditional_question && (
+                  <p className="mt-2 text-sm text-red-600">{errors.conditional_question.message}</p>
+                )}
+              </div>
+              
+              {selectedQuestion && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Show When Answer Equals
+                    </label>
+                    
+                    {availableOptions.length > 0 ? (
+                      <div className="space-y-2 mt-2">
+                        {availableOptions.map((option, idx) => (
+                          <div key={idx} className="flex items-center">
+                            <input
+                              id={`option-${idx}`}
+                              type="checkbox"
+                              checked={conditionalValues.includes(option)}
+                              onChange={() => handleOptionChange(option)}
+                              className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                            />
+                            <label htmlFor={`option-${idx}`} className="ml-2 block text-sm text-gray-700">
+                              {option}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500 italic">
+                        No options available for this question
+                      </div>
+                    )}
+                    
+                    {conditionalValues.length === 0 && showConditionalLogic && selectedQuestion && (
+                      <p className="mt-2 text-sm text-amber-600">Select at least one option</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="conditional_operator" className="block text-sm font-medium text-gray-700">
+                      Logical Operator
+                    </label>
+                    <div className="mt-1">
+                      <select
+                        id="conditional_operator"
+                        {...register('conditional_operator')}
+                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      >
+                        <option value="OR">OR - Show if any selected answers match</option>
+                        <option value="AND">AND - Show only if all selected answers match</option>
+                      </select>
                     </div>
-                  </fieldset>
-                </div>
-              </>
-            )}
-          </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
   );
 }
-
-export { default as ConditionalLogic } from './ConditionalLogic';

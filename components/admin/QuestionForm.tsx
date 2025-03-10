@@ -1,3 +1,4 @@
+// components/admin/QuestionForm.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -8,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { ServiceCategory, FormQuestion } from '@/types/database.types';
 import ConditionalLogic from './ConditionalLogic';
+import { AlertCircle, PlusCircle, Trash2, CheckCircle, Video, HelpCircle, ChevronDown, X, Save } from 'lucide-react';
 
 // Define form validation schema with conditional logic fields
 const formSchema = z.object({
@@ -36,55 +38,58 @@ interface QuestionFormProps {
   categories: ServiceCategory[];
   categoryStepMap?: Record<string, number>; // For suggesting next step number
   conditionalQuestions?: any[]; // For edit mode
+  onSave?: (updatedQuestion?: FormQuestion) => void; // New callback prop
+  onCancel?: () => void; // New callback prop
 }
 
-export default function QuestionForm({ 
-  question, 
-  categories, 
-  categoryStepMap = {}, 
-  conditionalQuestions = []
+export function QuestionForm({
+  question,
+  categories,
+  categoryStepMap = {},
+  conditionalQuestions = [],
+  onSave,
+  onCancel
 }: QuestionFormProps) {
   const isEditMode = !!question;
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   
   // Initialize answer options as an array of objects with text and image properties
-// Replace the problematic section with this code:
-// Replace the problematic section with this code:
-const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: string }>>(() => {
-  if (!question?.answer_options) {
-    return [{ text: '', image: '' }]; // Default for new questions
-  }
-  
-  if (!Array.isArray(question.answer_options)) {
-    return [{ text: '', image: '' }];
-  }
-  
-  if (question.answer_options.length === 0) {
-    return [{ text: '', image: '' }];
-  }
-  
-  // Check if the first item is an object with a 'text' property
-  const firstItem = question.answer_options[0];
-  if (typeof firstItem === 'object' && firstItem !== null && 'text' in firstItem) {
-    // It's already the right format, but we need to properly type it
-    return question.answer_options.map((opt: any) => ({
-      text: opt.text || '',
-      image: opt.image || ''
+  const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: string }>>(() => {
+    if (!question?.answer_options) {
+      return [{ text: '', image: '' }]; // Default for new questions
+    }
+    
+    if (!Array.isArray(question.answer_options)) {
+      return [{ text: '', image: '' }];
+    }
+    
+    if (question.answer_options.length === 0) {
+      return [{ text: '', image: '' }];
+    }
+    
+    // Check if the first item is an object with a 'text' property
+    const firstItem = question.answer_options[0];
+    if (typeof firstItem === 'object' && firstItem !== null && 'text' in firstItem) {
+      // It's already the right format, but we need to properly type it
+      return question.answer_options.map((opt: any) => ({
+        text: opt.text || '',
+        image: opt.image || ''
+      }));
+    }
+    
+    // Convert from array of strings to array of objects
+    return question.answer_options.map((opt: any, index: number) => ({
+      text: typeof opt === 'string' ? opt : '',
+      image: (question as any).answer_images && 
+             Array.isArray((question as any).answer_images) && 
+             (question as any).answer_images[index] 
+        ? (question as any).answer_images[index] 
+        : ''
     }));
-  }
-  
-  // Convert from array of strings to array of objects
-  return question.answer_options.map((opt: any, index: number) => ({
-    text: typeof opt === 'string' ? opt : '',
-    image: (question as any).answer_images && 
-           Array.isArray((question as any).answer_images) && 
-           (question as any).answer_images[index] 
-      ? (question as any).answer_images[index] 
-      : ''
-  }));
-});
+  });
   
   // Extract conditional logic values if they exist (for edit mode)
   const conditionalLogic = question?.conditional_display || null;
@@ -107,7 +112,7 @@ const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: 
     watch,
     setValue,
     getValues,
-    formState: { errors }
+    formState: { errors, dirtyFields }
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema as any),
     defaultValues: {
@@ -155,6 +160,7 @@ const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: 
         .select('question_id, question_text, step_number, is_multiple_choice, answer_options')
         .eq('service_category_id', selectedCategoryId)
         .eq('status', 'active')
+        .eq('is_deleted', false)
         .order('step_number');
       
       if (error) {
@@ -254,26 +260,43 @@ const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: 
       
       const supabase = await createClient();
       
+      let updatedQuestion;
+      
       if (isEditMode && question) {
         // Update existing question
-        const { error } = await supabase
+        const { data: responseData, error } = await supabase
           .from('FormQuestions')
           .update(formData)
-          .eq('question_id', question.question_id);
+          .eq('question_id', question.question_id)
+          .select();
         
         if (error) throw new Error(error.message);
+        updatedQuestion = responseData?.[0];
+        
+        setSuccess('Question successfully updated!');
       } else {
         // Create new question
-        const { error } = await supabase
+        const { data: responseData, error } = await supabase
           .from('FormQuestions')
-          .insert(formData);
+          .insert(formData)
+          .select();
         
         if (error) throw new Error(error.message);
+        updatedQuestion = responseData?.[0];
+        
+        setSuccess('Question successfully created!');
       }
       
-      // Redirect back to questions list
-      router.push('/admin/form-questions');
-      router.refresh(); // Refresh the page to show the new/updated question
+      // Call onSave callback if provided with a slight delay to show success message
+      setTimeout(() => {
+        if (onSave) {
+          onSave(updatedQuestion);
+        } else {
+          // Otherwise use the router to navigate back
+          router.push('/admin/form-questions');
+          router.refresh(); // Refresh the page to show the new/updated question
+        }
+      }, 1000);
       
     } catch (err: any) {
       setError(err.message || `An error occurred while ${isEditMode ? 'updating' : 'saving'} the question`);
@@ -283,80 +306,76 @@ const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: 
     }
   };
 
-  const handleDelete = async () => {
-    if (!isEditMode || !question) return;
-    
-    if (!window.confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
-      return;
-    }
-    
-    try {
-      setIsSubmitting(true);
-      setError(null);
-      
-      const supabase = await createClient();
-      
-      // We're using a soft delete by setting is_deleted to true
-      const { error } = await supabase
-        .from('FormQuestions')
-        .update({ is_deleted: true })
-        .eq('question_id', question.question_id);
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      // Redirect back to questions list
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
       router.push('/admin/form-questions');
-      router.refresh();
-      
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while deleting the question');
-      console.error('Error deleting question:', err);
-    } finally {
-      setIsSubmitting(false);
     }
   };
-  
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-5xl mx-auto">
+      {/* Notification Messages */}
+      {success && (
+        <div className="rounded-md bg-green-50 p-4 mb-6 shadow-md transition-all duration-300">
+          <div className="flex items-center">
+            <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
+            <p className="text-green-700 font-medium">{success}</p>
+            <button
+              type="button"
+              className="ml-auto text-green-500 hover:text-green-700"
+              onClick={() => setSuccess(null)}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error</h3>
-              <div className="mt-2 text-sm text-red-700">
-                <p>{error}</p>
-              </div>
-            </div>
+        <div className="rounded-md bg-red-50 p-4 mb-6 shadow-md transition-all duration-300">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
+            <p className="text-red-700 font-medium">{error}</p>
+            <button
+              type="button"
+              className="ml-auto text-red-500 hover:text-red-700"
+              onClick={() => setError(null)}
+            >
+              <X size={18} />
+            </button>
           </div>
         </div>
       )}
       
-      <div className="space-y-8 divide-y divide-gray-200">
-        <div className="space-y-6 pt-4">
-          <div>
-            <h3 className="text-lg font-medium leading-6 text-gray-900">Basic Information</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {isEditMode ? 'Update' : 'Define'} the basic properties of the question.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-            <div className="sm:col-span-3">
-              <label htmlFor="service_category_id" className="block text-sm font-medium text-gray-700">
-                Service Category *
-              </label>
-              <div className="mt-1">
+      <div className="bg-white rounded-lg overflow-hidden">
+      
+        
+        <div className="p-4 space-y-10">
+          {/* Basic Information Section */}
+          <div className="space-y-6">
+            <div className="border-b border-gray-200 pb-2">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <HelpCircle size={18} className="mr-2 text-blue-500" />
+                Basic Information
+              </h3>
+              <p className="text-sm text-gray-500">
+                {isEditMode ? 'Update' : 'Define'} the basic properties of the question.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+              <div className="sm:col-span-3">
+                <label htmlFor="service_category_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  Service Category <span className="text-red-500">*</span>
+                </label>
                 <select
                   id="service_category_id"
                   {...register('service_category_id')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className={`w-full px-4 py-2.5 rounded-lg border ${
+                    errors.service_category_id ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  } shadow-sm transition duration-150 bg-white`}
                 >
                   <option value="">Select a service category</option>
                   {categories.map((category) => (
@@ -365,321 +384,480 @@ const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: 
                     </option>
                   ))}
                 </select>
+                {errors.service_category_id && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle size={14} className="mr-1" />
+                    {errors.service_category_id.message}
+                  </p>
+                )}
               </div>
-              {errors.service_category_id && (
-                <p className="mt-2 text-sm text-red-600">{errors.service_category_id.message}</p>
-              )}
-            </div>
-            
-            <div className="sm:col-span-6">
-              <label htmlFor="question_text" className="block text-sm font-medium text-gray-700">
-                Question Text *
-              </label>
-              <div className="mt-1">
+              
+              <div className="sm:col-span-6">
+                <label htmlFor="question_text" className="block text-sm font-medium text-gray-700 mb-1">
+                  Question Text <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   id="question_text"
                   {...register('question_text')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className={`w-full px-4 py-2.5 rounded-lg border ${
+                    errors.question_text ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  } shadow-sm transition duration-150`}
                   placeholder="e.g., Which fuel powers your boiler?"
                 />
+                {errors.question_text && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle size={14} className="mr-1" />
+                    {errors.question_text.message}
+                  </p>
+                )}
               </div>
-              {errors.question_text && (
-                <p className="mt-2 text-sm text-red-600">{errors.question_text.message}</p>
-              )}
-            </div>
-            
-            <div className="sm:col-span-3">
-              <label htmlFor="step_number" className="block text-sm font-medium text-gray-700">
-                Step Number *
-              </label>
-              <div className="mt-1">
+              
+              <div className="sm:col-span-3">
+                <label htmlFor="step_number" className="block text-sm font-medium text-gray-700 mb-1">
+                  Step Number <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="number"
                   id="step_number"
                   min="1"
                   {...register('step_number', { valueAsNumber: true })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className={`w-full px-4 py-2.5 rounded-lg border ${
+                    errors.step_number ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  } shadow-sm transition duration-150`}
                 />
+                {errors.step_number && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle size={14} className="mr-1" />
+                    {errors.step_number.message}
+                  </p>
+                )}
               </div>
-              {errors.step_number && (
-                <p className="mt-2 text-sm text-red-600">{errors.step_number.message}</p>
-              )}
-            </div>
-            
-            <div className="sm:col-span-3">
-              <label htmlFor="display_order_in_step" className="block text-sm font-medium text-gray-700">
-                Display Order in Step *
-              </label>
-              <div className="mt-1">
+              
+              <div className="sm:col-span-3">
+                <label htmlFor="display_order_in_step" className="block text-sm font-medium text-gray-700 mb-1">
+                  Display Order in Step <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="number"
                   id="display_order_in_step"
                   min="1"
                   {...register('display_order_in_step', { valueAsNumber: true })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className={`w-full px-4 py-2.5 rounded-lg border ${
+                    errors.display_order_in_step ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  } shadow-sm transition duration-150`}
                 />
+                {errors.display_order_in_step && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle size={14} className="mr-1" />
+                    {errors.display_order_in_step.message}
+                  </p>
+                )}
               </div>
-              {errors.display_order_in_step && (
-                <p className="mt-2 text-sm text-red-600">{errors.display_order_in_step.message}</p>
-              )}
-            </div>
-            
-            <div className="sm:col-span-3">
-              <div className="flex items-start">
-                <div className="flex items-center h-5">
-                  <input
-                    id="is_multiple_choice"
-                    type="checkbox"
-                    {...register('is_multiple_choice')}
-                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                  />
-                </div>
-                <div className="ml-3 text-sm">
-                  <label htmlFor="is_multiple_choice" className="font-medium text-gray-700">
-                    Multiple Choice Question
-                  </label>
-                  <p className="text-gray-500">If enabled, user will select from a list of options</p>
-                </div>
-              </div>
-            </div>
-            
-            {isMultipleChoice && (
-              <div className="sm:col-span-3">
-                <div className="flex items-start">
-                  <div className="flex items-center h-5">
+              
+              <div className="sm:col-span-6 space-y-4">
+                <div className="flex flex-wrap items-center gap-6">
+                  <label className="inline-flex items-center">
                     <input
-                      id="allow_multiple_selections"
                       type="checkbox"
-                      {...register('allow_multiple_selections')}
-                      className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      id="is_multiple_choice"
+                      {...register('is_multiple_choice')}
+                      className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
                     />
-                  </div>
-                  <div className="ml-3 text-sm">
-                    <label htmlFor="allow_multiple_selections" className="font-medium text-gray-700">
-                      Allow Multiple Selections
-                    </label>
-                    <p className="text-gray-500">If enabled, user can select multiple options</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div className="sm:col-span-3">
-              <div className="flex items-start">
-                <div className="flex items-center h-5">
-                  <input
-                    id="is_required"
-                    type="checkbox"
-                    {...register('is_required')}
-                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                  />
-                </div>
-                <div className="ml-3 text-sm">
-                  <label htmlFor="is_required" className="font-medium text-gray-700">
-                    Required Question
+                    <span className="ml-2 text-gray-700">Multiple Choice Question</span>
                   </label>
-                  <p className="text-gray-500">If enabled, user must answer this question</p>
+                  
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      id="is_required"
+                      {...register('is_required')}
+                      className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                    />
+                    <span className="ml-2 text-gray-700">Required Question</span>
+                  </label>
+                  
+                  {isMultipleChoice && (
+                    <label className="inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        id="allow_multiple_selections"
+                        {...register('allow_multiple_selections')}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                      />
+                      <span className="ml-2 text-gray-700">Allow Multiple Selections</span>
+                    </label>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        {/* Answer Options - Updated to use combined text/image object */}
-        {isMultipleChoice && (
-          <div className="space-y-6 pt-6">
-            <div>
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Answer Options</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Define the options users can select from. Optionally include images for each option.
+          
+          {/* Answer Options Section */}
+          {isMultipleChoice && (
+            <div className="space-y-6">
+              <div className="border-b border-gray-200 pb-2">
+                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                  <CheckCircle size={18} className="mr-2 text-blue-500" />
+                  Answer Options
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Define the options users can select from. Optionally include images for each option.
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                {answerOptions.map((option, index) => (
+                  <div 
+                    key={index} 
+                    className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 relative"
+                  >
+                    <div className="absolute top-4 right-4 text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                      Option {index + 1}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                      <div className="md:col-span-5">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Option Text
+                        </label>
+                        <input
+                          type="text"
+                          value={option.text}
+                          onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition duration-150"
+                          placeholder={`Option ${index + 1}`}
+                        />
+                      </div>
+                      
+                      <div className="md:col-span-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Image URL (optional)
+                        </label>
+                        <input
+                          type="url"
+                          value={option.image}
+                          onChange={(e) => handleOptionChange(index, 'image', e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition duration-150"
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      </div>
+                      
+                      <div className="md:col-span-1 flex items-end">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveOption(index)}
+                          className="p-2 text-red-500 hover:text-red-700 rounded-full hover:bg-red-50 transition duration-150"
+                          aria-label="Remove option"
+                          disabled={answerOptions.length <= 1}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {option.image && (
+                      <div className="mt-3 p-2 border border-gray-200 rounded-md bg-gray-50">
+                        <p className="text-xs text-gray-500 mb-1">Image Preview:</p>
+                        <div className="h-16 bg-contain bg-center bg-no-repeat rounded" 
+                             style={{ backgroundImage: `url(${option.image})` }}>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                <button
+                  type="button"
+                  onClick={handleAddOption}
+                  className="mt-4 inline-flex items-center px-4 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150"
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Option
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Helper Video Section */}
+          <div className="space-y-6">
+            <div className="border-b border-gray-200 pb-2">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <Video size={18} className="mr-2 text-blue-500" />
+                Helper Video
+              </h3>
+              <p className="text-sm text-gray-500">
+                Optionally add a helper video to assist users.
               </p>
             </div>
             
-            <div className="space-y-4">
-              {answerOptions.map((option, index) => (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-                  <div className="md:col-span-5">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Option {index + 1} Text
-                    </label>
-                    <input
-                      type="text"
-                      value={option.text}
-                      onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
-                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                      placeholder={`Option ${index + 1}`}
-                    />
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+              <div className="flex items-center mb-4">
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    id="has_helper_video"
+                    {...register('has_helper_video')}
+                    className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                  />
+                  <span className="ml-2 text-gray-700 font-medium">Include Helper Video</span>
+                </label>
+                <span className="ml-3 text-sm text-gray-500">
+                  If enabled, users will see a link to a helper video
+                </span>
+              </div>
+              
+              {hasHelperVideo && (
+                <div className="mt-4 transition-all duration-300">
+                  <label htmlFor="helper_video_url" className="block text-sm font-medium text-gray-700 mb-1">
+                    Video URL
+                  </label>
+                  <div className="flex">
+                    <div className="flex-grow">
+                      <input
+                        type="url"
+                        id="helper_video_url"
+                        {...register('helper_video_url')}
+                        className={`w-full px-4 py-2.5 rounded-lg border ${
+                          errors.helper_video_url ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                        } shadow-sm transition duration-150`}
+                        placeholder="https://example.com/video"
+                      />
+                      {errors.helper_video_url && (
+                        <p className="mt-1 text-sm text-red-600 flex items-center">
+                          <AlertCircle size={14} className="mr-1" />
+                          {errors.helper_video_url.message}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="ml-2 flex items-center">
+                      <Video className="h-5 w-5 text-gray-400" />
+                    </div>
                   </div>
                   
-                  <div className="md:col-span-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Image URL (optional)
-                    </label>
-                    <input
-                      type="url"
-                      value={option.image}
-                      onChange={(e) => handleOptionChange(index, 'image', e.target.value)}
-                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
-                  
-                  <div className="md:col-span-1 flex items-end">
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveOption(index)}
-                      className="mb-1 p-2 text-red-600 hover:text-red-800 rounded-md hover:bg-red-50"
-                      aria-label="Remove option"
-                    >
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                    </button>
+                  <div className="mt-3 text-sm text-gray-500">
+                    <p>Provide a URL to a video that helps users understand how to answer this question.</p>
                   </div>
                 </div>
-              ))}
-              
-              <button
-                type="button"
-                onClick={handleAddOption}
-                className="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                </svg>
-                Add Option
-              </button>
+              )}
             </div>
           </div>
-        )}
-        
-        {/* Helper Video */}
-        <div className="space-y-6 pt-6">
-          <div>
-            <h3 className="text-lg font-medium leading-6 text-gray-900">Helper Video</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Optionally add a helper video to assist users.
-            </p>
-          </div>
           
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-            <div className="sm:col-span-6">
-              <div className="flex items-start">
-                <div className="flex items-center h-5">
-                  <input
-                    id="has_helper_video"
-                    type="checkbox"
-                    {...register('has_helper_video')}
-                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                  />
-                </div>
-                <div className="ml-3 text-sm">
-                  <label htmlFor="has_helper_video" className="font-medium text-gray-700">
-                    Include Helper Video
-                  </label>
-                  <p className="text-gray-500">If enabled, users will see a link to a helper video</p>
-                </div>
-              </div>
+          {/* Conditional Logic Section */}
+          <div className="space-y-6">
+            <div className="border-b border-gray-200 pb-2">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <ChevronDown size={18} className="mr-2 text-blue-500" />
+                Conditional Logic
+              </h3>
+              <p className="text-sm text-gray-500">
+                Conditionally display this question based on answers to previous questions.
+              </p>
             </div>
             
-            {hasHelperVideo && (
-              <div className="sm:col-span-6">
-                <label htmlFor="helper_video_url" className="block text-sm font-medium text-gray-700">
-                  Video URL
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="url"
-                    id="helper_video_url"
-                    {...register('helper_video_url')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                    placeholder="https://example.com/video"
-                  />
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-medium text-gray-900">Conditional Display Logic</h3>
+                  <p className="text-sm text-gray-500">
+                    Only show this question when specific answers are selected for previous questions
+                  </p>
                 </div>
-                {errors.helper_video_url && (
-                  <p className="mt-2 text-sm text-red-600">{errors.helper_video_url.message}</p>
-                )}
+                <div className="flex items-center">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={showConditionalLogic}
+                      onChange={(e) => setShowConditionalLogic(e.target.checked)}
+                      className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                    />
+                    <span className="ml-2 text-gray-700">Enable Conditional Logic</span>
+                  </label>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Conditional Logic Component */}
-        <ConditionalLogic
-          showConditionalLogic={showConditionalLogic}
-          setShowConditionalLogic={setShowConditionalLogic}
-          availableQuestions={availableConditionalQuestions}
-          selectedQuestion={selectedQuestion}
-          conditionalValues={conditionalValues}
-          setConditionalValues={setConditionalValues}
-          register={register}
-          errors={errors}
-          stepNumber={stepNumber}
-          selectedCategoryId={selectedCategoryId}
-        />
-        
-        {/* Status */}
-        <div className="space-y-6 pt-6">
-          <div>
-            <h3 className="text-lg font-medium leading-6 text-gray-900">Status</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Set the status of this question.
-            </p>
+              
+              {showConditionalLogic && (
+                <div className="transition-all duration-300">
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div>
+                      <label htmlFor="conditional_question" className="block text-sm font-medium text-gray-700 mb-1">
+                        Depends on Question
+                      </label>
+                      <select
+                        id="conditional_question"
+                        {...register('conditional_question')}
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition duration-150"
+                      >
+                        <option value="">Select a question</option>
+                        {availableConditionalQuestions.map((q) => (
+                          <option key={q.question_id} value={q.question_id}>
+                            Step {q.step_number}: {q.question_text}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.conditional_question && (
+                        <p className="mt-1 text-sm text-red-600">{errors.conditional_question.message}</p>
+                      )}
+                    </div>
+                    
+                    {selectedQuestion && (
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Show when answer equals:
+                          </label>
+                          <div>
+                            <label className="inline-flex items-center mr-4">
+                              <input
+                                type="radio"
+                                {...register('conditional_operator')}
+                                value="OR"
+                                className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+                              />
+                              <span className="ml-2 text-sm text-gray-700">Any selected (OR)</span>
+                            </label>
+                            <label className="inline-flex items-center">
+                              <input
+                                type="radio"
+                                {...register('conditional_operator')}
+                                value="AND"
+                                className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+                              />
+                              <span className="ml-2 text-sm text-gray-700">All selected (AND)</span>
+                            </label>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white p-3 rounded-lg border border-gray-200 max-h-60 overflow-y-auto">
+                          {selectedQuestion.is_multiple_choice && Array.isArray(selectedQuestion.answer_options) ? (
+                            <div className="space-y-2">
+                              {selectedQuestion.answer_options.map((option: any, index: number) => {
+                                const optionText = typeof option === 'string' ? option : option.text;
+                                const isSelected = conditionalValues.includes(optionText);
+                                
+                                return (
+                                  <label key={index} className="flex items-start">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setConditionalValues([...conditionalValues, optionText]);
+                                        } else {
+                                          setConditionalValues(conditionalValues.filter(v => v !== optionText));
+                                        }
+                                      }}
+                                      className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                    />
+                                    <span className="ml-2 text-sm text-gray-700">{optionText}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-gray-500 text-sm italic">
+                              This question doesn't have predefined answer options. You can enter free text values:
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-            <div className="sm:col-span-3">
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+          {/* Status Section */}
+          <div className="space-y-6">
+            <div className="border-b border-gray-200 pb-2">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <AlertCircle size={18} className="mr-2 text-blue-500" />
                 Status
-              </label>
-              <div className="mt-1">
-                <select
-                  id="status"
-                  {...register('status')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+              </h3>
+              <p className="text-sm text-gray-500">
+                Set the status of this question.
+              </p>
+            </div>
+            
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+              <div className="mb-4">
+                <h3 className="text-base font-medium text-gray-900">Question Status</h3>
+                <p className="text-sm text-gray-500">
+                  Control whether this question is active or inactive in the form
+                </p>
+              </div>
+              
+              <div className="mt-4">
+                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <div className="relative">
+                  <select
+                    id="status"
+                    {...register('status')}
+                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition duration-150 appearance-none bg-white pr-10"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <ChevronDown className="h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <div className={`flex-shrink-0 w-3 h-3 rounded-full mr-2 ${
+                      getValues('status') === 'active' ? 'bg-green-500' : 'bg-gray-400'
+                    }`}></div>
+                    <span className="text-sm text-gray-700">
+                      {getValues('status') === 'active' 
+                        ? 'This question will be visible to users in the form' 
+                        : 'This question will be hidden from users'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
       
-      <div className="pt-5">
-        <div className="flex justify-between">
-          {isEditMode && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-            >
-              Delete Question
-            </button>
-          )}
-          
-          <div className={isEditMode ? '' : 'ml-auto'}>
-            <button
-              type="button"
-              onClick={() => router.push('/admin/form-questions')}
-              className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Saving...' : isEditMode ? 'Update Question' : 'Save Question'}
-            </button>
-          </div>
+      <div className="flex justify-between items-center pt-6">
+        <div className="text-sm text-gray-500">
+          <span className="text-red-500">*</span> Required fields
+        </div>
+        <div className="flex space-x-3">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+          >
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                {isEditMode ? 'Update Question' : 'Save Question'}
+              </>
+            )}
+          </button>
         </div>
       </div>
     </form>
   );
 }
-
-export { default as QuestionForm } from './QuestionForm';
