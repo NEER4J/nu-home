@@ -113,7 +113,7 @@ export function ConditionalDialog({
         onClick={(e) => e.stopPropagation()} // Prevent clicks inside from closing
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-t-lg">
+        <div className="px-6 py-4 border-b border-gray-200 bg-blue-600 rounded-t-lg">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-white">Configure Conditional Logic</h2>
             <button
@@ -202,7 +202,7 @@ export function ConditionalDialog({
                     {availableOptions.map((option, idx) => (
                       <label
                         key={idx}
-                        className={`flex items-center p-2.5 mb-1.5 rounded-md cursor-pointer transition-colors ${
+                        className={`flex items-center p-1 mb-2 rounded-md cursor-pointer transition-colors ${
                           selectedValues.includes(option)
                             ? 'bg-blue-50 border border-blue-200'
                             : 'bg-white border border-gray-200 hover:bg-gray-50'

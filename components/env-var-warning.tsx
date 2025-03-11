@@ -10,7 +10,7 @@ export function EnvVarWarning() {
       </Badge>
       <div className="flex gap-2">
         <Button
-          asChild
+          
           size="sm"
           variant={"outline"}
           disabled
@@ -19,7 +19,7 @@ export function EnvVarWarning() {
           <Link href="/sign-in">Sign in</Link>
         </Button>
         <Button
-          asChild
+          
           size="sm"
           variant={"default"}
           disabled

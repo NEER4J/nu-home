@@ -279,7 +279,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
       </div>
       
       {/* Questions Content */}
-      <div className="flex-grow overflow-auto bg-gray-50 p-6">
+      <div className="flex-grow overflow-auto bg-gray-50 p-6 justify-center align-middle min-h-screen">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -310,8 +310,8 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
           </div>
         ) : (
           <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-              <div className="md:col-span-3 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="col-span-1 bg-white p-4 gap-6 rounded-lg shadow-sm border border-gray-200">
                 <div className="sticky top-4">
                   <h3 className="font-medium text-gray-900 mb-3">Steps</h3>
                   <nav className="space-y-1" aria-label="Steps">
@@ -356,7 +356,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
                 </div>
               </div>
               
-              <div className="md:col-span-9 space-y-6">
+              <div className="col-span-1 md:col-span-3 gap-6 space-y-6 ">
                 {sortedSteps.map((step) => {
                   const stepQuestions = questionsByStep[step];
                   
@@ -469,7 +469,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
                                   </div>
                                 </div>
                                 
-                                <div className="flex space-x-2">
+                                <div className="flex space-x-2 gap-2">
                                   <button
                                     onClick={() => handleEditQuestion(question)}
                                     className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"

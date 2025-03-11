@@ -23,7 +23,7 @@ export default async function AdminFormQuestionsPage({
       .order('name');
     
     return (
-      <div className="h-[calc(100vh-64px)]">
+      <div className="h-100">
         <SimpleFormQuestionsEditor initialCategories={categories || []} />
       </div>
     );

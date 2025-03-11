@@ -185,7 +185,7 @@ export default function QuoteForm({
   };
   
   // Compute the list of step numbers with active questions
-  const activeSteps = [...new Set(activeQuestions.map(q => q.step_number))].sort((a, b) => a - b);
+  const activeSteps = Array.from(new Set(activeQuestions.map(q => q.step_number))).sort((a, b) => a - b);
   
   // Get total steps (active question steps + postcode & contact details)
   const totalSteps = activeSteps.length + 2; // +1 for postcode step, +1 for contact details step

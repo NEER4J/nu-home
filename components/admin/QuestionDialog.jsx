@@ -33,13 +33,14 @@ export function QuestionDialog({
       style={{backdropFilter: 'blur(2px)', backgroundColor: 'rgba(0, 0, 0, 0.5)'}}
     >
       <div 
-        className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[90vh] overflow-y-auto"
+        style={{maxHeight: '90vh'}}
         onClick={(e) => e.stopPropagation()} // Prevent clicks inside from closing 
       >
         
 
 
-        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-t-lg">
+        <div className="px-6 py-4 border-b border-gray-200 bg-blue-600 rounded-t-lg">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-white">{question ? 'Edit Question' : 'Add New Question'}</h2>
             <button
