@@ -109,7 +109,7 @@ export function ConditionalDialog({
       }}
     >
       <div 
-        className="bg-white rounded-lg shadow-2xl w-full max-w-md transform transition-all duration-300 ease-in-out mx-4"
+        className="bg-white rounded-lg -2xl w-full max-w-md transform transition-all duration-300 ease-in-out mx-4"
         onClick={(e) => e.stopPropagation()} // Prevent clicks inside from closing
       >
         {/* Header */}
@@ -148,7 +148,7 @@ export function ConditionalDialog({
                 id="sourceQuestion"
                 value={sourceQuestionId}
                 onChange={(e) => setSourceQuestionId(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-colors appearance-none bg-white pr-10"
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition-colors appearance-none bg-white pr-10"
               >
                 <option value="">Select a question</option>
                 {availableQuestions.map((q) => (
@@ -175,7 +175,7 @@ export function ConditionalDialog({
                     id="operator"
                     value={operator}
                     onChange={(e) => setOperator(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-colors appearance-none bg-white pr-10"
+                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition-colors appearance-none bg-white pr-10"
                   >
                     <option value="OR">OR - Show if ANY selected options match</option>
                     <option value="AND">AND - Show if ALL selected options match</option>
@@ -249,14 +249,14 @@ export function ConditionalDialog({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              className="px-4 py-2.5 border border-gray-300 rounded-lg -sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center"
+              className="px-5 py-2.5 border border-transparent rounded-lg -sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center"
             >
               <CheckCircle size={16} className="mr-1.5" />
               Save Logic

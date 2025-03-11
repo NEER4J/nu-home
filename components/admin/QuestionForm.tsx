@@ -318,7 +318,7 @@ export function QuestionForm({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-5xl mx-auto">
       {/* Notification Messages */}
       {success && (
-        <div className="rounded-md bg-green-50 p-4 mb-6 shadow-md transition-all duration-300">
+        <div className="rounded-md bg-green-50 p-4 mb-6 -md transition-all duration-300">
           <div className="flex items-center">
             <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
             <p className="text-green-700 font-medium">{success}</p>
@@ -334,7 +334,7 @@ export function QuestionForm({
       )}
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4 mb-6 shadow-md transition-all duration-300">
+        <div className="rounded-md bg-red-50 p-4 mb-6 -md transition-all duration-300">
           <div className="flex items-center">
             <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
             <p className="text-red-700 font-medium">{error}</p>
@@ -375,7 +375,7 @@ export function QuestionForm({
                   {...register('service_category_id')}
                   className={`w-full px-4 py-2.5 rounded-lg border ${
                     errors.service_category_id ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                  } shadow-sm transition duration-150 bg-white`}
+                  } -sm transition duration-150 bg-white`}
                 >
                   <option value="">Select a service category</option>
                   {categories.map((category) => (
@@ -402,7 +402,7 @@ export function QuestionForm({
                   {...register('question_text')}
                   className={`w-full px-4 py-2.5 rounded-lg border ${
                     errors.question_text ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                  } shadow-sm transition duration-150`}
+                  } -sm transition duration-150`}
                   placeholder="e.g., Which fuel powers your boiler?"
                 />
                 {errors.question_text && (
@@ -424,7 +424,7 @@ export function QuestionForm({
                   {...register('step_number', { valueAsNumber: true })}
                   className={`w-full px-4 py-2.5 rounded-lg border ${
                     errors.step_number ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                  } shadow-sm transition duration-150`}
+                  } -sm transition duration-150`}
                 />
                 {errors.step_number && (
                   <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -445,7 +445,7 @@ export function QuestionForm({
                   {...register('display_order_in_step', { valueAsNumber: true })}
                   className={`w-full px-4 py-2.5 rounded-lg border ${
                     errors.display_order_in_step ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                  } shadow-sm transition duration-150`}
+                  } -sm transition duration-150`}
                 />
                 {errors.display_order_in_step && (
                   <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -510,7 +510,7 @@ export function QuestionForm({
                 {answerOptions.map((option, index) => (
                   <div 
                     key={index} 
-                    className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 relative"
+                    className="bg-white rounded-lg border border-gray-200 -sm p-4 relative"
                   >
                     <div className="absolute top-4 right-4 text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
                       Option {index + 1}
@@ -524,7 +524,7 @@ export function QuestionForm({
                           type="text"
                           value={option.text}
                           onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition duration-150"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150"
                           placeholder={`Option ${index + 1}`}
                         />
                       </div>
@@ -537,7 +537,7 @@ export function QuestionForm({
                           type="url"
                           value={option.image}
                           onChange={(e) => handleOptionChange(index, 'image', e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition duration-150"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150"
                           placeholder="https://example.com/image.jpg"
                         />
                       </div>
@@ -569,7 +569,7 @@ export function QuestionForm({
                 <button
                   type="button"
                   onClick={handleAddOption}
-                  className="mt-4 inline-flex items-center px-4 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150"
+                  className="mt-4 inline-flex items-center px-4 py-2.5 border border-gray-300 -sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150"
                 >
                   <PlusCircle className="h-4 w-4 mr-2" />
                   Add Option
@@ -590,7 +590,7 @@ export function QuestionForm({
               </p>
             </div>
             
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-lg border border-gray-200 -sm p-6">
               <div className="flex items-center mb-4">
                 <label className="inline-flex items-center">
                   <input
@@ -619,7 +619,7 @@ export function QuestionForm({
                         {...register('helper_video_url')}
                         className={`w-full px-4 py-2.5 rounded-lg border ${
                           errors.helper_video_url ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                        } shadow-sm transition duration-150`}
+                        } -sm transition duration-150`}
                         placeholder="https://example.com/video"
                       />
                       {errors.helper_video_url && (
@@ -655,7 +655,7 @@ export function QuestionForm({
               </p>
             </div>
             
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-lg border border-gray-200 -sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-base font-medium text-gray-900">Conditional Display Logic</h3>
@@ -686,7 +686,7 @@ export function QuestionForm({
                       <select
                         id="conditional_question"
                         {...register('conditional_question')}
-                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition duration-150"
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150"
                       >
                         <option value="">Select a question</option>
                         {availableConditionalQuestions.map((q) => (
@@ -780,7 +780,7 @@ export function QuestionForm({
               </p>
             </div>
             
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-lg border border-gray-200 -sm p-6">
               <div className="mb-4">
                 <h3 className="text-base font-medium text-gray-900">Question Status</h3>
                 <p className="text-sm text-gray-500">
@@ -796,7 +796,7 @@ export function QuestionForm({
                   <select
                     id="status"
                     {...register('status')}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition duration-150 appearance-none bg-white pr-10"
+                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150 appearance-none bg-white pr-10"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -832,14 +832,14 @@ export function QuestionForm({
           <button
             type="button"
             onClick={handleCancel}
-            className="px-5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150"
+            className="px-5 py-2.5 border border-gray-300 rounded-lg -sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+            className="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg -sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
           >
             {isSubmitting ? (
               <>

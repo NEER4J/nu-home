@@ -219,7 +219,7 @@ export default function EditQuestionForm({
                 <select
                   id="service_category_id"
                   {...register('service_category_id')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 >
                   <option value="">Select a service category</option>
                   {categories.map((category) => (
@@ -243,7 +243,7 @@ export default function EditQuestionForm({
                   type="text"
                   id="question_text"
                   {...register('question_text')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   placeholder="e.g., Which fuel powers your boiler?"
                 />
               </div>
@@ -262,7 +262,7 @@ export default function EditQuestionForm({
                   id="step_number"
                   min="1"
                   {...register('step_number', { valueAsNumber: true })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
               </div>
               {errors.step_number && (
@@ -280,7 +280,7 @@ export default function EditQuestionForm({
                   id="display_order_in_step"
                   min="1"
                   {...register('display_order_in_step', { valueAsNumber: true })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
               </div>
               {errors.display_order_in_step && (
@@ -345,7 +345,7 @@ export default function EditQuestionForm({
                     type="text"
                     value={option}
                     onChange={(e) => handleOptionChange(index, e.target.value)}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                     placeholder={`Option ${index + 1}`}
                   />
                   <button
@@ -363,7 +363,7 @@ export default function EditQuestionForm({
               <button
                 type="button"
                 onClick={handleAddOption}
-                className="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 -sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
@@ -413,7 +413,7 @@ export default function EditQuestionForm({
                     type="url"
                     id="helper_video_url"
                     {...register('helper_video_url')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                     placeholder="https://example.com/video"
                   />
                 </div>
@@ -438,7 +438,7 @@ export default function EditQuestionForm({
               <button
                 type="button"
                 onClick={() => setShowConditionalLogic(!showConditionalLogic)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 -sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 {showConditionalLogic ? 'Hide Conditional Logic' : 'Add Conditional Logic'}
               </button>
@@ -455,7 +455,7 @@ export default function EditQuestionForm({
                   <select
                     id="conditional_question"
                     {...register('conditional_question')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   >
                     <option value="">Select a question</option>
                     {conditionalQuestions.map((question) => (
@@ -475,7 +475,7 @@ export default function EditQuestionForm({
                   <select
                     id="conditional_operator"
                     {...register('conditional_operator')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   >
                     <option value="OR">Any selected (OR)</option>
                     <option value="AND">All selected (AND)</option>
@@ -491,7 +491,7 @@ export default function EditQuestionForm({
                   <input
                     type="text"
                     {...register('conditional_values')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                     placeholder="Comma-separated values, e.g.: Mains Gas,LPG"
                   />
                 </div>
@@ -521,7 +521,7 @@ export default function EditQuestionForm({
                 <select
                   id="status"
                   {...register('status')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -537,7 +537,7 @@ export default function EditQuestionForm({
           <button
             type="button"
             onClick={handleDelete}
-            className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            className="inline-flex justify-center py-2 px-4 border border-transparent -sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
           >
             Delete Question
           </button>
@@ -546,14 +546,14 @@ export default function EditQuestionForm({
             <button
               type="button"
               onClick={() => router.push('/admin/form-questions')}
-              className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="bg-white py-2 px-4 border border-gray-300 rounded-md -sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent -sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Saving...' : 'Update Question'}
             </button>

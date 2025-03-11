@@ -131,7 +131,7 @@ export default function ConditionalLogic({
                   <select
                     id="conditional_question"
                     {...register('conditional_question')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   >
                     <option value="">Select a question</option>
                     {availableQuestions.map((q) => (
@@ -189,7 +189,7 @@ export default function ConditionalLogic({
                       <select
                         id="conditional_operator"
                         {...register('conditional_operator')}
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                        className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                       >
                         <option value="OR">OR - Show if any selected answers match</option>
                         <option value="AND">AND - Show only if all selected answers match</option>

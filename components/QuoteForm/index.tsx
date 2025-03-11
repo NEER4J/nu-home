@@ -346,9 +346,6 @@ const handleSubmit = async (contactDetails: any) => {
     );
   }
   
-  // Service name display
-  const serviceName = "Solar Panel Installation";
-  
   return (
     <div className="w-full">
       {/* Back button and service name */}
@@ -359,8 +356,7 @@ const handleSubmit = async (contactDetails: any) => {
           </svg>
           Back to Home
         </a>
-        <h1 className="text-3xl font-bold text-gray-900 mt-2">Solar</h1>
-        <p className="text-gray-600">{serviceName}</p>
+        <h1 className="text-3xl font-bold text-gray-900 mt-2 capitalize">{serviceCategorySlug} Quote Form</h1>
       </div>
       
       {/* Main progress bar */}
@@ -382,7 +378,7 @@ const handleSubmit = async (contactDetails: any) => {
       </div>
       
       {/* Main content container */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+      <div className=" overflow-hidden">
         {error && (
           <div className="p-3 bg-red-50 border-b border-red-200 text-red-700">
             {error}

@@ -58,7 +58,7 @@ export default async function EditQuestionPage({
         </p>
       </div>
       
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6">
+      <div className="bg-white  overflow-hidden sm:rounded-lg p-6">
         <QuestionForm 
           question={question}
           categories={categories || []}

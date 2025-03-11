@@ -29,7 +29,7 @@ export default function NewCategoryPage() {
         </Link>
       </div>
       
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+      <div className="bg-white  overflow-hidden sm:rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <NewCategoryForm />
         </div>

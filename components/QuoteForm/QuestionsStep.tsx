@@ -133,10 +133,10 @@ export default function QuestionsStep({
                     <div 
                       key={idx} 
                       className={`
-                        bg-white p-6 rounded-lg shadow-md border ${isSelected 
+                        bg-white p-6 rounded-lg -md border ${isSelected 
                           ? 'border-blue-500 ring-2 ring-blue-500 ring-opacity-50' 
                           : 'border-gray-200 hover:border-blue-300'} 
-                        cursor-pointer transition-all hover:shadow-lg text-center
+                        cursor-pointer transition-all hover:-lg text-center
                       `}
                       onClick={() => handleMultipleChoiceSelection(question.question_id, option, !!allowMultipleSelections)}
                     >
@@ -176,7 +176,7 @@ export default function QuestionsStep({
                   value={formValues[question.question_id] || ''}
                   onChange={(e) => handleTextInputChange(question.question_id, e.target.value)}
                   onKeyPress={handleTextInputKeyPress}
-                  className="mt-1 block w-full px-4 py-3 text-lg border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full px-4 py-3 text-lg border border-gray-300 rounded-lg -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Your answer"
                 />
               </div>

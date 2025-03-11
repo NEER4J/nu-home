@@ -279,7 +279,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
       </div>
       
       {/* Questions Content */}
-      <div className="flex-grow overflow-auto bg-gray-50 p-6 justify-center align-middle min-h-screen">
+      <div className="flex-grow overflow-auto bg-gray-50 p-6 justify-center align-middle">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -311,7 +311,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
         ) : (
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="col-span-1 bg-white p-4 gap-6 rounded-lg shadow-sm border border-gray-200">
+              <div className="col-span-1 bg-white p-4 gap-6 rounded-lg -sm border border-gray-200">
                 <div className="sticky top-4">
                   <h3 className="font-medium text-gray-900 mb-3">Steps</h3>
                   <nav className="space-y-1" aria-label="Steps">
@@ -351,6 +351,18 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
                         </span>
                         <span>Has condition</span>
                       </div>
+                      <div className="flex items-center text-sm">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                        Multiple Selections
+                        </span>
+                        <span>Has Multiple Selections</span>
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mr-2">
+                        Has Video
+                        </span>
+                        <span>Has helper Video</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -361,7 +373,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
                   const stepQuestions = questionsByStep[step];
                   
                   return (
-                    <div key={step} id={`step-${step}`} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div key={step} id={`step-${step}`} className="bg-white p-6 rounded-lg -sm border border-gray-200">
                       <div className="flex justify-between items-center mb-4">
                         <h2 className="text-lg font-medium text-gray-900">
                           Step {step}
@@ -404,7 +416,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
                                         {question.is_multiple_choice ? 'Multiple Choice' : 'Text Input'}
                                       </span>
                                       {question.is_multiple_choice && question.allow_multiple_selections && (
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mr-2 mb-1">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2 mb-1">
                                           Multiple Selections
                                         </span>
                                       )}
@@ -578,7 +590,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
           style={{backdropFilter: 'blur(2px)', backgroundColor: 'rgba(0, 0, 0, 0.5)'}}
         >
           <div 
-            className="bg-white rounded-lg shadow-xl w-full max-w-md"
+            className="bg-white rounded-lg -xl w-full max-w-md"
             onClick={(e) => e.stopPropagation()} // Prevent clicks inside from closing
           >
             <div className="p-4 border-b flex justify-between items-center">

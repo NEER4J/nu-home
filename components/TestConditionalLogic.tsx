@@ -53,7 +53,7 @@ export default function TestConditionalLogic() {
   };
   
   return (
-    <div className="p-4 bg-white rounded shadow-md">
+    <div className="p-4 bg-white rounded -md">
       <h2 className="text-lg font-bold mb-4">Test Conditional Logic</h2>
       
       <button

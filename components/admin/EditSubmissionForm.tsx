@@ -111,7 +111,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
                   type="text"
                   id="first_name"
                   {...register('first_name', { required: 'First name is required' })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
               </div>
               {errors.first_name && (
@@ -128,7 +128,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
                   type="text"
                   id="last_name"
                   {...register('last_name', { required: 'Last name is required' })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
               </div>
               {errors.last_name && (
@@ -151,7 +151,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
                       message: 'Invalid email address'
                     }
                   })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
               </div>
               {errors.email && (
@@ -168,7 +168,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
                   type="tel"
                   id="phone"
                   {...register('phone')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
               </div>
             </div>
@@ -182,7 +182,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
                   type="text"
                   id="city"
                   {...register('city')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
               </div>
             </div>
@@ -196,7 +196,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
                   type="text"
                   id="postcode"
                   {...register('postcode', { required: 'Postcode is required' })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 />
               </div>
               {errors.postcode && (
@@ -223,7 +223,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
                 <select
                   id="service_category_id"
                   {...register('service_category_id', { required: 'Service category is required' })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 >
                   {categories.map((category) => (
                     <option key={category.service_category_id} value={category.service_category_id}>
@@ -245,7 +245,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
                 <select
                   id="status"
                   {...register('status', { required: 'Status is required' })}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                 >
                   <option value="new">New</option>
                   <option value="processed">Processed</option>
@@ -267,7 +267,7 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
                   id="notes"
                   rows={4}
                   {...register('notes')}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   placeholder="Add admin notes about this submission"
                 />
               </div>
@@ -281,14 +281,14 @@ export default function EditSubmissionForm({ submission, categories }: EditSubmi
           <button
             type="button"
             onClick={() => router.push(`/admin/quote-submissions/${submission.submission_id}`)}
-            className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="bg-white py-2 px-4 border border-gray-300 rounded-md -sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent -sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Saving...' : 'Save Changes'}
           </button>

@@ -73,7 +73,7 @@ export default function ContactDetailsStep({
               id="firstName"
               type="text"
               {...register('firstName')}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.firstName && (
               <p className="mt-1 text-sm text-red-600">
@@ -90,7 +90,7 @@ export default function ContactDetailsStep({
               id="lastName"
               type="text"
               {...register('lastName')}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.lastName && (
               <p className="mt-1 text-sm text-red-600">
@@ -108,7 +108,7 @@ export default function ContactDetailsStep({
             id="email"
             type="email"
             {...register('email')}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
           {errors.email && (
             <p className="mt-1 text-sm text-red-600">
@@ -125,7 +125,7 @@ export default function ContactDetailsStep({
             id="phone"
             type="tel"
             {...register('phone')}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
           {errors.phone && (
             <p className="mt-1 text-sm text-red-600">
@@ -142,7 +142,7 @@ export default function ContactDetailsStep({
             id="city"
             type="text"
             {...register('city')}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
           {errors.city && (
             <p className="mt-1 text-sm text-red-600">

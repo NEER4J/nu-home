@@ -81,11 +81,18 @@ export default async function QuoteSubmissionsPage({
     const totalPages = Math.ceil((count || 0) / pageSize);
     
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-6 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Quote Submissions</h1>
+      <div className="flex flex-col h-full">
+      
+
+        <div className='border-b bg-white' >
+          <div className="flex justify-between items-center px-4 py-2">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold text-gray-800">From Submissions</h1>
+            </div>
+          </div>
         </div>
-        
+        <div className='flex-grow overflow-auto bg-gray-50 p-6 justify-center align-middle'>
+
         {/* Filters - Now a client component */}
         <SubmissionFilters 
           statusFilter={statusFilter}
@@ -93,8 +100,13 @@ export default async function QuoteSubmissionsPage({
           categories={categories || []}
         />
         
+
+
         {/* Submissions Table */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+
+
+
+        <div className="bg-white  overflow-hidden sm:rounded-lg">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -216,7 +228,7 @@ export default async function QuoteSubmissionsPage({
                   </p>
                 </div>
                 <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <nav className="relative z-0 inline-flex rounded-md -sm -space-x-px" aria-label="Pagination">
                     <a
                       href={`/admin/quote-submissions?page=${page > 1 ? page - 1 : 1}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}`}
                       className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${page <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -283,6 +295,9 @@ export default async function QuoteSubmissionsPage({
             </div>
           )}
         </div>
+
+        </div>
+
       </div>
     );
   } catch (error) {

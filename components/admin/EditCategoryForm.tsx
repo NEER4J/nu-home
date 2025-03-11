@@ -110,7 +110,7 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
             type="text"
             id="name"
             {...register('name')}
-            className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+            className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
           />
         </div>
         {errors.name && (
@@ -123,7 +123,7 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
           URL Slug *
         </label>
         <div className="mt-1">
-          <div className="flex rounded-md shadow-sm">
+          <div className="flex rounded-md -sm">
             <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
               /services/
             </span>
@@ -152,7 +152,7 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
             id="description"
             rows={3}
             {...register('description')}
-            className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+            className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
           />
         </div>
         <p className="mt-2 text-sm text-gray-500">
@@ -169,7 +169,7 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
             type="text"
             id="icon_url"
             {...register('icon_url')}
-            className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+            className="-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
           />
         </div>
         {errors.icon_url && (
@@ -199,14 +199,14 @@ export default function EditCategoryForm({ category }: EditCategoryFormProps) {
         <button
           type="button"
           onClick={() => router.push('/admin/service-categories')}
-          className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="bg-white py-2 px-4 border border-gray-300 rounded-md -sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent -sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? 'Saving...' : 'Save Changes'}
         </button>

@@ -211,7 +211,7 @@ export default function QuoteForm({
   }
   
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white p-6 rounded-lg shadow-md">
+    <div className="w-full max-w-2xl mx-auto bg-white p-6 rounded-lg -md">
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
           {error}
@@ -280,7 +280,7 @@ export default function QuoteForm({
                   {...register(question.question_id, {
                     required: question.is_required ? 'This field is required' : false
                   })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               )}
               
@@ -330,7 +330,7 @@ export default function QuoteForm({
                   id="firstName"
                   type="text"
                   {...register('firstName')}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 {errors.firstName && (
                   <p className="mt-1 text-sm text-red-600">
@@ -347,7 +347,7 @@ export default function QuoteForm({
                   id="lastName"
                   type="text"
                   {...register('lastName')}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 {errors.lastName && (
                   <p className="mt-1 text-sm text-red-600">
@@ -365,7 +365,7 @@ export default function QuoteForm({
                 id="email"
                 type="email"
                 {...register('email')}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">
@@ -382,7 +382,7 @@ export default function QuoteForm({
                 id="phone"
                 type="tel"
                 {...register('phone')}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             
@@ -395,7 +395,7 @@ export default function QuoteForm({
                   id="city"
                   type="text"
                   {...register('city')}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               
@@ -407,7 +407,7 @@ export default function QuoteForm({
                   id="postcode"
                   type="text"
                   {...register('postcode')}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 {errors.postcode && (
                   <p className="mt-1 text-sm text-red-600">

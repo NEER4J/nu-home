@@ -64,8 +64,7 @@ export default function SubmissionFilters({
   }, [status, category, statusFilter, categoryFilter]);
 
   return (
-    <div className="mb-6 bg-white p-4 rounded-md shadow-sm">
-      <h2 className="text-lg font-medium text-gray-900 mb-3">Filter Submissions</h2>
+    <div className="mb-6 bg-white p-4 rounded-md -sm">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
@@ -110,7 +109,7 @@ export default function SubmissionFilters({
           <button
             type="button"
             onClick={clearFilters}
-            className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="bg-white py-2 px-4 border border-gray-300 rounded-md -sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Clear Filters
           </button>

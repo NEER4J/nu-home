@@ -33,7 +33,7 @@ export function QuestionDialog({
       style={{backdropFilter: 'blur(2px)', backgroundColor: 'rgba(0, 0, 0, 0.5)'}}
     >
       <div 
-        className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg -xl max-w-4xl max-h-[90vh] overflow-y-auto"
         style={{maxHeight: '90vh'}}
         onClick={(e) => e.stopPropagation()} // Prevent clicks inside from closing 
       >

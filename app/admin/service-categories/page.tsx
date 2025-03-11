@@ -27,20 +27,29 @@ export default async function ServiceCategoriesPage() {
     }
     
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-6 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Service Categories</h1>
-          
+      <div className="flex flex-col h-full">
+      
+
+      <div className='border-b bg-white' >
+        <div className="flex justify-between items-center px-4 py-2">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold text-gray-800">Service Categories</h1>
+          </div>
+          <div className="flex gap-2">
           <Link
             href="/admin/service-categories/new"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
           >
             Add New Category
           </Link>
+            </div>
         </div>
-        
+      </div>
+
+      <div className='flex-grow overflow-auto bg-gray-50 p-6 justify-center align-middle'>
+
         {/* Categories List */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div className=" border bg-white border-gray-200 overflow-hidden sm:rounded-lg">
           <ul className="divide-y divide-gray-200">
             {categories?.length === 0 ? (
               <li className="px-6 py-4 text-center text-gray-500">
@@ -113,6 +122,10 @@ export default async function ServiceCategoriesPage() {
             )}
           </ul>
         </div>
+        
+        </div>
+
+
       </div>
     );
   } catch (error) {

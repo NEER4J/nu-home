@@ -40,7 +40,7 @@ export default async function NewQuestionPage() {
         </p>
       </div>
       
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6">
+      <div className="bg-white  overflow-hidden sm:rounded-lg p-6">
         <QuestionForm 
           categories={categories || []} 
           categoryStepMap={categoryStepMap} 
