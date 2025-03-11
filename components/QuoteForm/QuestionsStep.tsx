@@ -1,7 +1,7 @@
 // components/QuoteForm/QuestionsStep.tsx
 import { useState, useEffect } from 'react';
 import { FormQuestion } from '@/types/database.types';
-import Image from 'next/image';
+import { motion } from 'framer-motion';
 
 interface QuestionsStepProps {
   questions: FormQuestion[];
@@ -21,8 +21,18 @@ export default function QuestionsStep({
   showPrevious
 }: QuestionsStepProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedQuestion, setSelectedQuestion] = useState<string>(
+    questions.length > 0 ? questions[0].question_id : ''
+  );
   
-  // Handle multiple choice selection and auto proceed to next question
+  // Update selected question when questions change
+  useEffect(() => {
+    if (questions.length > 0 && !questions.find(q => q.question_id === selectedQuestion)) {
+      setSelectedQuestion(questions[0].question_id);
+    }
+  }, [questions, selectedQuestion]);
+  
+  // Handle multiple choice selection with improved deselection logic
   const handleMultipleChoiceSelection = (questionId: string, option: string | { text: string; image: string }, allowMultiple: boolean) => {
     // Ensure questionId is valid
     if (!questionId || questionId === 'undefined') {
@@ -37,27 +47,32 @@ export default function QuestionsStep({
       // If the question allows multiple selections
       const currentValues = Array.isArray(formValues[questionId]) 
         ? [...formValues[questionId]] 
-        : formValues[questionId] ? [formValues[questionId]] : [];
+        : formValues[questionId] ? formValues[questionId].split(', ') : [];
       
-      if (currentValues.includes(optionValue)) {
+      // Check if the option is already selected
+      const isSelected = currentValues.includes(optionValue);
+      
+      let newValues;
+      if (isSelected) {
         // Remove if already selected
-        const newValues = currentValues.filter(val => val !== optionValue);
-        // Store as string with comma separator if there are multiple values
-        const formattedValue = newValues.length > 0 ? newValues.join(', ') : '';
-        onValueChange(questionId, formattedValue);
+        newValues = currentValues.filter((val: string) => val !== optionValue);
       } else {
         // Add if not selected
-        const newValues = [...currentValues, optionValue];
-        // Join multiple values with comma separator
-        const formattedValue = newValues.join(', ');
-        onValueChange(questionId, formattedValue);
+        newValues = [...currentValues, optionValue];
       }
+      
+      // Store as string with comma separator if there are multiple values
+      const formattedValue = newValues.length > 0 ? newValues.join(', ') : '';
+      onValueChange(questionId, formattedValue);
     } else {
       // Single selection - just use the option text
       onValueChange(questionId, optionValue);
       
       // Automatically proceed to next question for single-choice selections
-      onNext();
+      // only if this is the only question in the step
+      if (questions.length === 1) {
+        onNext();
+      }
     }
   };
   
@@ -102,140 +117,263 @@ export default function QuestionsStep({
       return currentValue === optionText;
     }
   };
+
+  // Get current active question
+  const currentQuestion = questions.find(q => q.question_id === selectedQuestion) || questions[0];
+  
+  // Determine if multiple selections are allowed for current question
+  const allowMultipleSelections = currentQuestion?.is_multiple_choice && currentQuestion?.allow_multiple_selections;
   
   return (
-    <div>
-      {questions.map(question => {
-        // Determine if multiple selections are allowed
-        const allowMultipleSelections = question.is_multiple_choice && question.allow_multiple_selections;
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      className="w-full max-w-3xl mx-auto"
+    >
+      {/* Question Navigation Pills - Show if more than one question */}
+      {questions.length > 1 && (
+        <div className="flex flex-wrap justify-center gap-2 mb-8">
+          {questions.map((question, index) => (
+            <button
+              key={question.question_id}
+              onClick={() => setSelectedQuestion(question.question_id)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                question.question_id === selectedQuestion
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : formValues[question.question_id]
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
+      )}
+      
+      {/* Current Question */}
+      <motion.div
+        key={currentQuestion?.question_id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.2 }}
+        className="mb-8"
+      >
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+          {currentQuestion?.question_text}
+          {currentQuestion?.is_required && <span className="text-red-500 ml-1">*</span>}
+        </h2>
         
-        return (
-          <div key={question.question_id} className="mb-8">
-            <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-              {question.question_text}
-              {question.is_required && <span className="text-red-500 ml-1">*</span>}
-            </h2>
-            
-            {question.is_multiple_choice ? (
-              <div className={`grid ${question.answer_options && question.answer_options.length > 2 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'} gap-6 max-w-2xl mx-auto`}>
-                {question.answer_options?.map((option: any, idx) => {
-                    // Handle both old and new data formats with explicit typing
-                    const isOptionObject = typeof option === 'object' && option !== null;
-                    const optionText = isOptionObject ? (option as any).text : option as string;
-                    const optionImage = isOptionObject 
-                      ? (option as any).image 
-                      : (question.answer_images && question.answer_images[idx]);
+        {/* Show multiple selection helper text */}
+        {allowMultipleSelections && (
+          <div className="text-center mb-6">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              You can select multiple options
+            </span>
+          </div>
+        )}
+        
+        {currentQuestion?.is_multiple_choice ? (
+          <div className={`grid ${currentQuestion.answer_options && currentQuestion.answer_options.length > 2 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'} gap-6 max-w-2xl mx-auto`}>
+            {currentQuestion.answer_options?.map((option: any, idx) => {
+                // Handle both old and new data formats with explicit typing
+                const isOptionObject = typeof option === 'object' && option !== null;
+                const optionText = isOptionObject ? (option as any).text : option as string;
+                const optionImage = isOptionObject 
+                  ? (option as any).image 
+                  : (currentQuestion.answer_images && currentQuestion.answer_images[idx]);
+              
+              // Check if this option is selected
+              const isSelected = isOptionSelected(currentQuestion.question_id, optionText, !!allowMultipleSelections);
+              
+              return (
+                <motion.div 
+                  key={idx}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`
+                    bg-white p-6 rounded-lg border-2 ${isSelected 
+                      ? 'border-blue-500 ring-4 ring-blue-100' 
+                      : 'border-gray-200 hover:border-blue-300'} 
+                    cursor-pointer transition-all shadow-sm hover:shadow-md text-center relative overflow-hidden
+                  `}
+                  onClick={() => handleMultipleChoiceSelection(currentQuestion.question_id, option, !!allowMultipleSelections)}
+                >
+                  {/* Highlight effect for selected items */}
+                  {isSelected && (
+                    <div className="absolute inset-0 bg-blue-50 opacity-30"></div>
+                  )}
                   
-                  // Check if this option is selected
-                  const isSelected = isOptionSelected(question.question_id, optionText, !!allowMultipleSelections);
-                  
-                  return (
-                    <div 
-                      key={idx} 
-                      className={`
-                        bg-white p-6 rounded-lg -md border ${isSelected 
-                          ? 'border-blue-500 ring-2 ring-blue-500 ring-opacity-50' 
-                          : 'border-gray-200 hover:border-blue-300'} 
-                        cursor-pointer transition-all hover:-lg text-center
-                      `}
-                      onClick={() => handleMultipleChoiceSelection(question.question_id, option, !!allowMultipleSelections)}
-                    >
-                      <div className="flex flex-col items-center">
-                        {optionImage && (
-                          <div className="">
-                            <img 
-                              src={optionImage}
-                              alt={optionText}
-                              width={200}
-                              height={200}
-                              className="w-[140px] h-[140px]"
-                            />
-                          </div>
+                  {/* Checkbox in top right corner for multiple selection questions */}
+                  {allowMultipleSelections && (
+                    <div className="absolute top-3 right-3 z-10">
+                      <div className={`w-5 h-5 border rounded-md flex items-center justify-center ${isSelected ? 'bg-blue-500 border-blue-500' : 'bg-white border-gray-300'} transition-colors duration-200`}>
+                        {isSelected && (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
                         )}
-                        <div className="flex items-center">
-                          {allowMultipleSelections && (
-                            <div className={`w-5 h-5 mr-2 border rounded flex items-center justify-center ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
-                              {isSelected && (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </div>
-                          )}
-                          <span className="font-medium text-lg">{optionText}</span>
-                        </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="max-w-xl mx-auto">
-                <input
-                  type="text"
-                  value={formValues[question.question_id] || ''}
-                  onChange={(e) => handleTextInputChange(question.question_id, e.target.value)}
-                  onKeyPress={handleTextInputKeyPress}
-                  className="mt-1 block w-full px-4 py-3 text-lg border border-gray-300 rounded-lg -sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Your answer"
-                />
-              </div>
-            )}
-            
-            {errors[question.question_id] && (
-              <p className="mt-4 text-sm text-red-600 text-center">
-                {errors[question.question_id]}
-              </p>
-            )}
-            
-            {question.has_helper_video && question.helper_video_url && (
-              <div className="mt-4 text-center">
-                <a 
-                  href={question.helper_video_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline flex items-center justify-center"
-                >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-4 w-4 mr-1" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Watch helper video
-                </a>
-              </div>
-            )}
+                  )}
+                  
+                  <div className="flex flex-col items-center relative z-0">
+                    {optionImage && (
+                      <div className="mb-3 rounded-lg overflow-hidden p-2">
+                        <img 
+                          src={optionImage}
+                          alt={optionText}
+                          width={200}
+                          height={200}
+                          className="w-[140px] h-[140px] object-contain"
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-center justify-center">
+                      <span className="font-medium text-lg">{optionText}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
-        );
-      })}
-      
-      <div className="mt-8 flex justify-between max-w-md mx-auto">
-        {showPrevious && (
-          <button
-            type="button"
-            onClick={onPrevious}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Back
-          </button>
+        ) : (
+          <div className="max-w-xl mx-auto">
+            <div className="relative">
+              <input
+                type="text"
+                value={formValues[currentQuestion.question_id] || ''}
+                onChange={(e) => handleTextInputChange(currentQuestion.question_id, e.target.value)}
+                onKeyPress={handleTextInputKeyPress}
+                className="mt-1 block w-full px-4 py-4 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                placeholder="Your answer"
+              />
+              <div className="absolute bottom-0 left-0 h-1 bg-blue-500 rounded-full transition-all duration-300" style={{ 
+                width: formValues[currentQuestion?.question_id] ? `${Math.min((formValues[currentQuestion.question_id].length / 20) * 100, 100)}%` : '0%' 
+              }}></div>
+            </div>
+          </div>
         )}
         
-        {/* Next button only shown for text input questions or multiple-selection questions */}
-        {questions.some(q => !q.is_multiple_choice || (q.is_multiple_choice && q.allow_multiple_selections)) && (
-          <button
-            type="button"
-            onClick={() => validateResponses() && onNext()}
-            className={`px-6 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 ${!showPrevious ? 'ml-auto' : ''}`}
+        {errors[currentQuestion?.question_id] && (
+          <motion.p 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 text-sm text-red-600 text-center flex items-center justify-center"
           >
-            Next
-          </button>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            {errors[currentQuestion.question_id]}
+          </motion.p>
         )}
+        
+        {currentQuestion?.has_helper_video && currentQuestion?.helper_video_url && (
+          <div className="mt-6 text-center">
+            <a 
+              href={currentQuestion.helper_video_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-4 py-2 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors duration-200"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-5 w-5 mr-2" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Watch helper video
+            </a>
+          </div>
+        )}
+      </motion.div>
+      
+      {/* Navigation Buttons */}
+      <div className="mt-8 flex justify-between max-w-md mx-auto">
+        {showPrevious && (
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            type="button"
+            onClick={onPrevious}
+            className="px-5 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shadow-sm transition-all duration-200 flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </motion.button>
+        )}
+        
+        {/* If multiple questions in step, show prev/next question buttons */}
+        {questions.length > 1 && (
+          <div className="flex gap-3">
+            {currentQuestion?.question_id !== questions[0].question_id && (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                onClick={() => {
+                  const currentIndex = questions.findIndex(q => q.question_id === currentQuestion?.question_id);
+                  if (currentIndex > 0) {
+                    setSelectedQuestion(questions[currentIndex - 1].question_id);
+                  }
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shadow-sm"
+              >
+                Previous Question
+              </motion.button>
+            )}
+            
+            {currentQuestion?.question_id !== questions[questions.length - 1].question_id && (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                onClick={() => {
+                  const currentIndex = questions.findIndex(q => q.question_id === currentQuestion?.question_id);
+                  if (currentIndex < questions.length - 1) {
+                    setSelectedQuestion(questions[currentIndex + 1].question_id);
+                  }
+                }}
+                className="px-4 py-2 border border-blue-200 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 shadow-sm"
+              >
+                Next Question
+              </motion.button>
+            )}
+          </div>
+        )}
+        
+        {/* Next step button */}
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          type="button"
+          onClick={() => validateResponses() && onNext()}
+          className={`px-6 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all duration-200 flex items-center ${!showPrevious && questions.length === 1 ? 'ml-auto' : ''}`}
+        >
+          Next Step
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </motion.button>
       </div>
-    </div>
+      
+      {/* Progress Indicator */}
+      {questions.length > 1 && (
+        <div className="mt-8 text-center text-sm text-gray-500">
+          Question {questions.findIndex(q => q.question_id === currentQuestion?.question_id) + 1} of {questions.length}
+        </div>
+      )}
+    </motion.div>
   );
 }
