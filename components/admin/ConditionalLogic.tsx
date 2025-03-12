@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FormQuestion } from '@/types/database.types';
+import { PlusCircle, Trash2 } from 'lucide-react';
 
 interface ConditionalLogicProps {
   showConditionalLogic: boolean;
@@ -15,6 +16,11 @@ interface ConditionalLogicProps {
   errors: any; // React Hook Form's errors object
   stepNumber: number;
   selectedCategoryId: string;
+  // Add new props for multi-condition support
+  conditions?: any[];
+  setConditions?: (conditions: any[]) => void;
+  groupOperator?: string;
+  setGroupOperator?: (operator: string) => void;
 }
 
 export default function ConditionalLogic({
@@ -27,9 +33,27 @@ export default function ConditionalLogic({
   register,
   errors,
   stepNumber,
-  selectedCategoryId
+  selectedCategoryId,
+  // Add new props with defaults
+  conditions = [],
+  setConditions = () => {},
+  groupOperator = 'AND',
+  setGroupOperator = () => {}
 }: ConditionalLogicProps) {
   const [availableOptions, setAvailableOptions] = useState<any[]>([]);
+  
+  // Add function to add a new condition
+  const addCondition = () => {
+    setConditions([...conditions, { questionId: '', values: [], operator: 'OR' }]);
+  };
+
+  // Add function to remove a condition
+  const removeCondition = (index: number) => {
+    if (conditions.length <= 1) return;
+    const newConditions = [...conditions];
+    newConditions.splice(index, 1);
+    setConditions(newConditions);
+  };
   
   // Update available options when selected question changes
   useEffect(() => {
@@ -123,6 +147,34 @@ export default function ConditionalLogic({
             </div>
           ) : (
             <>
+              {/* Group Operator Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Combine conditions with:
+                </label>
+                <div className="flex space-x-4">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      checked={groupOperator === 'AND'}
+                      onChange={() => setGroupOperator('AND')}
+                      className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">All must match (AND)</span>
+                  </label>
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      checked={groupOperator === 'OR'}
+                      onChange={() => setGroupOperator('OR')}
+                      className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Any can match (OR)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Legacy single condition support */}
               <div>
                 <label htmlFor="conditional_question" className="block text-sm font-medium text-gray-700">
                   Dependent on Question
@@ -198,6 +250,16 @@ export default function ConditionalLogic({
                   </div>
                 </>
               )}
+
+              {/* Add button for additional conditions */}
+              <button
+                type="button"
+                onClick={addCondition}
+                className="mt-2 inline-flex items-center px-3 py-1.5 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+              >
+                <PlusCircle size={16} className="mr-1" />
+                Add Another Condition
+              </button>
             </>
           )}
         </div>

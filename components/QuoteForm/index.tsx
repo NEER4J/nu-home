@@ -96,6 +96,30 @@ export default function QuoteForm({
     loadQuestions();
   }, [serviceCategoryId]);
   
+  function evaluateCondition(
+    questionId: string, 
+    values: string[], 
+    operator: string, 
+    formValues: FormValues
+  ): boolean {
+    const dependentAnswer = formValues[questionId];
+    
+    if (!dependentAnswer) return false;
+    
+    if (operator === 'OR') {
+      if (Array.isArray(dependentAnswer)) {
+        return dependentAnswer.some(answer => values.includes(answer));
+      }
+      return values.includes(dependentAnswer);
+    } else {
+      // AND logic
+      if (Array.isArray(dependentAnswer)) {
+        return values.every(value => dependentAnswer.includes(value));
+      }
+      return values.every(value => dependentAnswer === value);
+    }
+  }
+
   // Update active questions when formValues or questions change
   useEffect(() => {
     if (questions.length === 0) return;
@@ -106,21 +130,30 @@ export default function QuoteForm({
         // If no conditional display, it's always active
         if (!question.conditional_display) return true;
         
-        const { dependent_on_question_id, show_when_answer_equals, logical_operator } = question.conditional_display;
-        const dependentAnswer = formValues[dependent_on_question_id];
+        // Old format backward compatibility
+        if (!('conditions' in question.conditional_display) || 
+            !Array.isArray((question.conditional_display as any).conditions)) {
+          const { dependent_on_question_id, show_when_answer_equals, logical_operator } = question.conditional_display;
+          return evaluateCondition(dependent_on_question_id, show_when_answer_equals, logical_operator, formValues);
+        }
         
-        if (!dependentAnswer) return false;
+        // New format with multiple conditions
+        const conditions = (question.conditional_display as any).conditions;
+        const group_logical_operator = (question.conditional_display as any).group_logical_operator || 'AND';
+
         
-        if (logical_operator === 'OR') {
-          return show_when_answer_equals.includes(dependentAnswer);
+        if (!conditions || conditions.length === 0) return true;
+        
+        const results = conditions.map((condition: any) => {
+          const { dependent_on_question_id, show_when_answer_equals, logical_operator } = condition;
+          return evaluateCondition(dependent_on_question_id, show_when_answer_equals, logical_operator, formValues);
+        });
+        
+        // Combine results based on group operator
+        if (group_logical_operator === 'AND') {
+          return results.every((result: boolean) => result === true);
         } else {
-          // AND logic
-          return show_when_answer_equals.every(value => {
-            if (Array.isArray(dependentAnswer)) {
-              return dependentAnswer.includes(value);
-            }
-            return dependentAnswer === value;
-          });
+          return results.some((result: boolean) => result === true);
         }
       });
       

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
@@ -23,10 +23,19 @@ const formSchema = z.object({
   helper_video_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
   is_required: z.boolean().optional(),
   status: z.enum(['active', 'inactive']),
-  // Add conditional fields to the schema
+  
+  // Old conditional fields (can keep for backward compatibility)
   conditional_question: z.string().optional(),
   conditional_values: z.union([z.string().optional(), z.array(z.string()).optional()]),
-  conditional_operator: z.enum(['AND', 'OR']).optional()
+  conditional_operator: z.enum(['AND', 'OR']).optional(),
+  
+  // New multiple conditions fields
+  conditions: z.array(z.object({
+    conditional_question: z.string().optional(),
+    conditional_values: z.union([z.string().optional(), z.array(z.string()).optional()]),
+    conditional_operator: z.enum(['AND', 'OR']).optional()
+  })).optional(),
+  group_logical_operator: z.enum(['AND', 'OR']).optional()
 });
 
 type FormValues = z.infer<typeof formSchema> & {
@@ -105,6 +114,31 @@ export function QuestionForm({
   const [availableConditionalQuestions, setAvailableConditionalQuestions] = useState<any[]>(
     conditionalQuestions || []
   );
+
+// Make sure your default values are correctly set
+const defaultConditions = (() => {
+  if (!question?.conditional_display) {
+    return [{ conditional_question: '', conditional_values: [], conditional_operator: 'OR' }];
+  }
+  
+  // Check if this is the new format with conditions array
+  if ('conditions' in question.conditional_display && 
+      Array.isArray((question.conditional_display as any).conditions)) {
+    
+    return (question.conditional_display as any).conditions.map((condition: any) => ({
+      conditional_question: condition.dependent_on_question_id || '',
+      conditional_values: condition.show_when_answer_equals || [],
+      conditional_operator: condition.logical_operator || 'OR'
+    }));
+  }
+  
+  // Old format with single condition
+  return [{
+    conditional_question: question.conditional_display.dependent_on_question_id || '',
+    conditional_values: question.conditional_display.show_when_answer_equals || [],
+    conditional_operator: question.conditional_display.logical_operator || 'OR'
+  }];
+})();
   
   const {
     register,
@@ -112,6 +146,7 @@ export function QuestionForm({
     watch,
     setValue,
     getValues,
+    control,
     formState: { errors, dirtyFields }
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema as any),
@@ -130,7 +165,16 @@ export function QuestionForm({
       conditional_question: conditionalLogic?.dependent_on_question_id || '',
       conditional_values: conditionalLogic?.show_when_answer_equals || [],
       conditional_operator: conditionalLogic?.logical_operator || 'OR',
+      conditions: defaultConditions,
+      group_logical_operator: (question?.conditional_display && 'group_logical_operator' in (question.conditional_display as any)) 
+      ? (question.conditional_display as any).group_logical_operator 
+      : 'AND'
     }
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "conditions"
   });
   
   const selectedCategoryId = watch('service_category_id');
@@ -183,15 +227,40 @@ export function QuestionForm({
   }, [selectedCategoryId, stepNumber, isEditMode, question]);
   
   // Update selected question when conditional question changes
-  useEffect(() => {
-    if (conditionalQuestionId) {
-      const question = availableConditionalQuestions.find(q => q.question_id === conditionalQuestionId);
-      setSelectedQuestion(question);
-    } else {
-      setSelectedQuestion(null);
-    }
-  }, [conditionalQuestionId, availableConditionalQuestions]);
+// In your useEffect or when initializing state
+// Replace both conditionalLogic useEffects with this single one
+// Replace the combined conditionalLogic useEffect with this:
+useEffect(() => {
+  if (!conditionalLogic) return;
   
+  // Handle both new and old format
+  if ('conditions' in conditionalLogic && Array.isArray(conditionalLogic.conditions)) {
+    // New format with conditions array
+    // Initialize selectedQuestions
+    const questions = conditionalLogic.conditions.map(condition => 
+      availableConditionalQuestions.find(q => q.question_id === condition.dependent_on_question_id)
+    );
+    setSelectedQuestions(questions);
+    
+    // Initialize conditionValues
+    const valuesMap: Record<number, string[]> = {};
+    conditionalLogic.conditions.forEach((condition, idx) => {
+      valuesMap[idx] = condition.show_when_answer_equals || [];
+    });
+    setConditionValues(valuesMap);
+  } else {
+    // Old format with single condition
+    const question = availableConditionalQuestions.find(
+      q => q.question_id === conditionalLogic.dependent_on_question_id
+    );
+    setSelectedQuestions(question ? [question] : []);
+    
+    setConditionValues({
+      0: conditionalLogic.show_when_answer_equals || []
+    });
+  }
+}, [conditionalLogic, availableConditionalQuestions]);
+
   // Register conditional values with the form when they change
   useEffect(() => {
     if (showConditionalLogic && conditionalValues.length > 0) {
@@ -203,11 +272,36 @@ export function QuestionForm({
     setAnswerOptions([...answerOptions, { text: '', image: '' }]);
   };
   
-  const handleOptionChange = (index: number, field: 'text' | 'image', value: string) => {
-    const newOptions = [...answerOptions];
-    newOptions[index][field] = value;
-    setAnswerOptions(newOptions);
-  };
+// Add this state to track selected values for each condition
+const [conditionValues, setConditionValues] = useState<Record<number, string[]>>({});
+
+// Update this when checkboxes change
+const handleConditionOptionChange = (conditionIndex: number, option: string, isChecked: boolean) => {
+  const currentValues = conditionValues[conditionIndex] || [];
+  let newValues;
+  
+  if (isChecked) {
+    newValues = [...currentValues, option];
+  } else {
+    newValues = currentValues.filter(v => v !== option);
+  }
+  
+  // Update the state
+  setConditionValues(prev => ({
+    ...prev,
+    [conditionIndex]: newValues
+  }));
+  
+  // Also update the form values
+  setValue(`conditions.${conditionIndex}.conditional_values`, newValues);
+};
+
+// Add this function for answer option text/image changes
+const handleAnswerOptionChange = (index: number, field: 'text' | 'image', value: string) => {
+  const newOptions = [...answerOptions];
+  newOptions[index][field] = value;
+  setAnswerOptions(newOptions);
+};
   
   const handleRemoveOption = (index: number) => {
     if (answerOptions.length <= 1) return;
@@ -247,13 +341,20 @@ export function QuestionForm({
       }
       
       // Add conditional logic if enabled and a question is selected
-      if (showConditionalLogic && data.conditional_question) {
-        // Use values from checkbox selection state
-        if (conditionalValues.length > 0) {
+      if (showConditionalLogic) {
+        const validConditions = data.conditions?.filter(c => 
+          c.conditional_question && c.conditional_values && 
+          (Array.isArray(c.conditional_values) ? c.conditional_values.length > 0 : c.conditional_values)
+        );
+        
+        if (validConditions && validConditions.length > 0) {
           formData.conditional_display = {
-            dependent_on_question_id: data.conditional_question,
-            show_when_answer_equals: conditionalValues,
-            logical_operator: data.conditional_operator || 'OR'
+            conditions: validConditions.map(c => ({
+              dependent_on_question_id: c.conditional_question,
+              show_when_answer_equals: c.conditional_values,
+              logical_operator: c.conditional_operator || 'OR'
+            })),
+            group_logical_operator: data.group_logical_operator || 'AND'
           };
         }
       }
@@ -313,6 +414,37 @@ export function QuestionForm({
       router.push('/admin/form-questions');
     }
   };
+
+  // Add this state in your component
+  const [selectedQuestions, setSelectedQuestions] = useState<any[]>(() => {
+    if (!conditionalLogic) return [];
+    
+    // Check if it has the conditions property
+    if ('conditions' in (conditionalLogic as any) && Array.isArray((conditionalLogic as any).conditions)) {
+      return (conditionalLogic as any).conditions.map((condition: any) => 
+        availableConditionalQuestions.find(q => q.question_id === condition.dependent_on_question_id)
+      );
+    }
+    
+    // Old format - return a single question if it exists
+    const question = availableConditionalQuestions.find(
+      q => q.question_id === conditionalLogic.dependent_on_question_id
+    );
+    return question ? [question] : [];
+  });
+
+// Update this when a question is selected in any condition
+const handleQuestionSelection = (index: number, questionId: string) => {
+  const newSelectedQuestions = [...selectedQuestions];
+  newSelectedQuestions[index] = availableConditionalQuestions.find(q => q.question_id === questionId);
+  setSelectedQuestions(newSelectedQuestions);
+  
+  // Also update the form values
+  setValue(`conditions.${index}.conditional_question`, questionId);
+  setValue(`conditions.${index}.conditional_values`, []);
+};
+
+
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 max-w-5xl mx-auto">
@@ -523,7 +655,7 @@ export function QuestionForm({
                         <input
                           type="text"
                           value={option.text}
-                          onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
+                          onChange={(e) => handleAnswerOptionChange(index, 'text', e.target.value)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150"
                           placeholder={`Option ${index + 1}`}
                         />
@@ -536,7 +668,7 @@ export function QuestionForm({
                         <input
                           type="url"
                           value={option.image}
-                          onChange={(e) => handleOptionChange(index, 'image', e.target.value)}
+                          onChange={(e) => handleAnswerOptionChange(index, 'image', e.target.value)}
                           className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150"
                           placeholder="https://example.com/image.jpg"
                         />
@@ -677,94 +809,181 @@ export function QuestionForm({
               </div>
               
               {showConditionalLogic && (
-                <div className="transition-all duration-300">
-                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div>
-                      <label htmlFor="conditional_question" className="block text-sm font-medium text-gray-700 mb-1">
-                        Depends on Question
-                      </label>
-                      <select
-                        id="conditional_question"
-                        {...register('conditional_question')}
-                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150"
-                      >
-                        <option value="">Select a question</option>
-                        {availableConditionalQuestions.map((q) => (
-                          <option key={q.question_id} value={q.question_id}>
-                            Step {q.step_number}: {q.question_text}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.conditional_question && (
-                        <p className="mt-1 text-sm text-red-600">{errors.conditional_question.message}</p>
-                      )}
-                    </div>
+  <div className="transition-all duration-300">
+    <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+      <div className="flex justify-between items-center mb-2">
+        <label className="block text-sm font-medium text-gray-700">
+          Combine conditions with:
+        </label>
+        <div>
+          <label className="inline-flex items-center mr-4">
+            <input
+              type="radio"
+              {...register('group_logical_operator')}
+              value="AND"
+              className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+            />
+            <span className="ml-2 text-sm text-gray-700">All must match (AND)</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input
+              type="radio"
+              {...register('group_logical_operator')}
+              value="OR"
+              className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+            />
+            <span className="ml-2 text-sm text-gray-700">Any can match (OR)</span>
+          </label>
+        </div>
+      </div>
+      
+      {fields.map((field, index) => (
+  <div key={field.id} className="p-4 bg-white border border-gray-200 rounded-lg mb-4">
+    <div className="flex justify-between items-center mb-3">
+      <h4 className="text-sm font-medium">Condition {index + 1}</h4>
+      {fields.length > 1 && (
+        <button
+          type="button"
+          onClick={() => remove(index)}
+          className="text-red-500 hover:text-red-700"
+        >
+          <Trash2 size={16} />
+        </button>
+      )}
+    </div>
+    
+    {/* Question selection */}
+    <div>
+      <label htmlFor={`conditions.${index}.conditional_question`} className="block text-sm font-medium text-gray-700 mb-1">
+        Depends on Question
+      </label>
+      <select
+        id={`conditions.${index}.conditional_question`}
+        {...register(`conditions.${index}.conditional_question`)}
+        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150"
+        onChange={(e) => handleQuestionSelection(index, e.target.value)}
+      >
+        <option value="">Select a question</option>
+        {availableConditionalQuestions.map((q) => (
+          <option key={q.question_id} value={q.question_id}>
+            Step {q.step_number}: {q.question_text}
+          </option>
+        ))}
+      </select>
+    </div>
+    
+    {/* Operator selection */}
+    <div className="mt-2">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Show when answer equals:
+      </label>
+      <div>
+        <label className="inline-flex items-center mr-4">
+          <input
+            type="radio"
+            {...register(`conditions.${index}.conditional_operator`)}
+            value="OR"
+            className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+          />
+          <span className="ml-2 text-sm text-gray-700">Any selected (OR)</span>
+        </label>
+        <label className="inline-flex items-center">
+          <input
+            type="radio"
+            {...register(`conditions.${index}.conditional_operator`)}
+            value="AND"
+            className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+          />
+          <span className="ml-2 text-sm text-gray-700">All selected (AND)</span>
+        </label>
+      </div>
+    </div>
+    
+    {/* Answer options */}
+    {selectedQuestions[index] && selectedQuestions[index].is_multiple_choice && (
+  <div className="mt-3">
+    <div className="bg-white p-3 rounded-lg border border-gray-200 max-h-60 overflow-y-auto">
+      <div className="space-y-2">
+        {Array.isArray(selectedQuestions[index].answer_options) && selectedQuestions[index].answer_options.map((option: any, optIdx: number) => {
+          const optionText = typeof option === 'string' ? option : option.text;
+          
+          // Get current values from form
+          const currentValues = getValues(`conditions.${index}.conditional_values`) || [];
+          const isSelected = Array.isArray(currentValues) ? 
+            currentValues.includes(optionText) : 
+            currentValues === optionText;
+          
+          return (
+            <label key={optIdx} className="flex items-start">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                // Modified checkbox change handler for better reliability
+                  onChange={(e) => {
+                    // Get fresh values each time
+                    let values = getValues(`conditions.${index}.conditional_values`);
                     
-                    {selectedQuestion && (
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            Show when answer equals:
-                          </label>
-                          <div>
-                            <label className="inline-flex items-center mr-4">
-                              <input
-                                type="radio"
-                                {...register('conditional_operator')}
-                                value="OR"
-                                className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
-                              />
-                              <span className="ml-2 text-sm text-gray-700">Any selected (OR)</span>
-                            </label>
-                            <label className="inline-flex items-center">
-                              <input
-                                type="radio"
-                                {...register('conditional_operator')}
-                                value="AND"
-                                className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
-                              />
-                              <span className="ml-2 text-sm text-gray-700">All selected (AND)</span>
-                            </label>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-white p-3 rounded-lg border border-gray-200 max-h-60 overflow-y-auto">
-                          {selectedQuestion.is_multiple_choice && Array.isArray(selectedQuestion.answer_options) ? (
-                            <div className="space-y-2">
-                              {selectedQuestion.answer_options.map((option: any, index: number) => {
-                                const optionText = typeof option === 'string' ? option : option.text;
-                                const isSelected = conditionalValues.includes(optionText);
-                                
-                                return (
-                                  <label key={index} className="flex items-start">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setConditionalValues([...conditionalValues, optionText]);
-                                        } else {
-                                          setConditionalValues(conditionalValues.filter(v => v !== optionText));
-                                        }
-                                      }}
-                                      className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                                    />
-                                    <span className="ml-2 text-sm text-gray-700">{optionText}</span>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <p className="text-gray-500 text-sm italic">
-                              This question doesn't have predefined answer options. You can enter free text values:
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+                    // Ensure values is an array
+                    if (!Array.isArray(values)) {
+                      values = values ? [values] : [];
+                    }
+                    
+                    // Create a new array to trigger updates
+                    let newValues = [...values];
+                    
+                    if (e.target.checked) {
+                      if (!newValues.includes(optionText)) {
+                        newValues.push(optionText);
+                      }
+                    } else {
+                      newValues = newValues.filter(v => v !== optionText);
+                    }
+                    
+                    // Update the form value and also update our local state
+                    setValue(`conditions.${index}.conditional_values`, newValues);
+                    
+                    // Also update our condition values state
+                    setConditionValues(prev => ({
+                      ...prev,
+                      [index]: newValues
+                    }));
+                  }}
+                className="mt-1 focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <span className="ml-2 text-sm text-gray-700">{optionText}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+)}
+    
+    {/* Show message if question doesn't have predefined options */}
+    {selectedQuestions[index] && !selectedQuestions[index].is_multiple_choice && (
+      <div className="mt-3 text-sm text-gray-500 italic">
+        This question doesn't have predefined answer options. You can enter free text values:
+        {/* Add text input for custom values if needed */}
+      </div>
+    )}
+  </div>
+))}
+      
+      <button
+        type="button"
+        onClick={() => append({ 
+          conditional_question: '', 
+          conditional_values: [], 
+          conditional_operator: 'OR' 
+        })}
+        className="mt-2 inline-flex items-center px-3 py-1.5 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+      >
+        <PlusCircle size={16} className="mr-1" />
+        Add Another Condition
+      </button>
+    </div>
+  </div>
+)}
             </div>
           </div>
           

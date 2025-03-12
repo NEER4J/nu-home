@@ -199,13 +199,17 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
     }
   };
   
+  // In SimpleFormQuestionsEditor.jsx
   const handleSaveConditional = (conditionalData) => {
     if (!editingConditional) return;
     
     const conditionalDisplay = {
-      dependent_on_question_id: conditionalData.sourceQuestionId,
-      show_when_answer_equals: conditionalData.values,
-      logical_operator: conditionalData.operator
+      conditions: conditionalData.conditions.map(condition => ({
+        dependent_on_question_id: condition.sourceQuestionId,
+        show_when_answer_equals: condition.values,
+        logical_operator: condition.operator
+      })),
+      group_logical_operator: conditionalData.groupOperator
     };
     
     handleUpdateQuestionConditional(editingConditional, conditionalDisplay);
@@ -434,11 +438,28 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
                                     
                                     {question.conditional_display && (
                                       <div className="mt-2 text-xs p-2 bg-gray-100 rounded">
-                                        <span className="font-medium">Conditional Display:</span> Shows when question {
-                                          questions.find(q => q.question_id === question.conditional_display.dependent_on_question_id)?.question_text.substring(0, 30) || 
-                                          question.conditional_display.dependent_on_question_id
-                                        }
-                                        ... is {question.conditional_display.logical_operator === 'OR' ? 'any of' : 'all of'} {question.conditional_display.show_when_answer_equals.join(', ')}
+                                        <span className="font-medium">Conditional Display:</span>
+                                        {question.conditional_display.conditions ? (
+                                          <div>
+                                            <div className="text-xs italic">Conditions ({question.conditional_display.group_logical_operator || 'AND'}):</div>
+                                            <ul className="pl-2">
+                                              {question.conditional_display.conditions.map((condition, idx) => (
+                                                <li key={idx} className="mt-1">
+                                                  - When question {
+                                                    questions.find(q => q.question_id === condition.dependent_on_question_id)?.question_text.substring(0, 20) || 
+                                                    condition.dependent_on_question_id
+                                                  }... is {condition.logical_operator === 'OR' ? 'any of' : 'all of'} {condition.show_when_answer_equals.join(', ')}
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        ) : (
+                                          // Backward compatibility with old format
+                                          <span>Shows when question {
+                                            questions.find(q => q.question_id === question.conditional_display.dependent_on_question_id)?.question_text.substring(0, 30) || 
+                                            question.conditional_display.dependent_on_question_id
+                                          }... is {question.conditional_display.logical_operator === 'OR' ? 'any of' : 'all of'} {question.conditional_display.show_when_answer_equals.join(', ')}</span>
+                                        )}
                                         <button 
                                           onClick={() => handleEditConditional(question.question_id, question.conditional_display.dependent_on_question_id)}
                                           className="ml-2 text-purple-600 hover:text-purple-800"
