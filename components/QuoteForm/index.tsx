@@ -7,11 +7,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import QuestionsStep from './QuestionsStep';
 import PostcodeStep from './PostcodeStep';
 import ContactDetailsStep from './ContactDetailsStep';
+import ThankYouMessage from './ThankYouMessage';
 
 interface QuoteFormProps {
   serviceCategoryId: string;
   serviceCategorySlug: string;
   onSubmitSuccess?: (data: any) => void;
+  // New props for flexible redirect behavior
+  redirectToProducts?: boolean;
+  showThankYouMessage?: boolean;
 }
 
 // Define a type for the form values
@@ -23,7 +27,9 @@ interface FormValues {
 export default function QuoteForm({ 
   serviceCategoryId, 
   serviceCategorySlug,
-  onSubmitSuccess 
+  onSubmitSuccess,
+  redirectToProducts = false, // Default to not redirecting
+  showThankYouMessage = true // Default to showing thank you message
 }: QuoteFormProps) {
   const [questions, setQuestions] = useState<FormQuestion[]>([]);
   const [activeQuestions, setActiveQuestions] = useState<FormQuestion[]>([]);
@@ -32,6 +38,8 @@ export default function QuoteForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>({});
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [submissionData, setSubmissionData] = useState<any>(null);
   
   // Fetch questions on component mount
   useEffect(() => {
@@ -245,6 +253,7 @@ export default function QuoteForm({
   const handleSubmit = async (contactDetails: any) => {
     try {
       setError(null);
+      setIsRedirecting(true); // Set redirecting state
       
       // Filter out non-question data from formValues
       const filteredAnswers = Object.entries(formValues).reduce((acc: Record<string, any>, [key, value]) => {
@@ -301,14 +310,34 @@ export default function QuoteForm({
         throw new Error(result.error || 'Failed to submit quote request');
       }
       
-      setSuccess(true);
+      // Call onSubmitSuccess callback if provided
       if (onSubmitSuccess) {
         onSubmitSuccess(result.data);
+      }
+      
+      // Store submission data for the thank you page
+      const submissionId = result.data.submission_id;
+      setSubmissionData({
+        ...result.data,
+        serviceCategoryName: serviceCategorySlug,
+        firstName: contactDetails.firstName,
+        email: contactDetails.email,
+        postcode: formValues.postcode
+      });
+      
+      // Set success state to show thank you message
+      setSuccess(true);
+      setIsRedirecting(false);
+      
+      // If redirect to products is enabled, do it immediately
+      if (redirectToProducts && !showThankYouMessage) {
+        window.location.href = `/services/${serviceCategorySlug}/products?submission=${submissionId}`;
       }
       
     } catch (error: any) {
       setError(error.message || 'An unexpected error occurred');
       console.error('Error submitting form:', error);
+      setIsRedirecting(false); // Reset redirecting state on error
     }
   };
   
@@ -320,7 +349,7 @@ export default function QuoteForm({
   if (loading) {
     return (
       <div className="w-full max-w-4xl mx-auto py-12">
-        <div className="bg-white rounded-xl  p-8 flex flex-col items-center justify-center min-h-[300px]">
+        <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
           <p className="text-gray-600 font-medium">Loading form questions...</p>
         </div>
@@ -328,7 +357,7 @@ export default function QuoteForm({
     );
   }
   
-  if (success) {
+  if (isRedirecting) {
     return (
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
@@ -336,29 +365,59 @@ export default function QuoteForm({
         transition={{ duration: 0.1 }}
         className="w-full max-w-4xl mx-auto"
       >
-        <div className="bg-white rounded-xl  overflow-hidden">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="bg-blue-500 h-2"></div>
+          <div className="p-8">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 flex items-center justify-center mb-4">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Submitting Your Request...</h3>
+              <p className="text-gray-600 mb-8 max-w-md">
+                Please wait while we process your information.
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+  
+  if (success && showThankYouMessage && submissionData) {
+    return (
+      <ThankYouMessage
+        submissionId={submissionData.submission_id}
+        firstName={submissionData.firstName}
+        serviceCategoryName={serviceCategorySlug}
+        redirectToProducts={redirectToProducts}
+        productRedirectUrl={`/services/${serviceCategorySlug}/products?submission=${submissionData.submission_id}`}
+        postcode={submissionData.postcode}
+        email={submissionData.email}
+      />
+    );
+  }
+  
+  if (success && !showThankYouMessage) {
+    // This should not be displayed as the user will be redirected immediately
+    // But as a fallback, we'll show a simple message
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.1 }}
+        className="w-full max-w-4xl mx-auto"
+      >
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="bg-green-500 h-2"></div>
           <div className="p-8">
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
+              <div className="w-16 h-16 flex items-center justify-center mb-4">
+                <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Quote Request Submitted!</h3>
-              <p className="text-gray-600 mb-8 max-w-md">Thank you for your submission. Our team will review your requirements and contact you shortly with a personalized quote.</p>
-              
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => window.location.href = `/services/${serviceCategorySlug}`}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition-all duration-200 flex items-center"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Return to Service Page
-              </motion.button>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Request Submitted!</h3>
+              <p className="text-gray-600 mb-4 max-w-md">
+                Redirecting you to our products page...
+              </p>
             </div>
           </div>
         </div>

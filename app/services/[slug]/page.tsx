@@ -1,8 +1,10 @@
 import { createClient } from '@/utils/supabase/server';
 import { notFound } from 'next/navigation';
 import QuoteForm from '@/components/QuoteForm'; 
+import { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  // Await the params object
   const resolvedParams = await params;
   
   const supabase = await createClient();
@@ -41,6 +43,7 @@ export async function generateStaticParams() {
 }
 
 export default async function ServicePage({ params }: { params: Promise<{ slug: string }> }) {
+  // Await the params object
   const resolvedParams = await params;
   
   const supabase = await createClient();
@@ -55,16 +58,22 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
     notFound();
   }
 
+  // Default form behavior values if not set in the database
+  const showThankYou = category.show_thank_you ?? true;
+  const redirectToProducts = category.redirect_to_products ?? false;
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="">
           {/* Quote form section with enhanced styling */}
           <div className="p-6">
-            {/* QuoteForm is a client component, so we need to ensure it's properly loaded */}
+            {/* QuoteForm is a client component, so pass the behavior settings from the category */}
             <QuoteForm 
               serviceCategoryId={category.service_category_id} 
               serviceCategorySlug={category.slug}
+              redirectToProducts={redirectToProducts}
+              showThankYouMessage={showThankYou}
             />
           </div>
         </div>
