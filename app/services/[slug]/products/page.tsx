@@ -6,8 +6,10 @@ import {
   getProducts, 
   getSubmission, 
   getRecommendedProducts,
-  createServerSupabaseClient 
+  createServerSupabaseClient,
+  getProductFilters
 } from '@/lib/products';
+import ProductFilters from '@/components/products/ProductFilters';
 import { Product } from '@/types/product.types';
 
 // Product card component
@@ -47,7 +49,7 @@ export default async function ProductsPage({
   searchParams 
 }: { 
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ submission?: string }>;
+  searchParams: Promise<{ submission?: string; [key: string]: string | string[] | undefined }>;
 }) {
   // Resolve the promises
   const resolvedParams = await params;
@@ -65,6 +67,20 @@ export default async function ProductsPage({
   if (categoryError || !category) {
     notFound();
   }
+  
+  // Get available filters for this category
+  const filters = await getProductFilters(category.service_category_id);
+  
+  // Extract filter values from search params
+  const activeFilters: Record<string, string | string[]> = {};
+
+  // Process each filter key in the searchParams
+  filters.forEach(filter => {
+    const paramValue = resolvedSearchParams[filter.key];
+    if (paramValue !== undefined) {
+      activeFilters[filter.key] = paramValue;
+    }
+  });
   
   let products: Product[] = [];
   let isRecommended = false;
@@ -85,11 +101,11 @@ export default async function ProductsPage({
     } catch (error) {
       console.error('Error getting recommended products:', error);
       // Fallback to all products if there's an error
-      products = await getProducts(category.service_category_id);
+      products = await getProducts(category.service_category_id, true, activeFilters);
     }
   } else {
-    // Otherwise, get all products for this category
-    products = await getProducts(category.service_category_id);
+    // Otherwise, get all products for this category with active filters
+    products = await getProducts(category.service_category_id, true, activeFilters);
   }
   
   return (
@@ -111,20 +127,42 @@ export default async function ProductsPage({
         </p>
       </div>
       
-      {products.length === 0 ? (
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold mb-4">No Products Found</h2>
-          <p className="text-gray-600">
-            We couldn't find any products that match your requirements in the {category.name} category.
-          </p>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Filters sidebar */}
+        <div className="lg:col-span-1">
+          <ProductFilters 
+            filters={filters} 
+            activeFilters={activeFilters} 
+            categorySlug={resolvedParams.slug}
+          />
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <ProductCard key={product.product_id} product={product} />
-          ))}
+        
+        {/* Products grid */}
+        <div className="lg:col-span-3">
+          {products.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-lg">
+              <h2 className="text-2xl font-bold mb-4">No Products Found</h2>
+              <p className="text-gray-600">
+                We couldn't find any products that match your requirements in the {category.name} category.
+              </p>
+              {Object.keys(activeFilters).length > 0 && (
+                <Link 
+                  href={`/services/${resolvedParams.slug}/products`}
+                  className="mt-4 inline-block text-blue-600 hover:text-blue-800"
+                >
+                  Clear all filters
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map((product) => (
+                <ProductCard key={product.product_id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

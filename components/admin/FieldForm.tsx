@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react'; 
+import { useState, useEffect, useRef, JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal } from 'react'; 
 import { CategoryField } from '@/types/product.types';
 
 type FieldFormProps = {
@@ -18,10 +18,11 @@ export default function FieldForm({ field, isEditing, onCancel, onSave }: FieldF
       field_type: 'text',
       is_required: false,
       display_order: 0,
-      options: {},
+      options: { values: [] },
     }
   );
-
+  const [newOption, setNewOption] = useState<string>('');
+  
   useEffect(() => {
     if (field) {
       setFieldData(field);
@@ -33,7 +34,7 @@ export default function FieldForm({ field, isEditing, onCancel, onSave }: FieldF
     const name = e.target.value;
     let key = fieldData.key;
 
-    // Only auto-generate key when creating a new field (not editing) and key is empty or was auto-generated
+    // Only auto-generate key when creating a new field (not editing) 
     if (!isEditing) {
       key = name.toLowerCase()
         .replace(/[^\w\s-]/g, '')
@@ -47,6 +48,42 @@ export default function FieldForm({ field, isEditing, onCancel, onSave }: FieldF
     });
   };
 
+  // Add a new option to the select field options
+  const addOption = () => {
+    if (!newOption.trim()) return;
+    
+    const currentValues = fieldData.options?.values || [];
+    
+    // Check if option already exists
+    if (currentValues.includes(newOption.trim())) {
+      alert('This option already exists');
+      return;
+    }
+    
+    setFieldData({
+      ...fieldData,
+      options: {
+        ...fieldData.options,
+        values: [...currentValues, newOption.trim()]
+      }
+    });
+    
+    // Clear the input field
+    setNewOption('');
+  };
+  
+  // Remove an option
+  const removeOption = (indexToRemove: number) => {
+    const currentValues = fieldData.options?.values || [];
+    setFieldData({
+      ...fieldData,
+      options: {
+        ...fieldData.options,
+        values: currentValues.filter((_: any, index: number) => index !== indexToRemove)
+      }
+    });
+  };
+
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +94,10 @@ export default function FieldForm({ field, isEditing, onCancel, onSave }: FieldF
   const idPrefix = isEditing ? 'edit-' : '';
 
   return (
-    <form onSubmit={handleSubmit} className={`mt-8 ${isEditing ? "pt-6 border-t border-gray-100" : ""}`}>
+    <form 
+      onSubmit={handleSubmit} 
+      className={`mt-8 ${isEditing ? "pt-6 border-t border-gray-100" : ""}`}
+    >
       <div className="flex justify-between items-center mb-4">
         <h4 className="text-base font-medium text-gray-800">
           {isEditing ? 'Edit Field' : 'Add New Field'}
@@ -197,23 +237,57 @@ export default function FieldForm({ field, isEditing, onCancel, onSave }: FieldF
         {/* Field-specific options */}
         {fieldData.field_type === 'select' && (
           <div>
-            <label htmlFor={`${idPrefix}field-options`} className="block text-sm font-medium text-gray-700 mb-1">
-              Options (one per line)
+            <label htmlFor={`${idPrefix}field-options`} className="block text-sm font-medium text-gray-700 mb-2">
+              Options
             </label>
-            <textarea
-              id={`${idPrefix}field-options`}
-              value={fieldData.options?.values?.join('\n') || ''}
-              onChange={(e) => {
-                const values = e.target.value.split('\n').filter(v => v.trim() !== '');
-                setFieldData({
-                  ...fieldData,
-                  options: { ...fieldData.options, values }
-                });
-              }}
-              rows={4}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Option 1&#10;Option 2&#10;Option 3"
-            />
+            
+            {/* Option input */}
+            <div className="flex space-x-2 mb-4">
+              <input
+                type="text"
+                id={`${idPrefix}new-option`}
+                value={newOption}
+                onChange={(e) => setNewOption(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addOption();
+                  }
+                }}
+                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter option value"
+              />
+              <button
+                type="button"
+                onClick={addOption}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+            
+            {/* Current options list */}
+            {(fieldData.options?.values?.length || 0) > 0 ? (
+              <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
+                <p className="text-sm text-gray-700 font-medium mb-2">Current Options:</p>
+                <ul className="space-y-2">
+                  {fieldData.options?.values?.map((option: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined, index: Key | null | undefined) => (
+                    <li key={index} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200">
+                      <span className="text-sm">{option}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeOption(index as number)}
+                        className="text-sm text-red-600 hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 italic">No options added yet</p>
+            )}
           </div>
         )}
 

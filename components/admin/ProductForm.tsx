@@ -193,52 +193,97 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
           />
         );
       
-      case 'select':
-        if (field.is_multi) {
-          // Convert value to array if it's not already
-          const selectedValues = Array.isArray(value) ? value : value ? [value] : [];
-          
-          return (
-            <div>
+        case 'select':
+          if (field.is_multi) {
+            // Convert value to array if it's not already
+            const selectedValues = Array.isArray(value) ? value : value ? [value] : [];
+            
+            return (
+              <div className="space-y-2 mt-1">
+                <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-60 overflow-y-auto flex flex-wrap justify-start gap-2 items-center">
+                  {field.options?.values?.map((option: string) => {
+                    const isSelected = selectedValues.includes(option);
+                    
+                    return (
+                      <div key={option} className="flex items-center last:mb-0">
+                        <input
+                          type="checkbox"
+                          id={`field-${field.key}-${option}`}
+                          checked={isSelected}
+                          onChange={() => {
+                            let newSelectedValues;
+                            if (isSelected) {
+                              // Remove if already selected
+                              newSelectedValues = selectedValues.filter(val => val !== option);
+                            } else {
+                              // Add if not selected
+                              newSelectedValues = [...selectedValues, option];
+                            }
+                            handleFieldChange(field.key, newSelectedValues);
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label 
+                          htmlFor={`field-${field.key}-${option}`} 
+                          className="ml-2 text-sm text-gray-700 cursor-pointer"
+                        >
+                          {option}
+                        </label>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Show message if no options */}
+                  {(!field.options?.values || field.options.values.length === 0) && (
+                    <p className="text-sm text-gray-500 italic">No options available</p>
+                  )}
+                </div>
+                
+                {/* Selected values summary */}
+                {selectedValues.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {selectedValues.map((selectedValue) => (
+                      <span 
+                        key={selectedValue}
+                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                      >
+                        {selectedValue}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newSelectedValues = selectedValues.filter(val => val !== selectedValue);
+                            handleFieldChange(field.key, newSelectedValues);
+                          }}
+                          className="ml-1 text-blue-500 hover:text-blue-700"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          } else {
+            return (
               <select
                 id={`field-${field.key}`}
-                multiple
-                value={selectedValues}
-                onChange={(e) => {
-                  const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
-                  handleFieldChange(field.key, selectedOptions);
-                }}
+                value={value || ''}
+                onChange={(e) => handleFieldChange(field.key, e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required={field.is_required}
-                size={Math.min(5, field.options?.values?.length || 3)}
               >
+                <option value="">Select an option</option>
                 {field.options?.values?.map((option: string) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-gray-500">Hold Ctrl (or Cmd) to select multiple options</p>
-            </div>
-          );
-        } else {
-          return (
-            <select
-              id={`field-${field.key}`}
-              value={value || ''}
-              onChange={(e) => handleFieldChange(field.key, e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required={field.is_required}
-            >
-              <option value="">Select an option</option>
-              {field.options?.values?.map((option: string) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          );
-        }
+            );
+          }
       
       case 'checkbox':
         return (

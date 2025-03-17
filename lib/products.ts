@@ -24,7 +24,11 @@ export function createServerSupabaseClient() {
   );
 }
 
-export async function getProducts(categoryId?: string, isActive: boolean = true): Promise<Product[]> {
+export async function getProducts(
+  categoryId?: string, 
+  isActive: boolean = true,
+  filters?: Record<string, string | string[]>
+): Promise<Product[]> {
   const supabase = createServerSupabaseClient();
   
   let query = supabase
@@ -39,6 +43,54 @@ export async function getProducts(categoryId?: string, isActive: boolean = true)
     query = query.eq('is_active', true);
   }
   
+  // Apply custom field filters if provided
+  if (filters && Object.keys(filters).length > 0) {
+    // Get all products first, then filter manually
+    const { data, error } = await query.order('name');
+    
+    if (error) {
+      console.error('Error fetching products:', error);
+      throw new Error('Failed to fetch products');
+    }
+    
+    // Filter products based on custom fields
+    return data.filter((product: Product) => {
+      // Skip products without product_fields
+      if (!product.product_fields) return false;
+      
+      // Check if product matches all filters
+      return Object.entries(filters).every(([key, filterValue]) => {
+        const productValue = product.product_fields[key];
+        
+        // Skip if the product doesn't have this field
+        if (productValue === undefined || productValue === null) return false;
+        
+        // Handle array of filter values (OR logic)
+        if (Array.isArray(filterValue)) {
+          if (filterValue.length === 0) return true; // Empty filter means include all
+          
+          // If product value is array (multi-select field)
+          if (Array.isArray(productValue)) {
+            return filterValue.some(val => 
+              productValue.map(String).includes(String(val))
+            );
+          }
+          
+          // If product value is string/number/boolean
+          return filterValue.map(String).includes(String(productValue));
+        }
+        
+        // Handle single filter value
+        if (Array.isArray(productValue)) {
+          return productValue.map(String).includes(String(filterValue));
+        }
+        
+        return String(productValue) === String(filterValue);
+      });
+    });
+  }
+  
+  // If no filters, just return the query results
   const { data, error } = await query.order('name');
   
   if (error) {
@@ -98,6 +150,89 @@ export async function getSubmission(submissionId: string): Promise<QuoteSubmissi
   }
   
   return data as QuoteSubmission;
+}
+
+// Get available filters for a category
+export async function getProductFilters(categoryId: string) {
+  const supabase = createServerSupabaseClient();
+  
+  // Get all custom fields for this category
+  const { data: fields, error: fieldsError } = await supabase
+    .from('CategoryFields')
+    .select('*')
+    .eq('service_category_id', categoryId)
+    .order('display_order');
+  
+  if (fieldsError) {
+    console.error('Error fetching category fields:', fieldsError);
+    throw new Error('Failed to fetch category fields');
+  }
+  
+  // Get all products in this category to calculate filter counts
+  const { data: products, error: productsError } = await supabase
+    .from('Products')
+    .select('*')
+    .eq('service_category_id', categoryId)
+    .eq('is_active', true);
+  
+  if (productsError) {
+    console.error('Error fetching products for filters:', productsError);
+    throw new Error('Failed to fetch products for filters');
+  }
+  
+  // Filter out field types that aren't filterable
+  const filterableFields = fields.filter(field => 
+    ['select', 'checkbox'].includes(field.field_type)
+  );
+  
+  // For each field, calculate the count of products for each option
+  filterableFields.forEach(field => {
+    if (field.field_type === 'select' && field.options?.values) {
+      const filterOptions = field.options.values.map((value: any) => {
+        // Count products that have this value
+        const count = products.filter(product => {
+          if (!product.product_fields) return false;
+          
+          const fieldValue = product.product_fields[field.key];
+          
+          if (Array.isArray(fieldValue)) {
+            return fieldValue.map(String).includes(String(value));
+          }
+          
+          return String(fieldValue) === String(value);
+        }).length;
+        
+        return { value, count };
+      });
+      
+      // Only include options that have at least one product
+      field.filterOptions = filterOptions.filter((option: { count: number; }) => option.count > 0);
+    }
+    
+    if (field.field_type === 'checkbox') {
+      const yesCount = products.filter(product => {
+        if (!product.product_fields) return false;
+        const fieldValue = product.product_fields[field.key];
+        return fieldValue === true || fieldValue === 'true' || fieldValue === 'Yes';
+      }).length;
+      
+      const noCount = products.filter(product => {
+        if (!product.product_fields) return false;
+        const fieldValue = product.product_fields[field.key];
+        return fieldValue === false || fieldValue === 'false' || fieldValue === 'No';
+      }).length;
+      
+      field.filterOptions = [
+        { value: 'Yes', count: yesCount },
+        { value: 'No', count: noCount }
+      ].filter(option => option.count > 0);
+    }
+  });
+  
+  // Only return fields that have filter options
+  return filterableFields.filter(field => 
+    field.filterOptions && field.filterOptions.length > 0
+  );
 }
 
 // Simple filtering function to recommend products based on form answers
