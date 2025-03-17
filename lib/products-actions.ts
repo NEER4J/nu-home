@@ -14,6 +14,7 @@ export async function createProduct(formData: FormData) {
     price: formData.get('price') ? parseFloat(formData.get('price') as string) : undefined,
     image_url: formData.get('image_url') as string || undefined,
     specifications: {},
+    product_fields: {}, // Initialize empty product fields
     is_featured: formData.get('is_featured') === 'on',
     is_active: formData.get('is_active') === 'on',
   };
@@ -26,6 +27,16 @@ export async function createProduct(formData: FormData) {
       product.specifications[specKey] = value;
     }
   });
+  
+  // Parse the product_fields JSON
+  const productFieldsJson = formData.get('product_fields');
+  if (productFieldsJson) {
+    try {
+      product.product_fields = JSON.parse(productFieldsJson as string);
+    } catch (error) {
+      console.error('Error parsing product fields:', error);
+    }
+  }
   
   try {
     const supabase = createServerSupabaseClient();
@@ -62,6 +73,19 @@ export async function updateProduct(productId: string, formData: FormData) {
     }
   });
   
+  // Initialize product fields
+  let product_fields = {};
+  
+  // Parse the product_fields JSON
+  const productFieldsJson = formData.get('product_fields');
+  if (productFieldsJson) {
+    try {
+      product_fields = JSON.parse(productFieldsJson as string);
+    } catch (error) {
+      console.error('Error parsing product fields:', error);
+    }
+  }
+  
   const product: Partial<ProductFormData> = {
     name: formData.get('name') as string,
     service_category_id: formData.get('service_category_id') as string,
@@ -70,6 +94,7 @@ export async function updateProduct(productId: string, formData: FormData) {
     price: formData.get('price') ? parseFloat(formData.get('price') as string) : undefined,
     image_url: formData.get('image_url') as string || undefined,
     specifications, // Use the pre-populated specifications object
+    product_fields, // Include the dynamic fields
     is_featured: formData.get('is_featured') === 'on',
     is_active: formData.get('is_active') === 'on',
   };

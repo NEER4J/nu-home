@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createProduct, updateProduct } from '@/lib/products-actions';
 import { Product } from '@/types/product.types';
 import { ServiceCategory } from '@/types/database.types';
+import { CategoryField } from '@/types/product.types';
 
 type ProductFormProps = {
   product?: Product;
@@ -20,8 +21,55 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
     product?.service_category_id || categories[0]?.service_category_id || ''
   );
   const [specs, setSpecs] = useState<Record<string, string>>(product?.specifications || {});
+  const [categoryFields, setCategoryFields] = useState<CategoryField[]>([]);
+  const [dynamicFieldValues, setDynamicFieldValues] = useState<Record<string, any>>(
+    product?.product_fields || {}
+  );
   const [newSpecKey, setNewSpecKey] = useState<string>('');
   const [newSpecValue, setNewSpecValue] = useState<string>('');
+  const [isFetchingFields, setIsFetchingFields] = useState<boolean>(false);
+  
+  // Fetch category fields when category changes
+  useEffect(() => {
+    async function fetchCategoryFields() {
+      if (!selectedCategory) return;
+      
+      setIsFetchingFields(true);
+      try {
+        const response = await fetch(`/api/category-fields?categoryId=${selectedCategory}`);
+        if (!response.ok) throw new Error('Failed to fetch category fields');
+        
+        const data = await response.json();
+        setCategoryFields(data);
+        
+        // Initialize fields that don't have values yet
+        if (!isEditing || selectedCategory !== product?.service_category_id) {
+          const initialValues: Record<string, any> = {};
+          data.forEach((field: CategoryField) => {
+            // Only set default values for fields that don't already have a value
+            if (!(field.key in dynamicFieldValues)) {
+              if (field.field_type === 'repeater') {
+                initialValues[field.key] = []; // Initialize repeater as empty array
+              } else {
+                initialValues[field.key] = '';
+              }
+            }
+          });
+          
+          setDynamicFieldValues(prev => ({
+            ...prev,
+            ...initialValues
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching category fields:', error);
+      } finally {
+        setIsFetchingFields(false);
+      }
+    }
+    
+    fetchCategoryFields();
+  }, [selectedCategory, isEditing, product]);
   
   // Generate slug from name
   const generateSlug = (name: string) => {
@@ -37,6 +85,49 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
     if (!isEditing || !product?.slug) {
       setSlug(generateSlug(name));
     }
+  };
+  
+  // Handle dynamic field value changes
+  const handleFieldChange = (key: string, value: any) => {
+    setDynamicFieldValues(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+  
+  // Handle adding a repeater item
+  const handleAddRepeaterItem = (key: string) => {
+    setDynamicFieldValues(prev => {
+      const currentValues = Array.isArray(prev[key]) ? prev[key] : [];
+      return {
+        ...prev,
+        [key]: [...currentValues, '']
+      };
+    });
+  };
+  
+  // Handle updating a repeater item
+  const handleUpdateRepeaterItem = (key: string, index: number, value: string) => {
+    setDynamicFieldValues(prev => {
+      const currentValues = [...prev[key]];
+      currentValues[index] = value;
+      return {
+        ...prev,
+        [key]: currentValues
+      };
+    });
+  };
+  
+  // Handle removing a repeater item
+  const handleRemoveRepeaterItem = (key: string, index: number) => {
+    setDynamicFieldValues(prev => {
+      const currentValues = [...prev[key]];
+      currentValues.splice(index, 1);
+      return {
+        ...prev,
+        [key]: currentValues
+      };
+    });
   };
   
   // Add a new specification
@@ -61,6 +152,189 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
     });
   };
   
+  // Render a field based on its type
+  const renderField = (field: CategoryField) => {
+    const value = dynamicFieldValues[field.key];
+    
+    switch (field.field_type) {
+      case 'text':
+        return (
+          <input
+            type="text"
+            id={`field-${field.key}`}
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required={field.is_required}
+          />
+        );
+      
+      case 'textarea':
+        return (
+          <textarea
+            id={`field-${field.key}`}
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            rows={4}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required={field.is_required}
+          />
+        );
+      
+      case 'number':
+        return (
+          <input
+            type="number"
+            id={`field-${field.key}`}
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required={field.is_required}
+          />
+        );
+      
+      case 'select':
+        if (field.is_multi) {
+          // Convert value to array if it's not already
+          const selectedValues = Array.isArray(value) ? value : value ? [value] : [];
+          
+          return (
+            <div className="mt-1">
+              <select
+                id={`field-${field.key}`}
+                multiple
+                value={selectedValues}
+                onChange={(e) => {
+                  const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
+                  handleFieldChange(field.key, selectedOptions);
+                }}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                required={field.is_required}
+                size={Math.min(5, field.options?.values?.length || 3)}
+              >
+                {field.options?.values?.map((option: string) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Hold Ctrl (or Cmd) to select multiple options</p>
+            </div>
+          );
+        } else {
+          return (
+            <select
+              id={`field-${field.key}`}
+              value={value || ''}
+              onChange={(e) => handleFieldChange(field.key, e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              required={field.is_required}
+            >
+              <option value="">Select an option</option>
+              {field.options?.values?.map((option: string) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          );
+        }
+      
+      case 'checkbox':
+        return (
+          <div className="mt-1">
+            <input
+              type="checkbox"
+              id={`field-${field.key}`}
+              checked={value === true}
+              onChange={(e) => handleFieldChange(field.key, e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor={`field-${field.key}`} className="ml-2 text-sm text-gray-700">
+              {field.name}
+            </label>
+          </div>
+        );
+      
+      case 'date':
+        return (
+          <input
+            type="date"
+            id={`field-${field.key}`}
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required={field.is_required}
+          />
+        );
+      
+      case 'image':
+        return (
+          <input
+            type="url"
+            id={`field-${field.key}`}
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            placeholder="https://example.com/image.jpg"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required={field.is_required}
+          />
+        );
+      
+      case 'repeater':
+        // Simple implementation of a repeater field that repeats the same text field
+        const repeaterValues = Array.isArray(value) ? value : [];
+        
+        return (
+          <div className="mt-1 border rounded-md p-4 bg-gray-50">
+            {repeaterValues.map((item, index) => (
+              <div key={index} className="mb-4 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={item}
+                  onChange={(e) => handleUpdateRepeaterItem(field.key, index, e.target.value)}
+                  className="flex-grow rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  placeholder={`${field.name} #${index + 1}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveRepeaterItem(field.key, index)}
+                  className="p-2 text-red-600 hover:text-red-800"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+            
+            <button
+              type="button"
+              onClick={() => handleAddRepeaterItem(field.key)}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              Add {field.name}
+            </button>
+          </div>
+        );
+      
+      default:
+        return (
+          <input
+            type="text"
+            id={`field-${field.key}`}
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required={field.is_required}
+          />
+        );
+    }
+  };
+  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -73,6 +347,9 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
       Object.entries(specs).forEach(([key, value]) => {
         formData.append(`spec_${key}`, value);
       });
+      
+      // Add dynamic fields to form data
+      formData.append('product_fields', JSON.stringify(dynamicFieldValues));
       
       if (isEditing && product) {
         await updateProduct(product.product_id, formData);
@@ -307,6 +584,28 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
           </div>
         </div>
       </div>
+      
+      {/* Custom Fields */}
+      {categoryFields.length > 0 && (
+        <div className="border-t pt-6">
+          <h3 className="text-lg font-medium mb-4">Category Custom Fields</h3>
+          
+          {isFetchingFields ? (
+            <div className="text-center py-4">Loading custom fields...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {categoryFields.map((field) => (
+                <div key={field.field_id} className="col-span-1 md:col-span-2">
+                  <label htmlFor={`field-${field.key}`} className="block text-sm font-medium text-gray-700">
+                    {field.name} {field.is_required && <span className="text-red-500">*</span>}
+                  </label>
+                  {renderField(field)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       
       <div className="flex justify-end space-x-3">
         <button

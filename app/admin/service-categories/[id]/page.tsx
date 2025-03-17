@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import EditCategoryForm from '@/components/admin/EditCategoryForm';
+import CategoryFieldsManager from '@/components/admin/CategoryFieldsManager';
 
 export const metadata = {
   title: 'Edit Service Category | Nu-Home Admin',
@@ -114,11 +115,14 @@ export default async function EditCategoryPage({
           
           {/* Main content */}
           <div className="md:col-span-3">
-            <div className="bg-white  sm:rounded-lg">
+            <div className="bg-white sm:rounded-lg mb-6">
               <div className="px-4 py-5 sm:p-6">
                 <EditCategoryForm category={category} />
               </div>
             </div>
+            
+            {/* Add the CategoryFields component */}
+            <CategoryFieldsManager categoryId={category.service_category_id} />
           </div>
         </div>
       </div>

@@ -2,7 +2,9 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getProductBySlug } from '@/lib/products';
+import { getProductBySlug, createServerSupabaseClient } from '@/lib/products';
+import ProductFieldsSection from '@/components/products/ProductFieldsSection';
+import { CategoryField } from '@/types/product.types';
 
 export default async function ProductDetailPage({ 
   params 
@@ -18,6 +20,32 @@ export default async function ProductDetailPage({
   if (!product) {
     notFound();
   }
+
+  // Get the category fields and category info
+  const supabase = createServerSupabaseClient();
+  const { data: categoryFields } = await supabase
+    .from('CategoryFields')
+    .select('*')
+    .eq('service_category_id', product.service_category_id)
+    .order('display_order');
+    
+  // Get category layout preference
+  const { data: category } = await supabase
+    .from('ServiceCategories')
+    .select('fields_layout')
+    .eq('service_category_id', product.service_category_id)
+    .single();
+    
+  const layoutType = category?.fields_layout || 'default';
+  
+  // Filter to only include fields that have values in this product
+  const fieldsWithValues = (categoryFields || []).filter(
+    (field: CategoryField) => 
+      product.product_fields && 
+      product.product_fields[field.key] !== undefined && 
+      product.product_fields[field.key] !== null &&
+      product.product_fields[field.key] !== ''
+  );
   
   return (
     <div className="container mx-auto px-4 py-8">
@@ -87,6 +115,15 @@ export default async function ProductDetailPage({
             <h2 className="text-xl font-semibold mb-2">Description</h2>
             <div dangerouslySetInnerHTML={{ __html: product.description }} />
           </div>
+          
+          {/* Dynamic Fields */}
+          {fieldsWithValues.length > 0 && (
+            <ProductFieldsSection 
+              fields={fieldsWithValues} 
+              values={product.product_fields} 
+              layoutType={layoutType as any}
+            />
+          )}
           
           {/* Specifications */}
           {Object.keys(product.specifications).length > 0 && (
