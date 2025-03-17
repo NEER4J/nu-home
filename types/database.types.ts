@@ -1,15 +1,20 @@
 // types/database.types.ts
 
+
 export interface ServiceCategory {
-    service_category_id: string;
-    name: string;
-    slug: string;
-    description: string | null;
-    icon_url: string | null;
-    is_active: boolean;
-    created_at: string;
-    updated_at: string;
-  }
+  service_category_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  icon_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  form_style: string | null;
+  show_thank_you: boolean | null;
+  redirect_to_products: boolean | null;
+  products_list_layout: string; // Add this line
+}
   
   export interface ConditionalDisplay {
     dependent_on_question_id: string;

@@ -151,13 +151,14 @@ export default function CategoryFieldsManager({ categoryId }: CategoryFieldsMana
   // Update layout type
   const updateLayoutType = async (newLayout: string) => {
     try {
-      const response = await fetch(`/api/service-categories/${categoryId}`, {
+      // Changed the endpoint from `/api/service-categories/${categoryId}` to `/api/service-categories/${categoryId}/layout`
+      const response = await fetch(`/api/service-categories/${categoryId}/layout`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          fields_layout: newLayout,
+          products_list_layout: newLayout,
         }),
       });
       
@@ -180,6 +181,62 @@ export default function CategoryFieldsManager({ categoryId }: CategoryFieldsMana
   }
 
   return (
+
+    <div> <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden mb-6">
+    <div className="p-6 border-b border-gray-100">
+        <h3 className="text-lg font-medium text-gray-800">Product Layout Settings</h3>
+    </div>
+    
+    <div className="p-6">
+        <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+            Choose Product Listing Layout
+        </label>
+        <select
+            value={layoutType}
+            onChange={(e) => updateLayoutType(e.target.value)}
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+            <option value="default">Default Grid Layout</option>
+            <option value="card">Card Layout (Solar Panel Style)</option>
+            <option value="feature">Feature Layout (Boiler Style)</option>
+        </select>
+        </div>
+        
+        <div className="mt-4 grid grid-cols-3 gap-4">
+        <div className={`border p-2 rounded ${layoutType === 'default' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+            <div className="mb-2">
+            <h4 className="font-medium text-sm">Default Layout</h4>
+            <p className="text-xs text-gray-500">Simple grid of product cards</p>
+            </div>
+            <div className="bg-gray-100 h-24 rounded flex items-center justify-center">
+            <div className="text-xs text-gray-500">Grid Preview</div>
+            </div>
+        </div>
+        
+        <div className={`border p-2 rounded ${layoutType === 'card' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+            <div className="mb-2">
+            <h4 className="font-medium text-sm">Card Layout</h4>
+            <p className="text-xs text-gray-500">Solar panel style cards</p>
+            </div>
+            <div className="bg-gray-100 h-24 rounded flex items-center justify-center">
+            <div className="text-xs text-gray-500">Card Preview</div>
+            </div>
+        </div>
+        
+        <div className={`border p-2 rounded ${layoutType === 'feature' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+            <div className="mb-2">
+            <h4 className="font-medium text-sm">Feature Layout</h4>
+            <p className="text-xs text-gray-500">Boiler style with details</p>
+            </div>
+            <div className="bg-gray-100 h-24 rounded flex items-center justify-center">
+            <div className="text-xs text-gray-500">Feature Preview</div>
+            </div>
+        </div>
+        </div>
+    </div>
+    </div>
+
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
       <div className="flex justify-between items-center p-6 border-b border-gray-100">
         <h3 className="text-lg font-medium text-gray-800">Product Custom Fields</h3>
@@ -212,6 +269,7 @@ export default function CategoryFieldsManager({ categoryId }: CategoryFieldsMana
           />
         )}
       </div>
+    </div>
     </div>
   );
 }
