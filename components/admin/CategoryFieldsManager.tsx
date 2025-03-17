@@ -172,54 +172,46 @@ export default function CategoryFieldsManager({ categoryId }: CategoryFieldsMana
   };
 
   if (isLoading) {
-    return <div className="bg-white rounded-lg shadow p-6">Loading fields...</div>;
+    return (
+      <div className="bg-white rounded-lg p-8 flex items-center justify-center">
+        <div className="animate-pulse text-gray-400">Loading fields...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium text-gray-900">Product Custom Fields</h3>
-        
-        {/* Layout Selector */}
-        <div className="flex items-center">
-          <span className="text-sm font-medium text-gray-700 mr-2">Display Layout:</span>
-          <select
-            value={layoutType}
-            onChange={(e) => updateLayoutType(e.target.value)}
-            className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-          >
-            <option value="default">Default (List)</option>
-            <option value="tabbed">Tabbed</option>
-            <option value="grid">Grid</option>
-            <option value="gallery">Gallery</option>
-          </select>
-        </div>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="flex justify-between items-center p-6 border-b border-gray-100">
+        <h3 className="text-lg font-medium text-gray-800">Product Custom Fields</h3>
+      
       </div>
       
-      {/* Field List */}
-      <FieldList 
-        fields={fields} 
-        onEdit={handleEditField} 
-        onDelete={handleDeleteField} 
-      />
-      
-      {/* Edit Form (conditionally rendered) */}
-      {editingField && editingFieldData && (
-        <FieldForm 
-          field={editingFieldData} 
-          isEditing={true}
-          onCancel={handleCancelEdit}
-          onSave={handleSaveFieldEdit}
+      <div className="p-6">
+        {/* Field List */}
+        <FieldList 
+          fields={fields} 
+          onEdit={handleEditField} 
+          onDelete={handleDeleteField} 
         />
-      )}
-      
-      {/* Add New Field Form (hidden when editing) */}
-      {!editingField && (
-        <FieldForm 
-          isEditing={false}
-          onSave={handleSaveNewField}
-        />
-      )}
+        
+        {/* Edit Form (conditionally rendered) */}
+        {editingField && editingFieldData && (
+          <FieldForm 
+            field={editingFieldData} 
+            isEditing={true}
+            onCancel={handleCancelEdit}
+            onSave={handleSaveFieldEdit}
+          />
+        )}
+        
+        {/* Add New Field Form (hidden when editing) */}
+        {!editingField && (
+          <FieldForm 
+            isEditing={false}
+            onSave={handleSaveNewField}
+          />
+        )}
+      </div>
     </div>
   );
 }

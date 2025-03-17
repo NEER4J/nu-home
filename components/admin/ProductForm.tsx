@@ -164,7 +164,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
             id={`field-${field.key}`}
             value={value || ''}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required={field.is_required}
           />
         );
@@ -176,7 +176,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
             value={value || ''}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             rows={4}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required={field.is_required}
           />
         );
@@ -188,7 +188,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
             id={`field-${field.key}`}
             value={value || ''}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required={field.is_required}
           />
         );
@@ -199,7 +199,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
           const selectedValues = Array.isArray(value) ? value : value ? [value] : [];
           
           return (
-            <div className="mt-1">
+            <div>
               <select
                 id={`field-${field.key}`}
                 multiple
@@ -208,7 +208,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
                   const selectedOptions = Array.from(e.target.selectedOptions).map(option => option.value);
                   handleFieldChange(field.key, selectedOptions);
                 }}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required={field.is_required}
                 size={Math.min(5, field.options?.values?.length || 3)}
               >
@@ -227,7 +227,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
               id={`field-${field.key}`}
               value={value || ''}
               onChange={(e) => handleFieldChange(field.key, e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required={field.is_required}
             >
               <option value="">Select an option</option>
@@ -242,7 +242,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
       
       case 'checkbox':
         return (
-          <div className="mt-1">
+          <div className="flex items-center">
             <input
               type="checkbox"
               id={`field-${field.key}`}
@@ -263,7 +263,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
             id={`field-${field.key}`}
             value={value || ''}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required={field.is_required}
           />
         );
@@ -276,7 +276,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
             value={value || ''}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             placeholder="https://example.com/image.jpg"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required={field.is_required}
           />
         );
@@ -286,38 +286,56 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
         const repeaterValues = Array.isArray(value) ? value : [];
         
         return (
-          <div className="mt-1 border rounded-md p-4 bg-gray-50">
-            {repeaterValues.map((item, index) => (
-              <div key={index} className="mb-4 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={item}
-                  onChange={(e) => handleUpdateRepeaterItem(field.key, index, e.target.value)}
-                  className="flex-grow rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  placeholder={`${field.name} #${index + 1}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveRepeaterItem(field.key, index)}
-                  className="p-2 text-red-600 hover:text-red-800"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                </button>
+          <div className="border border-gray-200 rounded-md bg-gray-50 overflow-hidden">
+            {repeaterValues.length > 0 ? (
+              <div className="max-h-56 overflow-y-auto">
+                <table className="w-full">
+                  <tbody>
+                    {repeaterValues.map((item, index) => (
+                      <tr key={index} className="border-b border-gray-200 last:border-b-0">
+                      
+                        <td className="py-1 px-2">
+                          <input
+                            type="text"
+                            value={item}
+                            onChange={(e) => handleUpdateRepeaterItem(field.key, index, e.target.value)}
+                            className="w-full py-1 px-2 text-sm bg-transparent border-0 focus:outline-none focus:ring-0"
+                            placeholder={`${field.name} item`}
+                          />
+                        </td>
+                        <td className="py-1 px-2 w-10 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRepeaterItem(field.key, index)}
+                            className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
+            ) : (
+              <div className="px-3 py-2 text-sm text-gray-500">No items added yet.</div>
+            )}
             
-            <button
-              type="button"
-              onClick={() => handleAddRepeaterItem(field.key)}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Add {field.name}
-            </button>
+            <div className="flex items-center justify-between px-3 py-2 bg-gray-100 border-t border-gray-200">
+              <span className="text-xs text-gray-500">{repeaterValues.length} items</span>
+              <button
+                type="button"
+                onClick={() => handleAddRepeaterItem(field.key)}
+                className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors focus:outline-none"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                Add Item
+              </button>
+            </div>
           </div>
         );
       
@@ -328,7 +346,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
             id={`field-${field.key}`}
             value={value || ''}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required={field.is_required}
           />
         );
@@ -367,258 +385,274 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
   };
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Basic Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Basic Information</h3>
-          
-          {/* Service Category */}
-          <div>
-            <label htmlFor="service_category_id" className="block text-sm font-medium text-gray-700">
-              Service Category <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="service_category_id"
-              name="service_category_id"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              defaultValue={product?.service_category_id || ''}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              required
-            >
-              <option value="" disabled>Select a category</option>
-              {categories.map((category) => (
-                <option key={category.service_category_id} value={category.service_category_id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Product Name */}
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-              Product Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              defaultValue={product?.name || ''}
-              onChange={handleNameChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-            />
-          </div>
-          
-          {/* Slug */}
-          <div>
-            <label htmlFor="slug" className="block text-sm font-medium text-gray-700">
-              Slug <span className="text-red-500">*</span>
-            </label>
-            <div className="flex">
+    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="p-6 border-b border-gray-100">
+        <h2 className="text-xl font-medium text-gray-800">
+          {isEditing ? 'Edit Product' : 'Create New Product'}
+        </h2>
+      </div>
+      
+      <div className="p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Basic Information */}
+          <div className="space-y-5">
+            <h3 className="text-base font-medium text-gray-800 pb-2 border-b border-gray-100">Basic Information</h3>
+            
+            {/* Service Category */}
+            <div className="space-y-1">
+              <label htmlFor="service_category_id" className="block text-sm font-medium text-gray-700">
+                Service Category <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="service_category_id"
+                name="service_category_id"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                defaultValue={product?.service_category_id || ''}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                required
+              >
+                <option value="" disabled>Select a category</option>
+                {categories.map((category) => (
+                  <option key={category.service_category_id} value={category.service_category_id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Product Name */}
+            <div className="space-y-1">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                Product Name <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
-                id="slug"
-                name="slug"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                id="name"
+                name="name"
+                defaultValue={product?.name || ''}
+                onChange={handleNameChange}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
-              <button
-                type="button"
-                onClick={() => {
-                  const nameInput = document.getElementById('name') as HTMLInputElement;
-                  if (nameInput) {
-                    setSlug(generateSlug(nameInput.value));
-                  }
-                }}
-                className="ml-2 mt-1 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Generate
-              </button>
+            </div>
+            
+            {/* Slug */}
+            <div className="space-y-1">
+              <label htmlFor="slug" className="block text-sm font-medium text-gray-700">
+                Slug <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  id="slug"
+                  name="slug"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  className="flex-grow px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nameInput = document.getElementById('name') as HTMLInputElement;
+                    if (nameInput) {
+                      setSlug(generateSlug(nameInput.value));
+                    }
+                  }}
+                  className="inline-flex items-center px-3 py-2 border border-gray-200 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Generate
+                </button>
+              </div>
+            </div>
+            
+            {/* Price */}
+            <div className="space-y-1">
+              <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                Price (£)
+              </label>
+              <input
+                type="number"
+                id="price"
+                name="price"
+                defaultValue={product?.price || ''}
+                step="0.01"
+                min="0"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500">Leave empty for "Price on request"</p>
+            </div>
+            
+            {/* Image URL */}
+            <div className="space-y-1">
+              <label htmlFor="image_url" className="block text-sm font-medium text-gray-700">
+                Image URL
+              </label>
+              <input
+                type="url"
+                id="image_url"
+                name="image_url"
+                defaultValue={product?.image_url || ''}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            {/* Status Toggles */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="is_featured"
+                  name="is_featured"
+                  defaultChecked={product?.is_featured === true}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="is_featured" className="ml-2 block text-sm text-gray-700">
+                  Featured Product
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  name="is_active"
+                  defaultChecked={product?.is_active !== false}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700">
+                  Active
+                </label>
+              </div>
             </div>
           </div>
           
-          {/* Price */}
-          <div>
-            <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-              Price (£)
-            </label>
-            <input
-              type="number"
-              id="price"
-              name="price"
-              defaultValue={product?.price || ''}
-              step="0.01"
-              min="0"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-500">Leave empty for "Price on request"</p>
-          </div>
-          
-          {/* Image URL */}
-          <div>
-            <label htmlFor="image_url" className="block text-sm font-medium text-gray-700">
-              Image URL
-            </label>
-            <input
-              type="url"
-              id="image_url"
-              name="image_url"
-              defaultValue={product?.image_url || ''}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
-          </div>
-          
-          {/* Status Toggles */}
-          <div className="space-y-3">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="is_featured"
-                name="is_featured"
-                defaultChecked={product?.is_featured === true}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="is_featured" className="ml-2 block text-sm text-gray-700">
-                Featured Product
+          {/* Description and Specifications */}
+          <div className="space-y-5">
+            <h3 className="text-base font-medium text-gray-800 pb-2 border-b border-gray-100">Description and Specifications</h3>
+            
+            {/* Description */}
+            <div className="space-y-1">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                Description <span className="text-red-500">*</span>
               </label>
+              <textarea
+                id="description"
+                name="description"
+                defaultValue={product?.description || ''}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={6}
+                required
+              ></textarea>
             </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="is_active"
-                name="is_active"
-                defaultChecked={product?.is_active !== false}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700">
-                Active
-              </label>
+            
+            {/* Specifications */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-700">Specifications</h4>
+              
+              {/* Existing specifications */}
+              {Object.keys(specs).length > 0 && (
+                <div className="bg-gray-50 rounded-md border border-gray-200">
+                  <ul className="divide-y divide-gray-200">
+                    {Object.entries(specs).map(([key, value]) => (
+                      <li key={key} className="py-2 px-2 flex items-center justify-between text-sm">
+                        <div>
+                          <span className="font-medium text-gray-900">{key}:</span>{' '}
+                          <span className="text-gray-600">{value}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSpec(key)}
+                          className="text-gray-500 hover:text-red-600 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Add new specification */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-7 gap-2">
+                  <div className="col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Specification name"
+                      value={newSpecKey}
+                      onChange={(e) => setNewSpecKey(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Value"
+                      value={newSpecValue}
+                      onChange={(e) => setNewSpecValue(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <button
+                      type="button"
+                      onClick={addSpec}
+                      className="w-full h-full bg-blue-50 text-blue-600 px-3 py-2 rounded-md hover:bg-blue-100 transition-colors"
+                      aria-label="Add specification"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Add specifications like power, size, capacity, etc. to help customers compare products
+                </p>
+              </div>
             </div>
           </div>
         </div>
         
-        {/* Description and Specifications */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Description and Specifications</h3>
-          
-          {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Description <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              defaultValue={product?.description || ''}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              rows={6}
-              required
-            ></textarea>
-          </div>
-          
-          {/* Specifications */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Specifications</h3>
+        {/* Custom Fields */}
+        {categoryFields.length > 0 && (
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <h3 className="text-base font-medium text-gray-800 mb-4">Category Custom Fields</h3>
             
-            {/* Existing specifications */}
-            {Object.keys(specs).length > 0 && (
-              <div className="mb-4 bg-gray-50 p-4 rounded-md">
-                <ul className="space-y-2">
-                  {Object.entries(specs).map(([key, value]) => (
-                    <li key={key} className="flex items-center justify-between">
-                      <div>
-                        <span className="font-medium">{key}:</span> {value}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeSpec(key)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+            {isFetchingFields ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-pulse text-gray-400">Loading custom fields...</div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {categoryFields.map((field) => (
+                  <div key={field.field_id} className={`space-y-1 ${field.field_type === 'repeater' || field.field_type === 'textarea' ? 'col-span-1 lg:col-span-2' : ''}`}>
+                    <label htmlFor={`field-${field.key}`} className="block text-sm font-medium text-gray-700">
+                      {field.name} {field.is_required && <span className="text-red-500">*</span>}
+                    </label>
+                    {renderField(field)}
+                  </div>
+                ))}
               </div>
             )}
-            
-            {/* Add new specification */}
-            <div className="space-y-2">
-              <div className="grid grid-cols-5 gap-2">
-                <div className="col-span-2">
-                  <input
-                    type="text"
-                    placeholder="Specification name"
-                    value={newSpecKey}
-                    onChange={(e) => setNewSpecKey(e.target.value)}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <input
-                    type="text"
-                    placeholder="Value"
-                    value={newSpecValue}
-                    onChange={(e) => setNewSpecValue(e.target.value)}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <button
-                    type="button"
-                    onClick={addSpec}
-                    className="w-full bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500">
-                Add specifications like power, size, capacity, etc. to help customers compare products
-              </p>
-            </div>
           </div>
-        </div>
+        )}
       </div>
       
-      {/* Custom Fields */}
-      {categoryFields.length > 0 && (
-        <div className="border-t pt-6">
-          <h3 className="text-lg font-medium mb-4">Category Custom Fields</h3>
-          
-          {isFetchingFields ? (
-            <div className="text-center py-4">Loading custom fields...</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {categoryFields.map((field) => (
-                <div key={field.field_id} className="col-span-1 md:col-span-2">
-                  <label htmlFor={`field-${field.key}`} className="block text-sm font-medium text-gray-700">
-                    {field.name} {field.is_required && <span className="text-red-500">*</span>}
-                  </label>
-                  {renderField(field)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      
-      <div className="flex justify-end space-x-3">
+      <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isLoading}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300"
+          className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Saving...' : isEditing ? 'Update Product' : 'Create Product'}
         </button>
