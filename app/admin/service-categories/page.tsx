@@ -2,6 +2,8 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 
+// Add dynamic rendering to avoid prerendering issues
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Service Categories | Nu-Home Admin',
@@ -15,21 +17,48 @@ export default async function ServiceCategoriesPage() {
     // Fetch all service categories
     const { data: categories, error } = await supabase
       .from('ServiceCategories')
-      .select(`
-        *,
-        FormQuestions (count)
-      `)
-      .eq('FormQuestions.is_deleted', false)
+      .select('*')
       .order('name');
     
     if (error) {
       throw new Error(error.message);
     }
     
+    // For each category, fetch the count of questions and products
+    const categoriesWithCounts = await Promise.all(
+      categories.map(async (category) => {
+        // Get questions count
+        const { count: questionsCount, error: questionsError } = await supabase
+          .from('FormQuestions')
+          .select('*', { count: 'exact', head: true })
+          .eq('service_category_id', category.service_category_id)
+          .eq('is_deleted', false);
+        
+        if (questionsError) {
+          console.error('Error fetching questions count:', questionsError);
+        }
+        
+        // Get products count
+        const { count: productsCount, error: productsError } = await supabase
+          .from('Products')
+          .select('*', { count: 'exact', head: true })
+          .eq('service_category_id', category.service_category_id);
+        
+        if (productsError) {
+          console.error('Error fetching products count:', productsError);
+        }
+        
+        return {
+          ...category,
+          questionsCount: questionsCount || 0,
+          productsCount: productsCount || 0
+        };
+      })
+    );
+    
     return (
       <div className="flex flex-col h-full">
       
-
       <div className='border-b bg-white' >
         <div className="flex justify-between items-center px-4 py-2">
           <div className="flex items-center gap-2">
@@ -51,12 +80,12 @@ export default async function ServiceCategoriesPage() {
         {/* Categories List */}
         <div className=" border bg-white border-gray-200 overflow-hidden sm:rounded-lg">
           <ul className="divide-y divide-gray-200">
-            {categories?.length === 0 ? (
+            {categoriesWithCounts?.length === 0 ? (
               <li className="px-6 py-4 text-center text-gray-500">
                 No service categories found. Create your first category!
               </li>
             ) : (
-              categories?.map((category) => (
+              categoriesWithCounts?.map((category) => (
                 <li key={category.service_category_id} className="px-6 py-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -86,7 +115,11 @@ export default async function ServiceCategoriesPage() {
                         </div>
                         <div className="mt-1 flex items-center">
                           <span className="text-sm text-gray-500">
-                            {category.FormQuestions?.count || 0} Questions
+                            {category.questionsCount} Questions
+                          </span>
+                          <span className="mx-2 text-gray-300">|</span>
+                          <span className="text-sm text-gray-500">
+                            {category.productsCount} Products
                           </span>
                           <span className="mx-2 text-gray-300">|</span>
                           <span className="text-sm text-gray-500">
