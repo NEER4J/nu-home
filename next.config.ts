@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    domains: ['boiler-sure.co.uk', 'stewart-temp-solutions.com'],
+  },
 };
 
 

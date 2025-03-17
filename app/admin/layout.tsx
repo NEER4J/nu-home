@@ -83,6 +83,16 @@ export default async function RootLayout({
                       Categories
                     </Link>
                   </li>
+                  <li>
+                    <Link 
+                      href="/admin/products" 
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+                      id="nav-products"
+                    >
+                      <Layers className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                      Products
+                    </Link>
+                  </li>
                 </ul>
               </nav>
               

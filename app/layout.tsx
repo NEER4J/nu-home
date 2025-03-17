@@ -6,8 +6,15 @@ import { createClient } from '@/utils/supabase/server';
 import { signOutAction } from './actions';
 import { LogOut } from 'lucide-react';
 import Loader from '@/components/Loader';
+import { Metadata } from 'next';
 
 const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'Nu-Home',
+  description: 'Home services and products',
+  metadataBase: new URL('http://localhost:3000'),
+};
 
 export default async function RootLayout({
   children,
