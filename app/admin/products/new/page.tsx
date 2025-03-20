@@ -33,7 +33,11 @@ export default async function NewProductPage() {
       </div>
       
       <div className="bg-white rounded-lg shadow p-6">
-        <ProductForm categories={categories as ServiceCategory[]} />
+
+        <ProductForm 
+  categories={categories as ServiceCategory[]} 
+  isEditing={true} 
+/>
       </div>
     </div>
   );

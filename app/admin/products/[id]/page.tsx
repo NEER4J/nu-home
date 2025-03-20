@@ -47,11 +47,10 @@ export default async function EditProductPage({
       </div>
       
       <div className="bg-white rounded-lg shadow p-6">
-        <ProductForm 
-          product={product as Product} 
-          categories={categories as ServiceCategory[]} 
-          isEditing={true} 
-        />
+      <ProductForm 
+  categories={categories as ServiceCategory[]} 
+  isEditing={true} 
+/>
       </div>
     </div>
   );
