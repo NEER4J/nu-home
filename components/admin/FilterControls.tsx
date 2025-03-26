@@ -23,7 +23,9 @@ export function AdminFilterControls({
   
   // Apply filters when category or status changes
   useEffect(() => {
-    const params = new URLSearchParams(searchParams);
+    if (!searchParams) return;
+    
+    const params = new URLSearchParams(searchParams.toString());
     
     if (category) {
       params.set('category', category);

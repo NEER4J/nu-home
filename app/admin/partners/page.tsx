@@ -24,12 +24,12 @@ interface Partner {
 export default async function AdminPartners({
   searchParams,
 }: {
-  searchParams: { status?: string; search?: string };
+  searchParams: Promise<{ status?: string; search?: string }>;
 }) {
   const supabase = await createClient();
   
-  // Get query parameters - using the await keyword explicitly
-  const params = await Promise.resolve(searchParams);
+  // Get query parameters
+  const params = await searchParams;
   const status = params?.status || 'all';
   const search = params?.search || '';
   

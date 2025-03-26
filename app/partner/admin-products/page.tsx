@@ -6,7 +6,7 @@ import AddToMyProductsButton from "@/components/partner/AddToMyProductsButton";
 import { addAdminProductToMyList } from "./actions";
 
 interface PageProps {
-  searchParams: { category?: string };
+  searchParams: Promise<{ category?: string }>;
 }
 
 export default async function AdminProductsPage({ searchParams }: PageProps) {
@@ -31,7 +31,8 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
     .eq("status", "approved");
   
   // Get the selected category from query, or default to all
-  const selectedCategoryId = searchParams?.category || 'all';
+  const params = await searchParams;
+  const selectedCategoryId = params?.category || 'all';
   
   // Get categories the partner has access to
   const categoryIds = approvedCategories?.map(cat => cat.service_category_id) || [];

@@ -108,10 +108,52 @@ export async function updateCategoryAccess(formData: FormData): Promise<void> {
   
   const categoryName = categoryData?.name || "requested";
   
-  // If accessId is provided, update existing access
+  // Update PartnerCategories table
   if (accessId) {
-    // Prepare update data
-    const updateData: Record<string, any> = { status };
+    if (status === 'approved') {
+      // Insert into PartnerCategories if approved
+      const { error: partnerCatError } = await supabase
+        .from("PartnerCategories")
+        .upsert({
+          id: accessId,
+          profile_id: partnerId,
+          service_category_id: categoryId,
+          status: 'approved',
+          updated_at: new Date().toISOString()
+        });
+        
+      if (partnerCatError) {
+        console.error("Error updating PartnerCategories:", partnerCatError);
+        return;
+      }
+    } else if (status === 'rejected') {
+      // Delete from PartnerCategories if rejected
+      const { error: deleteError } = await supabase
+        .from("PartnerCategories")
+        .delete()
+        .eq("id", accessId);
+        
+      if (deleteError) {
+        console.error("Error deleting from PartnerCategories:", deleteError);
+        return;
+      }
+    }
+  }
+  
+  // Update UserCategoryAccess table for tracking
+  const { data: existingAccess } = await supabase
+    .from("UserCategoryAccess")
+    .select("access_id")
+    .eq("user_id", partnerId)
+    .eq("service_category_id", categoryId)
+    .single();
+    
+  if (existingAccess) {
+    // Update existing access
+    const updateData: Record<string, any> = { 
+      status,
+      updated_at: new Date().toISOString()
+    };
     
     if (status === 'approved') {
       updateData.approved_at = new Date().toISOString();
@@ -120,45 +162,31 @@ export async function updateCategoryAccess(formData: FormData): Promise<void> {
       updateData.admin_notes = notes;
     }
     
-    // Update category access status
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from("UserCategoryAccess")
       .update(updateData)
-      .eq("access_id", accessId);
+      .eq("access_id", existingAccess.access_id);
       
-    if (error) {
-      console.error("Error updating category access:", error);
+    if (updateError) {
+      console.error("Error updating UserCategoryAccess:", updateError);
       return;
     }
-  } 
-  // If no accessId is provided, create new category access
-  else {
-    // Check if access for this category already exists
-    const { data: existingAccess } = await supabase
-      .from("UserCategoryAccess")
-      .select("access_id")
-      .eq("user_id", partnerId)
-      .eq("service_category_id", categoryId)
-      .single();
-      
-    if (existingAccess) {
-      console.error("Category access already exists");
-      return;
-    }
-    
-    // Create new category access
-    const { error } = await supabase
+  } else {
+    // Create new access record
+    const { error: insertError } = await supabase
       .from("UserCategoryAccess")
       .insert({
         user_id: partnerId,
         service_category_id: categoryId,
         status: status,
         approved_at: status === 'approved' ? new Date().toISOString() : null,
+        rejected_at: status === 'rejected' ? new Date().toISOString() : null,
+        admin_notes: status === 'rejected' ? notes : null,
         is_primary: false
       });
       
-    if (error) {
-      console.error("Error creating category access:", error);
+    if (insertError) {
+      console.error("Error creating UserCategoryAccess:", insertError);
       return;
     }
   }
@@ -242,7 +270,9 @@ export async function assignLeadToPartner(formData: FormData) {
       first_name,
       last_name,
       postcode,
-      ServiceCategories(name)
+      ServiceCategories!inner (
+        name
+      )
     `)
     .eq("submission_id", leadId)
     .single();
@@ -254,7 +284,7 @@ export async function assignLeadToPartner(formData: FormData) {
       user_id: partnerId,
       service_category_id: lead?.service_category_id,
       type: "new_lead",
-      message: `You have been assigned a new lead for ${lead?.ServiceCategories?.name} in ${lead?.postcode}.`,
+      message: `You have been assigned a new lead for ${lead?.ServiceCategories[0]?.name} in ${lead?.postcode}.`,
       is_read: false
     });
     

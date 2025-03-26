@@ -7,7 +7,7 @@ import { Product } from "@/types/product.types";
 import { ServiceCategory } from "@/types/database.types";
 
 type PageProps = {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export default async function NewProductPage({ searchParams }: PageProps) {
@@ -54,7 +54,8 @@ export default async function NewProductPage({ searchParams }: PageProps) {
   
   // Get template product if templateId is provided
   let templateProduct: Product | null = null;
-  const templateId = searchParams.template as string;
+  const params = await searchParams;
+  const templateId = params.template as string;
   
   if (templateId) {
     const { data: template, error: templateError } = await supabase

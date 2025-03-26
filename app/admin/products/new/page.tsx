@@ -1,6 +1,6 @@
 // app/admin/products/new/page.tsx
 import { createServerSupabaseClient } from '@/lib/products';
-import { ProductForm } from '@/components/admin/ProductForm';
+import { ProductForm } from '@/components/shared/ProductForm';
 import { ServiceCategory } from '@/types/database.types';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -15,7 +15,7 @@ export default async function NewProductPage() {
   // Get active service categories
   const { data: categories, error } = await supabase
     .from('ServiceCategories')
-    .select('service_category_id, name, slug')
+    .select('*')
     .eq('is_active', true)
     .order('name');
   

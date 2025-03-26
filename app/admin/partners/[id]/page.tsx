@@ -29,8 +29,12 @@ const statusStyles = {
   }
 };
 
-export default async function PartnerDetails({ params }: { params: { id: string } }) {
-  const partnerId = params.id;
+export default async function PartnerDetails({ 
+  params 
+}: { 
+  params: Promise<{ id: string }> 
+}) {
+  const { id: partnerId } = await params;
   const supabase = await createClient();
   
   // Get partner profile

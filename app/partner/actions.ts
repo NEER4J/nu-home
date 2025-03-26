@@ -12,7 +12,7 @@ export async function requestCategoryAccess(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
-    return { error: "You must be logged in to request category access" };
+    throw new Error("You must be logged in to request category access");
   }
   
   // Get the category ID from the form data
@@ -20,7 +20,7 @@ export async function requestCategoryAccess(formData: FormData) {
   const notes = formData.get("notes") as string;
   
   if (!categoryId) {
-    return { error: "Category ID is required" };
+    throw new Error("Category ID is required");
   }
   
   try {
@@ -35,7 +35,7 @@ export async function requestCategoryAccess(formData: FormData) {
     if (existingRequest) {
       // If already approved, no need to request again
       if (existingRequest.status === "approved") {
-        return { error: "You already have access to this category" };
+        throw new Error("You already have access to this category");
       }
       
       // If rejected or pending, update the request
@@ -64,10 +64,9 @@ export async function requestCategoryAccess(formData: FormData) {
     }
     
     revalidatePath("/partner/category-access");
-    return { success: true };
   } catch (error: any) {
     console.error("Error requesting category access:", error);
-    return { error: error.message || "Failed to request category access" };
+    throw error;
   }
 }
 

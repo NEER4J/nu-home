@@ -5,11 +5,29 @@ import { ArrowLeft } from "lucide-react";
 import { ProductForm } from "@/components/shared/ProductForm";
 import { Product } from "@/types/product.types";
 import { ServiceCategory } from "@/types/database.types";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+
+type SupabaseCategoryResponse = {
+  ServiceCategories: {
+    service_category_id: string;
+    name: string;
+    description: string | null;
+    icon_url: string | null;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+    form_style: string | null;
+    show_thank_you: boolean | null;
+    redirect_to_products: boolean | null;
+    fields_layout: string;
+    products_list_layout: string;
+  };
+};
 
 export default async function EditProductPage({
   params
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   const supabase = await createClient();
   
@@ -40,10 +58,11 @@ export default async function EditProductPage({
   }
   
   // Get the product
+  const { id } = await params;
   const { data: product, error: productError } = await supabase
     .from("PartnerProducts")
     .select("*")
-    .eq("partner_product_id", params.id)
+    .eq("partner_product_id", id)
     .single();
   
   if (productError || !product) {
@@ -56,7 +75,17 @@ export default async function EditProductPage({
     .select(`
       ServiceCategories (
         service_category_id,
-        name
+        name,
+        description,
+        icon_url,
+        is_active,
+        created_at,
+        updated_at,
+        form_style,
+        show_thank_you,
+        redirect_to_products,
+        fields_layout,
+        products_list_layout
       )
     `)
     .eq("user_id", product.partner_id)
@@ -68,7 +97,7 @@ export default async function EditProductPage({
   }
   
   // Verify this product's category is still approved for this partner
-  const isApprovedCategory = approvedCategories.some(
+  const isApprovedCategory = (approvedCategories as unknown as SupabaseCategoryResponse[])?.some(
     cat => cat.ServiceCategories.service_category_id === product.service_category_id
   );
   
@@ -119,6 +148,22 @@ export default async function EditProductPage({
     updated_at: product.updated_at
   };
   
+  // Transform categories to match ServiceCategory type
+  const transformedCategories: ServiceCategory[] = (approvedCategories as unknown as SupabaseCategoryResponse[])?.map(cat => ({
+    service_category_id: cat.ServiceCategories.service_category_id,
+    name: cat.ServiceCategories.name,
+    description: cat.ServiceCategories.description,
+    icon_url: cat.ServiceCategories.icon_url,
+    is_active: cat.ServiceCategories.is_active,
+    created_at: cat.ServiceCategories.created_at,
+    updated_at: cat.ServiceCategories.updated_at,
+    form_style: cat.ServiceCategories.form_style,
+    show_thank_you: cat.ServiceCategories.show_thank_you,
+    redirect_to_products: cat.ServiceCategories.redirect_to_products,
+    products_list_layout: cat.ServiceCategories.products_list_layout,
+    slug: '' // Not needed for partner form
+  })) || [];
+  
   return (
     <div className="max-w-4xl mx-auto pb-12">
       <div className="mb-6">
@@ -141,11 +186,7 @@ export default async function EditProductPage({
         <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
           <ProductForm
             product={formattedProduct}
-            categories={approvedCategories?.map(cat => ({
-              service_category_id: cat.ServiceCategories.service_category_id,
-              name: cat.ServiceCategories.name,
-              slug: '' // Not needed for partner form
-            }))}
+            categories={transformedCategories}
             isEditing={true}
             isPartner={true}
           />
