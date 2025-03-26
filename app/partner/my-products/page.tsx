@@ -4,11 +4,11 @@ import Image from "next/image";
 import { PlusCircle, Package, Edit, ArrowUpRight, AlertTriangle, Tag } from "lucide-react";
 import DeleteProductButton from "@/components/partner/DeleteProductButton";
 
-interface PageProps {
-  searchParams: { category?: string };
-}
-
-export default async function PartnerProductsPage({ searchParams }: PageProps) {
+export default async function PartnerProductsPage({ 
+  searchParams 
+}: { 
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }> 
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -37,7 +37,8 @@ export default async function PartnerProductsPage({ searchParams }: PageProps) {
     .eq("status", "approved");
   
   // Get the selected category from query, or default to all
-  const selectedCategoryId = searchParams?.category || 'all';
+  const resolvedParams = await searchParams;
+  const selectedCategoryId = resolvedParams?.category || 'all';
   
   // Fetch partner's products
   let productsQuery = supabase
@@ -76,44 +77,22 @@ export default async function PartnerProductsPage({ searchParams }: PageProps) {
     .eq("is_template", true)
     .eq("is_active", true);
   
-  // Filter by accessible categories
   if (categoryIds.length > 0) {
     templateQuery = templateQuery.in('service_category_id', categoryIds);
-  } else {
-    // If no approved categories, don't show any templates
-    templateQuery = templateQuery.eq('service_category_id', 'none');
   }
   
-  const { data: templateProducts, error: templatesError } = await templateQuery.order('name');
-  
-  if (templatesError) {
-    console.error("Error fetching templates:", templatesError);
-  }
+  const { data: templateProducts } = await templateQuery;
   
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Products</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage your product catalog</p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Link
-            href="/partner/admin-products"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <Tag className="mr-1.5 h-4 w-4 text-gray-500" />
-            Browse Admin Products
-          </Link>
-          <Link
-            href="/partner/my-products/new"
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <PlusCircle className="mr-1.5 h-4 w-4" />
-            Add New Product
-          </Link>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">My Products</h1>
+        <Link
+          href="/partner/my-products/new"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+        >
+          Add New Product
+        </Link>
       </div>
       
       {/* Category filter tabs */}

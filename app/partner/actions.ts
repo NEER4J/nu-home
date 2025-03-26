@@ -76,11 +76,20 @@ export async function requestCategoryAccess(formData: FormData) {
  */
 export async function createPartnerProduct(formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) {
-    return { error: "You must be logged in to create a product" };
+  // Get the current session
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  if (sessionError) {
+    console.error("Session error:", sessionError);
+    return { error: "Authentication error: Session verification failed. Please refresh and try again." };
   }
+  
+  if (!session) {
+    return { error: "Authentication error: You need to be logged in to create a product." };
+  }
+  
+  const user = session.user;
   
   try {
     // Get the form data
@@ -89,7 +98,7 @@ export async function createPartnerProduct(formData: FormData) {
     const slug = formData.get("slug") as string;
     const price = parseFloat(formData.get("price") as string) || null;
     const categoryId = formData.get("categoryId") as string;
-    const productFields = JSON.parse(formData.get("productFields") as string || "{}");
+    const productFields = JSON.parse(formData.get("product_fields") as string || "{}");
     const specifications = JSON.parse(formData.get("specifications") as string || "{}");
     const imageUrl = formData.get("imageUrl") as string || null;
     const isActive = formData.get("isActive") === "true";
@@ -113,25 +122,37 @@ export async function createPartnerProduct(formData: FormData) {
       return { error: "You don't have access to this category" };
     }
     
-    // Create the product
+    // Create the partner product
     const { error: insertError } = await supabase
-      .from("Products")
+      .from("PartnerProducts")
       .insert({
+        partner_id: user.id,
         name,
-        description,
         slug,
+        description,
         price,
         service_category_id: categoryId,
-        product_fields: productFields,
         specifications,
+        product_fields: productFields,
         image_url: imageUrl,
         is_active: isActive,
-        owner_id: user.id,
-        from_template_id: fromTemplateId,
-        is_template: false
+        base_product_id: fromTemplateId
       });
     
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      
+      if (insertError.message.includes("duplicate key")) {
+        return { error: "A product with this slug already exists. Try again." };
+      }
+      
+      if (insertError.message.includes("permission denied") || 
+          insertError.message.includes("policy")) {
+        return { error: "You don't have permission to create this product. Please refresh and try again." };
+      }
+      
+      throw insertError;
+    }
     
     revalidatePath("/partner/my-products");
     return { success: true };
@@ -146,11 +167,20 @@ export async function createPartnerProduct(formData: FormData) {
  */
 export async function updatePartnerProduct(formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) {
-    return { error: "You must be logged in to update a product" };
+  // Get the current session
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  if (sessionError) {
+    console.error("Session error:", sessionError);
+    return { error: "Authentication error: Session verification failed. Please refresh and try again." };
   }
+  
+  if (!session) {
+    return { error: "Authentication error: You need to be logged in to update a product." };
+  }
+  
+  const user = session.user;
   
   try {
     // Get the form data
@@ -160,7 +190,7 @@ export async function updatePartnerProduct(formData: FormData) {
     const slug = formData.get("slug") as string;
     const price = parseFloat(formData.get("price") as string) || null;
     const categoryId = formData.get("categoryId") as string;
-    const productFields = JSON.parse(formData.get("productFields") as string || "{}");
+    const productFields = JSON.parse(formData.get("product_fields") as string || "{}");
     const specifications = JSON.parse(formData.get("specifications") as string || "{}");
     const imageUrl = formData.get("imageUrl") as string || null;
     const isActive = formData.get("isActive") === "true";
@@ -168,18 +198,6 @@ export async function updatePartnerProduct(formData: FormData) {
     // Validate required fields
     if (!productId || !name || !slug || !categoryId) {
       return { error: "Product ID, name, slug, and category are required" };
-    }
-    
-    // Check if product belongs to this user
-    const { data: product } = await supabase
-      .from("Products")
-      .select("*")
-      .eq("product_id", productId)
-      .eq("owner_id", user.id)
-      .single();
-    
-    if (!product) {
-      return { error: "Product not found or you don't have permission to edit it" };
     }
     
     // Check if user has access to this category
@@ -195,24 +213,37 @@ export async function updatePartnerProduct(formData: FormData) {
       return { error: "You don't have access to this category" };
     }
     
-    // Update the product
+    // Update the partner product
     const { error: updateError } = await supabase
-      .from("Products")
+      .from("PartnerProducts")
       .update({
         name,
-        description,
         slug,
+        description,
         price,
         service_category_id: categoryId,
-        product_fields: productFields,
         specifications,
+        product_fields: productFields,
         image_url: imageUrl,
-        is_active: isActive,
-        updated_at: new Date().toISOString()
+        is_active: isActive
       })
-      .eq("product_id", productId);
+      .eq("partner_product_id", productId)
+      .eq("partner_id", user.id); // Important: Add this to ensure RLS policy works
     
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error("Update error:", updateError);
+      
+      if (updateError.message.includes("duplicate key")) {
+        return { error: "A product with this slug already exists. Try again." };
+      }
+      
+      if (updateError.message.includes("permission denied") || 
+          updateError.message.includes("policy")) {
+        return { error: "You don't have permission to update this product. Please refresh and try again." };
+      }
+      
+      throw updateError;
+    }
     
     revalidatePath("/partner/my-products");
     return { success: true };

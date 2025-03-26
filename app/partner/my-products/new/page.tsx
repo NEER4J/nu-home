@@ -1,74 +1,60 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import PartnerProductForm from "@/components/partner/PartnerProductForm";
 import { ArrowLeft } from "lucide-react";
+import { ProductForm } from "@/components/shared/ProductForm";
+import { Product } from "@/types/product.types";
+import { ServiceCategory } from "@/types/database.types";
 
-interface PageProps {
-  searchParams: { template?: string };
-}
+type PageProps = {
+  searchParams: { [key: string]: string | string[] | undefined };
+};
 
 export default async function NewProductPage({ searchParams }: PageProps) {
   const supabase = await createClient();
   
-  // Check if user is authenticated and is a partner using getSession for better security
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  // Get the current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
   
-  if (sessionError) {
-    console.error("Session error:", sessionError);
-    redirect("/auth/login?error=session_error");
-  }
-  
-  if (!session) {
-    redirect("/auth/login?error=no_session");
-  }
-  
-  const user = session.user;
-  
-  // Get partner profile to verify their status
-  const { data: profile, error: profileError } = await supabase
-    .from("UserProfiles")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
-  
-  if (profileError) {
-    console.error("Profile error:", profileError);
-    redirect("/auth/login?error=profile_error");
-  }
-  
-  if (!profile || profile.role !== "partner") {
-    redirect("/");
-  }
-  
-  if (profile.status === "pending") {
-    redirect("/partner/pending");
-  }
-  
-  if (profile.status === "suspended") {
-    redirect("/partner/suspended");
+  if (userError || !user) {
+    redirect("/login");
   }
   
   // Get partner's approved categories
-  const { data: approvedCategories } = await supabase
+  const { data: approvedCategories, error: categoriesError } = await supabase
     .from("UserCategoryAccess")
     .select(`
       *,
-      ServiceCategories(
+      ServiceCategories (
         service_category_id,
-        name
+        name,
+        description,
+        icon_url,
+        is_active,
+        created_at,
+        updated_at,
+        slug,
+        form_style,
+        show_thank_you,
+        redirect_to_products,
+        products_list_layout
       )
     `)
     .eq("user_id", user.id)
     .eq("status", "approved");
   
+  if (categoriesError) {
+    console.error("Categories error:", categoriesError);
+    throw new Error("Failed to fetch categories");
+  }
+  
   if (!approvedCategories || approvedCategories.length === 0) {
     redirect("/partner/category-access");
   }
   
-  // Initialize with template if provided
-  let templateProduct = null;
-  const templateId = searchParams?.template;
+  // Get template product if templateId is provided
+  let templateProduct: Product | null = null;
+  const templateId = searchParams.template as string;
   
   if (templateId) {
     const { data: template, error: templateError } = await supabase
@@ -84,6 +70,9 @@ export default async function NewProductPage({ searchParams }: PageProps) {
       templateProduct = template;
     }
   }
+  
+  // Map the categories to the correct type
+  const categories: ServiceCategory[] = approvedCategories.map(cat => cat.ServiceCategories);
   
   return (
     <div className="max-w-4xl mx-auto pb-12">
@@ -109,12 +98,10 @@ export default async function NewProductPage({ searchParams }: PageProps) {
         </div>
         
         <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-          <PartnerProductForm
+          <ProductForm
             template={templateProduct}
-            categories={approvedCategories?.map(cat => ({
-              id: cat.ServiceCategories.service_category_id,
-              name: cat.ServiceCategories.name
-            }))}
+            categories={categories}
+            isPartner={true}
           />
         </div>
       </div>
