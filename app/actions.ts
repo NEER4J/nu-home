@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
+  const role = formData.get("role")?.toString() || "partner";
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
 
@@ -19,24 +20,94 @@ export const signUpAction = async (formData: FormData) => {
     );
   }
 
-  const { error } = await supabase.auth.signUp({
+  // Sign up the user with Auth
+  const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback`,
+      data: {
+        role: role,
+      },
     },
   });
 
-  if (error) {
-    console.error(error.code + " " + error.message);
-    return encodedRedirect("error", "/sign-up", error.message);
-  } else {
-    return encodedRedirect(
-      "success",
-      "/sign-up",
-      "Thanks for signing up! Please check your email for a verification link.",
-    );
+  if (authError) {
+    console.error(authError.code + " " + authError.message);
+    return encodedRedirect("error", "/sign-up", authError.message);
   }
+
+  // If user is a partner, create a profile
+  if (role === "partner" && authData?.user) {
+    // Get additional form fields
+    const companyName = formData.get("company_name")?.toString() || "";
+    const contactPerson = formData.get("contact_person")?.toString() || "";
+    const address = formData.get("address")?.toString() || "";
+    const phone = formData.get("phone")?.toString() || "";
+    const postcode = formData.get("postcode")?.toString() || "";
+    const website = formData.get("website")?.toString() || "";
+    const businessDescription = formData.get("business_description")?.toString() || "";
+    const primaryCategory = formData.get("primary_category")?.toString() || "";
+
+    // Create user profile
+    const { error: profileError } = await supabase.from("UserProfiles").insert({
+      user_id: authData.user.id,
+      company_name: companyName,
+      contact_person: contactPerson,
+      address: address,
+      phone: phone,
+      postcode: postcode,
+      status: "pending",
+      website_url: website,
+      business_description: businessDescription,
+      role: role
+    });
+
+    if (profileError) {
+      console.error("Profile creation error:", profileError.message);
+      return encodedRedirect("error", "/sign-up", "Account created but profile setup failed. Please contact support.");
+    }
+
+    // Create category access request if primary category is selected
+    if (primaryCategory) {
+      const { error: categoryError } = await supabase.from("UserCategoryAccess").insert({
+        user_id: authData.user.id,
+        service_category_id: primaryCategory,
+        status: "pending",
+        is_primary: true
+      });
+
+      if (categoryError) {
+        console.error("Category access error:", categoryError.message);
+      }
+    }
+
+    // Create initial partner metrics
+    if (primaryCategory) {
+      await supabase.from("PartnerMetrics").insert({
+        user_id: authData.user.id,
+        service_category_id: primaryCategory
+      }).then(null, (error) => {
+        console.error("Partner metrics creation error:", error.message);
+      });
+    }
+
+    // Send notification to admins about new partner
+    await supabase.from("CategoryNotifications").insert({
+      user_id: authData.user.id,
+      service_category_id: primaryCategory,
+      type: "new_partner",
+      message: `New partner ${companyName} has registered and requested access to your category.`
+    }).then(null, (error) => {
+      console.error("Notification creation error:", error.message);
+    });
+  }
+
+  return encodedRedirect(
+    "success",
+    "/sign-up",
+    "Thanks for signing up! Please check your email for a verification link.",
+  );
 };
 
 export const signInAction = async (formData: FormData) => {
