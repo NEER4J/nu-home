@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
 import { signOutAction } from '../actions';
-import { Home, Package, FileText, Grid, Settings, Bell, LogOut, User, PlusCircle, BarChart2, Tag } from 'lucide-react';
+import { Home, Package, FileText, Grid, Settings, Bell, LogOut, User, PlusCircle, BarChart2, Tag, Download } from 'lucide-react';
 import Loader from '@/components/Loader';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -99,6 +99,16 @@ export default async function PartnerLayout({
               >
                 <Package className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
                 My Products
+              </Link>
+            </li>
+            
+            <li>
+              <Link 
+                href="/partner/import" 
+                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+              >
+                <Download className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                Import Products
               </Link>
             </li>
             
