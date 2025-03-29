@@ -2,6 +2,13 @@
 
 import { ServiceCategory } from './database.types';
 
+export interface Partner {
+  partner_id: string;
+  company_name: string;
+  logo_url: string | null;
+  website_url: string | null;
+}
+
 export interface Product {
   product_id: string;
   service_category_id: string;
@@ -21,6 +28,7 @@ export interface Product {
   updated_at: string;
   ServiceCategory?: ServiceCategory;
   ServiceCategories?: { name: string }; // For API responses from Supabase
+  Partner?: Partner; // Partner information for partner products
 }
 
 export interface ProductFormData {

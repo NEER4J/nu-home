@@ -4,158 +4,66 @@ import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
-interface SubField {
-  key: string;
-  label: string;
-  type: string;
-}
-
-interface WordPressField {
-  path: string;
-  label: string;
-  type: string;
-  options?: string[];
-  subfields?: SubField[];
-}
-
-// Define WordPress fields structure
-const wordpressFields: WordPressField[] = [
-  { path: 'title.rendered', label: 'Product Name', type: 'string' },
-  { path: 'slug', label: 'Slug', type: 'string' },
-  { path: 'status', label: 'Status', type: 'select', options: ['publish', 'draft'] },
-  { 
-    path: 'acf.boiler_description', 
-    label: 'Description', 
-    type: 'repeater',
-    subfields: [
-      { key: 'description_item', label: 'Description Item', type: 'text' }
-    ]
-  },
-  { path: 'acf.boiler_fixed_price', label: 'Price', type: 'number' },
-  { path: 'featured_media', label: 'Image ID', type: 'number' },
-  { 
-    path: 'acf.boiler_dimetions', 
-    label: 'Dimensions', 
-    type: 'object',
-    subfields: [
-      { key: 'height', label: 'Height', type: 'string' },
-      { key: 'width', label: 'Width', type: 'string' },
-      { key: 'depth', label: 'Depth', type: 'string' }
-    ]
-  },
-  { path: 'acf.year_warranty', label: 'Warranty (Years)', type: 'number' },
-  { path: 'acf.select_brand', label: 'Brand', type: 'select' },
-  { 
-    path: 'acf.boiler_details', 
-    label: 'Additional Details', 
-    type: 'repeater',
-    subfields: [
-      { key: 'detail_item', label: 'Detail Item', type: 'text' }
-    ]
-  },
-  { 
-    path: 'boilertype', 
-    label: 'Boiler Type', 
-    type: 'checkbox',
-    options: ['Combi', 'System', 'Regular', 'Electric']
-  },
-  { 
-    path: 'bedroom_fits_boiler', 
-    label: 'Suitable Bedrooms', 
-    type: 'select',
-    options: ['1-2', '3-4', '5+']
-  },
-  { 
-    path: 'acf.boiler_power_price', 
-    label: 'Power & Price Options', 
-    type: 'repeater',
-    subfields: [
-      { key: 'power', label: 'Power Rating', type: 'string' },
-      { key: 'price', label: 'Option Price', type: 'number' }
-    ]
-  },
-  { path: 'acf.boiler_flow_rate', label: 'Flow Rate', type: 'string' },
-];
-
-interface WordPressProduct {
-  id: number;
-  slug: string;
-  status: string;
-  type: string;
-  title: {
-    rendered: string;
-  };
-  featured_media: number;
-  boilertype: number[];
-  bedroom_fits_boiler: number[];
-  acf: {
-    subtitle_1: string;
-    year_warranty: string;
-    select_brand: string;
-    boiler_description: Array<{ description_item: string }>;
-    boiler_fixed_price: number;
-    boiler_power_price: Array<{
-      price: number;
-      power: string;
-      flow_rate: string;
-    }>;
-    boiler_flow_rate: string;
-    boiler_dimetions: {
-      height: string;
-      width: string;
-      depth: string;
-    };
-    boiler_details: Array<{
-      icon: number;
-      text: string;
-    }>;
-  };
-}
-
-interface FieldMapping {
-  [key: string]: string;
-}
-
 // Helper function to get nested value from an object using a path string
 const getNestedValue = (obj: any, path: string) => {
   return path.split('.').reduce((acc, part) => acc && acc[part], obj);
 };
 
-// Helper function to transform field values based on their type
-const transformFieldValue = (value: any, field: any) => {
+// Helper function to detect field type
+function detectFieldType(value: any): string {
+  if (value === null || value === undefined) return 'string';
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'array';
+    if (typeof value[0] === 'object') return 'repeater';
+    return 'array';
+  }
+  if (typeof value === 'object') return 'object';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'boolean';
+  return 'string';
+}
+
+// Helper function to transform field values based on detected type
+function transformFieldValue(value: any, fieldType: string): any {
   if (!value) return null;
 
-  switch (field.type) {
+  switch (fieldType) {
     case 'repeater':
       if (!Array.isArray(value)) return [];
-      return value.map(item => {
-        const transformed: any = {};
-        field.subfields.forEach((subfield: any) => {
-          transformed[subfield.key] = item[subfield.key];
-        });
-        return transformed;
-      });
+      // If the repeater items have a common key, use that
+      const sampleItem = value[0];
+      const commonKeys = Object.keys(sampleItem || {});
+      if (commonKeys.length === 1) {
+        // If there's only one key (like description_item), extract just those values
+        const key = commonKeys[0];
+        return value.map(item => item[key]).filter(Boolean);
+      }
+      // Otherwise return the array as is
+      return value;
+
+    case 'array':
+      return Array.isArray(value) ? value : [value].filter(Boolean);
 
     case 'object':
-      const transformed: any = {};
-      field.subfields.forEach((subfield: any) => {
-        transformed[subfield.key] = value[subfield.key];
-      });
-      return transformed;
-
-    case 'checkbox':
-      return Array.isArray(value) ? value : [value];
-
-    case 'select':
-      return value;
+      if (typeof value !== 'object' || value === null) return {};
+      // Clean up the object by removing null/undefined values
+      return Object.entries(value).reduce((acc, [key, val]) => ({
+        ...acc,
+        [key]: val || ''
+      }), {});
 
     case 'number':
-      return parseFloat(value) || 0;
+      const num = parseFloat(value);
+      return isNaN(num) ? null : num;
 
+    case 'boolean':
+      return Boolean(value);
+
+    case 'string':
     default:
-      return value;
+      return String(value);
   }
-};
+}
 
 export async function importProducts(
   products: any[],
@@ -163,7 +71,6 @@ export async function importProducts(
   serviceCategoryId: string,
   wordpressBaseUrl: string
 ) {
-  const cookieStore = cookies();
   const supabase = await createClient();
 
   // Get the current session
@@ -190,6 +97,7 @@ export async function importProducts(
     // Process each mapped field
     for (const [dbField, wpPath] of Object.entries(mapping)) {
       const value = getNestedValue(product, wpPath);
+      const fieldType = detectFieldType(value);
       
       if (globalFields.includes(dbField)) {
         // Handle global fields
@@ -201,10 +109,14 @@ export async function importProducts(
             baseProduct.slug = value || product.slug;
             break;
           case 'description':
-            if (Array.isArray(value)) {
-              baseProduct.description = value.map(item => item.description_item).join('\n');
+            if (fieldType === 'repeater') {
+              // If description is a repeater field, join the items
+              const items = transformFieldValue(value, fieldType);
+              baseProduct.description = Array.isArray(items) 
+                ? items.join('\n\n')
+                : String(items || '');
             } else {
-              baseProduct.description = value || '';
+              baseProduct.description = String(value || '');
             }
             break;
           case 'price':
@@ -229,12 +141,18 @@ export async function importProducts(
             }
             break;
           case 'specifications':
-            baseProduct.specifications = {
-              dimensions: product.acf?.boiler_dimetions || {},
-              warranty: product.acf?.year_warranty || '',
-              brand: product.acf?.select_brand || '',
-              details: product.acf?.boiler_details || []
-            };
+            // Transform specifications into a clean object
+            const specs: Record<string, any> = {};
+            
+            // Handle any object or array fields in specifications
+            if (typeof value === 'object' && value !== null) {
+              Object.entries(value).forEach(([key, val]) => {
+                const valType = detectFieldType(val);
+                specs[key] = transformFieldValue(val, valType);
+              });
+            }
+
+            baseProduct.specifications = specs;
             break;
           case 'is_active':
             baseProduct.is_active = value === 'publish';
@@ -242,9 +160,9 @@ export async function importProducts(
         }
       } else {
         // Handle custom fields - store in product_fields
-        const wpField = wordpressFields.find(f => f.path === wpPath);
-        if (wpField) {
-          baseProduct.product_fields[dbField] = transformFieldValue(value, wpField);
+        const transformedValue = transformFieldValue(value, fieldType);
+        if (transformedValue !== null) {
+          baseProduct.product_fields[dbField] = transformedValue;
         }
       }
     }

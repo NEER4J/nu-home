@@ -1,43 +1,81 @@
 // components/products/layouts/DefaultLayout.tsx
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { Product } from '@/types/product.types';
+import Image from 'next/image';
+import { Product, Partner } from '@/types/product.types';
 
-type DefaultLayoutProps = {
+interface DefaultLayoutProps {
   product: Product;
   categorySlug: string;
-};
+  partner?: Partner;
+}
 
-export default function DefaultLayout({ product, categorySlug }: DefaultLayoutProps) {
+export default function DefaultLayout({ product, categorySlug, partner }: DefaultLayoutProps) {
   return (
-    <div className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow">
-      {product.image_url ? (
-        <div className="relative h-40 mb-4">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      {/* Product Image */}
+      <div className="relative h-48 w-full">
+        {product.image_url ? (
           <Image
             src={product.image_url}
             alt={product.name}
             fill
-            className="object-contain rounded-md"
+            className="object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-gray-100 flex items-center justify-center">
+            <span className="text-gray-400">No image</span>
+          </div>
+        )}
+      </div>
+      
+      {/* Partner Logo - Small overlay on the image */}
+      {product.Partner?.logo_url && (
+        <div className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-sm">
+          <Image
+            src={product.Partner.logo_url}
+            alt={product.Partner.company_name}
+            width={24}
+            height={24}
+            className="rounded-full"
           />
         </div>
-      ) : (
-        <div className="h-40 bg-gray-100 flex items-center justify-center mb-4 rounded-md">
-          <span className="text-gray-400">No image</span>
+      )}
+      
+      {/* Product Details */}
+      <div className="p-4">
+        <h3 className="text-lg font-medium text-gray-900 mb-1">
+          {product.name}
+        </h3>
+        
+        {/* Partner Name */}
+        {product.Partner && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm text-gray-600">
+              by {product.Partner.company_name}
+            </span>
+          </div>
+        )}
+        
+        <p className="text-sm text-gray-500 mb-4 line-clamp-2">
+          {product.description}
+        </p>
+        
+        {/* Price and Action */}
+        <div className="flex items-center justify-between">
+          {product.price !== null && (
+            <span className="text-lg font-semibold text-gray-900">
+              ${product.price.toLocaleString()}
+            </span>
+          )}
+          <Link
+            href={`/services/${categorySlug}/products/${product.slug}`}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            View Details
+          </Link>
         </div>
-      )}
-      <h3 className="text-lg font-semibold mb-2">{product.name}</h3>
-      {product.price ? (
-        <p className="text-lg font-bold mb-4">£{product.price.toFixed(2)}</p>
-      ) : (
-        <p className="text-sm italic text-gray-500 mb-4">Price on request</p>
-      )}
-      <Link
-        href={`/services/${categorySlug}/products/${product.slug}`}
-        className="block text-center bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"
-      >
-        View Details
-      </Link>
+      </div>
     </div>
   );
 }

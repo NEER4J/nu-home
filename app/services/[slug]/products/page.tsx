@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { 
-  getProducts, 
+  getPartnerProducts, 
   getSubmission, 
   getRecommendedProducts,
   createServerSupabaseClient,
@@ -10,8 +10,17 @@ import {
 } from '@/lib/products';
 import ProductFilters from '@/components/products/ProductFilters';
 import ProductLayoutManager from '@/components/products/ProductLayoutManager';
-import { Product } from '@/types/product.types';
+import { Product, Partner } from '@/types/product.types';
 import LoadingSpinner from '@/components/ui/LoadingSpinner'; 
+
+interface ProductLayoutManagerProps {
+  key: string;
+  product: Product;
+  categorySlug: string;
+  layoutType: string;
+  isPopular: boolean;
+  partner: Partner | undefined;
+}
 
 // Loading component for the entire page
 function ProductsLoading() {
@@ -103,11 +112,11 @@ async function ProductsContent({
     } catch (error) {
       console.error('Error getting recommended products:', error);
       // Fallback to all products if there's an error
-      products = await getProducts(category.service_category_id, true, activeFilters);
+      products = await getPartnerProducts(category.service_category_id, true, activeFilters);
     }
   } else {
-    // Otherwise, get all products for this category with active filters
-    products = await getProducts(category.service_category_id, true, activeFilters);
+    // Otherwise, get all partner products for this category with active filters
+    products = await getPartnerProducts(category.service_category_id, true, activeFilters);
   }
   
   // Get the layout type from the category
@@ -128,7 +137,7 @@ async function ProductsContent({
         <p className="mt-1 text-sm text-gray-500">
           {isRecommended 
             ? `Based on your answers, we've selected ${products.length} products for you.`
-            : `${products.length} products available`
+            : `${products.length} products available from our trusted partners`
           }
         </p>
       </div>
@@ -174,6 +183,7 @@ async function ProductsContent({
                 categorySlug={params.slug}
                 layoutType={layoutType}
                 isPopular={index === 0} // First product is marked as popular
+                partner={product.Partner} // Pass partner information to the layout manager
               />
             ))}
           </div>

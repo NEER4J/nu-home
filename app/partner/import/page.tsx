@@ -77,72 +77,45 @@ const databaseFields = [
 ];
 
 const getWordPressFields = (product: WordPressProduct) => {
-  return [
-    // Global fields
-    { path: 'title.rendered', label: 'Product Name', type: 'string' },
-    { path: 'slug', label: 'Slug', type: 'string' },
-    { path: 'status', label: 'Status', type: 'select', options: ['publish', 'draft'] },
-    { path: 'type', label: 'Product Type', type: 'string' },
-    { path: 'featured_media', label: 'Featured Media ID', type: 'number' },
-    
-    // Taxonomies
-    { 
-      path: 'boilertype', 
-      label: 'Boiler Types', 
-      type: 'array',
-      options: ['24'] // You might want to fetch these from WordPress
-    },
-    { 
-      path: 'bedroom_fits_boiler', 
-      label: 'Bedroom Fits', 
-      type: 'array',
-      options: ['25', '26', '27', '28', '29', '30'] // You might want to fetch these from WordPress
-    },
-    
-    // ACF Fields
-    { path: 'acf.subtitle_1', label: 'Subtitle', type: 'string' },
-    { path: 'acf.year_warranty', label: 'Warranty Years', type: 'string' },
-    { path: 'acf.select_brand', label: 'Brand', type: 'string' },
-    { 
-      path: 'acf.boiler_description', 
-      label: 'Description Items', 
-      type: 'repeater',
-      subfields: [
-        { key: 'description_item', label: 'Description Item', type: 'text' }
-      ]
-    },
-    { path: 'acf.boiler_fixed_price', label: 'Fixed Price', type: 'number' },
-    { 
-      path: 'acf.boiler_power_price', 
-      label: 'Power & Price Options', 
-      type: 'repeater',
-      subfields: [
-        { key: 'price', label: 'Price', type: 'number' },
-        { key: 'power', label: 'Power', type: 'string' },
-        { key: 'flow_rate', label: 'Flow Rate', type: 'string' }
-      ]
-    },
-    { path: 'acf.boiler_flow_rate', label: 'Flow Rate', type: 'string' },
-    { 
-      path: 'acf.boiler_dimetions', 
-      label: 'Dimensions', 
-      type: 'object',
-      subfields: [
-        { key: 'height', label: 'Height', type: 'string' },
-        { key: 'width', label: 'Width', type: 'string' },
-        { key: 'depth', label: 'Depth', type: 'string' }
-      ]
-    },
-    { 
-      path: 'acf.boiler_details', 
-      label: 'Boiler Details', 
-      type: 'repeater',
-      subfields: [
-        { key: 'icon', label: 'Icon ID', type: 'number' },
-        { key: 'text', label: 'Text', type: 'string' }
-      ]
-    }
-  ];
+  // Get all fields from the product object recursively
+  const getAllFields = (obj: any, prefix = ''): any[] => {
+    return Object.entries(obj).reduce((fields: any[], [key, value]) => {
+      const path = prefix ? `${prefix}.${key}` : key;
+      
+      if (value && typeof value === 'object') {
+        if (Array.isArray(value)) {
+          // Handle array/repeater fields
+          fields.push({
+            path,
+            label: key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            type: 'repeater',
+            subfields: value[0] ? getAllFields(value[0], '') : []
+          });
+        } else {
+          // Handle nested objects
+          const subfields = getAllFields(value, '');
+          if (subfields.length > 0) {
+            fields.push({
+              path,
+              label: key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+              type: 'object',
+              subfields
+            });
+          }
+        }
+      } else {
+        // Handle primitive fields
+        fields.push({
+          path,
+          label: key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+          type: typeof value === 'number' ? 'number' : 'string'
+        });
+      }
+      return fields;
+    }, []);
+  };
+
+  return getAllFields(product);
 };
 
 // Helper function to transform field values based on their type
@@ -181,26 +154,36 @@ const transformFieldValue = (value: any, field: any) => {
   }
 };
 
-const WP_API_FIELDS = [
-  'id',
-  'slug',
-  'status',
-  'type',
-  'title',
-  'featured_media',
-  'boilertype',
-  'bedroom_fits_boiler',
-  'acf',
-  'acf.subtitle_1',
-  'acf.year_warranty',
-  'acf.select_brand',
-  'acf.boiler_description',
-  'acf.boiler_fixed_price',
-  'acf.boiler_power_price',
-  'acf.boiler_flow_rate',
-  'acf.boiler_dimetions',
-  'acf.boiler_details'
-].join(',');
+const renderValue = (val: any, depth = 0) => {
+  if (val === null || val === undefined) return 'N/A';
+
+  if (typeof val === 'object') {
+    if (Array.isArray(val)) {
+      if (val.length === 0) return 'None';
+      return (
+        <div className="ml-4">
+          {val.map((item, idx) => (
+            <div key={idx} className="mt-2">
+              {typeof item === 'object' ? renderValue(item, depth + 1) : String(item)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="ml-4">
+        {Object.entries(val).map(([k, v]) => (
+          <div key={k} className="mt-2">
+            <span className="font-medium">{k}: </span>
+            {renderValue(v, depth + 1)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return String(val);
+};
 
 export default function ImportPage() {
   const [apiUrl, setApiUrl] = useState('');
@@ -213,6 +196,7 @@ export default function ImportPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [isImporting, setIsImporting] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<WordPressProduct | null>(null);
+  const [editedProducts, setEditedProducts] = useState<Record<number, any>>({});
   const router = useRouter();
 
   useEffect(() => {
@@ -258,14 +242,27 @@ export default function ImportPage() {
     setFieldMapping(newMapping);
   };
 
+  const handleProductUpdate = (productId: number, updatedData: any) => {
+    setEditedProducts(prev => ({
+      ...prev,
+      [productId]: updatedData
+    }));
+  };
+
   const handleImport = async () => {
     if (!products || !fieldMapping || !selectedCategory) return;
 
     try {
       setIsImporting(true);
-      const baseUrl = apiUrl.split('/wp-json')[0]; // Extract base URL from API URL
+      const baseUrl = apiUrl.split('/wp-json')[0];
+      
+      // Use edited products if available, otherwise use original products
+      const productsToImport = products.map(product => 
+        editedProducts[product.id] || product
+      );
+
       const result = await importProducts(
-        products,
+        productsToImport,
         fieldMapping,
         selectedCategory,
         baseUrl
@@ -306,12 +303,6 @@ export default function ImportPage() {
     if (previousTab) {
       setActiveTab(previousTab.id);
     }
-  };
-
-  const constructApiUrl = (baseUrl: string) => {
-    // Remove trailing slash if present
-    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
-    return `${cleanBaseUrl}/wp-json/wp/v2/product_new?_fields=${WP_API_FIELDS}&per_page=100`;
   };
 
   return (
@@ -356,28 +347,17 @@ export default function ImportPage() {
               </div>
               <div className="space-y-2">
                 <label htmlFor="baseUrl" className="block text-sm font-medium text-gray-700">
-                  WordPress Site URL
+                  WordPress API URL
                 </label>
                 <input
                   id="baseUrl"
                   type="text"
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  placeholder="https://your-site.com"
+                  placeholder="https://your-site.com/wp-json/wp/v2/product_new?per_page=100"
                   value={apiUrl}
-                  onChange={(e) => {
-                    const baseUrl = e.target.value;
-                    setApiUrl(baseUrl);
-                  }}
+                  onChange={(e) => setApiUrl(e.target.value)}
                   required
                 />
-                {apiUrl && (
-                  <div className="mt-2 text-sm text-gray-500">
-                    <p>API URL that will be used:</p>
-                    <code className="mt-1 block bg-gray-50 p-2 rounded text-xs break-all">
-                      {constructApiUrl(apiUrl)}
-                    </code>
-                  </div>
-                )}
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
@@ -400,8 +380,6 @@ export default function ImportPage() {
                 <div></div>
                 <button
                   onClick={() => {
-                    const constructedUrl = constructApiUrl(apiUrl);
-                    setApiUrl(constructedUrl);
                     fetchProducts();
                   }}
                   disabled={isLoading || !apiUrl || !selectedCategory}
@@ -443,106 +421,39 @@ export default function ImportPage() {
                       
                       {selectedProduct?.id === product.id && (
                         <div className="mt-4 bg-gray-50 p-4 rounded-md">
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-6">
+                            {/* Basic Information */}
                             <div>
-                              <div className="text-sm font-medium text-gray-500">ID</div>
-                              <div>{product.id}</div>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-500">Slug</div>
-                              <div>{product.slug}</div>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-500">Type</div>
-                              <div>{product.type}</div>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-500">Status</div>
-                              <div>{product.status}</div>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-500">Featured Media ID</div>
-                              <div>{product.featured_media}</div>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-500">Brand</div>
-                              <div>{product.acf.select_brand}</div>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-500">Subtitle</div>
-                              <div>{product.acf.subtitle_1 || 'N/A'}</div>
-                            </div>
-                          </div>
-
-                          <div className="mt-4">
-                            <div className="text-sm font-medium text-gray-500">Boiler Types</div>
-                            <div className="mt-1">
-                              {product.boilertype.map((type, index) => (
-                                <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2">
-                                  {type}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="mt-4">
-                            <div className="text-sm font-medium text-gray-500">Bedroom Fits</div>
-                            <div className="mt-1">
-                              {product.bedroom_fits_boiler.map((fit, index) => (
-                                <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
-                                  {fit}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="mt-4">
-                            <div className="text-sm font-medium text-gray-500">Description</div>
-                            <div className="mt-1">
-                              {product.acf.boiler_description.map((item, index) => (
-                                <div key={index} className="text-sm">• {item.description_item}</div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="mt-4">
-                            <div className="text-sm font-medium text-gray-500">Pricing</div>
-                            <div className="mt-1 text-sm">
-                              <div>Fixed Price: £{product.acf.boiler_fixed_price}</div>
-                              <div className="mt-2">
-                                <div className="font-medium">Power & Price Options:</div>
-                                <div className="grid grid-cols-3 gap-2 mt-1">
-                                  {product.acf.boiler_power_price.map((option, index) => (
-                                    <div key={index} className="bg-white p-2 rounded border">
-                                      <div>Power: {option.power}</div>
-                                      <div>Price: £{option.price}</div>
-                                      <div>Flow Rate: {option.flow_rate || 'N/A'}</div>
+                              <h3 className="text-lg font-medium mb-4">Basic Information</h3>
+                              <div className="space-y-4">
+                                {Object.entries(product)
+                                  .filter(([key]) => !['acf', 'boilertype', 'bedroom_fits_boiler'].includes(key))
+                                  .map(([key, value]) => (
+                                    <div key={key} className="border-t pt-4 first:border-t-0 first:pt-0">
+                                      <div className="text-sm font-medium text-gray-500">
+                                        {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                      </div>
+                                      <div className="mt-1">{renderValue(value)}</div>
                                     </div>
                                   ))}
-                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          <div className="mt-4">
-                            <div className="text-sm font-medium text-gray-500">Specifications</div>
-                            <div className="mt-1 text-sm">
-                              <div>Dimensions: {product.acf.boiler_dimetions.height}x{product.acf.boiler_dimetions.width}x{product.acf.boiler_dimetions.depth}</div>
-                              <div>Warranty: {product.acf.year_warranty} years</div>
-                              <div>Flow Rate: {product.acf.boiler_flow_rate}</div>
-                            </div>
-                          </div>
+                          
 
-                          <div className="mt-4">
-                            <div className="text-sm font-medium text-gray-500">Additional Details</div>
-                            <div className="mt-1">
-                              {product.acf.boiler_details.map((detail, index) => (
-                                <div key={index} className="flex items-center text-sm">
-                                  <span className="text-gray-500">Icon ID: {detail.icon}</span>
-                                  <span className="mx-2">-</span>
-                                  <span>{detail.text}</span>
-                                </div>
-                              ))}
+                            {/* ACF Fields */}
+                            <div>
+                              <h3 className="text-lg font-medium mb-4">ACF Fields</h3>
+                              <div className="space-y-4">
+                                {Object.entries(product.acf).map(([key, value]) => (
+                                  <div key={key} className="border-t pt-4 first:border-t-0 first:pt-0">
+                                    <div className="text-sm font-medium text-gray-500">
+                                      {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                    </div>
+                                    <div className="mt-1">{renderValue(value)}</div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -603,10 +514,14 @@ export default function ImportPage() {
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
                 <p className="text-sm text-blue-700">
-                  Review your products before importing. You can go back to previous steps to make changes if needed.
+                  Review your products before importing. You can edit any product's details by clicking the "Edit" button. Changes will be saved when you click "Save" on each product.
                 </p>
               </div>
-              <ProductPreview products={products} mapping={fieldMapping} />
+              <ProductPreview 
+                products={products} 
+                mapping={fieldMapping}
+                onProductUpdate={handleProductUpdate}
+              />
               <div className="flex justify-between mt-6">
                 <button
                   onClick={goToPreviousTab}

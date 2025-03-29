@@ -38,13 +38,23 @@ export default async function ProductDetailPage({
     
   const layoutType = category?.fields_layout || 'default';
   
+  // Ensure product_fields is an object
+  const productFields = typeof product.product_fields === 'string' 
+    ? JSON.parse(product.product_fields) 
+    : (product.product_fields || {});
+
+  // Ensure specifications is an object
+  const specifications = typeof product.specifications === 'string'
+    ? JSON.parse(product.specifications)
+    : (product.specifications || {});
+  
   // Filter to only include fields that have values in this product
   const fieldsWithValues = (categoryFields || []).filter(
     (field: CategoryField) => 
-      product.product_fields && 
-      product.product_fields[field.key] !== undefined && 
-      product.product_fields[field.key] !== null &&
-      product.product_fields[field.key] !== ''
+      productFields && 
+      productFields[field.key] !== undefined && 
+      productFields[field.key] !== null &&
+      productFields[field.key] !== ''
   );
   
   return (
@@ -95,6 +105,39 @@ export default async function ProductDetailPage({
         <div>
           <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
           
+          {/* Partner Information */}
+          {product.Partner && (
+            <div className="mb-4">
+              <div className="flex items-center gap-3">
+                {product.Partner.logo_url && (
+                  <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-gray-100">
+                    <Image
+                      src={product.Partner.logo_url}
+                      alt={product.Partner.company_name}
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                )}
+                <div>
+                  <p className="text-lg font-medium text-gray-900">
+                    by {product.Partner.company_name}
+                  </p>
+                  {product.Partner.website_url && (
+                    <a 
+                      href={product.Partner.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Visit Partner Website
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
           {product.price ? (
             <p className="text-2xl font-bold text-blue-600 mb-4">
               £{product.price.toFixed(2)}
@@ -120,25 +163,25 @@ export default async function ProductDetailPage({
           {fieldsWithValues.length > 0 && (
             <ProductFieldsSection 
               fields={fieldsWithValues} 
-              values={product.product_fields} 
+              values={productFields} 
               layoutType={layoutType as any}
             />
           )}
           
           {/* Specifications */}
-          {Object.keys(product.specifications).length > 0 && (
+          {Object.keys(specifications).length > 0 && (
             <div>
               <h2 className="text-xl font-semibold mb-4">Specifications</h2>
               <div className="bg-gray-50 rounded-lg overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
                   <tbody className="divide-y divide-gray-200">
-                    {Object.entries(product.specifications).map(([key, value]) => (
+                    {Object.entries(specifications).map(([key, value]) => (
                       <tr key={key}>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 bg-gray-100">
                           {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
-                          {value.toString()}
+                          {String(value)}
                         </td>
                       </tr>
                     ))}

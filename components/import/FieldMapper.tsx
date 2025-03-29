@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface SubField {
   key: string;
   label: string;
   type: string;
+  options?: string[];
+  subfields?: SubField[];
 }
 
 interface WordPressField {
@@ -15,6 +18,10 @@ interface WordPressField {
   type: string;
   options?: string[];
   subfields?: SubField[];
+  isRepeaterItem?: boolean;
+  repeaterIndex?: number;
+  repeaterField?: string;
+  uniqueKey?: string;
 }
 
 interface DatabaseField {
@@ -46,11 +53,148 @@ const globalFields: DatabaseField[] = [
   { key: 'is_active', label: 'Active Status', type: 'boolean', required: true },
 ];
 
+// Helper function to get the maximum number of items in a repeater field and extract subfields from sample data
+function getMaxRepeaterItems(fields: WordPressField[], sampleData: any): Record<string, number> {
+  return fields.reduce((acc: Record<string, number>, field) => {
+    if (field.type === 'repeater') {
+      // Get the actual data from the sample response
+      const pathParts = field.path.split('.');
+      let data = sampleData;
+      
+      // Navigate through the path to get the data
+      for (const part of pathParts) {
+        if (data && typeof data === 'object') {
+          data = data[part];
+        } else {
+          data = null;
+          break;
+        }
+      }
+
+      // For boiler_description field
+      if (field.path === 'acf.boiler_description') {
+        field.subfields = [{
+          key: 'description_item',
+          label: 'Description Item',
+          type: 'string'
+        }];
+        acc[field.path] = Array.isArray(data) ? data.length : 0;
+      }
+      // For boiler_power_price field
+      else if (field.path === 'acf.boiler_power_price') {
+        field.subfields = [
+          { key: 'price', label: 'Price', type: 'number' },
+          { key: 'power', label: 'Power', type: 'string' },
+          { key: 'flow_rate', label: 'Flow Rate', type: 'string' }
+        ];
+        acc[field.path] = Array.isArray(data) ? data.length : 0;
+      }
+      // For boiler_details field
+      else if (field.path === 'acf.boiler_details') {
+        field.subfields = [
+          { key: 'icon', label: 'Icon', type: 'number' },
+          { key: 'text', label: 'Text', type: 'string' }
+        ];
+        acc[field.path] = Array.isArray(data) ? data.length : 0;
+      }
+      
+      console.log(`Repeater field ${field.path}:`, {
+        data,
+        subfields: field.subfields,
+        count: acc[field.path]
+      });
+    }
+    return acc;
+  }, {});
+}
+
+// Helper function to flatten nested fields
+function flattenFields(fields: WordPressField[], sampleData: any): WordPressField[] {
+  const maxRepeaterItems = getMaxRepeaterItems(fields, sampleData);
+  console.log('Max repeater items:', maxRepeaterItems);
+  
+  return fields.reduce((acc: WordPressField[], field) => {
+    // Add the main field for non-repeater types
+    if (field.type !== 'repeater') {
+      acc.push(field);
+    }
+
+    // Handle repeater fields
+    if (field.type === 'repeater' && field.subfields && field.subfields.length > 0) {
+      const maxItems = maxRepeaterItems[field.path] || 0;
+      console.log(`Processing repeater field ${field.path} with ${maxItems} items`);
+      
+      // Create fields for each repeater item
+      for (let i = 0; i < maxItems; i++) {
+        field.subfields.forEach(subfield => {
+          const newField = {
+            path: `${field.path}[${i}].${subfield.key}`,
+            label: `${field.label} #${i + 1} - ${subfield.label}`,
+            type: subfield.type,
+            options: subfield.options,
+            isRepeaterItem: true,
+            repeaterIndex: i,
+            repeaterField: field.path
+          };
+          console.log(`Created repeater item field:`, newField);
+          acc.push(newField);
+        });
+      }
+    }
+    // Handle object fields
+    else if (field.type === 'object' && field.subfields) {
+      field.subfields.forEach(subfield => {
+        acc.push({
+          path: `${field.path}.${subfield.key}`,
+          label: `${field.label} - ${subfield.label}`,
+          type: subfield.type,
+          options: subfield.options
+        });
+      });
+    }
+
+    return acc;
+  }, []);
+}
+
 export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappingChange }: FieldMapperProps) {
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [sampleData, setSampleData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch sample data when component mounts
+  useEffect(() => {
+    const fetchSampleData = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('https://boiler-sure.co.uk/wp-json/wp/v2/boiler?per_page=1');
+        const data = await response.json();
+        if (data && data.length > 0) {
+          console.log('Fetched sample data:', data[0]);
+          setSampleData(data[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching sample data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSampleData();
+  }, []);
+
+  // Only proceed with field flattening once we have sample data
+  const flattenedFields = useMemo(() => {
+    if (!sampleData) return [];
+    console.log('WordPress fields:', wordpressFields);
+    const fields = flattenFields(wordpressFields, sampleData);
+    console.log('Flattened fields:', fields);
+    return fields;
+  }, [wordpressFields, sampleData]);
+
   const handleDragEnd = (result: any) => {
     if (!result.destination) return;
 
-    const wpField = wordpressFields[result.source.index];
+    const wpField = flattenedFields[result.source.index];
     const dbFieldKey = result.destination.droppableId;
     
     if (wpField) {
@@ -65,59 +209,118 @@ export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappin
     onMappingChange(newMapping);
   };
 
-  const renderFieldTypeInfo = (field: WordPressField) => {
-    switch (field.type) {
-      case 'repeater':
-        return (
-          <div className="mt-1 text-xs text-gray-500">
-            <div>Type: Repeater</div>
-            <div className="ml-2">
-              Subfields:
-              <ul className="list-disc list-inside">
-                {field.subfields?.map(subfield => (
-                  <li key={subfield.key}>{subfield.label} ({subfield.type})</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        );
-
-      case 'object':
-        return (
-          <div className="mt-1 text-xs text-gray-500">
-            <div>Type: Object</div>
-            <div className="ml-2">
-              Properties:
-              <ul className="list-disc list-inside">
-                {field.subfields?.map(subfield => (
-                  <li key={subfield.key}>{subfield.label} ({subfield.type})</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        );
-
-      case 'select':
-      case 'checkbox':
-        return (
-          <div className="mt-1 text-xs text-gray-500">
-            <div>Type: {field.type}</div>
-            {field.options && (
-              <div className="ml-2">
-                Options: {field.options.join(', ')}
-              </div>
-            )}
-          </div>
-        );
-
-      default:
-        return (
-          <div className="text-sm text-gray-500">
-            Type: {field.type} | Path: {field.path}
-          </div>
-        );
-    }
+  const toggleGroup = (groupPath: string) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupPath]: !prev[groupPath]
+    }));
   };
+
+  const renderFieldTypeInfo = (field: WordPressField) => {
+    if (field.type === 'repeater') {
+      return (
+        <div className="mt-1 text-xs text-gray-500">
+          <div>Type: Repeater</div>
+          <div className="ml-2">
+            Contains {field.subfields?.length || 0} subfields
+          </div>
+        </div>
+      );
+    }
+
+    if (field.isRepeaterItem) {
+      return (
+        <div className="mt-1 text-xs text-gray-500">
+          <div>Type: {field.type}</div>
+          <div className="ml-2">
+            Repeater Item {field.repeaterIndex! + 1}
+          </div>
+        </div>
+      );
+    }
+
+    if (field.type === 'object') {
+      return (
+        <div className="mt-1 text-xs text-gray-500">
+          <div>Type: Object</div>
+          <div className="ml-2">
+            Contains {field.subfields?.length || 0} properties
+          </div>
+        </div>
+      );
+    }
+
+    if (field.type === 'select' || field.type === 'checkbox') {
+      return (
+        <div className="mt-1 text-xs text-gray-500">
+          <div>Type: {field.type}</div>
+          {field.options && (
+            <div className="ml-2">
+              Options: {field.options.join(', ')}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-sm text-gray-500">
+        Type: {field.type} | Path: {field.path}
+      </div>
+    );
+  };
+
+  // Group fields by their parent path
+  const groupedFields = wordpressFields.reduce((acc: Record<string, WordPressField[]>, field) => {
+    if (field.type === 'object' && field.subfields) {
+      // For object fields, add each subfield separately
+      field.subfields.forEach(subfield => {
+        const fullPath = `${field.path}.${subfield.key}`;
+        const groupKey = field.path;
+        
+        if (!acc[groupKey]) {
+          acc[groupKey] = [];
+        }
+        
+        if (subfield.type === 'repeater' && subfield.subfields) {
+          // For repeater fields, add each subfield item
+          acc[groupKey].push({
+            path: fullPath,
+            label: `${subfield.label}`,
+            type: 'repeater',
+            subfields: subfield.subfields,
+            uniqueKey: `${field.path}-${subfield.key}-repeater`
+          });
+        } else if (subfield.type === 'object' && subfield.subfields) {
+          // For nested objects, add each nested field
+          subfield.subfields.forEach(nestedField => {
+            acc[groupKey].push({
+              path: `${fullPath}.${nestedField.key}`,
+              label: `${nestedField.label}`,
+              type: nestedField.type,
+              uniqueKey: `${field.path}-${subfield.key}-${nestedField.key}`
+            });
+          });
+        } else {
+          // Add regular fields
+          acc[groupKey].push({
+            path: fullPath,
+            label: `${subfield.label}`,
+            type: subfield.type,
+            uniqueKey: `${field.path}-${subfield.key}`
+          });
+        }
+      });
+    } else {
+      // For non-object fields, add them directly under their own group
+      const groupKey = field.path.split('.')[0];
+      if (!acc[groupKey]) {
+        acc[groupKey] = [];
+      }
+      acc[groupKey].push(field);
+    }
+    return acc;
+  }, {});
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
@@ -127,7 +330,7 @@ export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappin
           <h3 className="text-lg font-medium mb-2">WordPress Fields</h3>
           <div className="bg-blue-50 p-3 rounded-md mb-4">
             <p className="text-sm text-blue-800">
-              Drag fields from here to map them to your database fields. Special fields like repeaters and objects will be automatically transformed.
+              Drag fields from here to map them to your database fields. Fields are organized by their parent groups.
             </p>
           </div>
           <Droppable droppableId="wordpress-fields" isDropDisabled={true}>
@@ -137,24 +340,39 @@ export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappin
                 ref={provided.innerRef}
                 className="space-y-2"
               >
-                {wordpressFields.map((field, index) => (
-                  <Draggable
-                    key={field.path}
-                    draggableId={field.path}
-                    index={index}
-                  >
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        className="p-3 bg-gray-50 rounded-md cursor-move hover:bg-gray-100"
-                      >
-                        <div className="font-medium">{field.label}</div>
-                        {renderFieldTypeInfo(field)}
+                {Object.entries(groupedFields).map(([groupKey, fields]) => (
+                  <div key={groupKey} className="border border-gray-200 rounded-md overflow-hidden">
+                    <button
+                      onClick={() => toggleGroup(groupKey)}
+                      className="w-full p-3 bg-gray-100 hover:bg-gray-200 flex items-center justify-between"
+                    >
+                      <span className="font-medium">{groupKey}</span>
+                      {expandedGroups[groupKey] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                    {expandedGroups[groupKey] && (
+                      <div className="p-3 space-y-2">
+                        {fields.map((field, index) => (
+                          <Draggable
+                            key={field.uniqueKey || field.path}
+                            draggableId={field.uniqueKey || field.path}
+                            index={index}
+                          >
+                            {(provided) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className="p-3 bg-white border border-gray-200 rounded-md cursor-move hover:bg-gray-50"
+                              >
+                                <div className="font-medium">{field.label}</div>
+                                {renderFieldTypeInfo(field)}
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
                       </div>
                     )}
-                  </Draggable>
+                  </div>
                 ))}
                 {provided.placeholder}
               </div>
@@ -208,9 +426,9 @@ export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappin
                       {mapping[field.key] && (
                         <div className="mt-2 p-2 bg-green-100 rounded">
                           <div>
-                            Mapped to: {wordpressFields.find(f => f.path === mapping[field.key])?.label}
+                            Mapped to: {flattenedFields.find(f => f.path === mapping[field.key])?.label}
                           </div>
-                          {wordpressFields.find(f => f.path === mapping[field.key])?.type !== 'string' && (
+                          {flattenedFields.find(f => f.path === mapping[field.key])?.type !== 'string' && (
                             <div className="text-xs text-gray-600 mt-1">
                               Field will be automatically transformed to match the required format
                             </div>
@@ -261,9 +479,9 @@ export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappin
                       {mapping[field.key] && (
                         <div className="mt-2 p-2 bg-blue-100 rounded">
                           <div>
-                            Mapped to: {wordpressFields.find(f => f.path === mapping[field.key])?.label}
+                            Mapped to: {flattenedFields.find(f => f.path === mapping[field.key])?.label}
                           </div>
-                          {wordpressFields.find(f => f.path === mapping[field.key])?.type !== 'string' && (
+                          {flattenedFields.find(f => f.path === mapping[field.key])?.type !== 'string' && (
                             <div className="text-xs text-gray-600 mt-1">
                               Field will be automatically transformed to match the required format
                             </div>
