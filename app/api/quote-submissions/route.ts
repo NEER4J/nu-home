@@ -6,10 +6,13 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const formData = await req.json();
     
+    console.log('Received form data:', formData); // Add debug logging
+    
     // Validate required fields
-    const requiredFields = ['serviceCategory', 'firstName', 'lastName', 'email', 'postcode', 'answers'];
+    const requiredFields = ['service_category_id', 'first_name', 'last_name', 'email', 'postcode', 'form_answers'];
     for (const field of requiredFields) {
       if (!formData[field]) {
+        console.log(`Missing required field: ${field}`, formData); // Add debug logging
         return NextResponse.json(
           { error: `Missing required field: ${field}` },
           { status: 400 }
@@ -18,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Get question texts for the answers
-    const questionIds = Object.keys(formData.answers);
+    const questionIds = Object.keys(formData.form_answers);
     const { data: questions } = await supabase
       .from('FormQuestions')
       .select('question_id, question_text')
@@ -31,21 +34,88 @@ export async function POST(req: NextRequest) {
     }, {} as Record<string, string>) || {};
     
     // Format form answers with question text
-    const formAnswers = Object.entries(formData.answers).map(([questionId, answer]) => {
+    const formAnswers = Object.entries(formData.form_answers).map(([questionId, answer]) => {
       return {
         question_id: questionId,
         question_text: questionTextMap[questionId] || 'Unknown Question',
         answer: answer
       };
     });
+
+    // Get partner ID from URL if present
+    const url = new URL(req.url);
+    const partnerId = url.searchParams.get('partner_id');
+    const subdomain = url.searchParams.get('subdomain');
+
+    // Get partner's user ID if partner ID or subdomain is present
+    let assignedPartnerId = null;
     
-    // Insert submission with client IP address
-    const { data, error } = await supabase
+    // First try to get partner from direct ID
+    if (partnerId) {
+      const { data: partner } = await supabase
+        .from('UserProfiles')
+        .select('user_id')
+        .eq('user_id', partnerId)
+        .single();
+
+      if (partner) {
+        assignedPartnerId = partner.user_id;
+        console.log('Partner assigned from partner_id:', assignedPartnerId);
+      }
+    }
+    
+    // If no partner found and subdomain is present, try to get partner from subdomain
+    if (!assignedPartnerId && subdomain) {
+      const { data: partner } = await supabase
+        .from('UserProfiles')
+        .select('user_id')
+        .eq('subdomain', subdomain)
+        .single();
+
+      if (partner) {
+        assignedPartnerId = partner.user_id;
+        console.log('Partner assigned from subdomain:', assignedPartnerId);
+      }
+    }
+
+    console.log('Final assigned partner ID:', assignedPartnerId);
+    
+    // Insert into partner_leads table
+    const { data: partnerLead, error: partnerLeadError } = await supabase
+      .from('partner_leads')
+      .insert({
+        service_category_id: formData.service_category_id,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        email: formData.email,
+        phone: formData.phone || null,
+        city: formData.city || null,
+        postcode: formData.postcode,
+        form_answers: formAnswers,
+        assigned_partner_id: assignedPartnerId,
+        assignment_date: assignedPartnerId ? new Date().toISOString() : null,
+        status: 'new',
+        user_agent: req.headers.get('user-agent') || null,
+        ip_address: req.headers.get('x-forwarded-for') || null
+      })
+      .select()
+      .single();
+
+    if (partnerLeadError) {
+      console.error('Error submitting partner lead:', partnerLeadError);
+      return NextResponse.json(
+        { error: 'Failed to submit partner lead' },
+        { status: 500 }
+      );
+    }
+    
+    // Insert into QuoteSubmissions table
+    const { data: submission, error: submissionError } = await supabase
       .from('QuoteSubmissions')
       .insert({
-        service_category_id: formData.serviceCategory,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
+        service_category_id: formData.service_category_id,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         email: formData.email,
         phone: formData.phone || null,
         city: formData.city || null,
@@ -59,8 +129,8 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
     
-    if (error) {
-      console.error('Error submitting quote:', error);
+    if (submissionError) {
+      console.error('Error submitting quote:', submissionError);
       return NextResponse.json(
         { error: 'Failed to submit quote request' },
         { status: 500 }
@@ -68,7 +138,7 @@ export async function POST(req: NextRequest) {
     }
     
     return NextResponse.json(
-      { success: true, data },
+      { success: true, data: submission },
       { status: 201 }
     );
     

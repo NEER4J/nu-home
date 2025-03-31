@@ -1,91 +1,131 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { updateSession } from "@/utils/supabase/middleware";
-import { createClient } from "@/utils/supabase/middleware";
+import { createClient } from '@/utils/supabase/middleware';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  // Update the session first
-  const response = await updateSession(request);
-  const { pathname } = request.nextUrl;
+  const requestUrl = new URL(request.url);
+  const hostname = requestUrl.hostname;
+  const path = requestUrl.pathname;
+  const searchParams = requestUrl.searchParams;
 
-  // Implement role-based routing protection
-  if (pathname.startsWith('/admin')) {
-    // Create supabase client with the request
-    const supabase = createClient(request);
-    const { data: { user } } = await supabase.auth.getUser();
+  // Skip middleware for specific paths
+  if (
+    path.startsWith('/_next') || 
+    path.startsWith('/api') ||
+    path.startsWith('/static') ||
+    path.startsWith('/auth') ||
+    path.includes('.')
+  ) {
+    return NextResponse.next();
+  }
 
-    // No user is logged in, redirect to login
-    if (!user) {
-      const redirectUrl = new URL('/sign-in', request.url);
-      redirectUrl.searchParams.set('redirect_to', pathname);
+  // Create Supabase client
+  const supabase = createClient(request);
+
+  // Check authentication for protected routes
+  if (path.startsWith('/partner') || path.startsWith('/admin')) {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('redirect_to', path);
       return NextResponse.redirect(redirectUrl);
     }
 
-    // Get user profile to check role
-    const { data: profile } = await supabase
-      .from('UserProfiles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single();
+    // For admin routes, check if user has admin role
+    if (path.startsWith('/admin')) {
+      const { data: profile } = await supabase
+        .from('UserProfiles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .single();
 
-    // If not an admin, redirect to partner dashboard or home
-    if (!profile || profile.role !== 'admin') {
-      return NextResponse.redirect(new URL('/partner', request.url));
+      if (!profile || profile.role !== 'admin') {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
     }
+
+    // For partner routes, check if user has partner role
+    if (path.startsWith('/partner')) {
+      const { data: profile } = await supabase
+        .from('UserProfiles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (!profile || profile.role !== 'partner') {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+    }
+
+    return NextResponse.next();
   }
 
-  // Protect partner routes
-  if (pathname.startsWith('/partner')) {
-    const supabase = createClient(request);
-    const { data: { user } } = await supabase.auth.getUser();
+  // Handle subdomains
+  const isLocalhost = hostname.includes('localhost');
+  const mainDomain = isLocalhost ? 'localhost' : 'yourdomain.com';
 
-    // No user is logged in, redirect to login
-    if (!user) {
-      const redirectUrl = new URL('/sign-in', request.url);
-      redirectUrl.searchParams.set('redirect_to', pathname);
+  // Extract subdomain
+  let subdomain: string | null = null;
+  if (isLocalhost) {
+    const parts = hostname.split('.');
+    if (parts.length > 1 && parts[0] !== 'localhost') {
+      subdomain = parts[0];
+    }
+  } else {
+    subdomain = hostname.replace(`.${mainDomain}`, '');
+    if (subdomain === hostname) subdomain = null;
+  }
+
+  // Check if we need to handle subdomain logic
+  const isProtectedPath = path.includes('/quote') || path.includes('/products');
+  
+  if (isProtectedPath) {
+    // If there's already a partner_subdomain parameter, skip subdomain processing
+    if (searchParams.has('partner_subdomain')) {
+      return NextResponse.next();
+    }
+
+    if (subdomain) {
+      try {
+        const { data: profile } = await supabase
+          .from('UserProfiles')
+          .select('user_id, status')
+          .eq('subdomain', subdomain)
+          .eq('status', 'active')
+          .single();
+
+        if (profile) {
+          // Valid subdomain, add it as a parameter
+          const url = new URL(request.url);
+          url.searchParams.set('partner_subdomain', subdomain);
+          return NextResponse.rewrite(url);
+        } else {
+          // Invalid subdomain, redirect to main domain
+          const redirectUrl = new URL(path, `http://${mainDomain}:3000`);
+          searchParams.forEach((value, key) => redirectUrl.searchParams.set(key, value));
+          return NextResponse.redirect(redirectUrl);
+        }
+      } catch (error) {
+        console.error('Error checking subdomain:', error);
+        // On error, redirect to main domain
+        const redirectUrl = new URL(path, `http://${mainDomain}:3000`);
+        searchParams.forEach((value, key) => redirectUrl.searchParams.set(key, value));
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
+
+    // Only redirect if we're not already on the main domain and no subdomain was provided
+    if (hostname !== mainDomain) {
+      const redirectUrl = new URL(path, `http://${mainDomain}:3000`);
+      searchParams.forEach((value, key) => redirectUrl.searchParams.set(key, value));
       return NextResponse.redirect(redirectUrl);
     }
-
-    // Get user profile to check role
-    const { data: profile } = await supabase
-      .from('UserProfiles')
-      .select('role, status')
-      .eq('user_id', user.id)
-      .single();
-
-    // If admin, redirect to admin dashboard
-    if (profile?.role === 'admin') {
-      return NextResponse.redirect(new URL('/admin', request.url));
-    }
-
-    // If not a partner, redirect to homepage
-    if (!profile || profile.role !== 'partner') {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-
-    // If partner account is suspended, redirect to suspension page
-    if (profile.status === 'suspended') {
-      return NextResponse.redirect(new URL('/partner/suspended', request.url));
-    }
-
-    // If partner account is pending, redirect to pending page
-    if (profile.status === 'pending' && pathname !== '/partner/pending') {
-      return NextResponse.redirect(new URL('/partner/pending', request.url));
-    }
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
-     * Feel free to modify this pattern to include more paths.
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

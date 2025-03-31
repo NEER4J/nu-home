@@ -1,6 +1,27 @@
 import { createClient } from "@/utils/supabase/server";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle, Clock, Package, ShoppingCart, Users } from "lucide-react";
+import CategoryUrlSection from './CategoryUrlSection';
+
+// Add CopyButton component before the main component
+function CopyButton({ url }: { url: string }) {
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(url);
+  };
+
+  return (
+    <button
+      onClick={copyToClipboard}
+      className="ml-2 p-1 text-gray-500 hover:text-gray-700 focus:outline-none"
+      title="Copy URL"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+      </svg>
+    </button>
+  );
+}
 
 export default async function PartnerDashboard() {
   const supabase = await createClient();
@@ -22,7 +43,11 @@ export default async function PartnerDashboard() {
     .from("UserCategoryAccess")
     .select(`
       *,
-      ServiceCategories(name, icon_url)
+      ServiceCategories(
+        name,
+        icon_url,
+        slug
+      )
     `)
     .eq("user_id", user.id);
 
@@ -192,25 +217,33 @@ export default async function PartnerDashboard() {
                     <h3 className="text-sm font-medium text-gray-500 mb-2">Approved Categories</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {approvedCategories.map((category) => (
-                        <div key={category.access_id} className="flex items-center p-3 bg-gray-50 rounded-md">
-                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-md flex items-center justify-center">
-                            {category.ServiceCategories?.icon_url ? (
-                              <img 
-                                src={category.ServiceCategories.icon_url} 
-                                alt={category.ServiceCategories.name} 
-                                className="h-6 w-6" 
-                              />
-                            ) : (
-                              <Package className="h-5 w-5 text-blue-500" />
-                            )}
-                          </div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">{category.ServiceCategories?.name}</p>
-                            {category.is_primary && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                Primary
-                              </span>
-                            )}
+                        <div key={category.access_id} className="p-3 bg-gray-50 rounded-md">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-8 w-8 bg-blue-100 rounded-md flex items-center justify-center">
+                                {category.ServiceCategories?.icon_url ? (
+                                  <img 
+                                    src={category.ServiceCategories.icon_url} 
+                                    alt={category.ServiceCategories.name} 
+                                    className="h-5 w-5" 
+                                  />
+                                ) : (
+                                  <Package className="h-4 w-4 text-blue-500" />
+                                )}
+                              </div>
+                              <div className="ml-2">
+                                <p className="text-sm font-medium text-gray-900">{category.ServiceCategories?.name}</p>
+                                {category.is_primary && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    Primary
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <CategoryUrlSection 
+                              slug={category.ServiceCategories?.slug || ''} 
+                              userId={user.id} 
+                            />
                           </div>
                         </div>
                       ))}
