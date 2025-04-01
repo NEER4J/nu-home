@@ -14,54 +14,13 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/api') ||
     path.startsWith('/static') ||
     path.startsWith('/auth') ||
-    path.includes('.')
+    path.includes('.') ||
+    path === '/favicon.ico'
   ) {
     return NextResponse.next();
   }
 
-  // Create Supabase client
-  const supabase = createClient(request);
-
-  // Check authentication for protected routes
-  if (path.startsWith('/partner') || path.startsWith('/admin')) {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      const redirectUrl = new URL('/auth/login', request.url);
-      redirectUrl.searchParams.set('redirect_to', path);
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    // For admin routes, check if user has admin role
-    if (path.startsWith('/admin')) {
-      const { data: profile } = await supabase
-        .from('UserProfiles')
-        .select('role')
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (!profile || profile.role !== 'admin') {
-        return NextResponse.redirect(new URL('/', request.url));
-      }
-    }
-
-    // For partner routes, check if user has partner role
-    if (path.startsWith('/partner')) {
-      const { data: profile } = await supabase
-        .from('UserProfiles')
-        .select('role')
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (!profile || profile.role !== 'partner') {
-        return NextResponse.redirect(new URL('/', request.url));
-      }
-    }
-
-    return NextResponse.next();
-  }
-
-  // Handle subdomains
+  // Handle subdomains first (no auth required)
   const isLocalhost = hostname.includes('localhost');
   const isVercel = hostname.includes('vercel.app');
   
@@ -70,7 +29,6 @@ export async function middleware(request: NextRequest) {
   if (isLocalhost) {
     mainDomain = 'localhost:3000';
   } else if (isVercel) {
-    // Extract the main vercel domain
     mainDomain = hostname.split('-')[0] + '.vercel.app';
   } else {
     mainDomain = 'apstic.com';
@@ -84,28 +42,30 @@ export async function middleware(request: NextRequest) {
       subdomain = parts[0];
     }
   } else if (isVercel) {
-    // For Vercel preview URLs, extract subdomain from the first part
     const parts = hostname.split('-');
     if (parts.length > 1) {
       subdomain = parts[0];
     }
   } else {
     // For production
-    subdomain = hostname.replace(`.${mainDomain}`, '');
-    if (subdomain === hostname) subdomain = null;
+    if (hostname !== mainDomain) {
+      subdomain = hostname.split('.')[0];
+    }
   }
 
-  // Check if we need to handle subdomain logic
+  // Handle protected paths that need subdomain processing
   const isProtectedPath = path.includes('/quote') || path.includes('/products');
   
   if (isProtectedPath) {
-    // If there's already a partner_subdomain parameter, skip subdomain processing
+    // If we already have the partner_subdomain parameter, proceed
     if (searchParams.has('partner_subdomain')) {
       return NextResponse.next();
     }
 
+    // If we have a subdomain, validate it
     if (subdomain) {
       try {
+        const supabase = createClient(request);
         const { data: profile } = await supabase
           .from('UserProfiles')
           .select('user_id, status')
@@ -114,7 +74,7 @@ export async function middleware(request: NextRequest) {
           .single();
 
         if (profile) {
-          // Valid subdomain, add it as a parameter
+          // Valid subdomain - add it as a parameter and rewrite
           const url = new URL(request.url);
           url.searchParams.set('partner_subdomain', subdomain);
           return NextResponse.rewrite(url);
@@ -122,13 +82,64 @@ export async function middleware(request: NextRequest) {
       } catch (error) {
         console.error('Error checking subdomain:', error);
       }
-    }
 
-    // Only redirect if we're not already on the main domain
-    if (hostname !== mainDomain) {
+      // Invalid subdomain - redirect to main domain
       const protocol = isLocalhost ? 'http' : 'https';
       const redirectUrl = new URL(path, `${protocol}://${mainDomain}`);
-      searchParams.forEach((value, key) => redirectUrl.searchParams.set(key, value));
+      // Preserve all existing query parameters except partner_subdomain
+      searchParams.forEach((value, key) => {
+        if (key !== 'partner_subdomain') {
+          redirectUrl.searchParams.set(key, value);
+        }
+      });
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  // Only check auth for protected routes
+  if (path.startsWith('/partner') || path.startsWith('/admin')) {
+    try {
+      const supabase = createClient(request);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        const redirectUrl = new URL('/auth/login', request.url);
+        redirectUrl.searchParams.set('redirect_to', path);
+        return NextResponse.redirect(redirectUrl);
+      }
+
+      // For admin routes, check if user has admin role
+      if (path.startsWith('/admin')) {
+        const { data: profile } = await supabase
+          .from('UserProfiles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (!profile || profile.role !== 'admin') {
+          return NextResponse.redirect(new URL('/', request.url));
+        }
+      }
+
+      // For partner routes, check if user has partner role
+      if (path.startsWith('/partner')) {
+        const { data: profile } = await supabase
+          .from('UserProfiles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (!profile || profile.role !== 'partner') {
+          return NextResponse.redirect(new URL('/', request.url));
+        }
+      }
+
+      return NextResponse.next();
+    } catch (error) {
+      console.error('Auth error:', error);
+      // On auth error, redirect to login
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('redirect_to', path);
       return NextResponse.redirect(redirectUrl);
     }
   }
