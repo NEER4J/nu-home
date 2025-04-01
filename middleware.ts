@@ -73,7 +73,7 @@ export async function middleware(request: NextRequest) {
     // Extract the main vercel domain
     mainDomain = hostname.split('-')[0] + '.vercel.app';
   } else {
-    mainDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'apstic.com';
+    mainDomain = 'apstic.com';
   }
 
   // Extract subdomain
