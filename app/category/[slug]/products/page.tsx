@@ -44,7 +44,7 @@ export async function generateMetadata({
       partner = partnerData;
     }
   }
-
+  
   const { data: category } = await supabase
     .from('ServiceCategories')
     .select('*')
@@ -79,7 +79,7 @@ export default async function CategoryProductsPage({
   const resolvedSearchParams = await searchParams;
   
   const supabase = await createClient();
-
+  
   // Get the category
   const { data: category } = await supabase
     .from('ServiceCategories')
@@ -101,10 +101,10 @@ export default async function CategoryProductsPage({
   let partner = null;
   if (subdomain && subdomain !== 'localhost') {
     const { data: partnerData } = await supabase
-      .from('UserProfiles')
-      .select('*')
+    .from('UserProfiles')
+    .select('*')
       .eq('subdomain', subdomain)
-      .single();
+    .single();
     partner = partnerData;
   }
 
@@ -116,9 +116,9 @@ export default async function CategoryProductsPage({
       .select('*, partner_leads(*)')
       .eq('submission_id', resolvedSearchParams.submission)
       .single();
-
+    
     if (submissionData) {
-      submission = submissionData;
+    submission = submissionData;
     }
   }
 
@@ -248,7 +248,7 @@ export default async function CategoryProductsPage({
           <div className="relative px-8 py-12">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900">
               {partner ? `${partner.company_name} - ` : ''}{category.name}
-            </h1>
+          </h1>
             <p className="mt-4 max-w-3xl text-lg text-gray-600">{category.description}</p>
           </div>
         </div>
@@ -373,8 +373,8 @@ export default async function CategoryProductsPage({
 
             {/* Products Grid */}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {products?.map((product) => (
-                <Link 
+          {products?.map((product) => (
+            <Link 
                   key={product.partner_product_id || product.product_id} 
                   href={`/category/${category.slug}/products/${product.slug}`}
                   className="group relative overflow-hidden rounded-lg bg-white shadow-sm transition-all duration-200 hover:shadow-lg"
@@ -382,18 +382,18 @@ export default async function CategoryProductsPage({
                   {/* Product Image */}
                   <div className="aspect-h-9 aspect-w-16 relative overflow-hidden bg-gray-200">
                     {product.image_url ? (
-                      <img 
-                        src={product.image_url} 
-                        alt={product.name}
+                  <img 
+                    src={product.image_url} 
+                    alt={product.name}
                         className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                      />
+                  />
                     ) : (
                       <div className="flex h-full items-center justify-center bg-gray-100">
                         <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                      </div>
-                    )}
+                </div>
+              )}
                     {/* Price Tag */}
                     {product.price && (
                       <div className="absolute right-4 top-4 rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-900 shadow-md">
@@ -431,14 +431,14 @@ export default async function CategoryProductsPage({
                           </p>
                         )}
                       </div>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
 
             {/* No Products Message */}
-            {(!products || products.length === 0) && (
+        {(!products || products.length === 0) && (
               <div className="rounded-lg bg-white px-6 py-12 text-center shadow-sm">
                 <svg
                   className="mx-auto h-12 w-12 text-gray-400"

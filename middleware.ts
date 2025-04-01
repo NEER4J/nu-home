@@ -63,7 +63,18 @@ export async function middleware(request: NextRequest) {
 
   // Handle subdomains
   const isLocalhost = hostname.includes('localhost');
-  const mainDomain = isLocalhost ? 'localhost' : 'yourdomain.com';
+  const isVercel = hostname.includes('vercel.app');
+  
+  // Define main domain based on environment
+  let mainDomain: string;
+  if (isLocalhost) {
+    mainDomain = 'localhost:3000';
+  } else if (isVercel) {
+    // Extract the main vercel domain
+    mainDomain = hostname.split('-')[0] + '.vercel.app';
+  } else {
+    mainDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'apstic.com';
+  }
 
   // Extract subdomain
   let subdomain: string | null = null;
@@ -72,7 +83,14 @@ export async function middleware(request: NextRequest) {
     if (parts.length > 1 && parts[0] !== 'localhost') {
       subdomain = parts[0];
     }
+  } else if (isVercel) {
+    // For Vercel preview URLs, extract subdomain from the first part
+    const parts = hostname.split('-');
+    if (parts.length > 1) {
+      subdomain = parts[0];
+    }
   } else {
+    // For production
     subdomain = hostname.replace(`.${mainDomain}`, '');
     if (subdomain === hostname) subdomain = null;
   }
@@ -100,24 +118,16 @@ export async function middleware(request: NextRequest) {
           const url = new URL(request.url);
           url.searchParams.set('partner_subdomain', subdomain);
           return NextResponse.rewrite(url);
-        } else {
-          // Invalid subdomain, redirect to main domain
-          const redirectUrl = new URL(path, `http://${mainDomain}:3000`);
-          searchParams.forEach((value, key) => redirectUrl.searchParams.set(key, value));
-          return NextResponse.redirect(redirectUrl);
         }
       } catch (error) {
         console.error('Error checking subdomain:', error);
-        // On error, redirect to main domain
-        const redirectUrl = new URL(path, `http://${mainDomain}:3000`);
-        searchParams.forEach((value, key) => redirectUrl.searchParams.set(key, value));
-        return NextResponse.redirect(redirectUrl);
       }
     }
 
-    // Only redirect if we're not already on the main domain and no subdomain was provided
+    // Only redirect if we're not already on the main domain
     if (hostname !== mainDomain) {
-      const redirectUrl = new URL(path, `http://${mainDomain}:3000`);
+      const protocol = isLocalhost ? 'http' : 'https';
+      const redirectUrl = new URL(path, `${protocol}://${mainDomain}`);
       searchParams.forEach((value, key) => redirectUrl.searchParams.set(key, value));
       return NextResponse.redirect(redirectUrl);
     }
