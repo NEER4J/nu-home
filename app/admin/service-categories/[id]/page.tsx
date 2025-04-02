@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import EditCategoryForm from '@/components/admin/EditCategoryForm';
 import CategoryFieldsManager from '@/components/admin/CategoryFieldsManager';
+import AddonTypesManager from '@/components/admin/AddonTypesManager';
 
 export const metadata = {
   title: 'Edit Service Category | Nu-Home Admin',
@@ -119,6 +120,11 @@ export default async function EditCategoryPage({
               <div className="px-4 py-5 sm:p-6">
                 <EditCategoryForm category={category} />
               </div>
+            </div>
+            
+            {/* Add AddonTypesManager component */}
+            <div className="mb-6">
+              <AddonTypesManager categoryId={category.service_category_id} />
             </div>
             
             {/* Add the CategoryFields component */}

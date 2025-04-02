@@ -12,7 +12,7 @@ interface Product {
   description: string
   price: number
   image_url: string
-  slug: string
+  slug: string 
   product_fields: Record<string, any>
 }
 

@@ -1,54 +1,78 @@
+"use client";
+
 import '../globals.css';
 import { Inter } from 'next/font/google';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/supabase/client';
 import { signOutAction } from '../actions';
-import { Home, Package, FileText, Grid, Settings, Bell, LogOut, User, PlusCircle, BarChart2, Tag, Download } from 'lucide-react';
+import { Home, Package, FileText, Grid, Settings, Bell, LogOut, User, PlusCircle, BarChart2, Tag, Download, Gift } from 'lucide-react';
 import Loader from '@/components/Loader';
+import { useState, useEffect } from 'react';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export default async function PartnerLayout({
+interface UserProfile {
+  company_name?: string;
+  status?: string;
+  user_id: string;
+}
+
+interface CategoryAccess {
+  ServiceCategories: {
+    name: string;
+  };
+}
+
+export default function PartnerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Get user session
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  // Get partner profile
-  let profile = null;
-  let categoryAccess = [];
-  let notificationCount = 0;
-  
-  if (user) {
-    const { data: profileData } = await supabase
-      .from("UserProfiles")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-    
-    profile = profileData;
-    
-    // Get partner's category access
-    const { data: categories } = await supabase
-      .from("UserCategoryAccess")
-      .select("*, ServiceCategories(name)")
-      .eq("user_id", user.id)
-      .eq("status", "approved");
-    
-    categoryAccess = categories || [];
-    
-    // Get unread notification count
-    const { count } = await supabase
-      .from("CategoryNotifications")
-      .select("*", { count: 'exact', head: true })
-      .eq("user_id", user.id)
-      .eq("is_read", false);
-    
-    notificationCount = count || 0;
-  }
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [categoryAccess, setCategoryAccess] = useState<CategoryAccess[]>([]);
+  const [notificationCount, setNotificationCount] = useState<number>(0);
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function loadData() {
+      // Get user session
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // Get partner profile
+        const { data: profileData } = await supabase
+          .from("UserProfiles")
+          .select("*")
+          .eq("user_id", currentUser.id)
+          .single();
+        
+        setProfile(profileData);
+        
+        // Get partner's category access
+        const { data: categories } = await supabase
+          .from("UserCategoryAccess")
+          .select("*, ServiceCategories(name)")
+          .eq("user_id", currentUser.id)
+          .eq("status", "approved");
+        
+        setCategoryAccess(categories || []);
+        
+        // Get unread notification count
+        const { count } = await supabase
+          .from("CategoryNotifications")
+          .select("*", { count: 'exact', head: true })
+          .eq("user_id", currentUser.id)
+          .eq("is_read", false);
+        
+        setNotificationCount(count || 0);
+      }
+    }
+
+    loadData();
+  }, []);
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
@@ -74,7 +98,7 @@ export default async function PartnerLayout({
         </div>
         
         {/* Navigation links */}
-        <nav className="flex-1 py-4 px-2">
+        <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-1">
             <li>
               <Link 
@@ -99,6 +123,16 @@ export default async function PartnerLayout({
               >
                 <Package className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
                 My Products
+              </Link>
+            </li>
+
+            <li>
+              <Link 
+                href="/partner/addons" 
+                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+              >
+                <Gift className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                Addons
               </Link>
             </li>
             
@@ -201,7 +235,7 @@ export default async function PartnerLayout({
               </Link>
             </li>
             
-            <li className="mt-6">
+            <li>
               <form action={signOutAction}>
                 <button
                   className="flex w-full items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-red-50 hover:text-red-600 group"
