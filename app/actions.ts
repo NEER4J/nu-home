@@ -124,7 +124,29 @@ export const signInAction = async (formData: FormData) => {
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
-  return redirect("/admin");
+  // Get user profile to check role
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from('UserProfiles')
+    .select('role, status')
+    .eq('user_id', user?.id)
+    .single();
+
+  // Redirect based on role and status
+  if (profile?.role === 'admin') {
+    return redirect('/admin');
+  } else if (profile?.role === 'partner') {
+    if (profile.status === 'pending') {
+      return redirect('/partner/pending');
+    } else if (profile.status === 'suspended') {
+      return redirect('/partner/suspended');
+    } else {
+      return redirect('/partner');
+    }
+  }
+
+  // Default redirect if no role found
+  return redirect('/');
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
@@ -203,3 +225,14 @@ export const signOutAction = async () => {
   await supabase.auth.signOut();
   return redirect("/sign-in");
 };
+
+export async function handleLoginRedirect(role: string) {
+  switch (role) {
+    case 'admin':
+      return redirect('/admin')
+    case 'partner':
+      return redirect('/partner')
+    default:
+      return redirect('/')
+  }
+}
