@@ -5,20 +5,22 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import AddonForm from "../components/addon-form";
 
-interface PageProps {
-  params: {
+type PageProps = {
+  params: Promise<{
     addonId: string;
-  };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}
+  }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
 
-export default function AddonPage({ params }: PageProps) {
+export default async function AddonPage({ params, searchParams }: PageProps) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   const router = useRouter();
   const [addon, setAddon] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const supabase = createClient();
-  const isNew = params.addonId === "new";
+  const isNew = resolvedParams.addonId === "new";
 
   useEffect(() => {
     const getUser = async () => {
@@ -45,16 +47,16 @@ export default function AddonPage({ params }: PageProps) {
     };
     
     getUser();
-  }, [params.addonId, isNew]);
+  }, [resolvedParams.addonId, isNew]);
 
   const fetchAddon = async (partnerId: string) => {
     try {
-      console.log("Fetching addon with ID:", params.addonId, "for partner:", partnerId);
+      console.log("Fetching addon with ID:", resolvedParams.addonId, "for partner:", partnerId);
       
       const { data, error } = await supabase
         .from("Addons")
         .select("*")
-        .eq("addon_id", params.addonId)
+        .eq("addon_id", resolvedParams.addonId)
         .eq("partner_id", partnerId)
         .single();
 
