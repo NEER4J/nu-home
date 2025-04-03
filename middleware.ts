@@ -54,7 +54,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Handle protected paths that need subdomain processing
-  const isProtectedPath = path.includes('/quote') || path.includes('/products');
+  const isProtectedPath = (path.includes('/quote') || path.includes('/products')) && 
+    !path.includes('/products/addons');
   
   if (isProtectedPath) {
     // If we already have the partner_subdomain parameter, proceed

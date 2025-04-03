@@ -65,6 +65,13 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
   const selectedCategoryId = watch("service_category_id");
   const allowMultiple = watch("allow_multiple");
 
+  // Watch for changes in allow_multiple and update max_count accordingly
+  useEffect(() => {
+    if (!allowMultiple) {
+      setValue('max_count', null);
+    }
+  }, [allowMultiple, setValue]);
+
   // Initialize form with initial data
   useEffect(() => {
     const initializeForm = async () => {
@@ -80,7 +87,7 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
         setValue("price", initialData.price?.toString() || "");
         setValue("image_link", initialData.image_link || "");
         setValue("allow_multiple", initialData.allow_multiple || false);
-        setValue("max_count", initialData.max_count || null);
+        setValue("max_count", initialData.allow_multiple ? (initialData.max_count || null) : null);
         
         // Set service category last, as it will trigger addon types fetch
         if (initialData.service_category_id) {
@@ -200,6 +207,12 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
       
       // Ensure partner_id is set to the current user
       values.partner_id = data.user.id;
+
+      // Ensure max_count is null when allow_multiple is false
+      if (!values.allow_multiple) {
+        values.max_count = null;
+      }
+
       console.log("Submitting with values:", values);
       
       if (initialData) {
@@ -356,21 +369,18 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center">
           <input
-            type="checkbox"
             id="allow_multiple"
+            type="checkbox"
             {...register("allow_multiple")}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
-          <label 
-            htmlFor="allow_multiple" 
-            className="text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="allow_multiple" className="ml-2 block text-sm text-gray-900">
             Allow multiple quantities of this addon
           </label>
         </div>
-        
+
         {allowMultiple && (
           <div>
             <label htmlFor="max_count" className="block text-sm font-medium text-gray-700">
@@ -380,12 +390,11 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
               id="max_count"
               type="number"
               min="1"
-              placeholder="Leave empty for unlimited"
               {...register("max_count", { 
-                setValueAs: (v) => v === "" ? null : parseInt(v, 10),
-                min: 1
+                setValueAs: v => v === "" ? null : parseInt(v),
+                validate: value => !value || value > 0 || "Maximum quantity must be greater than 0"
               })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.max_count && (
               <p className="mt-1 text-sm text-red-600">{errors.max_count.message}</p>
