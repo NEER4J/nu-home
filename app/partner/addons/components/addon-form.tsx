@@ -1,147 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { ServiceCategory } from "@/types";
-
-interface AddonType {
-  id: string;
-  name: string;
-  allow_multiple_selection?: boolean;
-}
-
-const formSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  price: z.string().min(1, "Price is required").transform((val) => parseFloat(val)),
-  addon_type_id: z.string().min(1, "Addon type is required"),
-  image_link: z.string().optional(),
-  service_category_id: z.string().min(1, "Service category is required"),
-  partner_id: z.string().optional(),
-  allow_multiple: z.boolean().default(false),
-  max_count: z.number().nullable().optional(),
-});
+import { Addon, ServiceCategory } from "@/types";
+import Image from "next/image";
 
 interface AddonFormProps {
-  initialData?: any;
-  onSuccess: () => void;
+  initialData?: Addon | null;
+  onSuccess?: () => void;
 }
 
 export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
+  const router = useRouter();
+  const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
-  const [addonTypes, setAddonTypes] = useState<AddonType[]>([]);
-  const [user, setUser] = useState<any>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const supabase = createClient();
-
-  console.log("AddonForm received initialData:", initialData);
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    getValues,
-    formState: { errors }
-  } = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: initialData?.title || "",
-      description: initialData?.description || "",
-      price: initialData?.price?.toString() || "",
-      addon_type_id: initialData?.addon_type_id || "",
-      image_link: initialData?.image_link || "",
-      service_category_id: initialData?.service_category_id || "",
-      allow_multiple: initialData?.allow_multiple || false,
-      max_count: initialData?.max_count || null,
-    },
+  const [addonTypes, setAddonTypes] = useState<{ id: string; name: string }[]>([]);
+  const [formData, setFormData] = useState({
+    title: initialData?.title || "",
+    description: initialData?.description || "",
+    price: initialData?.price || 0,
+    image_link: initialData?.image_link || "",
+    service_category_id: initialData?.service_category_id || "",
+    addon_type_id: initialData?.addon_type_id || "",
+    allow_multiple: initialData?.allow_multiple || false,
+    max_count: initialData?.max_count || null,
   });
 
-  // Get current selected category id and allow_multiple value
-  const selectedCategoryId = watch("service_category_id");
-  const allowMultiple = watch("allow_multiple");
-
-  // Watch for changes in allow_multiple and update max_count accordingly
   useEffect(() => {
-    if (!allowMultiple) {
-      setValue('max_count', null);
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (formData.service_category_id) {
+      fetchAddonTypes(formData.service_category_id);
+    } else {
+      setAddonTypes([]);
     }
-  }, [allowMultiple, setValue]);
-
-  // Initialize form with initial data
-  useEffect(() => {
-    const initializeForm = async () => {
-      if (initialData) {
-        console.log("Initializing form with data:", initialData);
-        
-        // First fetch categories
-        await fetchCategories();
-        
-        // Then set form values
-        setValue("title", initialData.title || "");
-        setValue("description", initialData.description || "");
-        setValue("price", initialData.price?.toString() || "");
-        setValue("image_link", initialData.image_link || "");
-        setValue("allow_multiple", initialData.allow_multiple || false);
-        setValue("max_count", initialData.allow_multiple ? (initialData.max_count || null) : null);
-        
-        // Set service category last, as it will trigger addon types fetch
-        if (initialData.service_category_id) {
-          setValue("service_category_id", initialData.service_category_id);
-          
-          // Fetch addon types for this category
-          await fetchAddonTypes(initialData.service_category_id);
-          
-          // Set addon type after types are loaded
-          if (initialData.addon_type_id) {
-            setValue("addon_type_id", initialData.addon_type_id);
-          }
-        }
-        
-        setIsInitialized(true);
-      } else {
-        // For new addons, just fetch categories
-        await fetchCategories();
-        setIsInitialized(true);
-      }
-    };
-    
-    initializeForm();
-  }, [initialData, setValue]);
-
-  // Fetch addon types when category changes (only after initialization)
-  useEffect(() => {
-    if (isInitialized && selectedCategoryId) {
-      fetchAddonTypes(selectedCategoryId);
-    }
-  }, [selectedCategoryId, isInitialized]);
-
-  // Get the current user
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error) {
-          console.error("Error fetching user:", error);
-          return;
-        }
-
-        if (data?.user) {
-          console.log("Current user:", data.user);
-          setUser(data.user);
-          setValue('partner_id', data.user.id);
-        }
-      } catch (error) {
-        console.error("Exception fetching user:", error);
-      }
-    };
-
-    fetchUser();
-  }, [setValue]);
+  }, [formData.service_category_id]);
 
   const fetchCategories = async () => {
     try {
@@ -159,8 +56,6 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
 
   const fetchAddonTypes = async (categoryId: string) => {
     try {
-      console.log("Fetching addon types for category:", categoryId);
-      
       const { data, error } = await supabase
         .from("ServiceCategories")
         .select("addon_types")
@@ -168,259 +63,246 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
         .single();
 
       if (error) throw error;
-
-      let typesArray: AddonType[] = [];
-      if (data.addon_types && Array.isArray(data.addon_types)) {
-        typesArray = data.addon_types.map((type: any) => ({
-          id: type.id || type.name, // Use name as fallback id
-          name: type.name || type, // Support both object and string formats
-          allow_multiple_selection: type.allow_multiple_selection || false
-        }));
-      }
-
-      console.log("Fetched addon types:", typesArray);
-      setAddonTypes(typesArray);
-
-      // Reset addon_type_id field if current value is not in new types list
-      const currentTypeId = getValues("addon_type_id");
-      if (currentTypeId && !typesArray.some(type => type.id === currentTypeId)) {
-        setValue("addon_type_id", "");
+      
+      if (data?.addon_types) {
+        setAddonTypes(data.addon_types);
+      } else {
+        setAddonTypes([]);
       }
     } catch (error) {
       console.error("Error fetching addon types:", error);
+      setAddonTypes([]);
     }
   };
 
-  // Get the selected addon type
-  const selectedAddonType = addonTypes.find(type => type.id === watch("addon_type_id"));
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    
+
     try {
-      // Get the current user just to be sure we have the latest
-      const { data, error } = await supabase.auth.getUser();
-      
-      if (error || !data.user) {
-        throw new Error("Failed to authenticate. Please refresh and try again.");
-      }
-      
-      // Ensure partner_id is set to the current user
-      values.partner_id = data.user.id;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
 
-      // Ensure max_count is null when allow_multiple is false
-      if (!values.allow_multiple) {
-        values.max_count = null;
-      }
+      const addonData = {
+        ...formData,
+        partner_id: user.id,
+        max_count: formData.allow_multiple ? formData.max_count : null,
+      };
 
-      console.log("Submitting with values:", values);
-      
       if (initialData) {
+        // Update existing addon
         const { error } = await supabase
           .from("Addons")
-          .update(values)
-          .eq("addon_id", initialData.addon_id)
-          .eq("partner_id", data.user.id); // Ensure we only update our own addons
+          .update(addonData)
+          .eq("addon_id", initialData.addon_id);
 
-        if (error) {
-          console.error("Error updating addon:", error);
-          throw error;
-        }
+        if (error) throw error;
       } else {
+        // Create new addon
         const { error } = await supabase
           .from("Addons")
-          .insert({ ...values, partner_id: data.user.id });
+          .insert([addonData]);
 
-        if (error) {
-          console.error("Error inserting addon:", error);
-          throw error;
-        }
+        if (error) throw error;
       }
 
-      onSuccess();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/partner/addons");
+      }
     } catch (error) {
       console.error("Error saving addon:", error);
-      alert("Failed to save addon: " + (error instanceof Error ? error.message : "Unknown error"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div>
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-          Title
-        </label>
-        <input
-          id="title"
-          type="text"
-          placeholder="Enter addon title"
-          {...register("title")}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        />
-        {errors.title && (
-          <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-          Description
-        </label>
-        <textarea
-          id="description"
-          placeholder="Enter addon description"
-          {...register("description")}
-          rows={4}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        />
-        {errors.description && (
-          <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-          Price
-        </label>
-        <input
-          id="price"
-          type="number"
-          step="0.01"
-          placeholder="Enter price"
-          {...register("price")}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        />
-        {errors.price && (
-          <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="image_link" className="block text-sm font-medium text-gray-700">
-          Image URL
-        </label>
-        <input
-          id="image_link"
-          type="text"
-          placeholder="Enter image URL"
-          {...register("image_link")}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        />
-        {errors.image_link && (
-          <p className="mt-1 text-sm text-red-600">{errors.image_link.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="service_category_id" className="block text-sm font-medium text-gray-700">
-          Service Category
-        </label>
-        <select
-          id="service_category_id"
-          {...register("service_category_id")}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">Select a category</option>
-          {categories.map((category) => (
-            <option 
-              key={category.service_category_id} 
-              value={category.service_category_id}
-            >
-              {category.name}
-            </option>
-          ))}
-        </select>
-        {errors.service_category_id && (
-          <p className="mt-1 text-sm text-red-600">{errors.service_category_id.message}</p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="addon_type_id" className="block text-sm font-medium text-gray-700">
-          Addon Type
-        </label>
-        <select
-          id="addon_type_id"
-          {...register("addon_type_id")}
-          disabled={addonTypes.length === 0}
-          className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-            addonTypes.length === 0 ? "bg-gray-100 cursor-not-allowed" : ""
-          }`}
-        >
-          <option value="">
-            {addonTypes.length === 0 ? "Select a category first" : "Select an addon type"}
-          </option>
-          {addonTypes.map((type) => (
-            <option key={type.id} value={type.id}>
-              {type.name}
-            </option>
-          ))}
-        </select>
-        {errors.addon_type_id && (
-          <p className="mt-1 text-sm text-red-600">{errors.addon_type_id.message}</p>
-        )}
-        {addonTypes.length === 0 && selectedCategoryId && (
-          <p className="mt-1 text-sm text-amber-600">
-            No addon types found for this category. Please add addon types in the category settings.
-          </p>
-        )}
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center">
-          <input
-            id="allow_multiple"
-            type="checkbox"
-            {...register("allow_multiple")}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label htmlFor="allow_multiple" className="ml-2 block text-sm text-gray-900">
-            Allow multiple quantities of this addon
-          </label>
-        </div>
-
-        {allowMultiple && (
+    <div className="bg-white shadow-sm rounded-lg p-6">
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="grid grid-cols-1 gap-6">
           <div>
-            <label htmlFor="max_count" className="block text-sm font-medium text-gray-700">
-              Maximum quantity (optional)
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+              Title
             </label>
             <input
-              id="max_count"
-              type="number"
-              min="1"
-              {...register("max_count", { 
-                setValueAs: v => v === "" ? null : parseInt(v),
-                validate: value => !value || value > 0 || "Maximum quantity must be greater than 0"
-              })}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              type="text"
+              id="title"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter addon title"
             />
-            {errors.max_count && (
-              <p className="mt-1 text-sm text-red-600">{errors.max_count.message}</p>
+          </div>
+
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              id="description"
+              required
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              rows={4}
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter addon description"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
+              Price (£)
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <span className="text-gray-500">£</span>
+              </div>
+              <input
+                type="number"
+                id="price"
+                required
+                min="0"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
+                className="w-full px-3 py-2 pl-7 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="service_category_id" className="block text-sm font-medium text-gray-700 mb-1">
+                Service Category
+              </label>
+              <select
+                id="service_category_id"
+                required
+                value={formData.service_category_id}
+                onChange={(e) => setFormData(prev => ({ ...prev, service_category_id: e.target.value, addon_type_id: "" }))}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select a category</option>
+                {categories.map((category) => (
+                  <option key={category.service_category_id} value={category.service_category_id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="addon_type_id" className="block text-sm font-medium text-gray-700 mb-1">
+                Addon Type
+              </label>
+              <select
+                id="addon_type_id"
+                required
+                value={formData.addon_type_id}
+                onChange={(e) => setFormData(prev => ({ ...prev, addon_type_id: e.target.value }))}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={!formData.service_category_id}
+              >
+                <option value="">Select an addon type</option>
+                {addonTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 pt-6">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="allow_multiple"
+                checked={formData.allow_multiple}
+                onChange={(e) => setFormData(prev => ({ ...prev, allow_multiple: e.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="allow_multiple" className="ml-2 block text-sm text-gray-700">
+                Allow Multiple Selections
+              </label>
+            </div>
+
+            {formData.allow_multiple && (
+              <div className="mt-4">
+                <label htmlFor="max_count" className="block text-sm font-medium text-gray-700 mb-1">
+                  Maximum Count
+                </label>
+                <input
+                  type="number"
+                  id="max_count"
+                  min="1"
+                  value={formData.max_count || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, max_count: e.target.value ? parseInt(e.target.value) : null }))}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter maximum count"
+                />
+              </div>
             )}
           </div>
-        )}
-        
-        <div className="mt-2 text-sm text-gray-500">
-          <p>
-            <strong>Note:</strong> This setting controls whether customers can add multiple quantities of this specific addon.
-            {selectedAddonType && (
-              <span className="ml-1">
-                The addon type "{selectedAddonType.name}" {selectedAddonType.allow_multiple_selection ? "allows" : "does not allow"} multiple different addons to be selected.
-              </span>
-            )}
-          </p>
-        </div>
-      </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? "Saving..." : initialData ? "Update Addon" : "Create Addon"}
-      </button>
-    </form>
+          <div>
+            <label htmlFor="image_link" className="block text-sm font-medium text-gray-700 mb-1">
+              Image URL
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <input
+                  type="text"
+                  id="image_link"
+                  value={formData.image_link}
+                  onChange={(e) => setFormData(prev => ({ ...prev, image_link: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter image URL"
+                />
+              </div>
+              {formData.image_link && (
+                <div className="relative h-24 w-24 rounded-lg overflow-hidden border border-gray-200">
+                  <Image
+                    src={formData.image_link}
+                    alt="Addon preview"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={() => router.push("/partner/addons")}
+            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </span>
+            ) : initialData ? "Update Addon" : "Create Addon"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
-} 
+}

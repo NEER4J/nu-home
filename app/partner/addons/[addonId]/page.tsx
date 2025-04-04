@@ -1,22 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import AddonForm from "../components/addon-form";
+import { ArrowLeft } from "lucide-react";
 
-interface PageProps {
-  params: {
-    addonId: string;
-  };
-}
-
-export default function AddonPage({ params }: PageProps) {
+export default function AddonPage() {
   const router = useRouter();
+  const params = useParams();
   const [addon, setAddon] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const supabase = createClient();
+  
+  if (!params?.addonId) {
+    router.push("/partner/addons");
+    return null;
+  }
+  
   const isNew = params.addonId === "new";
 
   useEffect(() => {
@@ -88,10 +90,24 @@ export default function AddonPage({ params }: PageProps) {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">
-        {isNew ? "Add New Addon" : "Edit Addon"}
-      </h1>
+    <div className="container max-w-4xl py-8 px-4">
+      <button
+        onClick={() => router.push("/partner/addons")}
+        className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back to Addons
+      </button>
+
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          {isNew ? "Add New Addon" : "Edit Addon"}
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Update your addon details and specifications.
+        </p>
+      </div>
+
       <AddonForm
         initialData={addon}
         onSuccess={() => router.push("/partner/addons")}

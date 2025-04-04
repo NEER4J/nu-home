@@ -37,4 +37,6 @@ export interface Addon {
   updated_at: string;
   ServiceCategories?: ServiceCategory;
   AddonType?: AddonType;
+  allow_multiple: boolean;
+  max_count?: number | null;
 } 

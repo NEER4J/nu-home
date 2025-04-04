@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 
 export async function middleware(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -145,7 +146,23 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  // Get the current pathname
+  const pathname = request.nextUrl.pathname
+  const isCategoryPage = pathname.startsWith('/category')
+
+  // Add a custom header to indicate if we're on a category page
+  const response = NextResponse.next({
+    request: {
+      headers: new Headers(request.headers),
+    },
+  })
+  response.headers.set('x-is-category-page', isCategoryPage.toString())
+
+  // Refresh session if expired - required for Server Components
+  const supabase = createMiddlewareClient({ req: request, res: response })
+  await supabase.auth.getSession()
+
+  return response
 }
 
 export const config = {

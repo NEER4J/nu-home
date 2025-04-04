@@ -3,7 +3,7 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState, use } from 'react'
 import Image from 'next/image'
-import { MinusCircle, PlusCircle, Info } from 'lucide-react'
+import { MinusCircle, PlusCircle, Info, ShoppingCart, ChevronRight, X } from 'lucide-react'
 
 interface AddonType {
   id: string
@@ -45,6 +45,7 @@ export default function AddonsPage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedAddons, setSelectedAddons] = useState<Record<string, number>>({})
+  const [showCart, setShowCart] = useState(false)
   const supabase = createClientComponentClient()
 
   useEffect(() => {
@@ -172,10 +173,32 @@ export default function AddonsPage({
       return
     }
 
-    setSelectedAddons(prev => ({
-      ...prev,
-      [addon.addon_id]: newQty
-    }))
+    // Create a new copy of selected addons
+    const updatedSelectedAddons = { ...selectedAddons }
+    
+    // If adding an addon and the addon type doesn't allow multiple selection
+    if (change > 0 && newQty > 0 && category?.addon_types) {
+      // Find the current addon's type
+      const addonType = category.addon_types.find(type => type.id === addon.addon_type_id)
+      
+      // If this type doesn't allow multiple selection
+      if (addonType && !addonType.allow_multiple_selection) {
+        // Find all addons of the same type
+        const sameTypeAddons = addons.filter(a => a.addon_type_id === addon.addon_type_id)
+        
+        // Remove any previously selected addons of the same type
+        sameTypeAddons.forEach(sameTypeAddon => {
+          if (sameTypeAddon.addon_id !== addon.addon_id) {
+            updatedSelectedAddons[sameTypeAddon.addon_id] = 0
+          }
+        })
+      }
+    }
+    
+    // Update the quantity for the current addon
+    updatedSelectedAddons[addon.addon_id] = newQty
+    
+    setSelectedAddons(updatedSelectedAddons)
   }
 
   const getImageUrl = (url: string | null) => {
@@ -185,22 +208,105 @@ export default function AddonsPage({
     return `/${url}`
   }
 
+  // Get selected addons with their details
+  const getSelectedAddonsList = () => {
+    return Object.entries(selectedAddons)
+      .filter(([_, qty]) => qty > 0)
+      .map(([addonId, qty]) => {
+        const addon = addons.find(a => a.addon_id === addonId)
+        if (!addon) return null
+        return {
+          ...addon,
+          quantity: qty
+        }
+      })
+      .filter(Boolean) as (Addon & { quantity: number })[]
+  }
+
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 w-64 bg-gray-200 rounded mb-8"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="h-48 bg-gray-200"></div>
-                <div className="p-6">
-                  <div className="h-6 w-3/4 bg-gray-200 rounded mb-4"></div>
-                  <div className="h-20 bg-gray-200 rounded mb-4"></div>
-                  <div className="h-10 bg-gray-200 rounded"></div>
+      <div className="container mx-auto px-4 py-8 pb-32 lg:pb-8 lg:flex lg:gap-8">
+        <div className="flex-1">
+          {/* Back button skeleton */}
+          <div className="mb-6">
+            <div className="w-32 h-5 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+
+          {/* Addon types skeleton */}
+          {[...Array(2)].map((_, typeIndex) => (
+            <div key={typeIndex} className="mb-12">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-24 h-7 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse"></div>
+                </div>
+                <div className="w-24 h-6 bg-gray-200 rounded-full animate-pulse"></div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100">
+                    <div className="relative p-4 bg-white rounded-t-xl">
+                      <div className="h-48 bg-gray-200 rounded-lg animate-pulse"></div>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="w-32 h-6 bg-gray-200 rounded animate-pulse"></div>
+                        <div className="w-16 h-6 bg-gray-200 rounded animate-pulse"></div>
+                      </div>
+                      <div className="space-y-2 mb-4">
+                        <div className="w-full h-4 bg-gray-200 rounded animate-pulse"></div>
+                        <div className="w-2/3 h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </div>
+                      <div className="w-full h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop cart panel skeleton */}
+        <div className="hidden lg:block w-[400px] flex-shrink-0">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-8">
+            <div className="flex items-center justify-between mb-6">
+              <div className="w-24 h-7 bg-gray-200 rounded animate-pulse"></div>
+              <div className="w-32 h-6 bg-gray-200 rounded-full animate-pulse"></div>
+            </div>
+
+            <div className="text-center py-8">
+              <div className="w-8 h-8 bg-gray-200 rounded-full mx-auto mb-2 animate-pulse"></div>
+              <div className="w-24 h-5 bg-gray-200 rounded mx-auto animate-pulse"></div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4 space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="w-16 h-6 bg-gray-200 rounded animate-pulse"></div>
+                <div className="w-24 h-7 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+              <div className="w-full h-12 bg-gray-200 rounded-lg animate-pulse"></div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 bg-gray-200 rounded-full animate-pulse"></div>
+                  <div className="w-32 h-5 bg-gray-200 rounded animate-pulse"></div>
                 </div>
               </div>
-            ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile bottom bar skeleton */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4">
+          <div className="container mx-auto flex justify-between items-center">
+            <div className="w-24 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+            <div className="flex items-center gap-4">
+              <div>
+                <div className="w-16 h-4 bg-gray-200 rounded mb-1 animate-pulse"></div>
+                <div className="w-20 h-6 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+              <div className="w-28 h-10 bg-gray-200 rounded-lg animate-pulse"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -231,140 +337,312 @@ export default function AddonsPage({
     return total + (addon ? addon.price * quantity : 0)
   }, 0)
 
+  const selectedAddonsList = getSelectedAddonsList()
+  const itemsCount = selectedAddonsList.reduce((count, addon) => count + addon.quantity, 0)
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">{category?.name} Add-ons</h1>
+    <div className="container mx-auto px-4 py-8 pb-32 lg:pb-8 lg:flex lg:gap-8">
+      <div className="flex-1">
+        {/* Back button */}
+        <div className="mb-6">
+          <a href={`/category/${resolvedParams.slug}/products`} className="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Products
+          </a>
+        </div>
 
-      {category?.addon_types.map((type) => {
-        const typeAddons = addonsByType[type.id] || []
-        if (typeAddons.length === 0) return null
+        {/* Main content */}
+        {category?.addon_types.map((type) => {
+          const typeAddons = addonsByType[type.id] || []
+          if (typeAddons.length === 0) return null
 
-        return (
-          <div key={type.id} className="mb-12">
-            <div className="flex items-center gap-2 mb-6">
-              <h2 className="text-2xl font-semibold">{type.name}</h2>
-              <button className="text-gray-500 hover:text-gray-700">
-                <Info size={20} />
-              </button>
+          return (
+            <div key={type.id} className="mb-12">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-medium text-gray-900">{type.name}</h2>
+                  <button className="text-gray-400 hover:text-gray-600">
+                    <Info size={18} />
+                  </button>
+                </div>
+                {!type.allow_multiple_selection && (
+                  <div className="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+                    Select one only
+                  </div>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {typeAddons.map((addon) => {
+                  const isSelected = (selectedAddons[addon.addon_id] || 0) > 0;
+                  const quantity = selectedAddons[addon.addon_id] || 0;
+                  
+                  return (
+                    <div
+                      key={addon.addon_id}
+                      className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border ${
+                        isSelected ? 'border-blue-500' : 'border-gray-100'
+                      }`}
+                    >
+                      <div className="relative p-4 bg-white rounded-t-xl">
+                        <div className="relative h-48 w-full flex items-center justify-center bg-white">
+                          <Image
+                            src={getImageUrl(addon.image_link) || '/placeholder-image.jpg'}
+                            alt={addon.title}
+                            fill
+                            className="object-contain p-2"
+                          />
+                        </div>
+                        
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                        
+                        {addon.allow_multiple && (
+                          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-white rounded-full shadow-sm border border-gray-100 p-1">
+                            <button
+                              onClick={() => handleQuantityChange(addon, -1)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                              disabled={!quantity}
+                            >
+                              <MinusCircle size={18} />
+                            </button>
+                            <span className="w-6 text-center font-medium text-sm">{quantity}</span>
+                            <button
+                              onClick={() => handleQuantityChange(addon, 1)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700"
+                              disabled={addon.max_count ? quantity >= addon.max_count : false}
+                            >
+                              <PlusCircle size={18} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="text-lg font-medium text-gray-900">{addon.title}</h3>
+                          <p className="text-lg font-semibold text-gray-900">£{addon.price.toFixed(2)}</p>
+                        </div>
+                        
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{addon.description}</p>
+                        
+                        {!addon.allow_multiple && (
+                          <button 
+                            className={`w-full py-2.5 px-4 rounded-lg transition-colors ${
+                              isSelected
+                                ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }`}
+                            onClick={() => handleQuantityChange(addon, isSelected ? -1 : 1)}
+                          >
+                            {isSelected ? 'Added' : 'Add to Quote'}
+                          </button>
+                        )}
+                        
+                        {addon.max_count && (
+                          <p className="text-xs text-gray-500 text-center mt-2">
+                            Maximum: {addon.max_count}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          )
+        })}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {typeAddons.map((addon) => (
-                <div
-                  key={addon.addon_id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-                >
-                  {addon.image_link && (
-                    <div className="relative h-48 w-full">
+        {addons.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500">
+              No add-ons available for this category
+              {category?.addon_types && category.addon_types.length > 0 && (
+                <>
+                  <br />
+                  <span className="text-sm mt-2 block">
+                    Available addon types: {category.addon_types.map(type => type.name).join(', ')}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop cart panel */}
+      <div className="hidden lg:block w-[400px] flex-shrink-0">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-medium text-gray-900">Your order</h2>
+            <div className="bg-yellow-50 px-3 py-1 rounded-full">
+              <span className="text-sm font-medium text-yellow-800">10 Year Warranty</span>
+            </div>
+          </div>
+
+          {selectedAddonsList.length > 0 ? (
+            <>
+              <div className="space-y-4 mb-6">
+                {selectedAddonsList.map(addon => (
+                  <div key={addon.addon_id} className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg">
+                    <div className="relative h-16 w-16 flex-shrink-0 bg-white rounded-md p-2">
                       <Image
                         src={getImageUrl(addon.image_link) || '/placeholder-image.jpg'}
                         alt={addon.title}
                         fill
-                        className="object-cover"
+                        className="object-contain"
                       />
                     </div>
-                  )}
-                  
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-xl font-semibold">{addon.title}</h3>
-                      <p className="text-lg font-bold">£{addon.price.toFixed(2)}</p>
+                    <div className="flex-grow min-w-0">
+                      <h4 className="font-medium text-sm text-gray-900 truncate">{addon.title}</h4>
+                      <p className="text-gray-600 text-xs">{addon.quantity} × £{addon.price.toFixed(2)}</p>
                     </div>
-                    
-                    <p className="text-gray-600 mb-4">{addon.description}</p>
-                    
-                    {addon.partner_profile && (
-                      <div className="flex items-center gap-2 mt-4">
-                        {addon.partner_profile.logo_url && (
-                          <div className="relative h-8 w-8">
-                            <Image
-                              src={getImageUrl(addon.partner_profile.logo_url) || '/placeholder-logo.jpg'}
-                              alt={addon.partner_profile.company_name}
-                              fill
-                              className="object-contain"
-                            />
-                          </div>
-                        )}
-                        <span className="text-sm text-gray-500">
-                          {addon.partner_profile.company_name}
-                        </span>
-                      </div>
-                    )}
-                    
-                    <div className="mt-6">
+                    <div className="flex items-center gap-1">
                       {addon.allow_multiple ? (
-                        <div className="flex items-center justify-between">
-                          <button
+                        <>
+                          <button 
                             onClick={() => handleQuantityChange(addon, -1)}
-                            className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                            disabled={!selectedAddons[addon.addon_id]}
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200"
                           >
-                            <MinusCircle size={24} />
+                            <MinusCircle size={14} />
                           </button>
-                          <span className="text-lg font-semibold">
-                            {selectedAddons[addon.addon_id] || 0}
-                          </span>
-                          <button
+                          <span className="w-6 text-center text-sm">{addon.quantity}</span>
+                          <button 
                             onClick={() => handleQuantityChange(addon, 1)}
-                            className="p-2 text-gray-500 hover:text-gray-700"
-                            disabled={addon.max_count ? selectedAddons[addon.addon_id] >= addon.max_count : false}
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200"
+                            disabled={addon.max_count ? addon.quantity >= addon.max_count : false}
                           >
-                            <PlusCircle size={24} />
+                            <PlusCircle size={14} />
                           </button>
-                        </div>
+                        </>
                       ) : (
                         <button 
-                          className={`w-full py-2 px-4 rounded-md transition-colors ${
-                            selectedAddons[addon.addon_id]
-                              ? 'bg-green-600 hover:bg-green-700 text-white'
-                              : 'bg-blue-600 hover:bg-blue-700 text-white'
-                          }`}
-                          onClick={() => handleQuantityChange(addon, selectedAddons[addon.addon_id] ? -1 : 1)}
+                          onClick={() => handleQuantityChange(addon, -1)}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200"
                         >
-                          {selectedAddons[addon.addon_id] ? 'Added' : 'Add to Quote'}
+                          <X size={14} />
                         </button>
-                      )}
-                      {addon.max_count && (
-                        <p className="text-sm text-gray-500 text-center mt-2">
-                          Maximum: {addon.max_count}
-                        </p>
                       )}
                     </div>
                   </div>
+                ))}
+              </div>
+
+              <div className="border-t border-gray-100 pt-4 space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total</span>
+                  <span className="text-xl font-semibold text-gray-900">£{totalPrice.toFixed(2)}</span>
                 </div>
-              ))}
+                <button className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 font-medium">
+                  Continue to Installation <ChevronRight size={16} />
+                </button>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Info size={16} />
+                    <span>Installation Included</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <ShoppingCart size={32} className="mx-auto mb-2 opacity-50" />
+              <p>Your cart is empty</p>
             </div>
-          </div>
-        )
-      })}
-
-      {/* Fixed bottom bar showing total and continue button */}
-      {Object.keys(selectedAddons).length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4">
-          <div className="container mx-auto flex justify-between items-center">
-            <div>
-              <p className="text-lg font-semibold">Total Add-ons: £{totalPrice.toFixed(2)}</p>
-            </div>
-            <button className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
-              Continue
-            </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {addons.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">
-            No add-ons available for this category
-            {category?.addon_types && category.addon_types.length > 0 && (
-              <>
-                <br />
-                <span className="text-sm mt-2 block">
-                  Available addon types: {category.addon_types.map(type => type.name).join(', ')}
-                </span>
-              </>
-            )}
-          </p>
+      {/* Mobile cart button and fixed bottom bar - only show on mobile */}
+      {selectedAddonsList.length > 0 && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-10">
+          <div className="container mx-auto flex justify-between items-center">
+            <button 
+              onClick={() => setShowCart(!showCart)}
+              className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg relative"
+            >
+              <ShoppingCart size={20} />
+              <span>Cart</span>
+              <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                {itemsCount}
+              </span>
+            </button>
+            
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Your order</p>
+                <p className="text-lg font-semibold">£{totalPrice.toFixed(2)}</p>
+              </div>
+              <button className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 flex items-center gap-1">
+                Continue <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+          
+          {/* Expandable cart */}
+          {showCart && (
+            <div className="container mx-auto mt-4 bg-gray-50 rounded-lg p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-medium text-gray-900">Your Selected Items</h3>
+                <button onClick={() => setShowCart(false)} className="text-gray-500">
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="max-h-60 overflow-y-auto">
+                {selectedAddonsList.map(addon => (
+                  <div key={addon.addon_id} className="flex items-center gap-4 py-3 border-b border-gray-200 last:border-b-0">
+                    <div className="relative h-16 w-16 flex-shrink-0 bg-white rounded-md p-2">
+                      <Image
+                        src={getImageUrl(addon.image_link) || '/placeholder-image.jpg'}
+                        alt={addon.title}
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="flex-grow min-w-0">
+                      <h4 className="font-medium text-sm text-gray-900 truncate">{addon.title}</h4>
+                      <p className="text-gray-600 text-xs">{addon.quantity} × £{addon.price.toFixed(2)}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {addon.allow_multiple ? (
+                        <>
+                          <button 
+                            onClick={() => handleQuantityChange(addon, -1)}
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200"
+                          >
+                            <MinusCircle size={14} />
+                          </button>
+                          <span className="w-6 text-center text-sm">{addon.quantity}</span>
+                          <button 
+                            onClick={() => handleQuantityChange(addon, 1)}
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200"
+                            disabled={addon.max_count ? addon.quantity >= addon.max_count : false}
+                          >
+                            <PlusCircle size={14} />
+                          </button>
+                        </>
+                      ) : (
+                        <button 
+                          onClick={() => handleQuantityChange(addon, -1)}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
