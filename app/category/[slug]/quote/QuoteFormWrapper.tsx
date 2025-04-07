@@ -74,17 +74,33 @@ export default function QuoteFormWrapper({
 
   const handleSubmitSuccess = async (data: any) => {
     try {
+      const supabase = await createClient();
+      
       // Get the current hostname
       const hostname = window.location.hostname;
       const subdomain = hostname.split('.')[0];
       const isSubdomain = subdomain !== 'localhost' && subdomain !== 'www' && subdomain !== 'apstic';
 
+      // Get the partner lead submission ID
+      const { data: lead, error: leadError } = await supabase
+        .from('partner_leads')
+        .select('submission_id')
+        .eq('email', data.email) // Assuming email is unique for each submission
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (leadError) {
+        console.error('Error fetching partner lead:', leadError);
+        return;
+      }
+
       // Handle redirection based on category settings
       if (redirectToProducts) {
-        const redirectUrl = `/category/${serviceCategorySlug}/products?submission=${data.submission_id}`;
+        const redirectUrl = `/category/${serviceCategorySlug}/products?submission=${lead.submission_id}`;
         router.push(redirectUrl);
       } else if (showThankYou) {
-        const redirectUrl = `/category/${serviceCategorySlug}/thank-you?submission=${data.submission_id}`;
+        const redirectUrl = `/category/${serviceCategorySlug}/thank-you?submission=${lead.submission_id}`;
         router.push(redirectUrl);
       } else {
         router.push('/');
