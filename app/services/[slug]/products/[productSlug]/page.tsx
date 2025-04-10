@@ -22,7 +22,7 @@ export default async function ProductDetailPage({
   }
 
   // Get the category fields and category info
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { data: categoryFields } = await supabase
     .from('CategoryFields')
     .select('*')

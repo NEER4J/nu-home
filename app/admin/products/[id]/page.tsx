@@ -17,7 +17,7 @@ export default async function EditProductPage({
   const resolvedParams = await params;
   const productId = resolvedParams.id;
   
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   
   // Get the product
   const { data: product, error: productError } = await supabase

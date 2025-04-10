@@ -137,7 +137,7 @@ export function ProductForm({
   // Handle updating a repeater item
   const handleUpdateRepeaterItem = (key: string, index: number, value: string) => {
     setDynamicFieldValues(prev => {
-      const currentValues = [...prev[key]];
+      const currentValues = Array.isArray(prev[key]) ? [...prev[key]] : [];
       currentValues[index] = value;
       return {
         ...prev,
@@ -149,7 +149,7 @@ export function ProductForm({
   // Handle removing a repeater item
   const handleRemoveRepeaterItem = (key: string, index: number) => {
     setDynamicFieldValues(prev => {
-      const currentValues = [...prev[key]];
+      const currentValues = Array.isArray(prev[key]) ? [...prev[key]] : [];
       currentValues.splice(index, 1);
       return {
         ...prev,
@@ -342,7 +342,7 @@ export function ProductForm({
       case 'repeater':
         return (
           <div className="space-y-2">
-            {(value || []).map((item: string, index: number) => (
+            {Array.isArray(value) ? value.map((item: string, index: number) => (
               <div key={index} className="flex items-center gap-2">
                 <input
                   type="text"
@@ -359,7 +359,7 @@ export function ProductForm({
                   <X className="h-5 w-5" />
                 </button>
               </div>
-            ))}
+            )) : null}
             <button
               type="button"
               onClick={() => handleAddRepeaterItem(field.key)}

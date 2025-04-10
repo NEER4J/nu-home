@@ -66,7 +66,7 @@ async function ProductsContent({
   params: { slug: string };
   searchParams: { submission?: string; [key: string]: string | string[] | undefined };
 }) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   
   // Get the service category based on the slug
   const { data: category, error: categoryError } = await supabase

@@ -39,7 +39,7 @@ export async function createProduct(formData: FormData) {
   }
   
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     const { data, error } = await supabase
       .from('Products')
@@ -100,7 +100,7 @@ export async function updateProduct(productId: string, formData: FormData) {
   };
   
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     const { data, error } = await supabase
       .from('Products')
@@ -125,7 +125,7 @@ export async function updateProduct(productId: string, formData: FormData) {
 
 export async function deleteProduct(productId: string) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     const { error } = await supabase
       .from('Products')

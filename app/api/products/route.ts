@@ -135,7 +135,7 @@ export async function GET(request: Request) {
             type: 'Property Size',
             userAnswer: answer.answer,
             productValue: 'Suitable for ' + productBedrooms.join(', ') + ' bedrooms',
-            matches: productBedrooms.some(size => size.toString().toLowerCase() === answer.answer.toLowerCase())
+            matches: productBedrooms.some((size: string | number) => size.toString().toLowerCase() === answer.answer.toLowerCase())
           });
         }
       });

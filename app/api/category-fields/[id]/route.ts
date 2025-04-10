@@ -16,7 +16,7 @@ export async function DELETE(
   }
   
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     const { error } = await supabase
       .from('CategoryFields')
@@ -50,7 +50,7 @@ export async function PATCH(
   
   try {
     const body = await request.json();
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Fetch the existing field first to maintain some properties
     const { data: existingField, error: fetchError } = await supabase
@@ -108,7 +108,7 @@ export async function GET(
   }
   
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     const { data, error } = await supabase
       .from('CategoryFields')

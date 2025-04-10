@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   }
   
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     const { data, error } = await supabase
       .from('CategoryFields')
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Check if key already exists for this category
     const { data: existingField, error: checkError } = await supabase
