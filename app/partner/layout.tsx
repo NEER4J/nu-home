@@ -182,16 +182,6 @@ export default function PartnerLayout({
               </Link>
             </li>
             
-            <li>
-              <Link 
-                href="/partner/performance" 
-                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
-              >
-                <BarChart2 className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
-                Performance
-              </Link>
-            </li>
-            
             <li className="pt-2">
               <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Account
@@ -205,33 +195,6 @@ export default function PartnerLayout({
               >
                 <User className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
                 Profile
-              </Link>
-            </li>
-            
-            <li>
-              <Link 
-                href="/partner/notifications" 
-                className="flex items-center justify-between px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
-              >
-                <span className="flex items-center">
-                  <Bell className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
-                  Notifications
-                </span>
-                {notificationCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                    {notificationCount}
-                  </span>
-                )}
-              </Link>
-            </li>
-            
-            <li>
-              <Link 
-                href="/partner/settings" 
-                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
-              >
-                <Settings className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
-                Settings
               </Link>
             </li>
             
