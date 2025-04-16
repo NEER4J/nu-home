@@ -1,6 +1,20 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
+// Helper to force redirect to the domain from NEXT_PUBLIC_SITE_URL
+function forceDomain(url: URL) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (siteUrl) {
+    try {
+      const { hostname } = new URL(siteUrl);
+      url.hostname = hostname;
+    } catch (e) {
+      // fallback: do nothing if env is invalid
+    }
+  }
+  return url;
+}
+
 export const createClient = (request: NextRequest) => {
   // Create a Supabase client for use in the middleware
   return createServerClient(
@@ -64,7 +78,7 @@ export const updateSession = async (request: NextRequest) => {
     if (!user && (pathname.startsWith('/admin') || pathname.startsWith('/partner'))) {
       const redirectUrl = new URL('/sign-in', request.url);
       redirectUrl.searchParams.set('redirect_to', pathname);
-      return NextResponse.redirect(redirectUrl);
+      return NextResponse.redirect(forceDomain(redirectUrl));
     }
 
     // If logged in but on home page, redirect to appropriate dashboard
@@ -77,15 +91,15 @@ export const updateSession = async (request: NextRequest) => {
         .single();
 
       if (profile?.role === 'admin') {
-        return NextResponse.redirect(new URL('/admin', request.url));
+        return NextResponse.redirect(forceDomain(new URL('/admin', request.url)));
       } else if (profile?.role === 'partner') {
         // Check partner status
         if (profile.status === 'pending') {
-          return NextResponse.redirect(new URL('/partner/pending', request.url));
+          return NextResponse.redirect(forceDomain(new URL('/partner/pending', request.url)));
         } else if (profile.status === 'suspended') {
-          return NextResponse.redirect(new URL('/partner/suspended', request.url));
+          return NextResponse.redirect(forceDomain(new URL('/partner/suspended', request.url)));
         } else {
-          return NextResponse.redirect(new URL('/partner', request.url));
+          return NextResponse.redirect(forceDomain(new URL('/partner', request.url)));
         }
       }
     }
@@ -99,7 +113,7 @@ export const updateSession = async (request: NextRequest) => {
         .single();
 
       if (!profile || profile.role !== 'admin') {
-        return NextResponse.redirect(new URL('/partner', request.url));
+        return NextResponse.redirect(forceDomain(new URL('/partner', request.url)));
       }
     }
 
@@ -113,21 +127,21 @@ export const updateSession = async (request: NextRequest) => {
 
       // If admin, redirect to admin dashboard
       if (profile?.role === 'admin') {
-        return NextResponse.redirect(new URL('/admin', request.url));
+        return NextResponse.redirect(forceDomain(new URL('/admin', request.url)));
       }
 
       // If not a partner, redirect to homepage
       if (!profile || profile.role !== 'partner') {
-        return NextResponse.redirect(new URL('/', request.url));
+        return NextResponse.redirect(forceDomain(new URL('/', request.url)));
       }
 
       // Status-based redirects for partners
       if (profile.status === 'suspended' && pathname !== '/partner/suspended') {
-        return NextResponse.redirect(new URL('/partner/suspended', request.url));
+        return NextResponse.redirect(forceDomain(new URL('/partner/suspended', request.url)));
       }
 
       if (profile.status === 'pending' && pathname !== '/partner/pending') {
-        return NextResponse.redirect(new URL('/partner/pending', request.url));
+        return NextResponse.redirect(forceDomain(new URL('/partner/pending', request.url)));
       }
     }
 

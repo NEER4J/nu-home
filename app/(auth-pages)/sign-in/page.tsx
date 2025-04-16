@@ -6,8 +6,25 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon, LockIcon, AtSignIcon, ArrowRightIcon } from "lucide-react";
+import { createClient } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
 
 export default async function Login(props: { searchParams: Promise<Message> }) {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    const { data: profile } = await supabase
+      .from('UserProfiles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .single();
+    if (profile?.role === 'admin') {
+      redirect('/admin');
+    } else if (profile?.role === 'partner') {
+      redirect('/partner');
+    }
+  }
+
   const searchParams = await props.searchParams;
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gray-50">

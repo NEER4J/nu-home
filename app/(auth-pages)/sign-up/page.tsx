@@ -7,13 +7,28 @@ import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon, ArrowRightIcon, BuildingIcon, UserIcon, MapPinIcon, PhoneIcon } from "lucide-react";
+import { redirect } from "next/navigation";
 // import { SmtpMessage } from "../smtp-message";
 
 export default async function Signup(props: {
   searchParams: Promise<Message>;
 }) {
-  // Fetch service categories for selection
   const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    const { data: profile } = await supabase
+      .from("UserProfiles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .single();
+    if (profile?.role === "admin") {
+      redirect("/admin");
+    } else if (profile?.role === "partner") {
+      redirect("/partner");
+    }
+  }
+
+  // Fetch service categories for selection
   const { data: categories } = await supabase
     .from("ServiceCategories")
     .select("service_category_id, name")

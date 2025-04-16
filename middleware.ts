@@ -1,7 +1,21 @@
 import { createClient } from '@/utils/supabase/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+
+// Helper to force domain from NEXT_PUBLIC_SITE_URL
+function forceDomain(url: URL) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (siteUrl) {
+    try {
+      const { hostname } = new URL(siteUrl);
+      url.hostname = hostname;
+    } catch (e) {
+      // fallback: do nothing if env is invalid
+    }
+  }
+  return url;
+}
 
 export async function middleware(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -79,7 +93,7 @@ export async function middleware(request: NextRequest) {
           // Valid subdomain - add it as a parameter and rewrite
           const url = new URL(request.url);
           url.searchParams.set('partner_subdomain', subdomain);
-          return NextResponse.rewrite(url);
+          return NextResponse.rewrite(forceDomain(url));
         }
       } catch (error) {
         console.error('Error checking subdomain:', error);
@@ -94,7 +108,7 @@ export async function middleware(request: NextRequest) {
           redirectUrl.searchParams.set(key, value);
         }
       });
-      return NextResponse.redirect(redirectUrl);
+      return NextResponse.redirect(forceDomain(redirectUrl));
     }
   }
 
@@ -107,7 +121,7 @@ export async function middleware(request: NextRequest) {
       if (!session) {
         const redirectUrl = new URL('/auth/login', request.url);
         redirectUrl.searchParams.set('redirect_to', path);
-        return NextResponse.redirect(redirectUrl);
+        return NextResponse.redirect(forceDomain(redirectUrl));
       }
 
       // For admin routes, check if user has admin role
@@ -119,7 +133,7 @@ export async function middleware(request: NextRequest) {
           .single();
 
         if (!profile || profile.role !== 'admin') {
-          return NextResponse.redirect(new URL('/', request.url));
+          return NextResponse.redirect(forceDomain(new URL('/', request.url)));
         }
       }
 
@@ -132,7 +146,7 @@ export async function middleware(request: NextRequest) {
           .single();
 
         if (!profile || profile.role !== 'partner') {
-          return NextResponse.redirect(new URL('/', request.url));
+          return NextResponse.redirect(forceDomain(new URL('/', request.url)));
         }
       }
 
@@ -142,7 +156,7 @@ export async function middleware(request: NextRequest) {
       // On auth error, redirect to login
       const redirectUrl = new URL('/auth/login', request.url);
       redirectUrl.searchParams.set('redirect_to', path);
-      return NextResponse.redirect(redirectUrl);
+      return NextResponse.redirect(forceDomain(redirectUrl));
     }
   }
 
