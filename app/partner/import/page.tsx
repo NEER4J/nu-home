@@ -201,6 +201,12 @@ export default function ImportPage() {
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const router = useRouter();
 
+  // AI format all products state
+  const [aiFormattedAll, setAiFormattedAll] = useState<any[]>([]);
+  const [aiFormatAllLoading, setAiFormatAllLoading] = useState(false);
+  const [aiFormatAllError, setAiFormatAllError] = useState<string | null>(null);
+  const [aiFormatAllProgress, setAiFormatAllProgress] = useState(0);
+
   useEffect(() => {
     fetchServiceCategories();
   }, []);
@@ -282,6 +288,52 @@ export default function ImportPage() {
     }
   };
 
+  // Format all products with AI
+  const handleFormatAllWithAI = async () => {
+    setAiFormatAllLoading(true);
+    setAiFormatAllError(null);
+    setAiFormattedAll([]);
+    setAiFormatAllProgress(0);
+    try {
+      const results = [];
+      for (let i = 0; i < products.length; i++) {
+        const product = products[i];
+        const res = await fetch('/api/field-mapping-ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wordpressFields: getWordPressFields(product),
+            databaseFields: (selectedCategoryData?.fields || []).map(field => ({
+              key: field.key,
+              label: field.name,
+              type: field.field_type,
+              required: field.is_required
+            })),
+            sampleProduct: product,
+            mode: 'format',
+          }),
+        });
+        const data = await res.json();
+        results.push(data.result);
+        setAiFormatAllProgress(Math.round(((i + 1) / products.length) * 100));
+      }
+      setAiFormattedAll(results);
+    } catch (err) {
+      setAiFormatAllError('Failed to format all products with AI.');
+    } finally {
+      setAiFormatAllLoading(false);
+      setAiFormatAllProgress(0);
+    }
+  };
+
+  // After formatting all products, optionally replace the original products with the formatted ones
+  useEffect(() => {
+    if (aiFormattedAll.length > 0 && aiFormattedAll.length === products.length) {
+      setProducts(aiFormattedAll);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiFormattedAll]);
+
   const selectedCategoryData = serviceCategories.find(cat => cat.service_category_id === selectedCategory);
 
   const tabs = [
@@ -347,7 +399,7 @@ export default function ImportPage() {
               <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-4">
                 <h3 className="text-base font-semibold text-gray-800 mb-2">Reference API URL Example</h3>
                 <pre className="bg-white border border-gray-100 rounded px-3 py-2 text-sm text-gray-700 overflow-x-auto mb-2">
-                https://origin-gph.com/wp-json/wp/v2/boiler?_fields=slug,status,type,link,title,acf,taxonomy_info,featured_image_src_large,featured_media&per_page=100
+                https://origin-gph.com/wp-json/wp/v2/boiler?_fields=slug,status,type,link,title,acf,taxonomy_info,featured_image_src_large,featured_media&per_page=10
                 </pre>
                 <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
                   <li>
@@ -359,6 +411,9 @@ export default function ImportPage() {
                   </li>
                   <li>
                     Ensure your API endpoint returns the required fields for a successful import.
+                  </li>
+                  <li>
+                    Change per_page value to fetch more then 10 products.
                   </li>
                 </ul>
               </div>
@@ -513,6 +568,31 @@ export default function ImportPage() {
 
           {activeTab === 'mapping' && selectedCategoryData && (
             <div>
+              <div className="mb-4 flex gap-4 items-center">
+                <button
+                  type="button"
+                  onClick={handleFormatAllWithAI}
+                  disabled={aiFormatAllLoading || !products.length}
+                  className="inline-flex items-center px-4 py-2 border border-green-600 text-green-700 bg-white rounded hover:bg-green-50 disabled:opacity-50"
+                >
+                  {aiFormatAllLoading ? 'Formatting All...' : 'Format All Products with AI'}
+                </button>
+                {aiFormatAllLoading && (
+                  <div className="w-48 h-2 bg-gray-200 rounded overflow-hidden">
+                    <div
+                      className="h-2 bg-green-500 transition-all duration-200"
+                      style={{ width: `${aiFormatAllProgress}%` }}
+                    />
+                  </div>
+                )}
+                {aiFormatAllError && <span className="text-red-600 text-sm">{aiFormatAllError}</span>}
+              </div>
+              {aiFormattedAll.length > 0 && (
+                <div className="mb-6">
+                  <div className="font-semibold mb-2 text-green-700">AI-Formatted Data Preview (All Products)</div>
+                  <pre className="bg-gray-100 p-4 rounded text-xs overflow-x-auto max-h-96">{JSON.stringify(aiFormattedAll, null, 2)}</pre>
+                </div>
+              )}
               <FieldMapper
                 wordpressFields={getWordPressFields(products[0])}
                 databaseFields={(selectedCategoryData.fields || []).map(field => ({
