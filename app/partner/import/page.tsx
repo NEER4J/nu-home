@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { FieldMapper } from '@/components/import/FieldMapper';
 import { ProductPreview } from '@/components/import/ProductPreview';
 import { importProducts } from './actions';
@@ -197,6 +197,8 @@ export default function ImportPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<WordPressProduct | null>(null);
   const [editedProducts, setEditedProducts] = useState<Record<number, any>>({});
+  // Only one product open at a time in preview
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -340,11 +342,27 @@ export default function ImportPage() {
 
           {activeTab === 'url' && (
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
-                <p className="text-sm text-blue-700">
-                  Enter your WordPress site URL (e.g., https://your-site.com). We'll automatically construct the API URL to fetch all necessary product data.
-                </p>
+             
+              {/* --- Custom Import Instructions --- */}
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-4">
+                <h3 className="text-base font-semibold text-gray-800 mb-2">Reference API URL Example</h3>
+                <pre className="bg-white border border-gray-100 rounded px-3 py-2 text-sm text-gray-700 overflow-x-auto mb-2">
+                https://origin-gph.com/wp-json/wp/v2/boiler?_fields=slug,status,type,link,title,acf,taxonomy_info,featured_image_src_large,featured_media&per_page=100
+                </pre>
+                <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+                  <li>
+                    Replace <span className="font-semibold">origin-gph.com</span> with your own domain.
+                  </li>
+                  <li>
+                    The <span className="font-semibold">post_type</span> in the reference domain is <code className="bg-gray-100 px-1 rounded">boiler</code>.
+                    Adjust this if your post type is different.
+                  </li>
+                  <li>
+                    Ensure your API endpoint returns the required fields for a successful import.
+                  </li>
+                </ul>
               </div>
+              {/* --- End Custom Import Instructions --- */}
               <div className="space-y-2">
                 <label htmlFor="baseUrl" className="block text-sm font-medium text-gray-700">
                   WordPress API URL
@@ -353,7 +371,7 @@ export default function ImportPage() {
                   id="baseUrl"
                   type="text"
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  placeholder="https://your-site.com/wp-json/wp/v2/product_new?per_page=100"
+                  placeholder="https://your-site.com/wp-json/wp/v2/your-post-type-name?_fields=slug,status,type,link,title,acf,taxonomy_info,featured_image_src_large,featured_media&per_page=100"
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
                   required
@@ -401,65 +419,79 @@ export default function ImportPage() {
               )}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Fetched Products ({products.length})</h3>
-                <div className="divide-y divide-gray-200">
-                  {products.map((product) => (
-                    <div key={product.id} className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-lg font-medium">{product.title.rendered}</h4>
-                          <div className="mt-1 text-sm text-gray-500">
-                            Price: £{product.acf.boiler_fixed_price} | Status: {product.status}
-                          </div>
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                  {products.map((product) => {
+                    const isOpen = selectedProductId === product.id;
+                    return (
+                      <div
+                        key={product.id}
+                        className={`transition-shadow duration-200 bg-white border rounded-xl shadow-sm hover:shadow-lg p-4 ${isOpen ? 'ring-2 ring-blue-200' : ''}`}
+                      >
                         <button
-                          onClick={() => setSelectedProduct(selectedProduct?.id === product.id ? null : product)}
-                          className="ml-4 text-sm text-blue-600 hover:text-blue-800"
+                          className="flex items-center justify-between w-full focus:outline-none"
+                          onClick={() => setSelectedProductId(isOpen ? null : product.id)}
                         >
-                          {selectedProduct?.id === product.id ? 'Hide Details' : 'Show Details'}
-                        </button>
-                      </div>
-                      
-                      {selectedProduct?.id === product.id && (
-                        <div className="mt-4 bg-gray-50 p-4 rounded-md">
-                          <div className="space-y-6">
-                            {/* Basic Information */}
-                            <div>
-                              <h3 className="text-lg font-medium mb-4">Basic Information</h3>
-                              <div className="space-y-4">
-                                {Object.entries(product)
-                                  .filter(([key]) => !['acf', 'boilertype', 'bedroom_fits_boiler'].includes(key))
-                                  .map(([key, value]) => (
-                                    <div key={key} className="border-t pt-4 first:border-t-0 first:pt-0">
-                                      <div className="text-sm font-medium text-gray-500">
-                                        {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                                      </div>
-                                      <div className="mt-1">{renderValue(value)}</div>
-                                    </div>
-                                  ))}
-                              </div>
-                            </div>
-
-                          
-
-                            {/* ACF Fields */}
-                            <div>
-                              <h3 className="text-lg font-medium mb-4">ACF Fields</h3>
-                              <div className="space-y-4">
-                                {Object.entries(product.acf).map(([key, value]) => (
-                                  <div key={key} className="border-t pt-4 first:border-t-0 first:pt-0">
-                                    <div className="text-sm font-medium text-gray-500">
-                                      {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                                    </div>
-                                    <div className="mt-1">{renderValue(value)}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                          <div className="flex flex-col items-start text-left">
+                            <span className="text-lg font-semibold text-gray-900">{product.title.rendered}</span>
+                            <span className="text-xs text-gray-500 mt-1">Slug: {product.slug} | Status: {product.status}</span>
                           </div>
+                          <span className="ml-2 text-blue-600">
+                            {isOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          </span>
+                        </button>
+                        <div
+                          className={`overflow-y-scroll overflow-x-hidden transition-all duration-300 ${isOpen ? 'max-h-[400px] mt-4' : 'max-h-0'}`}
+                        >
+                          {isOpen && (
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="font-medium text-gray-700 mb-2">Basic Info</h4>
+                                <div className="grid grid-cols-1 gap-2">
+                                  {Object.entries(product).map(([key, value]) => (
+                                    key && value !== undefined && key !== 'acf' && key !== 'boilertype' && key !== 'bedroom_fits_boiler' && key !== 'title' ? (
+                                      <div key={key + '-' + String(value ?? '')} className="flex text-sm">
+                                        <span className="w-36 font-medium text-gray-600 capitalize">{key.replace(/_/g, ' ')}:</span>
+                                        <span className="ml-2 text-gray-800">{renderValue(value)}</span>
+                                      </div>
+                                    ) : null
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-gray-700 mb-2">Boiler Type</h4>
+                                <div className="flex text-sm">
+                                  <span className="w-36 font-medium text-gray-600">boilertype:</span>
+                                  <span className="ml-2 text-gray-800">{renderValue(product.boilertype)}</span>
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-gray-700 mb-2">Bedroom Fits Boiler</h4>
+                                <div className="flex text-sm">
+                                  <span className="w-36 font-medium text-gray-600">bedroom_fits_boiler:</span>
+                                  <span className="ml-2 text-gray-800">{renderValue(product.bedroom_fits_boiler)}</span>
+                                </div>
+                              </div>
+                              {product.acf && (
+                                <div>
+                                  <h4 className="font-medium text-blue-700 mb-2">ACF Fields</h4>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    {Object.entries(product.acf).map(([acfKey, acfValue]) => (
+                                      acfKey && acfValue !== undefined ? (
+                                        <div key={acfKey + '-' + String(acfValue ?? '')} className="flex text-sm">
+                                          <span className="w-36 font-medium text-gray-600 capitalize">{acfKey.replace(/_/g, ' ')}:</span>
+                                          <span className="ml-2 text-gray-800">{renderValue(acfValue)}</span>
+                                        </div>
+                                      ) : null
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <div className="flex justify-between mt-6">
@@ -544,4 +576,4 @@ export default function ImportPage() {
       </div>
     </div>
   );
-} 
+}

@@ -270,58 +270,6 @@ export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappin
     );
   };
 
-  // Group fields by their parent path
-  const groupedFields = wordpressFields.reduce((acc: Record<string, WordPressField[]>, field) => {
-    if (field.type === 'object' && field.subfields) {
-      // For object fields, add each subfield separately
-      field.subfields.forEach(subfield => {
-        const fullPath = `${field.path}.${subfield.key}`;
-        const groupKey = field.path;
-        
-        if (!acc[groupKey]) {
-          acc[groupKey] = [];
-        }
-        
-        if (subfield.type === 'repeater' && subfield.subfields) {
-          // For repeater fields, add each subfield item
-          acc[groupKey].push({
-            path: fullPath,
-            label: `${subfield.label}`,
-            type: 'repeater',
-            subfields: subfield.subfields,
-            uniqueKey: `${field.path}-${subfield.key}-repeater`
-          });
-        } else if (subfield.type === 'object' && subfield.subfields) {
-          // For nested objects, add each nested field
-          subfield.subfields.forEach(nestedField => {
-            acc[groupKey].push({
-              path: `${fullPath}.${nestedField.key}`,
-              label: `${nestedField.label}`,
-              type: nestedField.type,
-              uniqueKey: `${field.path}-${subfield.key}-${nestedField.key}`
-            });
-          });
-        } else {
-          // Add regular fields
-          acc[groupKey].push({
-            path: fullPath,
-            label: `${subfield.label}`,
-            type: subfield.type,
-            uniqueKey: `${field.path}-${subfield.key}`
-          });
-        }
-      });
-    } else {
-      // For non-object fields, add them directly under their own group
-      const groupKey = field.path.split('.')[0];
-      if (!acc[groupKey]) {
-        acc[groupKey] = [];
-      }
-      acc[groupKey].push(field);
-    }
-    return acc;
-  }, {});
-
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -330,7 +278,7 @@ export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappin
           <h3 className="text-lg font-medium mb-2">WordPress Fields</h3>
           <div className="bg-blue-50 p-3 rounded-md mb-4">
             <p className="text-sm text-blue-800">
-              Drag fields from here to map them to your database fields. Fields are organized by their parent groups.
+              Drag fields from here to map them to your database fields. All fields are shown below.
             </p>
           </div>
           <Droppable droppableId="wordpress-fields" isDropDisabled={true}>
@@ -340,39 +288,24 @@ export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappin
                 ref={provided.innerRef}
                 className="space-y-2"
               >
-                {Object.entries(groupedFields).map(([groupKey, fields]) => (
-                  <div key={groupKey} className="border border-gray-200 rounded-md overflow-hidden">
-                    <button
-                      onClick={() => toggleGroup(groupKey)}
-                      className="w-full p-3 bg-gray-100 hover:bg-gray-200 flex items-center justify-between"
-                    >
-                      <span className="font-medium">{groupKey}</span>
-                      {expandedGroups[groupKey] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </button>
-                    {expandedGroups[groupKey] && (
-                      <div className="p-3 space-y-2">
-                        {fields.map((field, index) => (
-                          <Draggable
-                            key={field.uniqueKey || field.path}
-                            draggableId={field.uniqueKey || field.path}
-                            index={index}
-                          >
-                            {(provided) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className="p-3 bg-white border border-gray-200 rounded-md cursor-move hover:bg-gray-50"
-                              >
-                                <div className="font-medium">{field.label}</div>
-                                {renderFieldTypeInfo(field)}
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
+                {flattenedFields.map((field, index) => (
+                  <Draggable
+                    key={field.uniqueKey || field.path}
+                    draggableId={field.uniqueKey || field.path}
+                    index={index}
+                  >
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        className="p-3 bg-white border border-gray-200 rounded-md cursor-move hover:bg-gray-50"
+                      >
+                        <div className="font-medium">{field.label}</div>
+                        {renderFieldTypeInfo(field)}
                       </div>
                     )}
-                  </div>
+                  </Draggable>
                 ))}
                 {provided.placeholder}
               </div>
@@ -499,4 +432,4 @@ export function FieldMapper({ wordpressFields, databaseFields, mapping, onMappin
       </div>
     </DragDropContext>
   );
-} 
+}
