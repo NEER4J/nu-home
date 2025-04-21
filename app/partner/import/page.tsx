@@ -224,7 +224,7 @@ export default function ImportPage() {
   };
 
   const fetchProducts = async () => {
-    if (!selectedCategory || !apiUrl) {
+    if (!selectedCategory) {
       alert('Please select a category and enter API URL');
       return;
     }
@@ -232,10 +232,17 @@ export default function ImportPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        throw new Error('Failed to fetch products');
+      // Use proxy endpoint if the user entered the default WordPress API URL
+      let fetchUrl = apiUrl;
+      if (
+        apiUrl.trim() === '' ||
+        apiUrl.trim() === '' ||
+        apiUrl.trim() === 'https://example.com/wp-json/wp/v2/products'
+      ) {
+        fetchUrl = '/api/proxy-endpoint';
       }
+      const response = await fetch(fetchUrl);
+      if (!response.ok) throw new Error('Failed to fetch products');
       const data = await response.json();
       setProducts(data);
       setActiveTab('preview');

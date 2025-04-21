@@ -16,30 +16,28 @@ export default async function AdminDashboard() {
       .from('FormQuestions')
       .select('*', { count: 'exact', head: true })
       .eq('is_deleted', false);
-    
     const { count: categoriesCount } = await supabase
       .from('ServiceCategories')
       .select('*', { count: 'exact', head: true });
-    
-    const { count: submissionsCount } = await supabase
-      .from('QuoteSubmissions')
-      .select('*', { count: 'exact', head: true });
-    
-    const { count: newSubmissionsCount } = await supabase
-      .from('QuoteSubmissions')
+    const { count: partnersCount } = await supabase
+      .from('UserProfiles')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'new');
-    
-    // Get recent submissions
-    const { data: recentSubmissions } = await supabase
-      .from('QuoteSubmissions')
-      .select(`
-        *,
-        ServiceCategories (
-          name
-        )
-      `)
-      .order('submission_date', { ascending: false })
+      .eq('role', 'partner');
+    const { count: productsCount } = await supabase
+      .from('Products')
+      .select('*', { count: 'exact', head: true });
+    // Get 5 most recent partners
+    const { data: recentPartners } = await supabase
+      .from('UserProfiles')
+      .select('*')
+      .eq('role', 'partner')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    // Get 5 most recent categories
+    const { data: recentCategories } = await supabase
+      .from('ServiceCategories')
+      .select('*')
+      .order('created_at', { ascending: false })
       .limit(5);
     
     return (
@@ -122,55 +120,23 @@ export default async function AdminDashboard() {
             </div>
           </div>
 
-          {/* Total Submissions Card */}
-          <div className="bg-white border border-gray-200 rounded-md">
-            <div className="px-4 py-5 sm:p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-purple-100 rounded-md p-3">
-                  <svg className="h-6 w-6 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Submissions
-                    </dt>
-                    <dd className="flex items-baseline">
-                      <div className="text-2xl font-semibold text-gray-900">
-                        {submissionsCount || 0}
-                      </div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 px-4 py-3 sm:px-6 border-t border-gray-200">
-              <div className="text-sm">
-                <Link href="/admin/quote-submissions" className="font-medium text-blue-600 hover:text-blue-500">
-                  View all submissions
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* New Submissions Card */}
+          {/* Partners Card */}
           <div className="bg-white border border-gray-200 rounded-md">
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0 bg-yellow-100 rounded-md p-3">
                   <svg className="h-6 w-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-4V7a4 4 0 10-8 0v2m12 4v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2" />
                   </svg>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      New Submissions
+                      Partners
                     </dt>
                     <dd className="flex items-baseline">
                       <div className="text-2xl font-semibold text-gray-900">
-                        {newSubmissionsCount || 0}
+                        {partnersCount || 0}
                       </div>
                     </dd>
                   </dl>
@@ -179,102 +145,90 @@ export default async function AdminDashboard() {
             </div>
             <div className="bg-gray-50 px-4 py-3 sm:px-6 border-t border-gray-200">
               <div className="text-sm">
-                <Link href="/admin/quote-submissions?status=new" className="font-medium text-blue-600 hover:text-blue-500">
-                  View new submissions
+                <Link href="/admin/partners" className="font-medium text-blue-600 hover:text-blue-500">
+                  View all partners
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Products Card */}
+          <div className="bg-white border border-gray-200 rounded-md">
+            <div className="px-4 py-5 sm:p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 bg-purple-100 rounded-md p-3">
+                  <svg className="h-6 w-6 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Products
+                    </dt>
+                    <dd className="flex items-baseline">
+                      <div className="text-2xl font-semibold text-gray-900">
+                        {productsCount || 0}
+                      </div>
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gray-50 px-4 py-3 sm:px-6 border-t border-gray-200">
+              <div className="text-sm">
+                <Link href="/admin/products" className="font-medium text-blue-600 hover:text-blue-500">
+                  View all products
                 </Link>
               </div>
             </div>
           </div>
         </div>
-        
-        {/* Recent Submissions */}
-        <div className="bg-white border border-gray-200 rounded-md mb-8">
-          <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
-            <div>
-              <h2 className="text-lg font-medium text-gray-900">Recent Quote Submissions</h2>
-              <p className="mt-1 text-sm text-gray-500">Latest quote requests from customers.</p>
+
+        {/* Recent Partners & Categories */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <div className="bg-white border border-gray-200 rounded-md">
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Recent Partners</h2>
             </div>
-            <Link href="/admin/quote-submissions" className="text-sm font-medium text-blue-600 hover:text-blue-500">
-              View all
-            </Link>
+            <ul className="divide-y divide-gray-200">
+              {recentPartners && recentPartners.length > 0 ? recentPartners.map((partner) => (
+                <li key={partner.user_id} className="px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{partner.company_name || partner.email}</div>
+                      <div className="text-xs text-gray-500">Joined {partner.created_at ? new Date(partner.created_at).toLocaleDateString() : ''}</div>
+                    </div>
+                    <Link href={`/admin/partners/${partner.user_id}`} className="text-blue-600 hover:text-blue-700 text-sm">View</Link>
+                  </div>
+                </li>
+              )) : (
+                <li className="px-6 py-4 text-center text-gray-500">No recent partners</li>
+              )}
+            </ul>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-                    Name
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-                    Service
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-                    Date
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-                    Status
-                  </th>
-                  <th scope="col" className="relative px-6 py-3 bg-gray-50">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {recentSubmissions && recentSubmissions.length > 0 ? (
-                  recentSubmissions.map((submission) => (
-                    <tr key={submission.submission_id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {submission.first_name} {submission.last_name}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {submission.email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{submission.ServiceCategories?.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {new Date(submission.submission_date).toLocaleDateString()}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(submission.submission_date).toLocaleTimeString()}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                          ${submission.status === 'new' ? 'bg-green-100 text-green-800' : 
-                            submission.status === 'processed' ? 'bg-blue-100 text-blue-800' :
-                            submission.status === 'qualified' ? 'bg-purple-100 text-purple-800' :
-                            'bg-gray-100 text-gray-800'}`
-                        }>
-                          {submission.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link href={`/admin/quote-submissions/${submission.submission_id}`} className="text-blue-600 hover:text-blue-700">
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                      No submissions found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="bg-white border border-gray-200 rounded-md">
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Recent Categories</h2>
+            </div>
+            <ul className="divide-y divide-gray-200">
+              {recentCategories && recentCategories.length > 0 ? recentCategories.map((category) => (
+                <li key={category.service_category_id} className="px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{category.name}</div>
+                      <div className="text-xs text-gray-500">Added {category.created_at ? new Date(category.created_at).toLocaleDateString() : ''}</div>
+                    </div>
+                    <Link href={`/admin/service-categories/${category.service_category_id}`} className="text-blue-600 hover:text-blue-700 text-sm">View</Link>
+                  </div>
+                </li>
+              )) : (
+                <li className="px-6 py-4 text-center text-gray-500">No recent categories</li>
+              )}
+            </ul>
           </div>
         </div>
-        
+
         {/* Quick Actions */}
         <div className="bg-white border border-gray-200 rounded-md">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -310,22 +264,6 @@ export default async function AdminDashboard() {
                     <div className="ml-4">
                       <h3 className="text-lg font-medium text-gray-900">Add Service Category</h3>
                       <p className="mt-1 text-sm text-gray-500">Create a new service category.</p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-              
-              <Link href="/admin/quote-submissions?status=new" className="group block">
-                <div className="p-5 border border-gray-200 rounded-md hover:border-purple-300 transition-colors duration-200">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 bg-purple-100 rounded-md p-3 group-hover:bg-purple-200 transition-colors duration-200">
-                      <svg className="h-6 w-6 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-medium text-gray-900">Process New Submissions</h3>
-                      <p className="mt-1 text-sm text-gray-500">Review and process new quote requests.</p>
                     </div>
                   </div>
                 </div>
@@ -369,11 +307,6 @@ export default async function AdminDashboard() {
               <Link href="/admin/form-questions" className="rounded-md bg-white px-6 py-5 border border-gray-200 hover:border-blue-300 transition-colors duration-200">
                 <div className="font-medium text-gray-900">Form Questions</div>
                 <div className="mt-2 text-sm text-gray-500">Manage form questions</div>
-              </Link>
-              
-              <Link href="/admin/quote-submissions" className="rounded-md bg-white px-6 py-5 border border-gray-200 hover:border-blue-300 transition-colors duration-200">
-                <div className="font-medium text-gray-900">Quote Submissions</div>
-                <div className="mt-2 text-sm text-gray-500">View user submissions</div>
               </Link>
             </div>
           </div>

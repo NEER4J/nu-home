@@ -140,14 +140,6 @@ export default async function ServiceCategoriesPage() {
                       >
                         Edit
                       </Link>
-                      <Link
-                        href={`/services/${category.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-5 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
-                      >
-                        View Live
-                      </Link>
                     </div>
                   </div>
                 </li>
