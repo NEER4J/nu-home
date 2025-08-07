@@ -1,0 +1,660 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { Search, MapPin, ChevronDown } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+
+interface Address {
+  address_line_1: string
+  address_line_2?: string
+  street_name?: string
+  street_number?: string
+  building_name?: string
+  sub_building?: string
+  town_or_city: string
+  county?: string
+  postcode: string
+  formatted_address: string
+  country?: string
+}
+
+interface PostcodeStepProps {
+  value: string;
+  onValueChange: (postcode: string) => void;
+  onNext: () => void;
+  onPrevious: () => void;
+}
+
+export default function PostcodeStep({
+  value,
+  onValueChange,
+  onNext,
+  onPrevious
+}: PostcodeStepProps) {
+  const [postcode, setPostcode] = useState(value)
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [showManualEntry, setShowManualEntry] = useState(false)
+  const [manualAddress, setManualAddress] = useState({
+    address_line_1: '',
+    address_line_2: '',
+    town_or_city: '',
+    county: '',
+    postcode: '',
+    country: 'United Kingdom'
+  })
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  // Search addresses using Google Places API
+  const searchAddresses = async (postcode: string, isLiveSearch = false) => {
+    if (!postcode.trim() || postcode.trim().length < 3) {
+      setAddresses([])
+      setShowDropdown(false)
+      setHighlightedIndex(-1)
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    
+    try {
+      const response = await fetch(`/api/places?postcode=${encodeURIComponent(postcode)}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
+      if (!data.addresses || data.addresses.length === 0) {
+        if (!isLiveSearch) {
+          setError('No addresses found for this postcode. Please check and try again.')
+        }
+        setAddresses([])
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+        return
+      }
+      
+      setAddresses(data.addresses)
+      setShowDropdown(true)
+      setHighlightedIndex(-1)
+      // Reset refs array for new addresses
+      itemRefs.current = new Array(data.addresses.length).fill(null)
+    } catch (err) {
+      console.error('Address search error:', err)
+      if (!isLiveSearch) {
+        setError('Failed to search addresses. Please try again.')
+      }
+      setAddresses([])
+      setShowDropdown(false)
+      setHighlightedIndex(-1)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddressSelect = (address: Address) => {
+    setSelectedAddress(address)
+    setShowDropdown(false)
+    setHighlightedIndex(-1)
+    setPostcode(address.postcode)
+    onValueChange(address.postcode)
+  }
+
+  // Handle manual address submission
+  const handleManualAddressSubmit = () => {
+    const { address_line_1, town_or_city, postcode } = manualAddress
+    
+    // Basic validation
+    if (!address_line_1.trim() || !town_or_city.trim() || !postcode.trim()) {
+      setError('Please fill in all required fields')
+      return
+    }
+
+    // Create formatted address object
+    const formattedAddress: Address = {
+      address_line_1: manualAddress.address_line_1.trim(),
+      address_line_2: manualAddress.address_line_2.trim() || undefined,
+      town_or_city: manualAddress.town_or_city.trim(),
+      county: manualAddress.county.trim() || undefined,
+      postcode: manualAddress.postcode.trim().toUpperCase(),
+      country: manualAddress.country,
+      formatted_address: `${manualAddress.address_line_1}${manualAddress.address_line_2 ? ', ' + manualAddress.address_line_2 : ''}, ${manualAddress.town_or_city}${manualAddress.county ? ', ' + manualAddress.county : ''}, ${manualAddress.postcode}, ${manualAddress.country}`
+    }
+
+    setSelectedAddress(formattedAddress)
+    onValueChange(formattedAddress.postcode)
+    setError('')
+  }
+
+  // Handle manual address input changes
+  const handleManualInputChange = (field: string, value: string) => {
+    setManualAddress(prev => ({
+      ...prev,
+      [field]: value
+    }))
+    setError('')
+  }
+
+  // Scroll highlighted item into view
+  const scrollToHighlightedItem = (index: number) => {
+    if (itemRefs.current[index]) {
+      itemRefs.current[index]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    }
+  }
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showDropdown || addresses.length === 0) {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        if (postcode.trim().length >= 3) {
+          searchAddresses(postcode.trim())
+        }
+      }
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setHighlightedIndex(prev => {
+          const newIndex = prev < addresses.length - 1 ? prev + 1 : 0
+          setTimeout(() => scrollToHighlightedItem(newIndex), 0)
+          return newIndex
+        })
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setHighlightedIndex(prev => {
+          const newIndex = prev > 0 ? prev - 1 : addresses.length - 1
+          setTimeout(() => scrollToHighlightedItem(newIndex), 0)
+          return newIndex
+        })
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (highlightedIndex >= 0 && highlightedIndex < addresses.length) {
+          handleAddressSelect(addresses[highlightedIndex])
+        }
+        break
+      case 'Escape':
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+        inputRef.current?.blur()
+        break
+    }
+  }
+
+  const formatPostcode = (value: string) => {
+    // Basic UK postcode formatting
+    const cleaned = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+    if (cleaned.length <= 4) return cleaned
+    return `${cleaned.slice(0, -3)} ${cleaned.slice(-3)}`
+  }
+
+  const handlePostcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPostcode(e.target.value)
+    setPostcode(formatted)
+    setError('')
+    setSelectedAddress(null)
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
+    }
+    
+    // Set new timeout for live search
+    const newTimeout = setTimeout(() => {
+      if (formatted.trim().length >= 3) {
+        searchAddresses(formatted.trim(), true)
+      } else {
+        setAddresses([])
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+      }
+    }, 300) // 300ms delay for live search
+    
+    setSearchTimeout(newTimeout)
+  }
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      // Cleanup timeout on unmount
+      if (searchTimeout) {
+        clearTimeout(searchTimeout)
+      }
+    }
+  }, [searchTimeout])
+
+  // Update state when initial values change
+  useEffect(() => {
+    if (value !== postcode && value !== undefined && value !== '') {
+      setPostcode(value)
+    }
+  }, [value])
+
+  return (
+    <div className="space-y-6">
+      {/* Postcode Search */}
+      {!showManualEntry && (
+        <div className="space-y-4">
+          <div className="relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={postcode}
+              onChange={handlePostcodeChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Start typing your postcode (e.g. SW1A 1AA)"
+              className="w-full p-4 px-6 pr-12 bg-white text-gray-900 text-lg border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              maxLength={8}
+              autoComplete="postal-code"
+            />
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2">
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Search size={20} className="text-gray-400" />
+              )}
+            </div>
+          </div>
+          
+          {error && (
+            <p className="text-red-600 text-sm">{error}</p>
+          )}
+        </div>
+      )}
+
+      {/* Address Dropdown */}
+      {!showManualEntry && (
+        <div className="relative" ref={dropdownRef}>
+          <AnimatePresence>
+            {showDropdown && addresses.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="absolute top-0 left-0 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+              >
+                <div className="p-2">
+                  <p className="text-sm text-gray-600 px-3 py-2 border-b">
+                    Select your address (use ↑↓ arrow keys and Enter):
+                  </p>
+                  <div>
+                    {addresses.map((address, index) => (
+                      <button
+                        key={index}
+                        ref={(el) => { itemRefs.current[index] = el }}
+                        onClick={() => handleAddressSelect(address)}
+                        className={`w-full text-left p-3 rounded-md flex items-start space-x-3 transition-colors ${
+                          index === highlightedIndex 
+                            ? 'bg-blue-50 border-l-4 border-blue-500' 
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <MapPin size={16} className={`mt-1 flex-shrink-0 ${
+                          index === highlightedIndex ? 'text-blue-500' : 'text-gray-400'
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <p className="font-medium text-gray-900 truncate">{address.address_line_1}</p>
+                            {address.street_number && (
+                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                #{address.street_number}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {address.address_line_2 && (
+                            <p className="text-sm text-gray-600 mb-1">{address.address_line_2}</p>
+                          )}
+                          
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                            <span>{address.town_or_city}</span>
+                            {address.county && (
+                              <>
+                                <span>•</span>
+                                <span>{address.county}</span>
+                              </>
+                            )}
+                            <span>•</span>
+                            <span className="font-medium">{address.postcode}</span>
+                          </div>
+                          
+                          {(address.building_name || address.sub_building) && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {address.building_name && (
+                                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                                  {address.building_name}
+                                </span>
+                              )}
+                              {address.sub_building && (
+                                <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded">
+                                  Unit {address.sub_building}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {addresses.length > 5 && (
+                    <p className="text-xs text-gray-500 px-3 py-2 border-t bg-gray-50">
+                      Showing {addresses.length} addresses • Use arrow keys to navigate
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Selected Address Display */}
+      {selectedAddress && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-green-50 border border-green-200 rounded-lg p-4"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <MapPin size={16} className="text-green-600" />
+              <span className="text-sm font-medium text-green-800">Selected Address:</span>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => {
+                  // Set up manual editing with current address
+                  setManualAddress({
+                    address_line_1: selectedAddress.address_line_1 || '',
+                    address_line_2: selectedAddress.address_line_2 || '',
+                    town_or_city: selectedAddress.town_or_city || '',
+                    county: selectedAddress.county || '',
+                    postcode: selectedAddress.postcode || '',
+                    country: selectedAddress.country || 'United Kingdom'
+                  })
+                  setSelectedAddress(null)
+                  setShowManualEntry(true)
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700 underline"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedAddress(null)
+                  setPostcode('')
+                  setError('')
+                  setShowDropdown(false)
+                  setHighlightedIndex(-1)
+                  inputRef.current?.focus()
+                }}
+                className="text-sm text-green-700 hover:text-green-800 underline"
+              >
+                Change
+              </button>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="text-gray-900">
+              <p className="font-semibold text-lg">{selectedAddress.address_line_1}</p>
+              {selectedAddress.address_line_2 && (
+                <p className="text-gray-700">{selectedAddress.address_line_2}</p>
+              )}
+            </div>
+            
+            <div className="text-gray-700">
+              <p>{selectedAddress.town_or_city}</p>
+              {selectedAddress.county && (
+                <p className="text-sm">{selectedAddress.county}</p>
+              )}
+              <p className="font-medium">{selectedAddress.postcode}</p>
+              {selectedAddress.country && (
+                <p className="text-sm text-gray-500">{selectedAddress.country}</p>
+              )}
+            </div>
+            
+            {(selectedAddress.building_name || selectedAddress.sub_building || selectedAddress.street_name) && (
+              <div className="pt-2 border-t border-green-200">
+                <p className="text-xs font-medium text-green-800 mb-1">Additional Details:</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedAddress.street_name && (
+                    <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded border">
+                      Street: {selectedAddress.street_name}
+                    </span>
+                  )}
+                  {selectedAddress.building_name && (
+                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-200">
+                      Building: {selectedAddress.building_name}
+                    </span>
+                  )}
+                  {selectedAddress.sub_building && (
+                    <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-200">
+                      Unit: {selectedAddress.sub_building}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Manual Address Input Option */}
+      {!selectedAddress && !showManualEntry && (
+        <div className="text-center">
+          <p className="text-sm text-gray-600 mb-2">Can't find your address?</p>
+          <button
+            type="button"
+            onClick={() => setShowManualEntry(true)}
+            className="text-blue-600 hover:underline text-sm font-medium"
+          >
+            Enter address manually
+          </button>
+        </div>
+      )}
+
+      {/* Manual Address Entry Form */}
+      {showManualEntry && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4 p-6 bg-gray-50 rounded-lg border"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900">Enter your address</h3>
+            <button
+              type="button"
+              onClick={() => setShowManualEntry(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="address_line_1" className="block text-sm font-medium text-gray-700 mb-1">
+                Address Line 1 *
+              </label>
+              <input
+                type="text"
+                id="address_line_1"
+                value={manualAddress.address_line_1}
+                onChange={(e) => handleManualInputChange('address_line_1', e.target.value)}
+                placeholder="House number and street name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="address_line_2" className="block text-sm font-medium text-gray-700 mb-1">
+                Address Line 2
+              </label>
+              <input
+                type="text"
+                id="address_line_2"
+                value={manualAddress.address_line_2}
+                onChange={(e) => handleManualInputChange('address_line_2', e.target.value)}
+                placeholder="Apartment, suite, etc. (optional)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="town_or_city" className="block text-sm font-medium text-gray-700 mb-1">
+                  Town/City *
+                </label>
+                <input
+                  type="text"
+                  id="town_or_city"
+                  value={manualAddress.town_or_city}
+                  onChange={(e) => handleManualInputChange('town_or_city', e.target.value)}
+                  placeholder="Town or city"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="county" className="block text-sm font-medium text-gray-700 mb-1">
+                  County
+                </label>
+                <input
+                  type="text"
+                  id="county"
+                  value={manualAddress.county}
+                  onChange={(e) => handleManualInputChange('county', e.target.value)}
+                  placeholder="County (optional)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="manual_postcode" className="block text-sm font-medium text-gray-700 mb-1">
+                  Postcode *
+                </label>
+                <input
+                  type="text"
+                  id="manual_postcode"
+                  value={manualAddress.postcode}
+                  onChange={(e) => handleManualInputChange('postcode', e.target.value.toUpperCase())}
+                  placeholder="Postcode"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+                  Country
+                </label>
+                <select
+                  id="country"
+                  value={manualAddress.country}
+                  onChange={(e) => handleManualInputChange('country', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="Ireland">Ireland</option>
+                  <option value="United States">United States</option>
+                  <option value="Canada">Canada</option>
+                  <option value="Australia">Australia</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {error && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-red-600 text-sm"
+            >
+              {error}
+            </motion.p>
+          )}
+
+          <div className="flex space-x-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowManualEntry(false)}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleManualAddressSubmit}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Use this address
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Navigation buttons */}
+      <div className="flex justify-between pt-6 max-w-md mx-auto">
+        <button
+          type="button"
+          onClick={onPrevious}
+          className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          Previous
+        </button>
+        
+        <button
+          type="button"
+          onClick={() => {
+            if (selectedAddress) {
+              onNext()
+            } else {
+              setError('Please select an address to continue')
+            }
+          }}
+          disabled={!selectedAddress}
+          className={`px-6 py-2 rounded-md transition-colors ${
+            selectedAddress
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}

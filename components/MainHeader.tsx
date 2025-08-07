@@ -8,8 +8,9 @@ import { signOutAction } from "@/app/actions"
 export default function MainHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
   const pathname = usePathname()
   const isCategoryPage = pathname?.startsWith('/category')
+  const isBoilerPage = pathname?.startsWith('/boiler')
 
-  if (isCategoryPage) {
+  if (isCategoryPage || isBoilerPage) {
     return null
   }
 

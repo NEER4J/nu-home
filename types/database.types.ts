@@ -42,6 +42,7 @@ export interface FormQuestion {
   question_id: string;
   service_category_id: string;
   question_text: string;
+  helper_text?: string;
   step_number: number;
   display_order_in_step: number;
   is_multiple_choice: boolean;

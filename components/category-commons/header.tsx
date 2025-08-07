@@ -1,0 +1,209 @@
+"use client";
+
+import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { ChevronDown, Phone, Mail, MessageCircle } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+
+interface PartnerInfo {
+  company_name: string;
+  contact_person?: string;
+  postcode?: string;
+  subdomain?: string;
+  business_description?: string;
+  website_url?: string;
+  logo_url?: string;
+  user_id: string;
+  phone?: string;
+}
+
+interface HeaderProps {
+  partnerInfo?: PartnerInfo;
+}
+
+export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
+  const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
+  const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(propPartnerInfo || null);
+  const [loading, setLoading] = useState(!propPartnerInfo);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch partner info from subdomain if not provided as prop
+  useEffect(() => {
+    async function fetchPartnerFromSubdomain() {
+      if (propPartnerInfo) {
+        setPartnerInfo(propPartnerInfo);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const supabase = createClient();
+        
+        // Get subdomain from hostname
+        const hostname = window.location.hostname;
+        const subdomain = hostname.split('.')[0];
+        
+        if (subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
+          const { data: partner, error } = await supabase
+            .from('UserProfiles')
+            .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone')
+            .eq('subdomain', subdomain)
+            .eq('status', 'active')
+            .single();
+          
+          if (!error && partner) {
+            setPartnerInfo(partner);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching partner from subdomain:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchPartnerFromSubdomain();
+  }, [propPartnerInfo]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsHelpDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Show loading state while fetching partner info
+  if (loading) {
+    return (
+      <header className="bg-white border-b border-gray-200 absolute w-full z-50 top-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="bg-black text-white px-3 py-1 rounded-md font-bold text-lg">
+              heatable
+            </div>
+            <div className="w-16 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  return (
+    <header className="bg-white border-b border-gray-200 absolute w-full z-50 top-0">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo - Dynamic based on partner or default */}
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center space-x-3">
+              {partnerInfo?.logo_url ? (
+                <img
+                  src={partnerInfo.logo_url}
+                  alt={partnerInfo.company_name}
+                  className="h-8 w-auto"
+                />
+              ) : (
+                <div className="bg-black text-white px-3 py-1 rounded-md font-bold text-lg">
+                  {partnerInfo?.company_name || 'heatable'}
+                </div>
+              )}
+              {partnerInfo && !partnerInfo.logo_url && (
+                <span className="text-gray-600 text-sm">
+                  {partnerInfo.company_name}
+                </span>
+              )}
+            </Link>
+          </div>
+
+          {/* Help Button with Dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsHelpDropdownOpen(!isHelpDropdownOpen)}
+              className="inline-flex items-center px-4 py-2 bg-black text-white rounded-full text-sm font-medium hover:bg-gray-800 transition-colors"
+            >
+              Help
+              <ChevronDown 
+                className={`ml-2 h-4 w-4 transition-transform ${
+                  isHelpDropdownOpen ? 'rotate-180' : ''
+                }`} 
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isHelpDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                <div className="p-4">
+                  {/* Chat Option */}
+                  <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <MessageCircle className="h-5 w-5 text-green-600" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">Chat with us</p>
+                      <button className="text-sm text-gray-600 hover:text-gray-800 underline">
+                        Start chat
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Call Option */}
+                  <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Phone className="h-5 w-5 text-blue-600" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-700">We'll call you</p>
+                      <button className="text-sm text-gray-900 hover:text-gray-700 underline font-medium">
+                        Request callback
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Phone Number or Default */}
+                  <div className="border-t border-gray-100 pt-3 mt-3">
+                    <p className="text-xs text-gray-500 mb-1">
+                      {partnerInfo ? `Speak to ${partnerInfo.company_name}` : 'Speak to our team'}
+                    </p>
+                    <a
+                      href={`tel:${partnerInfo?.phone?.replace(/\s/g, '') || '03301131333'}`}
+                      className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                    >
+                      {partnerInfo?.phone || '0330 113 1333'}
+                    </a>
+                    <div className="flex items-center mt-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                      <span className="text-xs text-gray-500">Lines are open</span>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Email or Default */}
+                  <div className="border-t border-gray-100 pt-3 mt-3">
+                    <div className="flex items-center space-x-2">
+                      <Mail className="h-4 w-4 text-gray-400" />
+                      <a
+                        href={`mailto:${partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : 'help@heatable.co.uk'}`}
+                        className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                      >
+                        {partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : 'help@heatable.co.uk'}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
