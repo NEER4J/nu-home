@@ -45,13 +45,27 @@ export async function POST(req: NextRequest) {
     // Get partner ID from URL if present
     const url = new URL(req.url);
     const partnerId = url.searchParams.get('partner_id');
-    const subdomain = url.searchParams.get('subdomain');
-
+    
+    // Get subdomain from hostname (same logic as header component)
+    const hostname = req.headers.get('host') || '';
+    const subdomain = hostname.split('.')[0];
+    
+    console.log('Hostname:', hostname);
+    console.log('Extracted subdomain:', subdomain);
+    console.log('Form data assigned_partner_id:', formData.assigned_partner_id);
+    console.log('URL partner_id:', partnerId);
+    
     // Get partner's user ID if partner ID or subdomain is present
     let assignedPartnerId = null;
     
-    // First try to get partner from direct ID
-    if (partnerId) {
+    // First try to get partner from form data (assigned_partner_id)
+    if (formData.assigned_partner_id) {
+      assignedPartnerId = formData.assigned_partner_id;
+      console.log('Partner assigned from form data:', assignedPartnerId);
+    }
+    
+    // If no partner from form data, try to get partner from URL parameter
+    if (!assignedPartnerId && partnerId) {
       const { data: partner } = await supabase
         .from('UserProfiles')
         .select('user_id')
@@ -60,25 +74,31 @@ export async function POST(req: NextRequest) {
 
       if (partner) {
         assignedPartnerId = partner.user_id;
-        console.log('Partner assigned from partner_id:', assignedPartnerId);
+        console.log('Partner assigned from partner_id URL param:', assignedPartnerId);
+      } else {
+        console.log('No partner found for partner_id:', partnerId);
       }
     }
     
     // If no partner found and subdomain is present, try to get partner from subdomain
-    if (!assignedPartnerId && subdomain) {
+    if (!assignedPartnerId && subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
       const { data: partner } = await supabase
         .from('UserProfiles')
         .select('user_id')
         .eq('subdomain', subdomain)
+        .eq('status', 'active')
         .single();
 
       if (partner) {
         assignedPartnerId = partner.user_id;
         console.log('Partner assigned from subdomain:', assignedPartnerId);
+      } else {
+        console.log('No partner found for subdomain:', subdomain);
       }
     }
 
     console.log('Final assigned partner ID:', assignedPartnerId);
+    console.log('Assignment date:', assignedPartnerId ? new Date().toISOString() : null);
     
     // Insert into partner_leads table
     const { data: partnerLead, error: partnerLeadError } = await supabase
@@ -109,36 +129,8 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Insert into QuoteSubmissions table
-    const { data: submission, error: submissionError } = await supabase
-      .from('QuoteSubmissions')
-      .insert({
-        service_category_id: formData.service_category_id,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        phone: formData.phone || null,
-        city: formData.city || null,
-        postcode: formData.postcode,
-        ip_address: req.headers.get('x-forwarded-for') || null,
-        user_agent: req.headers.get('user-agent') || null,
-        referral_source: req.headers.get('referer') || null,
-        status: 'new',
-        form_answers: formAnswers
-      })
-      .select()
-      .single();
-    
-    if (submissionError) {
-      console.error('Error submitting quote:', submissionError);
-      return NextResponse.json(
-        { error: 'Failed to submit quote request' },
-        { status: 500 }
-      );
-    }
-    
     return NextResponse.json(
-      { success: true, data: submission },
+      { success: true, data: partnerLead },
       { status: 201 }
     );
     

@@ -15,6 +15,7 @@ interface PartnerInfo {
   logo_url?: string;
   user_id: string;
   phone?: string;
+  company_color?: string;
 }
 
 interface HeaderProps {
@@ -46,7 +47,7 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
         if (subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
           const { data: partner, error } = await supabase
             .from('UserProfiles')
-            .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone')
+            .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color')
             .eq('subdomain', subdomain)
             .eq('status', 'active')
             .single();
@@ -79,21 +80,12 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
     };
   }, []);
 
-  // Show loading state while fetching partner info
-  if (loading) {
-    return (
-      <header className="bg-white border-b border-gray-200 absolute w-full z-50 top-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="bg-black text-white px-3 py-1 rounded-md font-bold text-lg">
-              heatable
-            </div>
-            <div className="w-16 h-8 bg-gray-200 rounded-full animate-pulse"></div>
-          </div>
-        </div>
-      </header>
-    );
-  }
+  // Get dynamic color based on partner info
+  const getDynamicColor = () => {
+    return partnerInfo?.company_color || '#000000'; // Default to black if no company color
+  };
+
+
 
   return (
     <header className="bg-white border-b border-gray-200 absolute w-full z-50 top-0">
@@ -110,7 +102,7 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
                 />
               ) : (
                 <div className="bg-black text-white px-3 py-1 rounded-md font-bold text-lg">
-                  {partnerInfo?.company_name || 'heatable'}
+                  {partnerInfo?.company_name}
                 </div>
               )}
               {partnerInfo && !partnerInfo.logo_url && (
@@ -125,7 +117,8 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsHelpDropdownOpen(!isHelpDropdownOpen)}
-              className="inline-flex items-center px-4 py-2 bg-black text-white rounded-full text-sm font-medium hover:bg-gray-800 transition-colors"
+              className="inline-flex items-center px-4 py-2 text-white rounded-full text-sm font-medium hover:opacity-90 transition-colors"
+              style={{ backgroundColor: getDynamicColor() }}
             >
               Help
               <ChevronDown 
@@ -191,10 +184,10 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
                     <div className="flex items-center space-x-2">
                       <Mail className="h-4 w-4 text-gray-400" />
                       <a
-                        href={`mailto:${partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : 'help@heatable.co.uk'}`}
+                        href={`mailto:${partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : ''}`}
                         className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
                       >
-                        {partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : 'help@heatable.co.uk'}
+                        {partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : ''}
                       </a>
                     </div>
                   </div>

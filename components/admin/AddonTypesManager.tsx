@@ -53,7 +53,7 @@ export default function AddonTypesManager({ categoryId }: AddonTypesManagerProps
     }
 
     fetchAddonTypes();
-  }, [categoryId, supabase]);
+  }, [categoryId]);
 
   // Add a new empty addon type
   const addAddonType = () => {

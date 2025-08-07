@@ -39,7 +39,7 @@ export default function CategoryUrlSection({ slug, userId }: CategoryUrlSectionP
     }
 
     generateUrl();
-  }, [userId, slug, supabase]);
+  }, [userId, slug]);
 
   if (!url) return null;
 

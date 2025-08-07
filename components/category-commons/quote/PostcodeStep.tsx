@@ -23,13 +23,15 @@ interface PostcodeStepProps {
   onValueChange: (postcode: string) => void;
   onNext: () => void;
   onPrevious: () => void;
+  companyColor?: string;
 }
 
 export default function PostcodeStep({
   value,
   onValueChange,
   onNext,
-  onPrevious
+  onPrevious,
+  companyColor = '#2563eb'
 }: PostcodeStepProps) {
   const [postcode, setPostcode] = useState(value)
   const [addresses, setAddresses] = useState<Address[]>([])
@@ -271,7 +273,18 @@ export default function PostcodeStep({
               onChange={handlePostcodeChange}
               onKeyDown={handleKeyDown}
               placeholder="Start typing your postcode (e.g. SW1A 1AA)"
-              className="w-full p-4 px-6 pr-12 bg-white text-gray-900 text-lg border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-4 px-6 pr-12 bg-white text-gray-900 text-lg border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{
+                '--tw-ring-color': companyColor,
+              } as React.CSSProperties}
+              onFocus={(e) => {
+                e.target.style.borderColor = companyColor;
+                e.target.style.boxShadow = `0 0 0 2px ${companyColor}40`;
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db';
+                e.target.style.boxShadow = 'none';
+              }}
               maxLength={8}
               autoComplete="postal-code"
             />
@@ -314,13 +327,17 @@ export default function PostcodeStep({
                         onClick={() => handleAddressSelect(address)}
                         className={`w-full text-left p-3 rounded-md flex items-start space-x-3 transition-colors ${
                           index === highlightedIndex 
-                            ? 'bg-blue-50 border-l-4 border-blue-500' 
+                            ? 'border-l-4' 
                             : 'hover:bg-gray-50'
                         }`}
+                        style={index === highlightedIndex ? {
+                          backgroundColor: companyColor ? `${companyColor}10` : '#dbeafe',
+                          borderLeftColor: companyColor || '#3b82f6'
+                        } : {}}
                       >
                         <MapPin size={16} className={`mt-1 flex-shrink-0 ${
-                          index === highlightedIndex ? 'text-blue-500' : 'text-gray-400'
-                        }`} />
+                          index === highlightedIndex ? '' : 'text-gray-400'
+                        }`} style={index === highlightedIndex ? { color: companyColor || '#3b82f6' } : {}} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2 mb-1">
                             <p className="font-medium text-gray-900 truncate">{address.address_line_1}</p>
@@ -350,7 +367,10 @@ export default function PostcodeStep({
                           {(address.building_name || address.sub_building) && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {address.building_name && (
-                                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                                <span className="text-xs px-2 py-1 rounded" style={{
+                                  backgroundColor: companyColor ? `${companyColor}20` : '#dbeafe',
+                                  color: companyColor || '#1d4ed8'
+                                }}>
                                   {address.building_name}
                                 </span>
                               )}
@@ -406,7 +426,8 @@ export default function PostcodeStep({
                   setSelectedAddress(null)
                   setShowManualEntry(true)
                 }}
-                className="text-sm text-blue-600 hover:text-blue-700 underline"
+                className="text-sm underline hover:opacity-80 transition-opacity"
+                style={{ color: companyColor || '#2563eb' }}
               >
                 Edit
               </button>
@@ -455,7 +476,11 @@ export default function PostcodeStep({
                     </span>
                   )}
                   {selectedAddress.building_name && (
-                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-200">
+                    <span className="text-xs px-2 py-1 rounded border" style={{
+                      backgroundColor: companyColor ? `${companyColor}20` : '#dbeafe',
+                      color: companyColor || '#1d4ed8',
+                      borderColor: companyColor ? `${companyColor}40` : '#93c5fd'
+                    }}>
                       Building: {selectedAddress.building_name}
                     </span>
                   )}
@@ -478,7 +503,7 @@ export default function PostcodeStep({
           <button
             type="button"
             onClick={() => setShowManualEntry(true)}
-            className="text-blue-600 hover:underline text-sm font-medium"
+            className="hover:underline text-sm font-medium transition-opacity hover:opacity-80 company-text"
           >
             Enter address manually
           </button>
@@ -514,7 +539,16 @@ export default function PostcodeStep({
                 value={manualAddress.address_line_1}
                 onChange={(e) => handleManualInputChange('address_line_1', e.target.value)}
                 placeholder="House number and street name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                style={{
+                  '--tw-ring-color': companyColor || '#3b82f6'
+                } as React.CSSProperties}
+                onFocus={(e) => {
+                  e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                }}
+                onBlur={(e) => {
+                  e.target.style.boxShadow = '';
+                }}
               />
             </div>
 
@@ -528,7 +562,16 @@ export default function PostcodeStep({
                 value={manualAddress.address_line_2}
                 onChange={(e) => handleManualInputChange('address_line_2', e.target.value)}
                 placeholder="Apartment, suite, etc. (optional)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                style={{
+                  '--tw-ring-color': companyColor || '#3b82f6'
+                } as React.CSSProperties}
+                onFocus={(e) => {
+                  e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                }}
+                onBlur={(e) => {
+                  e.target.style.boxShadow = '';
+                }}
               />
             </div>
 
@@ -543,7 +586,16 @@ export default function PostcodeStep({
                   value={manualAddress.town_or_city}
                   onChange={(e) => handleManualInputChange('town_or_city', e.target.value)}
                   placeholder="Town or city"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{
+                    '--tw-ring-color': companyColor || '#3b82f6'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.boxShadow = '';
+                  }}
                 />
               </div>
 
@@ -557,7 +609,16 @@ export default function PostcodeStep({
                   value={manualAddress.county}
                   onChange={(e) => handleManualInputChange('county', e.target.value)}
                   placeholder="County (optional)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{
+                    '--tw-ring-color': companyColor || '#3b82f6'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.boxShadow = '';
+                  }}
                 />
               </div>
             </div>
@@ -618,7 +679,8 @@ export default function PostcodeStep({
             <button
               type="button"
               onClick={handleManualAddressSubmit}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="flex-1 px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors"
+              style={{ backgroundColor: companyColor }}
             >
               Use this address
             </button>
@@ -627,15 +689,8 @@ export default function PostcodeStep({
       )}
 
       {/* Navigation buttons */}
-      <div className="flex justify-between pt-6 max-w-md mx-auto">
-        <button
-          type="button"
-          onClick={onPrevious}
-          className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          Previous
-        </button>
-        
+      <div className="flex justify-center pt-6 max-w-md mx-auto">
+
         <button
           type="button"
           onClick={() => {
@@ -648,9 +703,10 @@ export default function PostcodeStep({
           disabled={!selectedAddress}
           className={`px-6 py-2 rounded-md transition-colors ${
             selectedAddress
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              ? 'text-white hover:opacity-90'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
+          style={selectedAddress ? { backgroundColor: companyColor } : {}}
         >
           Next
         </button>

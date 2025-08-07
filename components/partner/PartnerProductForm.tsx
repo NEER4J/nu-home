@@ -103,7 +103,7 @@ export default function PartnerProductForm({
     }
     
     checkSession();
-  }, [supabase]);
+  }, []);
   
   // Generate slug from name
   const generateSlug = (name: string) => {
@@ -224,7 +224,7 @@ export default function PartnerProductForm({
     
     fetchCategoryFields();
     // Only run when category changes
-  }, [selectedCategory, supabase]);
+  }, [selectedCategory]);
   
   // Handle dynamic field changes
   const handleFieldChange = (key: string, value: any) => {

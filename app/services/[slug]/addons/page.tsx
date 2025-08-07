@@ -157,7 +157,7 @@ export default function AddonsPage({
     }
 
     fetchData()
-  }, [supabase, resolvedParams.slug])
+  }, [resolvedParams.slug])
 
   const handleQuantityChange = (addon: Addon, change: number) => {
     const currentQty = selectedAddons[addon.addon_id] || 0

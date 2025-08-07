@@ -6,7 +6,7 @@ import { FormQuestion } from '@/types/database.types';
 import { motion, AnimatePresence } from 'framer-motion';
 import QuestionsStep from './QuestionsStep';
 import PostcodeStep from './PostcodeStep';
-import ContactDetailsStep from './ContactDetailsStep';
+import UserInfoForm from '../category-commons/quote/UserInfoForm';
 import ThankYouMessage from './ThankYouMessage';
 
 interface QuoteFormProps {
@@ -52,6 +52,7 @@ export default function QuoteForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>({});
+  const [userInfo, setUserInfo] = useState<any>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [submissionData, setSubmissionData] = useState<any>(null);
   
@@ -223,10 +224,11 @@ export default function QuoteForm({
     } else {
       // This is the contact details step
       return (
-        <ContactDetailsStep
+        <UserInfoForm
+          initialUserInfo={userInfo}
           formValues={formValues}
+          onUserInfoChange={setUserInfo}
           onSubmit={handleSubmit}
-          onPrevious={handlePrevStep}
         />
       );
     }

@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { FormQuestion } from '@/types/database.types';
-import { motion, AnimatePresence } from 'framer-motion';
-import { HelpCircle, ChevronLeft, Info, Check, MessageCircle, Phone } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import PostcodeStep from '@/components/category-commons/quote/PostcodeStep';
-import ContactDetailsStep from '@/components/category-commons/quote/ContactDetailsStep';
+import UserInfoForm from '@/components/category-commons/quote/UserInfoForm';
+import QuoteFormSteps from '@/components/category-commons/quote/QuoteFormSteps';
+import { useDynamicStyles } from '@/hooks/use-dynamic-styles';
 
 interface HeatingQuotePageProps {
   serviceCategoryId?: string;
@@ -22,6 +23,8 @@ interface HeatingQuotePageProps {
     logo_url?: string;
     user_id: string;
     phone?: string;
+    company_color?: string;
+    otp?: boolean;
   };
 }
 
@@ -43,10 +46,20 @@ export default function HeatingQuotePage({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>({});
+  const [userInfo, setUserInfo] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partnerInfoFromSubdomain, setPartnerInfoFromSubdomain] = useState<any>(null);
-  const [showPartnerInfo, setShowPartnerInfo] = useState(true);
   const supabase = createClient();
+
+  // Get dynamic color based on partner info
+  const getDynamicColor = () => {
+    const effectivePartner = partnerInfo || partnerInfoFromSubdomain;
+    return effectivePartner?.company_color || '#2563eb';
+  }; 
+
+  // Use dynamic styles hook
+  const effectivePartner = partnerInfo || partnerInfoFromSubdomain;
+  const classes = useDynamicStyles(effectivePartner?.company_color || null); 
 
   // Get the heating service category ID
   useEffect(() => {
@@ -102,14 +115,13 @@ export default function HeatingQuotePage({
   useEffect(() => {
     async function fetchPartnerFromSubdomain() {
       try {
-        // Get subdomain from hostname
         const hostname = window.location.hostname;
         const subdomain = hostname.split('.')[0];
         
         if (subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
           const { data: partner, error } = await supabase
             .from('UserProfiles')
-            .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone')
+            .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp')
             .eq('subdomain', subdomain)
             .eq('status', 'active')
             .single();
@@ -123,11 +135,10 @@ export default function HeatingQuotePage({
       }
     }
     
-    // Only fetch if we don't already have partner info passed as props
     if (!partnerInfo) {
       fetchPartnerFromSubdomain();
     }
-  }, [supabase, partnerInfo]);
+  }, [partnerInfo]);
 
   // Conditional logic evaluation
   function evaluateCondition(
@@ -146,9 +157,8 @@ export default function HeatingQuotePage({
       }
       return values.includes(dependentAnswer);
     } else {
-      // AND logic
       if (Array.isArray(dependentAnswer)) {
-        return values.every(value => dependentAnswer.includes(value));
+        return dependentAnswer.every(value => dependentAnswer.includes(value));
       }
       return values.every(value => dependentAnswer === value);
     }
@@ -160,17 +170,14 @@ export default function HeatingQuotePage({
     
     const updateActiveQuestions = () => {
       const active = questions.filter(question => {
-        // If no conditional display, it's always active
         if (!question.conditional_display) return true;
         
-        // Handle conditional display logic
         if (!('conditions' in question.conditional_display) || 
             !Array.isArray((question.conditional_display as any).conditions)) {
           const { dependent_on_question_id, show_when_answer_equals, logical_operator } = question.conditional_display;
           return evaluateCondition(dependent_on_question_id, show_when_answer_equals, logical_operator, formValues);
         }
         
-        // New format with multiple conditions
         const conditions = (question.conditional_display as any).conditions;
         const group_logical_operator = (question.conditional_display as any).group_logical_operator || 'AND';
 
@@ -181,7 +188,6 @@ export default function HeatingQuotePage({
           return evaluateCondition(dependent_on_question_id, show_when_answer_equals, logical_operator, formValues);
         });
         
-        // Combine results based on group operator
         if (group_logical_operator === 'AND') {
           return results.every((result: boolean) => result === true);
         } else {
@@ -204,12 +210,10 @@ export default function HeatingQuotePage({
   const activeSteps = Array.from(new Set(activeQuestions.map(q => q.step_number))).sort((a, b) => a - b);
   
   // Get total steps (active question steps + postcode & contact details)
-  const totalSteps = activeSteps.length + 2; // +1 for postcode step, +1 for contact details step
+  const totalSteps = activeSteps.length + 2;
 
   // Handle value changes
   const handleValueChange = (questionId: string, value: any) => {
-    console.log(`Setting value for question ${questionId}:`, value);
-    
     setFormValues((prev: FormValues) => ({
       ...prev,
       [questionId]: value
@@ -234,7 +238,6 @@ export default function HeatingQuotePage({
       setIsSubmitting(true);
       setError(null);
 
-      // Get the heating category ID
       const { data: categoryData } = await supabase
         .from('ServiceCategories')
         .select('service_category_id')
@@ -246,12 +249,9 @@ export default function HeatingQuotePage({
         throw new Error('Heating category not found');
       }
 
-      // Filter out non-question data from formValues
       const filteredAnswers = Object.entries(formValues).reduce((acc: Record<string, any>, [key, value]) => {
-        // Skip special keys and empty values
         if (key === 'postcode' || !value) return acc;
         
-        // Find the associated question
         const question = questions.find(q => q.question_id === key);
         
         if (question) {
@@ -261,7 +261,6 @@ export default function HeatingQuotePage({
         return acc;
       }, {});
 
-      // Combine complete form data
       const formData = {
         service_category_id: categoryData.service_category_id,
         first_name: contactDetails.firstName,
@@ -277,12 +276,8 @@ export default function HeatingQuotePage({
         serviceCategoryName: 'heating'
       };
       
-      console.log('Submitting heating quote form data:', formData);
-      
-      // Submit to API
       const apiUrl = new URL('/api/quote-submissions', window.location.origin);
       
-      // Add partner ID if available
       const effectivePartnerId = partnerInfo?.user_id || partnerId;
       if (effectivePartnerId) {
         apiUrl.searchParams.append('partner_id', effectivePartnerId);
@@ -302,11 +297,9 @@ export default function HeatingQuotePage({
         throw new Error(result.error || 'Failed to submit heating quote request');
       }
       
-      // Set success state
       setSuccess(true);
       setIsSubmitting(false);
       
-      // Redirect to thank you page or products page
       setTimeout(() => {
         router.push(`/boiler/products?submission=${result.data.submission_id}`);
       }, 2000);
@@ -321,293 +314,110 @@ export default function HeatingQuotePage({
   // Get current step content
   const getCurrentStepContent = () => {
     if (currentStep <= activeSteps.length) {
-      // This is a question step - render individual question
-      const currentQuestionStep = activeSteps[currentStep - 1];
-      const currentQuestions = getVisibleQuestionsForStep(currentQuestionStep);
-      const currentQuestion = currentQuestions[0]; // Get first question for the step
-      
-      if (!currentQuestion) return null;
-
-      return (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentQuestion.question_id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="space-y-3 sm:space-y-4 text-center"
-          >
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
-              {currentQuestion.question_text}
-              {currentQuestion.is_required && <span className="text-red-500 ml-1">*</span>}
-            </h1>
-       
-          </motion.div>
-        </AnimatePresence>
-      );
-    } else if (currentStep === activeSteps.length + 1) {
-      // This is the postcode step
-      return (
-        <AnimatePresence mode="wait">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="space-y-6 text-center"
-          >
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
-              What's your address?
-            </h1>
-            <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-              Enter your postcode to find your address
-            </p>
-          </motion.div>
-        </AnimatePresence>
-      );
-    } else {
-      // This is the contact details step
-      return (
-        <AnimatePresence mode="wait">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="space-y-6 text-center"
-          >
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
-              Tell us about yourself
-            </h1>
-            <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-              We'll use this information to prepare your quote
-            </p>
-          </motion.div>
-        </AnimatePresence>
-      );
-    }
-  };
-
-  const getCurrentOptions = () => {
-    if (currentStep <= activeSteps.length) {
       const currentQuestionStep = activeSteps[currentStep - 1];
       const currentQuestions = getVisibleQuestionsForStep(currentQuestionStep);
       const currentQuestion = currentQuestions[0];
       
       if (!currentQuestion) return null;
 
-      const currentValue = formValues[currentQuestion.question_id] || '';
-
-      if (currentQuestion.is_multiple_choice && currentQuestion.answer_options) {
-        const options = Array.isArray(currentQuestion.answer_options) 
-          ? currentQuestion.answer_options 
-          : [];
-
-        return (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentQuestion.question_id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="space-y-4 sm:space-y-6"
-            >
-              {/* Check if any option has an image to determine layout */}
-              {options.some((option: any) => typeof option === 'object' && option?.image) ? (
-                // Grid layout for options with images
-                <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
-                  {options.map((option: any, index: number) => {
-                    const optionText = typeof option === 'object' && option !== null ? option.text || option : option;
-                    const optionImage = typeof option === 'object' && option !== null ? option.image : null;
-                    const isSelected = currentValue === optionText;
-                    
-                    return (
-                      <motion.button
-                        key={index}
-                        initial={{ opacity: 1, y: 0 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0 }}
-                        onClick={() => {
-                          handleValueChange(currentQuestion.question_id, optionText);
-                          // Auto-advance after selection
-                          setTimeout(() => {
-                            handleNextStep();
-                          }, 300);
-                        }}
-                        className={`relative p-6 rounded-2xl text-center group transition-all duration-200 w-40 h-40 sm:w-44 sm:h-44 flex flex-col items-center justify-center ${
-                          isSelected
-                            ? 'bg-blue-600 text-white shadow-lg scale-105'
-                            : 'bg-white text-black hover:bg-blue-50 hover:shadow-md border border-gray-200'
-                        }`}
-                      >
-                        {/* Option Image */}
-                        {optionImage && (
-                          <div className="mb-4">
-                            <img 
-                              src={optionImage} 
-                              alt={optionText}
-                              className={`w-16 h-16 sm:w-24 sm:h-24 object-contain mx-auto transition-all duration-200 ${
-                                isSelected ? 'filter invert brightness-0' : ''
-                              }`}
-                              onError={(e) => {
-                                // Hide image if it fails to load
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        )}
-                        
-                        {/* Option Text */}
-                        <span className="text-sm sm:text-base font-medium text-center leading-tight">{optionText}</span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              ) : (
-                // List layout for options without images (existing layout)
-                <div className="space-y-3 sm:space-y-4 max-w-md mx-auto">
-                  {options.map((option: any, index: number) => {
-                    const optionText = typeof option === 'object' && option !== null ? option.text || option : option;
-                    const isSelected = currentValue === optionText;
-                    
-                    return (
-                      <motion.button
-                        key={index}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05, duration: 0.15, ease: "easeOut" }}
-                        onClick={() => {
-                          handleValueChange(currentQuestion.question_id, optionText);
-                          // Auto-advance after selection
-                          setTimeout(() => {
-                            handleNextStep();
-                          }, 300);
-                        }}
-                        className={`w-full p-4 sm:p-4 rounded-full text-left group ${
-                          isSelected
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-black hover:bg-blue-600 hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3 sm:space-x-4">
-                          {/* Selection Indicator */}
-                          <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${
-                            isSelected
-                              ? 'bg-white'
-                              : 'bg-gray-200 group-hover:bg-white'
-                          }`}>
-                            {isSelected ? (
-                              <Check size={10} className="sm:w-3 sm:h-3 text-blue-600" />
-                            ) : (
-                              <>
-                                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-300 rounded-full group-hover:hidden" />
-                                <Check size={16} className="sm:w-5 sm:h-5 text-blue-600 hidden group-hover:block" strokeWidth={3} />
-                              </>
-                            )}
-                          </div>
-                          
-                          {/* Option Text */}
-                          <span className="text-base sm:text-lg font-medium flex-1">{optionText}</span>
-                        </div>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              )}
-
-            </motion.div>
-          </AnimatePresence>
-        );
-      } else {
-        // Text input question
-        return (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentQuestion.question_id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="space-y-4 sm:space-y-6 max-w-md mx-auto"
-            >
-              <input
-                type="text"
-                value={currentValue}
-                onChange={(e) => handleValueChange(currentQuestion.question_id, e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && currentValue.trim()) {
-                    handleNextStep();
-                  }
-                }}
-                className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-                placeholder="Enter your answer..."
-              />
-              
-              {currentValue.trim() && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.15 }}
-                  onClick={handleNextStep}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Continue
-                </motion.button>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        );
-      }
-    } else if (currentStep === activeSteps.length + 1) {
-      // Postcode step
       return (
-        <AnimatePresence mode="wait">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="max-w-md mx-auto"
-          >
-            <PostcodeStep
-              value={formValues.postcode || ''}
-              onValueChange={(postcode) => handleValueChange('postcode', postcode)}
-              onNext={handleNextStep}
-              onPrevious={handlePrevStep}
-            />
-          </motion.div>
-        </AnimatePresence>
+        <div className="space-y-3 sm:space-y-4 text-center">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
+            {currentQuestion.question_text}
+            {currentQuestion.is_required && <span className="text-red-500 ml-1">*</span>}
+          </h1>
+        </div>
       );
-    } else {
-      // Contact details step
+    } else if (currentStep === activeSteps.length + 1) {
       return (
-        <AnimatePresence mode="wait">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="max-w-lg mx-auto"
-          >
-            <ContactDetailsStep
-              formValues={formValues}
-              onSubmit={handleSubmit}
-              onPrevious={handlePrevStep}
-            />
-          </motion.div>
-        </AnimatePresence>
+        <div className="space-y-6 text-center">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
+            What's your address?
+          </h1>
+          <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
+            Enter your postcode to find your address
+          </p>
+        </div>
+      );
+    } else if (currentStep === activeSteps.length + 2) {
+      return (
+        <div className="space-y-6 text-center">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
+            Tell us about yourself
+          </h1>
+          <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
+            We'll use this information to prepare your quote
+          </p>
+        </div>
       );
     }
+    
+    return null;
+  };
+
+  const getCurrentStepForm = () => {
+    if (currentStep <= activeSteps.length) {
+      const currentQuestionStep = activeSteps[currentStep - 1];
+      const currentQuestions = getVisibleQuestionsForStep(currentQuestionStep);
+      
+      if (currentQuestions.length === 0) return null;
+
+      return (
+        <div className="mt-12 lg:mt-16">
+          <QuoteFormSteps
+            questions={currentQuestions}
+            formValues={formValues}
+            onValueChange={handleValueChange}
+            onNext={handleNextStep}
+            onPrevious={handlePrevStep}
+            showPrevious={currentStep > 1}
+            companyColor={getDynamicColor()}
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+          />
+        </div>
+      );
+    } else if (currentStep === activeSteps.length + 1) {
+      return (
+        <div className="mt-12 lg:mt-16 max-w-md mx-auto">
+          <PostcodeStep
+            value={formValues.postcode || ''}
+            onValueChange={(postcode) => handleValueChange('postcode', postcode)}
+            onNext={handleNextStep}
+            onPrevious={handlePrevStep}
+            companyColor={getDynamicColor()}
+          />
+        </div>
+      );
+    } else if (currentStep === activeSteps.length + 2) {
+      return (
+        <div className="mt-12 lg:mt-16 max-w-lg mx-auto">
+          <UserInfoForm
+            initialUserInfo={userInfo}
+            formValues={formValues}
+            onUserInfoChange={setUserInfo}
+            onSubmit={handleSubmit}
+            companyColor={getDynamicColor()}
+            otpEnabled={effectivePartner?.otp || false}
+          />
+        </div>
+      );
+    }
+    
+    return null;
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center justify-center min-h-[300px]">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading heating quote form...</p>
+        <div className="flex flex-col items-center justify-center min-h-[300px]">
+          <div 
+            className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mb-4"
+            style={{ 
+              borderColor: `${getDynamicColor()}40`,
+              borderTopColor: 'transparent'
+            }}
+          ></div>
         </div>
       </div>
     );
@@ -627,7 +437,8 @@ export default function HeatingQuotePage({
             <p className="text-gray-600 mb-4">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 text-white rounded-md hover:opacity-90"
+              style={{ backgroundColor: getDynamicColor() }}
             >
               Try Again
             </button>
@@ -640,11 +451,7 @@ export default function HeatingQuotePage({
   if (success) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center"
-        >
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
           <div className="text-green-600 mb-4">
             <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -655,7 +462,7 @@ export default function HeatingQuotePage({
             Thank you for your interest in our heating services. We'll be in touch soon with your personalized quote.
           </p>
           <p className="text-sm text-gray-500">Redirecting to available products...</p>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -663,19 +470,12 @@ export default function HeatingQuotePage({
   return (
     <div className="min-h-screen bg-gray-100 relative flex items-center">
       {/* Progress Bar */}
-      <motion.div 
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="h-1 bg-gray-200 relative overflow-hidden"
-      >
-        <motion.div
-          className="h-full bg-blue-600"
-          initial={{ width: 0 }}
-          animate={{ width: `${(currentStep / totalSteps) * 100}%` }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
+      <div className="h-1 bg-gray-200 relative overflow-hidden">
+        <div
+          className={`h-full ${classes.progress}`}
+          style={{ width: `${(currentStep / totalSteps) * 100}%` }}
         />
-      </motion.div>
+      </div>
 
       {/* Main Content */}
       <main className="flex-1 flex items-start justify-center px-6 py-16 lg:py-24">
@@ -683,27 +483,20 @@ export default function HeatingQuotePage({
           {/* Question/Step Content */}
           {getCurrentStepContent()}
           
-          {/* Options/Form */}
-          <div className="mt-12 lg:mt-16">
-            {getCurrentOptions()}
-          </div>
+          {/* Form */}
+          {getCurrentStepForm()}
         </div>
       </main>
 
       {/* Back Button - Bottom Left Corner */}
       {currentStep > 1 && (
-        <motion.button
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.15 }}
+        <button
           onClick={handlePrevStep}
-          className="fixed bottom-6 left-6 flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors z-50"
+          className="fixed bottom-6 left-6 flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-lg border border-gray-200 hover:bg-gray-50 z-50"
         >
           <ChevronLeft size={24} className="text-gray-600" />
-        </motion.button>
+        </button>
       )}
-
-      
     </div>
   );
 }
