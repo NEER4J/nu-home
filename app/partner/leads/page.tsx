@@ -19,19 +19,19 @@ export const metadata = {
   description: 'View and manage your leads'
 };
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
+
 export default async function PartnerLeadsPage({
   searchParams
 }: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  searchParams: { [key: string]: string | string[] | undefined }
 }) {
   try {
-    // Resolve the searchParams Promise
-    const resolvedSearchParams = await searchParams;
-    
     // Get filter parameters
-    const statusFilter = resolvedSearchParams.status as string || '';
-    const categoryFilter = resolvedSearchParams.category as string || '';
-    const page = parseInt(resolvedSearchParams.page as string || '1', 10);
+    const statusFilter = searchParams.status as string || '';
+    const categoryFilter = searchParams.category as string || '';
+    const page = parseInt(searchParams.page as string || '1', 10);
     const pageSize = 10;
     
     const supabase = await createClient();

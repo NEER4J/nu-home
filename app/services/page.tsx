@@ -7,13 +7,14 @@ interface SearchParams {
   [key: string]: string | string[] | undefined;
 }
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ 
   searchParams 
 }: { 
-  searchParams: Promise<SearchParams>;
+  searchParams: SearchParams;
 }): Promise<Metadata> {
-  // Resolve the searchParams Promise
-  const resolvedSearchParams = await searchParams;
   
   const supabase = await createClient();
 
@@ -21,11 +22,11 @@ export async function generateMetadata({
   let title = 'Product Categories | Nu-Home';
   let description = 'Browse product categories from our partners';
 
-  if (resolvedSearchParams.profile_id) {
+  if (searchParams.profile_id) {
     const { data: partner } = await supabase
       .from('UserProfiles')
       .select('company_name')
-      .eq('user_id', resolvedSearchParams.profile_id)
+      .eq('user_id', searchParams.profile_id)
       .single();
 
     if (partner) {
@@ -43,10 +44,8 @@ export async function generateMetadata({
 export default async function CategoryPage({ 
   searchParams 
 }: { 
-  searchParams: Promise<SearchParams>;
+  searchParams: SearchParams;
 }) {
-  // Resolve the searchParams Promise
-  const resolvedSearchParams = await searchParams;
   
   const supabase = await createClient();
 
@@ -59,11 +58,11 @@ export default async function CategoryPage({
 
   // Get partner info if profile_id is provided
   let partner = null;
-  if (resolvedSearchParams.profile_id) {
+  if (searchParams.profile_id) {
     const { data: partnerData } = await supabase
       .from('UserProfiles')
       .select('*')
-      .eq('user_id', resolvedSearchParams.profile_id)
+      .eq('user_id', searchParams.profile_id)
       .single();
     
     if (partnerData) {

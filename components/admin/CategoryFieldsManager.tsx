@@ -233,7 +233,7 @@ export default function CategoryFieldsManager({ categoryId }: CategoryFieldsMana
             <div className="text-xs text-gray-500">Feature Preview</div>
             </div>
         </div>
-        </div>
+        </div> 
     </div>
     </div>
 

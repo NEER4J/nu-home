@@ -165,7 +165,7 @@ export default async function EditProductPage({
   })) || [];
   
   return (
-    <div className="max-w-4xl mx-auto pb-12">
+    <div className="max-w-[1500px] mx-auto pb-22">
       <div className="mb-6">
         <Link href="/partner/my-products" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
           <ArrowLeft className="mr-1 h-4 w-4" />
@@ -173,8 +173,8 @@ export default async function EditProductPage({
         </Link>
       </div>
       
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="px-4 py-5 sm:px-6">
+      <div className="overflow-hidden !mb-24">
+        <div className="pb-6">
           <h1 className="text-lg font-medium leading-6 text-gray-900">
             Edit Product: {product.name}
           </h1>
@@ -183,7 +183,7 @@ export default async function EditProductPage({
           </p>
         </div>
         
-        <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+        <div className="border-t border-gray-200">
           <ProductForm
             product={formattedProduct}
             categories={transformedCategories}

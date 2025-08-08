@@ -27,7 +27,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="flex flex-col min-h-screen bg-gray-50">
+        <div className="flex flex-col h-screen bg-gray-50">
           {/* Main content */}
           <div className="flex-1 flex flex-col">
             <MainHeader isLoggedIn={isLoggedIn} />

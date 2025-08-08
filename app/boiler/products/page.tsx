@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
@@ -52,7 +52,7 @@ interface QuoteSubmission {
   }>
 }
 
-export default function BoilerProductsPage() {
+function BoilerProductsContent() {
   const supabase = createClient()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
@@ -602,6 +602,14 @@ export default function BoilerProductsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function BoilerProductsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <BoilerProductsContent />
+    </Suspense>
   )
 }
 

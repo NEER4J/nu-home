@@ -76,7 +76,7 @@ export default async function NewProductPage({ searchParams }: PageProps) {
   const categories: ServiceCategory[] = approvedCategories.map(cat => cat.ServiceCategories);
   
   return (
-    <div className="max-w-4xl mx-auto pb-12">
+    <div className="max-w-[1500px] mx-auto pb-22">
       <div className="mb-6">
         <Link href="/partner/my-products" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
           <ArrowLeft className="mr-1 h-4 w-4" />

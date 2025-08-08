@@ -71,6 +71,9 @@ export async function PATCH(
       is_multi: body.is_multi !== undefined ? body.is_multi : existingField.is_multi,
       display_format: body.display_format || existingField.display_format,
       options: body.options !== undefined ? body.options : existingField.options,
+      help_text: body.help_text !== undefined ? body.help_text : existingField.help_text,
+      parent_field_id: body.parent_field_id !== undefined ? body.parent_field_id : existingField.parent_field_id,
+      field_group_type: body.field_group_type !== undefined ? body.field_group_type : existingField.field_group_type,
       // Don't update key or field_type
     };
     

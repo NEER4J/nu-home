@@ -47,20 +47,44 @@ export interface ProductFormData {
   from_template_id?: string | null;
 }
 
-// Define types for category fields
+// Define types for category fields with simplified JSON structure
+export interface FieldChild {
+  name: string;
+  key: string;
+  field_type: 'text' | 'number' | 'textarea' | 'image' | 'select' | 'checkbox' | 'date' | 'group' | 'repeater';
+  is_required: boolean;
+  is_multi?: boolean;
+  options?: any;
+  children?: FieldChild[];
+}
+
 export interface CategoryField {
   field_id: string;
   service_category_id: string;
   name: string;
   key: string;
-  label?: string; // Display label
-  field_type: 'text' | 'number' | 'textarea' | 'image' | 'repeater' | 'select' | 'checkbox' | 'date';
+  label?: string;
+  field_type: 'text' | 'number' | 'textarea' | 'image' | 'repeater' | 'select' | 'checkbox' | 'date' | 'group';
   is_required: boolean;
   display_order: number;
   options: any;
-  is_multi: boolean; // Flag for multi-select
+  is_multi: boolean;
   display_format: string;
-  help_text?: string; // Helper text for the field
+  field_structure?: {
+    children?: FieldChild[];
+  };
   created_at: string;
   updated_at: string;
+}
+
+// Helper type for rendering
+export interface FlattenedField {
+  id: string;
+  name: string;
+  key: string;
+  field_type: string;
+  is_required: boolean;
+  level: number;
+  parent?: string;
+  children?: FlattenedField[];
 }

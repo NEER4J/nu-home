@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import EditCategoryForm from '@/components/admin/EditCategoryForm';
 import CategoryFieldsManager from '@/components/admin/CategoryFieldsManager';
 import AddonTypesManager from '@/components/admin/AddonTypesManager';
+import ServiceCategoryTabs from '@/components/admin/ServiceCategoryTabs';
 
 export const metadata = {
   title: 'Edit Service Category | Nu-Home Admin',
@@ -42,7 +43,7 @@ export default async function EditCategoryPage({
       .eq('is_deleted', false);
     
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Edit Service Category</h1>
           <div className="flex space-x-3">
@@ -116,19 +117,10 @@ export default async function EditCategoryPage({
           
           {/* Main content */}
           <div className="md:col-span-3">
-            <div className="bg-white sm:rounded-lg mb-6">
-              <div className="px-4 py-5 sm:p-6">
-                <EditCategoryForm category={category} />
-              </div>
-            </div>
-            
-            {/* Add AddonTypesManager component */}
-            <div className="mb-6">
-              <AddonTypesManager categoryId={category.service_category_id} />
-            </div>
-            
-            {/* Add the CategoryFields component */}
-            <CategoryFieldsManager categoryId={category.service_category_id} />
+            <ServiceCategoryTabs 
+              category={category} 
+              categoryId={category.service_category_id} 
+            />
           </div>
         </div>
       </div>

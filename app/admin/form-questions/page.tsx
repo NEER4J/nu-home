@@ -8,10 +8,13 @@ export const metadata = {
   description: 'Manage form questions with an interactive visual editor'
 };
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
+
 export default async function AdminFormQuestionsPage({
   searchParams
 }: {
-  searchParams: Promise<{ category?: string; status?: string }>
+  searchParams: { category?: string; status?: string }
 }) {
   try {
     const supabase = await createClient();

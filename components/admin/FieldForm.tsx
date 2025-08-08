@@ -197,7 +197,8 @@ export default function FieldForm({ field, isEditing, onCancel, onSave }: FieldF
                 <option value="checkbox">Checkbox</option>
                 <option value="date">Date</option>
                 <option value="image">Image URL</option>
-                <option value="repeater">Repeater</option>
+                <option value="group">Group (organize fields)</option>
+                <option value="repeater">Repeater (multiple instances)</option>
               </select>
             </div>
           </>
@@ -291,13 +292,24 @@ export default function FieldForm({ field, isEditing, onCancel, onSave }: FieldF
           </div>
         )}
 
+        {fieldData.field_type === 'group' && (
+          <div className="bg-green-50 px-4 py-3 rounded-md border border-green-100">
+            <p className="text-sm text-green-700">
+              <span className="font-medium">Group Field:</span> This will organize related fields together in a section.
+            </p>
+            <p className="text-sm text-green-700 mt-1">
+              For example, a "Technical Specifications" group can contain multiple related fields like dimensions, weight, etc.
+            </p>
+          </div>
+        )}
+
         {fieldData.field_type === 'repeater' && (
           <div className="bg-blue-50 px-4 py-3 rounded-md border border-blue-100">
             <p className="text-sm text-blue-700">
-              <span className="font-medium">Repeater Field:</span> This will allow users to add multiple items with the same field type.
+              <span className="font-medium">Repeater Field:</span> This will allow users to add multiple instances of its child fields.
             </p>
             <p className="text-sm text-blue-700 mt-1">
-              For example, a "Features" repeater field will let users add as many product features as they need.
+              For example, a "Features" repeater can contain multiple feature items, each with name, description, and icon fields.
             </p>
           </div>
         )}

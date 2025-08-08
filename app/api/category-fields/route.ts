@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from '@/lib/products';
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const categoryId = searchParams.get('categoryId');
+  const nested = searchParams.get('nested') === 'true';
   
   if (!categoryId) {
     return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
@@ -14,11 +15,17 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     
-    const { data, error } = await supabase
+    let query = supabase
       .from('CategoryFields')
       .select('*')
-      .eq('service_category_id', categoryId)
-      .order('display_order');
+      .eq('service_category_id', categoryId);
+    
+    // If nested is requested, fetch all fields; otherwise only top-level
+    if (!nested) {
+      query = query.is('parent_field_id', null);
+    }
+    
+    const { data, error } = await query.order('display_order');
     
     if (error) throw error;
     
@@ -72,6 +79,9 @@ export async function POST(request: NextRequest) {
       display_order: body.display_order || 0,
       display_format: body.display_format || 'default',
       options: body.options || null,
+      parent_field_id: body.parent_field_id || null,
+      field_group_type: body.field_group_type || 'none',
+      help_text: body.help_text || null,
     };
     
     // Insert the new field
@@ -82,13 +92,17 @@ export async function POST(request: NextRequest) {
       .single();
     
     if (error) {
-      console.error('Error creating field:', error);
-      throw error;
+      console.error('Database error creating field:', error);
+      return NextResponse.json({ 
+        error: `Database error: ${error.message || 'Unknown database error'}` 
+      }, { status: 500 });
     }
     
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error creating category field:', error);
-    return NextResponse.json({ error: 'Failed to create field' }, { status: 500 });
+    return NextResponse.json({ 
+      error: `Failed to create field: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    }, { status: 500 });
   }
 }
