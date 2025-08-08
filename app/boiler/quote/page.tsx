@@ -44,7 +44,6 @@ export default function HeatingQuotePage({
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>({});
   const [userInfo, setUserInfo] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,7 +68,7 @@ export default function HeatingQuotePage({
       const { data, error } = await supabase
         .from('ServiceCategories')
         .select('service_category_id')
-        .eq('slug', 'heating')
+        .eq('slug', 'boiler')
         .eq('is_active', true)
         .single();
       
@@ -241,7 +240,7 @@ export default function HeatingQuotePage({
       const { data: categoryData } = await supabase
         .from('ServiceCategories')
         .select('service_category_id')
-        .eq('slug', 'heating')
+        .eq('slug', 'boiler')
         .eq('is_active', true)
         .single();
 
@@ -273,7 +272,7 @@ export default function HeatingQuotePage({
         assigned_partner_id: partnerInfo?.user_id || partnerId || null,
         submission_date: new Date().toISOString(),
         status: 'new',
-        serviceCategoryName: 'heating'
+        serviceCategoryName: 'boiler'
       };
       
       const apiUrl = new URL('/api/quote-submissions', window.location.origin);
@@ -297,12 +296,8 @@ export default function HeatingQuotePage({
         throw new Error(result.error || 'Failed to submit heating quote request');
       }
       
-      setSuccess(true);
-      setIsSubmitting(false);
-      
-      setTimeout(() => {
-        router.push(`/boiler/products?submission=${result.data.submission_id}`);
-      }, 2000);
+      router.push(`/boiler/products?submission=${result.data.submission_id}`);
+      return;
       
     } catch (error: any) {
       setError(error.message || 'An unexpected error occurred');
@@ -448,24 +443,7 @@ export default function HeatingQuotePage({
     );
   }
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
-          <div className="text-green-600 mb-4">
-            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Quote Submitted Successfully!</h3>
-          <p className="text-gray-600 mb-4">
-            Thank you for your interest in our heating services. We'll be in touch soon with your personalized quote.
-          </p>
-          <p className="text-sm text-gray-500">Redirecting to available products...</p>
-        </div>
-      </div>
-    );
-  }
+  
 
   return (
     <div className="min-h-screen bg-gray-100 relative flex items-center">

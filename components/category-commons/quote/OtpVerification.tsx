@@ -125,9 +125,8 @@ export default function OtpVerification({
       
       if (data.status === 'approved') {
         setSuccess(true)
-        setTimeout(() => {
-          onVerificationComplete()
-        }, 1500)
+        // Immediately notify parent to proceed; avoid lingering on OTP screen
+        onVerificationComplete()
       } else {
         throw new Error('Verification failed')
       }

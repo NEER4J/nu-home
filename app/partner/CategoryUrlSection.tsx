@@ -32,8 +32,8 @@ export default function CategoryUrlSection({ slug, userId }: CategoryUrlSectionP
       // Construct the URL
       const protocol = window.location.protocol;
       const generatedUrl = isLocalhost
-        ? `${protocol}//${profile.subdomain}.${mainDomain}/services/${slug}/quote`
-        : `${protocol}//${profile.subdomain}.${mainDomain}/services/${slug}/quote`;
+        ? `${protocol}//${profile.subdomain}.${mainDomain}/${slug}/quote`
+        : `${protocol}//${profile.subdomain}.${mainDomain}/${slug}/quote`;
 
       setUrl(generatedUrl);
     }

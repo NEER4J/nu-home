@@ -273,6 +273,9 @@ export default function UserInfoForm({
   }
 
   const handleOtpVerificationComplete = () => {
+    // Switch back to form view and show submitting state immediately
+    setCurrentView('form')
+    setIsSubmitting(true)
     submitContactDetails()
   }
 
@@ -285,7 +288,10 @@ export default function UserInfoForm({
             onVerificationComplete={handleOtpVerificationComplete}
             className="max-w-md mx-auto"
           />
-          
+          {/* Loading hint while we submit and redirect after verification */}
+          {isSubmitting && (
+            <div className="text-center text-sm text-gray-600">Redirecting to products...</div>
+          )}
         </div>
       )}
 

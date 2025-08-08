@@ -190,6 +190,16 @@ export default function PartnerLayout({
             
             <li>
               <Link 
+                href="/partner/settings" 
+                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+              >
+                <Settings className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                Settings
+              </Link>
+            </li>
+            
+            <li>
+              <Link 
                 href="/partner/profile" 
                 className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
               >
