@@ -49,7 +49,6 @@ const globalFields: DatabaseField[] = [
   { key: 'description', label: 'Description', type: 'text', required: true },
   { key: 'price', label: 'Price', type: 'number', required: true },
   { key: 'image_url', label: 'Image URL', type: 'string', required: true },
-  { key: 'specifications', label: 'Specifications', type: 'jsonb', required: true },
   { key: 'is_active', label: 'Active Status', type: 'boolean', required: true },
 ];
 

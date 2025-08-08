@@ -140,7 +140,6 @@ export default async function EditProductPage({
     price: product.price,
     image_url: product.image_url,
     service_category_id: product.service_category_id,
-    specifications: product.specifications || {},
     product_fields: product.product_fields || {},
     is_active: product.is_active,
     is_featured: false, // Partner products don't have featured status

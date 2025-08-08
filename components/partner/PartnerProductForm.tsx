@@ -51,15 +51,9 @@ export default function PartnerProductForm({
   });
   
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    product?.service_category_id || 
     (template ? template.service_category_id : (categories.length > 0 ? categories[0].id || categories[0].service_category_id : '')) || ''
   );
   
-  const [specs, setSpecs] = useState<Record<string, string>>(
-    product?.specifications || template?.specifications || {}
-  );
-  const [newSpecKey, setNewSpecKey] = useState('');
-  const [newSpecValue, setNewSpecValue] = useState('');
   const [isFetchingFields, setIsFetchingFields] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -269,28 +263,6 @@ export default function PartnerProductForm({
     });
   };
   
-  // Add a new specification
-  const addSpec = () => {
-    if (!newSpecKey || !newSpecValue) return;
-    
-    setSpecs(prev => ({
-      ...prev,
-      [newSpecKey]: newSpecValue
-    }));
-    
-    setNewSpecKey('');
-    setNewSpecValue('');
-  };
-  
-  // Remove a specification
-  const removeSpec = (key: string) => {
-    setSpecs(prev => {
-      const updated = { ...prev };
-      delete updated[key];
-      return updated;
-    });
-  };
-  
   // Handle form submission
   const onSubmit = async (formData: any) => {
     try {
@@ -320,7 +292,6 @@ export default function PartnerProductForm({
         description: formData.description,
         price: parseFloat(formData.price) || null,
         service_category_id: selectedCategory,
-        specifications: specs,
         product_fields: dynamicFieldValues,
         image_url: imageUrl,
         is_active: !!formData.is_active,
@@ -864,72 +835,6 @@ export default function PartnerProductForm({
         </div>
       )}
       
-      {/* Specifications */}
-      <div className="space-y-4">
-        <h3 className="text-base font-medium text-gray-900">Specifications</h3>
-        
-        <div className="space-y-4">
-          {/* Add new spec */}
-          <div className="flex items-end space-x-2">
-            <div className="flex-1">
-              <label htmlFor="spec-key" className="block text-sm font-medium text-gray-700">
-                Name
-              </label>
-              <input
-                type="text"
-                id="spec-key"
-                value={newSpecKey}
-                onChange={e => setNewSpecKey(e.target.value)}
-                className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex-1">
-              <label htmlFor="spec-value" className="block text-sm font-medium text-gray-700">
-                Value
-              </label>
-              <input
-                type="text"
-                id="spec-value"
-                value={newSpecValue}
-                onChange={e => setNewSpecValue(e.target.value)}
-                className="mt-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={addSpec}
-              disabled={!newSpecKey || !newSpecValue}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Add
-            </button>
-          </div>
-          
-          {/* Current specs */}
-          {Object.keys(specs).length > 0 ? (
-            <ul className="mt-4 border rounded-md divide-y">
-              {Object.entries(specs).map(([key, value]) => (
-                <li key={key} className="px-4 py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-gray-900">{key}: </span>
-                    <span className="text-gray-500">{value}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeSpec(key)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-500 italic">No specifications added yet.</p>
-          )}
-        </div>
-      </div>
-      
       {/* Submit */}
       <div className="pt-4 flex justify-end">
         {isSessionValid === false && (
@@ -946,7 +851,7 @@ export default function PartnerProductForm({
             </div>
           </div>
         )}
-        <SubmitButton className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <SubmitButton className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
           <Save className="mr-2 h-4 w-4" />
           {isEditing ? 'Update Product' : 'Create Product'}
         </SubmitButton>

@@ -98,7 +98,6 @@ export async function createPartnerProduct(formData: FormData) {
     const price = parseFloat(formData.get("price") as string) || null;
     const categoryId = formData.get("categoryId") as string;
     const productFields = JSON.parse(formData.get("product_fields") as string || "{}");
-    const specifications = JSON.parse(formData.get("specifications") as string || "{}");
     const imageUrl = formData.get("imageUrl") as string || null;
     const isActive = formData.get("isActive") === "true";
     const fromTemplateId = formData.get("fromTemplateId") as string || null;
@@ -131,7 +130,6 @@ export async function createPartnerProduct(formData: FormData) {
         description,
         price,
         service_category_id: categoryId,
-        specifications,
         product_fields: productFields,
         image_url: imageUrl,
         is_active: isActive,
@@ -190,7 +188,6 @@ export async function updatePartnerProduct(formData: FormData) {
     const price = parseFloat(formData.get("price") as string) || null;
     const categoryId = formData.get("categoryId") as string;
     const productFields = JSON.parse(formData.get("product_fields") as string || "{}");
-    const specifications = JSON.parse(formData.get("specifications") as string || "{}");
     const imageUrl = formData.get("imageUrl") as string || null;
     const isActive = formData.get("isActive") === "true";
     
@@ -221,7 +218,6 @@ export async function updatePartnerProduct(formData: FormData) {
         description,
         price,
         service_category_id: categoryId,
-        specifications,
         product_fields: productFields,
         image_url: imageUrl,
         is_active: isActive

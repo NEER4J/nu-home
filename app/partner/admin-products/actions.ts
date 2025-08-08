@@ -86,7 +86,6 @@ export async function addAdminProductToMyList(adminProductId: string) {
         description: adminProduct.description,
         price: adminProduct.price,
         image_url: adminProduct.image_url,
-        specifications: adminProduct.specifications,
         product_fields: adminProduct.product_fields,
         service_category_id: adminProduct.service_category_id,
         is_active: true

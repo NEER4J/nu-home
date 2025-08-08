@@ -81,7 +81,7 @@ export async function importProducts(
   }
 
   // Separate global fields from custom fields
-  const globalFields = ['name', 'slug', 'description', 'price', 'image_url', 'specifications', 'is_active'];
+  const globalFields = ['name', 'slug', 'description', 'price', 'image_url', 'is_active'];
   
   // Transform products
   const transformedProducts = await Promise.all(products.map(async (product) => {
@@ -90,7 +90,6 @@ export async function importProducts(
       partner_id: session.user.id,
       service_category_id: serviceCategoryId,
       is_active: true, // Default to active
-      specifications: {}, // Initialize empty specifications
       product_fields: {} // Initialize empty product_fields
     };
 
@@ -139,20 +138,6 @@ export async function importProducts(
             } else {
               baseProduct.image_url = value || null;
             }
-            break;
-          case 'specifications':
-            // Transform specifications into a clean object
-            const specs: Record<string, any> = {};
-            
-            // Handle any object or array fields in specifications
-            if (typeof value === 'object' && value !== null) {
-              Object.entries(value).forEach(([key, val]) => {
-                const valType = detectFieldType(val);
-                specs[key] = transformFieldValue(val, valType);
-              });
-            }
-
-            baseProduct.specifications = specs;
             break;
           case 'is_active':
             baseProduct.is_active = value === 'publish';

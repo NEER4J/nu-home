@@ -68,8 +68,7 @@ export async function GET(request: Request) {
         price,
         image_url,
         slug,
-        product_fields,
-        specifications
+        product_fields
       `)
       .eq('service_category_id', category.service_category_id)
       .eq('is_active', true);

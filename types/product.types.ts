@@ -17,7 +17,6 @@ export interface Product {
   description: string;
   price: number | null;
   image_url: string | null;
-  specifications: Record<string, any>;
   product_fields: Record<string, any>; // Dynamic fields
   is_featured: boolean;
   is_active: boolean;
@@ -38,7 +37,6 @@ export interface ProductFormData {
   description: string;
   price?: number;
   image_url?: string;
-  specifications: Record<string, any>;
   product_fields: Record<string, any>; // Dynamic fields
   is_featured: boolean;
   is_active: boolean;

@@ -65,13 +65,12 @@ interface FieldMapping {
   [key: string]: string;
 }
 
-const databaseFields = [
+const globalFields = [
   { key: 'name', label: 'Product Name', type: 'string', required: true },
   { key: 'slug', label: 'Slug', type: 'string', required: true },
   { key: 'description', label: 'Description', type: 'text', required: true },
   { key: 'price', label: 'Price', type: 'number', required: false },
   { key: 'image_url', label: 'Image URL', type: 'string', required: false },
-  { key: 'specifications', label: 'Specifications', type: 'jsonb', required: true },
   { key: 'product_fields', label: 'Product Fields', type: 'jsonb', required: true },
   { key: 'is_active', label: 'Active', type: 'boolean', required: true },
 ];

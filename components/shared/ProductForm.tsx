@@ -35,13 +35,10 @@ export function ProductForm({
   const [selectedCategory, setSelectedCategory] = useState<string>(
     product?.service_category_id || categories[0]?.service_category_id || ''
   );
-  const [specs, setSpecs] = useState<Record<string, string>>(product?.specifications || {});
   const [categoryFields, setCategoryFields] = useState<CategoryField[]>([]);
   const [dynamicFieldValues, setDynamicFieldValues] = useState<Record<string, any>>(
     product?.product_fields || {}
   );
-  const [newSpecKey, setNewSpecKey] = useState<string>('');
-  const [newSpecValue, setNewSpecValue] = useState<string>('');
   const [isFetchingFields, setIsFetchingFields] = useState<boolean>(false);
   const [imageUrl, setImageUrl] = useState<string>(product?.image_url || '');
   const [imagePreview, setImagePreview] = useState<string>(product?.image_url || '');
@@ -169,28 +166,6 @@ export function ProductForm({
         ...prev,
         [key]: currentValues
       };
-    });
-  };
-  
-  // Add a new specification
-  const addSpec = () => {
-    if (!newSpecKey || !newSpecValue) return;
-    
-    setSpecs(prev => ({
-      ...prev,
-      [newSpecKey]: newSpecValue
-    }));
-    
-    setNewSpecKey('');
-    setNewSpecValue('');
-  };
-  
-  // Remove a specification
-  const removeSpec = (key: string) => {
-    setSpecs(prev => {
-      const updated = { ...prev };
-      delete updated[key];
-      return updated;
     });
   };
   
@@ -377,35 +352,56 @@ export function ProductForm({
         );
       
       case 'image':
+        // Helper function to validate URL
+        const isValidUrl = (urlString: string) => {
+          try {
+            const url = new URL(urlString);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+          } catch {
+            return false;
+          }
+        };
+
         return (
-          <div className="space-y-2">
-            <input
-              type="url"
-              id={`field-${fieldKey}`}
-              value={value || ''}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder="https://example.com/image.jpg"
-              className={baseInputClasses}
-              required={field.is_required}
-            />
-            {value ? (
-              <div className="relative w-full h-16 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                <Image
-                  src={value}
-                  alt={field.name}
-                  fill
-                  className="object-cover"
-                  onError={() => {
-                    // Handle broken images gracefully
-                    console.log('Image failed to load:', value);
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="w-full h-16 bg-gray-50 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
-                <span className="text-xs text-gray-400">Preview</span>
-              </div>
-            )}
+          <div className="flex items-center space-x-3">
+            {/* Image Preview - Square shape to the left */}
+            <div className="flex-shrink-0">
+              {value && isValidUrl(value) ? (
+                <div className="relative w-12 h-12 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
+                  <Image
+                    src={value}
+                    alt={field.name}
+                    fill
+                    className="object-contain"
+                    onError={() => {
+                      // Handle broken images gracefully
+                      console.log('Image failed to load:', value);
+                    }}
+                  />
+                </div>
+              ) : value && !isValidUrl(value) ? (
+                <div className="w-12 h-12 bg-red-50 rounded-md border-2 border-dashed border-red-300 flex items-center justify-center">
+                  <span className="text-xs text-red-500">!</span>
+                </div>
+              ) : (
+                <div className="w-12 h-12 bg-gray-50 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
+                  <span className="text-xs text-gray-400">?</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Input Field */}
+            <div className="flex-1">
+              <input
+                type="url"
+                id={`field-${fieldKey}`}
+                value={value || ''}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className={baseInputClasses}
+                required={field.is_required}
+              />
+            </div>
           </div>
         );
       
@@ -436,7 +432,7 @@ export function ProductForm({
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {field.field_structure?.children?.map((child, childIndex) => (
-                <div key={child.key} className={child.field_type === 'image' ? 'md:col-span-2 lg:col-span-3' : ''}>
+                <div key={child.key}>
                   <label htmlFor={`field-${field.key}.${child.key}`} className="block text-xs font-medium text-gray-600 mb-1">
                     {child.name} {child.is_required && <span className="text-red-500">*</span>}
                   </label>
@@ -454,13 +450,13 @@ export function ProductForm({
           <div className="space-y-4">
             {/* Headers - Show only once */}
             {repeaterValue.length > 0 && field.field_structure?.children && (
-              <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-gray-100 rounded-md text-xs font-medium text-gray-600">
+              <div className="grid grid-cols-8 gap-2 px-3 py-2 bg-gray-100 rounded-md text-xs font-medium text-gray-600">
                 <div className="col-span-1">#</div>
                 {field.field_structure.children.every(child => child.field_type !== 'group') ? (
                   // Simple fields header
                   field.field_structure.children.map((child) => (
                     <div key={child.key} className={
-                      child.field_type === 'image' ? 'col-span-4' :
+                      child.field_type === 'image' ? 'col-span-3' :
                       child.field_type === 'textarea' ? 'col-span-3' : 'col-span-2'
                     }>
                       {child.name} {child.is_required && <span className="text-red-500">*</span>}
@@ -472,7 +468,7 @@ export function ProductForm({
                     if (child.field_type === 'group' && child.children) {
                       return child.children.map((nestedChild) => (
                         <div key={nestedChild.key} className={
-                          nestedChild.field_type === 'image' ? 'col-span-4' :
+                          nestedChild.field_type === 'image' ? 'col-span-3' :
                           nestedChild.field_type === 'textarea' ? 'col-span-3' : 'col-span-2'
                         }>
                           {nestedChild.name} {nestedChild.is_required && <span className="text-red-500">*</span>}
@@ -481,7 +477,7 @@ export function ProductForm({
                     } else {
                       return (
                         <div key={child.key} className={
-                          child.field_type === 'image' ? 'col-span-4' :
+                          child.field_type === 'image' ? 'col-span-3' :
                           child.field_type === 'textarea' ? 'col-span-3' : 'col-span-2'
                         }>
                           {child.name} {child.is_required && <span className="text-red-500">*</span>}
@@ -496,7 +492,7 @@ export function ProductForm({
 
             {/* Repeater Items */}
             {repeaterValue.map((item: any, index: number) => (
-              <div key={index} className="grid grid-cols-12 gap-2 p-3 bg-white rounded-md border border-gray-200 items-start">
+              <div key={index} className="grid grid-cols-8 gap-2 p-3 bg-white rounded-md border border-gray-200 items-start justify-center">
                 <div className="col-span-1 flex items-center">
                   <span className="text-xs font-medium text-gray-500 bg-gray-100 rounded-full w-6 h-6 flex items-center justify-center">
                     {index + 1}
@@ -509,7 +505,7 @@ export function ProductForm({
                     {field.field_structure.children.every(child => child.field_type !== 'group') ? (
                       field.field_structure.children.map((child) => (
                         <div key={child.key} className={
-                          child.field_type === 'image' ? 'col-span-4' :
+                          child.field_type === 'image' ? 'col-span-3' :
                           child.field_type === 'textarea' ? 'col-span-3' : 'col-span-2'
                         }>
                           {renderChildField(child, field.key, index)}
@@ -521,7 +517,7 @@ export function ProductForm({
                         if (child.field_type === 'group' && child.children) {
                           return child.children.map((nestedChild) => (
                             <div key={nestedChild.key} className={
-                              nestedChild.field_type === 'image' ? 'col-span-4' :
+                              nestedChild.field_type === 'image' ? 'col-span-3' :
                               nestedChild.field_type === 'textarea' ? 'col-span-3' : 'col-span-2'
                             }>
                               {renderNestedChildField(nestedChild, field.key, index, child.key)}
@@ -530,7 +526,7 @@ export function ProductForm({
                         } else {
                           return (
                             <div key={child.key} className={
-                              child.field_type === 'image' ? 'col-span-4' :
+                              child.field_type === 'image' ? 'col-span-3' :
                               child.field_type === 'textarea' ? 'col-span-3' : 'col-span-2'
                             }>
                               {renderChildField(child, field.key, index)}
@@ -613,18 +609,12 @@ export function ProductForm({
       const form = e.currentTarget;
       const formData = new FormData(form);
       
-      // Add specifications to form data
-      Object.entries(specs).forEach(([key, value]) => {
-        formData.append(`spec_${key}`, value);
-      });
-      
       // Add dynamic fields to form data
       formData.append('product_fields', JSON.stringify(dynamicFieldValues));
       
       if (isPartner) {
         // Partner-specific form handling
         formData.append('categoryId', selectedCategory);
-        formData.append('specifications', JSON.stringify(specs));
         formData.append('imageUrl', imageUrl);
         formData.append('isActive', formData.get('is_active') === 'on' ? 'true' : 'false');
         
@@ -833,82 +823,6 @@ export function ProductForm({
                 <span className="ml-2 text-sm text-gray-700">Active</span>
               </label>
             </div>
-
-            {/* Specifications */}
-            <div className="pt-4 border-t border-gray-200">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-medium text-gray-700">Specifications</h4>
-                <button
-                  type="button"
-                  onClick={addSpec}
-                  className="text-xs text-blue-600 hover:text-blue-800"
-                >
-                  + Add
-                </button>
-              </div>
-              
-              <div className="space-y-2">
-                {Object.entries(specs).map(([key, value]) => (
-                  <div key={key} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={key}
-                      onChange={(e) => {
-                        const newSpecs = { ...specs };
-                        delete newSpecs[key];
-                        newSpecs[e.target.value] = value;
-                        setSpecs(newSpecs);
-                      }}
-                      className="flex-1 px-2 py-2 text-xs bg-white border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Name"
-                    />
-                    <input
-                      type="text"
-                      value={value}
-                      onChange={(e) => {
-                        setSpecs(prev => ({
-                          ...prev,
-                          [key]: e.target.value
-                        }));
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-white border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Value"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeSpec(key)}
-                      className="p-1 text-red-600 hover:text-red-800"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-                
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newSpecKey}
-                    onChange={(e) => setNewSpecKey(e.target.value)}
-                    className="flex-1 px-2 py-2 text-sm bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="New spec name"
-                  />
-                  <input
-                    type="text"
-                    value={newSpecValue}
-                    onChange={(e) => setNewSpecValue(e.target.value)}
-                    className="flex-1 px-2 py-2 text-sm bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder="New spec value"
-                  />
-                  <button
-                    type="button"
-                    onClick={addSpec}
-                    className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -928,12 +842,12 @@ export function ProductForm({
                   <div className="animate-pulse text-gray-400 text-sm">Loading custom fields...</div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-3 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {categoryFields.map((field) => (
                     <div key={field.field_id} className={`bg-white rounded-lg border border-gray-200 p-4 ${
-                      field.field_type === 'repeater' ? 'xl:col-span-3 lg:col-span-2' : 
-                      field.field_type === 'group' ? 'xl:col-span-2 lg:col-span-1' : 
-                      'xl:col-span-1'
+                      field.field_type === 'repeater' ? 'lg:col-span-2 xl:col-span-3' : 
+                      field.field_type === 'group' ? 'lg:col-span-2' : 
+                      'lg:col-span-1'
                     }`}>
                       <div className="mb-3">
                         <label className="block text-sm font-medium text-gray-700">
