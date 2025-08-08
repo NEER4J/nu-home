@@ -859,7 +859,7 @@ export function ProductForm({
                         newSpecs[e.target.value] = value;
                         setSpecs(newSpecs);
                       }}
-                      className="flex-1 px-2 py-1 text-xs bg-white border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 px-2 py-2 text-xs bg-white border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       placeholder="Name"
                     />
                     <input
@@ -889,14 +889,14 @@ export function ProductForm({
                     type="text"
                     value={newSpecKey}
                     onChange={(e) => setNewSpecKey(e.target.value)}
-                    className="flex-1 px-2 py-1 text-xs bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="flex-1 px-2 py-2 text-sm bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder="New spec name"
                   />
                   <input
                     type="text"
                     value={newSpecValue}
                     onChange={(e) => setNewSpecValue(e.target.value)}
-                    className="flex-1 px-2 py-1 text-xs bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="flex-1 px-2 py-2 text-sm bg-gray-50 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder="New spec value"
                   />
                   <button

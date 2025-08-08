@@ -24,22 +24,42 @@ export default function AdvancedFieldForm({
     field_type: 'text',
     is_required: false,
     is_multi: false,
-    parent_field_id: null,
-    field_group_type: 'none',
     options: null,
   });
 
   const [childFields, setChildFields] = useState<Partial<CategoryField & { childFields?: Partial<CategoryField>[] }>[]>([]);
+  const [dropdownOptions, setDropdownOptions] = useState<string[]>([]);
+  const [childDropdownOptions, setChildDropdownOptions] = useState<{ [key: number]: string[] }>({});
 
   useEffect(() => {
     if (field) {
       setFormData(field);
       
       // If editing a container field with children, populate childFields
-      if (field.children && field.children.length > 0) {
-        setChildFields(field.children);
+      if ((field as any).children && (field as any).children.length > 0) {
+        setChildFields((field as any).children);
       } else {
         setChildFields([]);
+      }
+
+      // Initialize dropdown options
+      if (field.options && typeof field.options === 'object' && 'options' in field.options) {
+        setDropdownOptions(field.options.options || []);
+      } else {
+        setDropdownOptions([]);
+      }
+
+      // Initialize child dropdown options
+      if ((field as any).children && (field as any).children.length > 0) {
+        const childOptions: { [key: number]: string[] } = {};
+        (field as any).children.forEach((child: any, index: number) => {
+          if (child.options && typeof child.options === 'object' && 'options' in child.options) {
+            childOptions[index] = child.options.options || [];
+          } else {
+            childOptions[index] = [];
+          }
+        });
+        setChildDropdownOptions(childOptions);
       }
     }
   }, [field]);
@@ -82,6 +102,12 @@ export default function AdvancedFieldForm({
         'none';
     }
 
+    // Initialize dropdown options if changing to select type
+    if (fieldType === 'select' && !formData.options) {
+      newData.options = { options: [] };
+      setDropdownOptions([]);
+    }
+
     setFormData(newData);
   };
 
@@ -109,6 +135,72 @@ export default function AdvancedFieldForm({
       // Invalid JSON, keep the raw text for now
       console.log('Invalid JSON in options');
     }
+  };
+
+  const addDropdownOption = () => {
+    setDropdownOptions([...dropdownOptions, '']);
+  };
+
+  const updateDropdownOption = (index: number, value: string) => {
+    const updated = [...dropdownOptions];
+    updated[index] = value;
+    setDropdownOptions(updated);
+    
+    // Update formData with the new options
+    setFormData(prev => ({
+      ...prev,
+      options: { options: updated.filter(opt => opt.trim() !== '') }
+    }));
+  };
+
+  const removeDropdownOption = (index: number) => {
+    const updated = dropdownOptions.filter((_, i) => i !== index);
+    setDropdownOptions(updated);
+    
+    // Update formData with the new options
+    setFormData(prev => ({
+      ...prev,
+      options: { options: updated.filter(opt => opt.trim() !== '') }
+    }));
+  };
+
+  const addChildDropdownOption = (childIndex: number) => {
+    const currentOptions = childDropdownOptions[childIndex] || [];
+    setChildDropdownOptions({
+      ...childDropdownOptions,
+      [childIndex]: [...currentOptions, '']
+    });
+  };
+
+  const updateChildDropdownOption = (childIndex: number, optionIndex: number, value: string) => {
+    const currentOptions = childDropdownOptions[childIndex] || [];
+    const updated = [...currentOptions];
+    updated[optionIndex] = value;
+    
+    setChildDropdownOptions({
+      ...childDropdownOptions,
+      [childIndex]: updated
+    });
+    
+    // Update the child field with the new options
+    const updatedChild = { ...childFields[childIndex] };
+    updatedChild.options = { options: updated.filter(opt => opt.trim() !== '') };
+    updateChildField(childIndex, updatedChild);
+  };
+
+  const removeChildDropdownOption = (childIndex: number, optionIndex: number) => {
+    const currentOptions = childDropdownOptions[childIndex] || [];
+    const updated = currentOptions.filter((_, i) => i !== optionIndex);
+    
+    setChildDropdownOptions({
+      ...childDropdownOptions,
+      [childIndex]: updated
+    });
+    
+    // Update the child field with the new options
+    const updatedChild = { ...childFields[childIndex] };
+    updatedChild.options = { options: updated.filter(opt => opt.trim() !== '') };
+    updateChildField(childIndex, updatedChild);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -143,6 +235,14 @@ export default function AdvancedFieldForm({
     const updated = [...childFields];
     updated[index] = { ...updated[index], ...fieldData };
     setChildFields(updated);
+
+    // Initialize dropdown options if changing to select type
+    if (fieldData.field_type === 'select' && !childDropdownOptions[index]) {
+      setChildDropdownOptions({
+        ...childDropdownOptions,
+        [index]: []
+      });
+    }
   };
 
   const removeChildField = (index: number) => {
@@ -309,20 +409,46 @@ export default function AdvancedFieldForm({
       {needsOptions && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Options (JSON)
+            Dropdown Options
           </label>
-          <textarea
-            name="options"
-            value={formData.options ? JSON.stringify(formData.options, null, 2) : ''}
-            onChange={handleOptionsChange}
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-            placeholder={`{
-  "options": ["Option 1", "Option 2", "Option 3"]
-}`}
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            For select fields, provide options as JSON. Example: {"{"}"options": ["Option 1", "Option 2"]{"}"}
+          <div className="space-y-3">
+            {dropdownOptions.length === 0 ? (
+              <div className="text-center py-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <p className="text-gray-500">No options added yet</p>
+                <p className="text-sm text-gray-400 mt-1">Click "Add Option" to get started</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {dropdownOptions.map((option, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={(e) => updateDropdownOption(index, e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={`Option ${index + 1}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeDropdownOption(index)}
+                      className="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={addDropdownOption}
+              className="px-3 py-2 text-sm bg-gray-100 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Add Option
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Add the options that will appear in the dropdown menu
           </p>
         </div>
       )}
@@ -438,6 +564,50 @@ export default function AdvancedFieldForm({
                       </label>
                     )}
                   </div>
+
+                  {/* Child Dropdown Options */}
+                  {child.field_type === 'select' && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Dropdown Options
+                      </label>
+                      <div className="space-y-2">
+                        {(childDropdownOptions[index] || []).length === 0 ? (
+                          <div className="text-center py-3 bg-gray-50 rounded border-2 border-dashed border-gray-300">
+                            <p className="text-xs text-gray-500">No options added yet</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {(childDropdownOptions[index] || []).map((option, optionIndex) => (
+                              <div key={optionIndex} className="flex items-center space-x-2">
+                                <input
+                                  type="text"
+                                  value={option}
+                                  onChange={(e) => updateChildDropdownOption(index, optionIndex, e.target.value)}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  placeholder={`Option ${optionIndex + 1}`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeChildDropdownOption(index, optionIndex)}
+                                  className="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => addChildDropdownOption(index)}
+                          className="px-2 py-1 text-xs bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+                        >
+                          Add Option
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mt-2 text-xs text-gray-500 font-mono">
                     Key: {child.key || 'auto-generated'}

@@ -70,6 +70,9 @@ export interface CategoryField {
   options: any;
   is_multi: boolean;
   display_format: string;
+  help_text?: string;
+  field_group_type?: 'none' | 'group' | 'repeater' | 'group_child' | 'repeater_child';
+  parent_field_id?: string | null;
   field_structure?: {
     children?: FieldChild[];
   };
@@ -87,4 +90,10 @@ export interface FlattenedField {
   level: number;
   parent?: string;
   children?: FlattenedField[];
+}
+
+// Type for nested field structure
+export interface NestedFieldStructure {
+  topLevel: CategoryField[];
+  grouped: { [parentId: string]: CategoryField[] };
 }

@@ -24,15 +24,52 @@ export default function SimplifiedFieldForm({
     is_required: false,
     is_multi: false,
     options: null,
-    field_structure: null,
   });
 
-  const [childFields, setChildFields] = useState<FieldChild[]>([]);
+  const [childFields, setChildFields] = useState<Partial<FieldChild>[]>([]);
+  const [dropdownOptions, setDropdownOptions] = useState<string[]>([]);
+  const [childDropdownOptions, setChildDropdownOptions] = useState<{ [key: number]: string[] }>({});
+  const [nestedDropdownOptions, setNestedDropdownOptions] = useState<{ [parentIndex: number]: { [childIndex: number]: string[] } }>({});
 
   useEffect(() => {
     if (field) {
       setFormData(field);
-      setChildFields(field.field_structure?.children || []);
+      
+      // Initialize dropdown options
+      if (field.options && typeof field.options === 'object' && 'options' in field.options) {
+        setDropdownOptions(field.options.options || []);
+      } else {
+        setDropdownOptions([]);
+      }
+
+      // Initialize child dropdown options
+      if (field.field_structure?.children) {
+        const childOptions: { [key: number]: string[] } = {};
+        const nestedOptions: { [parentIndex: number]: { [childIndex: number]: string[] } } = {};
+        
+        field.field_structure.children.forEach((child, index) => {
+          if (child.options && typeof child.options === 'object' && 'options' in child.options) {
+            childOptions[index] = child.options.options || [];
+          } else {
+            childOptions[index] = [];
+          }
+
+          // Initialize nested child options
+          if (child.children) {
+            nestedOptions[index] = {};
+            child.children.forEach((nestedChild, nestedIndex) => {
+              if (nestedChild.options && typeof nestedChild.options === 'object' && 'options' in nestedChild.options) {
+                nestedOptions[index][nestedIndex] = nestedChild.options.options || [];
+              } else {
+                nestedOptions[index][nestedIndex] = [];
+              }
+            });
+          }
+        });
+        
+        setChildDropdownOptions(childOptions);
+        setNestedDropdownOptions(nestedOptions);
+      }
     }
   }, [field]);
 
@@ -50,6 +87,12 @@ export default function SimplifiedFieldForm({
         const key = value.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
         setFormData(prev => ({ ...prev, key }));
       }
+
+      // Initialize dropdown options if changing to select type
+      if (name === 'field_type' && value === 'select' && !formData.options) {
+        setFormData(prev => ({ ...prev, options: { options: [] } }));
+        setDropdownOptions([]);
+      }
     }
   };
 
@@ -65,11 +108,135 @@ export default function SimplifiedFieldForm({
     const dataToSave = {
       ...formData,
       field_structure: (formData.field_type === 'group' || formData.field_type === 'repeater') && childFields.length > 0
-        ? { children: childFields }
-        : null
+        ? { children: childFields as FieldChild[] }
+        : undefined
     };
 
     onSave(dataToSave);
+  };
+
+  const addDropdownOption = () => {
+    setDropdownOptions([...dropdownOptions, '']);
+  };
+
+  const updateDropdownOption = (index: number, value: string) => {
+    const updated = [...dropdownOptions];
+    updated[index] = value;
+    setDropdownOptions(updated);
+    
+    // Update formData with the new options
+    setFormData(prev => ({
+      ...prev,
+      options: { options: updated.filter(opt => opt.trim() !== '') }
+    }));
+  };
+
+  const removeDropdownOption = (index: number) => {
+    const updated = dropdownOptions.filter((_, i) => i !== index);
+    setDropdownOptions(updated);
+    
+    // Update formData with the new options
+    setFormData(prev => ({
+      ...prev,
+      options: { options: updated.filter(opt => opt.trim() !== '') }
+    }));
+  };
+
+  const addChildDropdownOption = (childIndex: number) => {
+    const currentOptions = childDropdownOptions[childIndex] || [];
+    setChildDropdownOptions({
+      ...childDropdownOptions,
+      [childIndex]: [...currentOptions, '']
+    });
+  };
+
+  const updateChildDropdownOption = (childIndex: number, optionIndex: number, value: string) => {
+    const currentOptions = childDropdownOptions[childIndex] || [];
+    const updated = [...currentOptions];
+    updated[optionIndex] = value;
+    
+    setChildDropdownOptions({
+      ...childDropdownOptions,
+      [childIndex]: updated
+    });
+    
+    // Update the child field with the new options
+    const updatedChild = { ...childFields[childIndex] };
+    updatedChild.options = { options: updated.filter(opt => opt.trim() !== '') };
+    updateChildField(childIndex, updatedChild);
+  };
+
+  const removeChildDropdownOption = (childIndex: number, optionIndex: number) => {
+    const currentOptions = childDropdownOptions[childIndex] || [];
+    const updated = currentOptions.filter((_, i) => i !== optionIndex);
+    
+    setChildDropdownOptions({
+      ...childDropdownOptions,
+      [childIndex]: updated
+    });
+    
+    // Update the child field with the new options
+    const updatedChild = { ...childFields[childIndex] };
+    updatedChild.options = { options: updated.filter(opt => opt.trim() !== '') };
+    updateChildField(childIndex, updatedChild);
+  };
+
+  const addNestedDropdownOption = (parentIndex: number, childIndex: number) => {
+    const currentOptions = nestedDropdownOptions[parentIndex]?.[childIndex] || [];
+    setNestedDropdownOptions({
+      ...nestedDropdownOptions,
+      [parentIndex]: {
+        ...nestedDropdownOptions[parentIndex],
+        [childIndex]: [...currentOptions, '']
+      }
+    });
+  };
+
+  const updateNestedDropdownOption = (parentIndex: number, childIndex: number, optionIndex: number, value: string) => {
+    const currentOptions = nestedDropdownOptions[parentIndex]?.[childIndex] || [];
+    const updated = [...currentOptions];
+    updated[optionIndex] = value;
+    
+    setNestedDropdownOptions({
+      ...nestedDropdownOptions,
+      [parentIndex]: {
+        ...nestedDropdownOptions[parentIndex],
+        [childIndex]: updated
+      }
+    });
+    
+    // Update the nested child field with the new options
+    const updatedChild = { ...childFields[parentIndex] };
+    if (updatedChild.children) {
+      updatedChild.children[childIndex] = {
+        ...updatedChild.children[childIndex],
+        options: { options: updated.filter(opt => opt.trim() !== '') }
+      };
+      updateChildField(parentIndex, updatedChild);
+    }
+  };
+
+  const removeNestedDropdownOption = (parentIndex: number, childIndex: number, optionIndex: number) => {
+    const currentOptions = nestedDropdownOptions[parentIndex]?.[childIndex] || [];
+    const updated = currentOptions.filter((_, i) => i !== optionIndex);
+    
+    setNestedDropdownOptions({
+      ...nestedDropdownOptions,
+      [parentIndex]: {
+        ...nestedDropdownOptions[parentIndex],
+        [childIndex]: updated
+      }
+    });
+    
+    // Update the nested child field with the new options
+    const updatedChild = { ...childFields[parentIndex] };
+    if (updatedChild.children) {
+      updatedChild.children[childIndex] = {
+        ...updatedChild.children[childIndex],
+        options: { options: updated.filter(opt => opt.trim() !== '') }
+      };
+      updateChildField(parentIndex, updatedChild);
+    }
   };
 
   const addChildField = () => {
@@ -86,6 +253,14 @@ export default function SimplifiedFieldForm({
     const updated = [...childFields];
     updated[index] = { ...updated[index], ...fieldData };
     setChildFields(updated);
+
+    // Initialize dropdown options if changing to select type
+    if (fieldData.field_type === 'select' && !childDropdownOptions[index]) {
+      setChildDropdownOptions({
+        ...childDropdownOptions,
+        [index]: []
+      });
+    }
   };
 
   const removeChildField = (index: number) => {
@@ -105,6 +280,16 @@ export default function SimplifiedFieldForm({
       is_required: false,
     });
     setChildFields(updated);
+
+    // Initialize nested dropdown options state for the new child
+    const newChildIndex = updated[parentIndex].children!.length - 1;
+    setNestedDropdownOptions({
+      ...nestedDropdownOptions,
+      [parentIndex]: {
+        ...nestedDropdownOptions[parentIndex],
+        [newChildIndex]: []
+      }
+    });
   };
 
   const updateNestedChild = (parentIndex: number, childIndex: number, fieldData: Partial<FieldChild>) => {
@@ -112,6 +297,17 @@ export default function SimplifiedFieldForm({
     if (updated[parentIndex].children) {
       updated[parentIndex].children![childIndex] = { ...updated[parentIndex].children![childIndex], ...fieldData };
       setChildFields(updated);
+
+      // Initialize dropdown options if changing to select type
+      if (fieldData.field_type === 'select' && !nestedDropdownOptions[parentIndex]?.[childIndex]) {
+        setNestedDropdownOptions({
+          ...nestedDropdownOptions,
+          [parentIndex]: {
+            ...nestedDropdownOptions[parentIndex],
+            [childIndex]: []
+          }
+        });
+      }
     }
   };
 
@@ -245,23 +441,47 @@ export default function SimplifiedFieldForm({
           {needsOptions && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Options (JSON)
+                Dropdown Options
               </label>
-              <textarea
-                name="options"
-                value={formData.options ? JSON.stringify(formData.options, null, 2) : ''}
-                onChange={(e) => {
-                  try {
-                    const options = e.target.value ? JSON.parse(e.target.value) : null;
-                    setFormData(prev => ({ ...prev, options }));
-                  } catch (error) {
-                    // Invalid JSON, keep the raw text for now
-                  }
-                }}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                placeholder='{"options": ["Option 1", "Option 2"]}'
-              />
+              <div className="space-y-3">
+                {dropdownOptions.length === 0 ? (
+                  <div className="text-center py-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <p className="text-gray-500">No options added yet</p>
+                    <p className="text-sm text-gray-400 mt-1">Click "Add Option" to get started</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {dropdownOptions.map((option, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={option}
+                          onChange={(e) => updateDropdownOption(index, e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder={`Option ${index + 1}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeDropdownOption(index)}
+                          className="px-3 py-2 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={addDropdownOption}
+                  className="px-3 py-2 text-sm bg-gray-100 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  Add Option
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Add the options that will appear in the dropdown menu
+              </p>
             </div>
           )}
         </div>
@@ -365,6 +585,50 @@ export default function SimplifiedFieldForm({
                     )}
                   </div>
 
+                  {/* Child Dropdown Options */}
+                  {child.field_type === 'select' && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Dropdown Options
+                      </label>
+                      <div className="space-y-2">
+                        {(childDropdownOptions[index] || []).length === 0 ? (
+                          <div className="text-center py-3 bg-gray-50 rounded border-2 border-dashed border-gray-300">
+                            <p className="text-xs text-gray-500">No options added yet</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {(childDropdownOptions[index] || []).map((option, optionIndex) => (
+                              <div key={optionIndex} className="flex items-center space-x-2">
+                                <input
+                                  type="text"
+                                  value={option}
+                                  onChange={(e) => updateChildDropdownOption(index, optionIndex, e.target.value)}
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  placeholder={`Option ${optionIndex + 1}`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeChildDropdownOption(index, optionIndex)}
+                                  className="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => addChildDropdownOption(index)}
+                          className="px-2 py-1 text-xs bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+                        >
+                          Add Option
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Nested children */}
                   {child.children && child.children.length > 0 && (
                     <div className="mt-4 border-t pt-4">
@@ -408,6 +672,50 @@ export default function SimplifiedFieldForm({
                                 <option value="image">Image</option>
                               </select>
                             </div>
+
+                            {/* Nested Child Dropdown Options */}
+                            {nestedChild.field_type === 'select' && (
+                              <div className="mt-2">
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  Dropdown Options
+                                </label>
+                                <div className="space-y-1">
+                                  {(nestedDropdownOptions[index]?.[nestedIndex] || []).length === 0 ? (
+                                    <div className="text-center py-2 bg-gray-50 rounded border border-dashed border-gray-300">
+                                      <p className="text-xs text-gray-500">No options</p>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-1">
+                                      {(nestedDropdownOptions[index]?.[nestedIndex] || []).map((option, optionIndex) => (
+                                        <div key={optionIndex} className="flex items-center space-x-1">
+                                          <input
+                                            type="text"
+                                            value={option}
+                                            onChange={(e) => updateNestedDropdownOption(index, nestedIndex, optionIndex, e.target.value)}
+                                            className="flex-1 px-1 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            placeholder={`Option ${optionIndex + 1}`}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => removeNestedDropdownOption(index, nestedIndex, optionIndex)}
+                                            className="px-1 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                                          >
+                                            ×
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => addNestedDropdownOption(index, nestedIndex)}
+                                    className="px-1 py-1 text-xs bg-gray-100 text-gray-700 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+                                  >
+                                    Add Option
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

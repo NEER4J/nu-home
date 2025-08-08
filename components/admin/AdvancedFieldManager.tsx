@@ -79,7 +79,7 @@ export default function AdvancedFieldManager({ categoryId }: AdvancedFieldManage
           })
         );
         
-        fieldWithChildren.children = childrenWithGrandchildren;
+        (fieldWithChildren as any).children = childrenWithGrandchildren;
       }
       
       setEditingField(fieldId);
@@ -322,7 +322,7 @@ export default function AdvancedFieldManager({ categoryId }: AdvancedFieldManage
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
           <AdvancedFieldForm 
             field={editingFieldData}
-            parentFields={nestedStructure.topLevel.filter(f => f.field_type === 'group' || f.field_type === 'repeater')}
+            parentFields={nestedStructure.topLevel.filter((f: CategoryField) => f.field_type === 'group' || f.field_type === 'repeater')}
             isEditing={!!editingField}
             onCancel={handleCancelEdit}
             onSave={editingField ? handleSaveFieldEdit : handleSaveNewField}

@@ -2,9 +2,6 @@
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import EditCategoryForm from '@/components/admin/EditCategoryForm';
-import CategoryFieldsManager from '@/components/admin/CategoryFieldsManager';
-import AddonTypesManager from '@/components/admin/AddonTypesManager';
 import ServiceCategoryTabs from '@/components/admin/ServiceCategoryTabs';
 
 export const metadata = {

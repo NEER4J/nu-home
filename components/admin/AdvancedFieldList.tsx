@@ -181,8 +181,8 @@ export default function AdvancedFieldList({
         {isContainer && children.length > 0 && (
           <div className="ml-8 space-y-2 border-l-2 border-gray-200 pl-4">
             {children
-              .sort((a, b) => a.display_order - b.display_order)
-              .map((child, childIndex) => renderField(child, level + 1, childIndex))}
+              .sort((a: CategoryField, b: CategoryField) => a.display_order - b.display_order)
+              .map((child: CategoryField, childIndex: number) => renderField(child, level + 1, childIndex))}
           </div>
         )}
       </div>
@@ -207,8 +207,8 @@ export default function AdvancedFieldList({
       </div>
       
       {nestedStructure.topLevel
-        .sort((a, b) => a.display_order - b.display_order)
-        .map((field, index) => renderField(field, 0, index))}
+        .sort((a: CategoryField, b: CategoryField) => a.display_order - b.display_order)
+        .map((field: CategoryField, index: number) => renderField(field, 0, index))}
     </div>
   );
 }
