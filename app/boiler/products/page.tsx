@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
+import ProductHeaderTile from '@/components/category-commons/product/ProductHeaderTile'
+import ProductFaqs from '@/components/category-commons/product/ProductFaqs'
 
 interface PartnerInfo {
   company_name: string
@@ -75,6 +77,15 @@ function BoilerProductsContent() {
   const [submissionInfo, setSubmissionInfo] = useState<QuoteSubmission | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<PartnerProduct | null>(null)
   const [showModal, setShowModal] = useState(false)
+
+  // Filters
+  const [filterBoilerType, setFilterBoilerType] = useState<string | null>(null)
+  const [filterBedroom, setFilterBedroom] = useState<string | null>(null)
+  const [filterBathroom, setFilterBathroom] = useState<string | null>(null)
+  // Prefill baseline captured from submission answers
+  const [prefillBoilerType, setPrefillBoilerType] = useState<string | null>(null)
+  const [prefillBedroom, setPrefillBedroom] = useState<string | null>(null)
+  const [prefillBathroom, setPrefillBathroom] = useState<string | null>(null)
 
   // Read submission id to persist context (if present)
   const submissionId = searchParams?.get('submission') ?? null
@@ -237,6 +248,143 @@ function BoilerProductsContent() {
     })
   }, [products])
 
+  // Normalization helpers for filtering
+  const normalizeNumberToBucket = (value: any, cap: number): string | null => {
+    if (value === null || value === undefined) return null
+    const raw = String(value).toLowerCase().trim()
+    if (!raw) return null
+    if (raw.includes('+')) {
+      const n = parseInt(raw.replace(/[^0-9]/g, ''), 10)
+      if (!Number.isNaN(n)) return `${n}+`
+    }
+    const match = raw.match(/\d+/)
+    if (match) {
+      const n = parseInt(match[0], 10)
+      if (!Number.isNaN(n)) {
+        return n >= cap ? `${cap}+` : String(n)
+      }
+    }
+    return null
+  }
+
+  const getSupportedBedrooms = (product: PartnerProduct): string[] => {
+    const raw = (product.product_fields as any)?.supported_bedroom
+    if (!raw) return []
+    const arr = Array.isArray(raw) ? raw : [raw]
+    const out = new Set<string>()
+    arr.forEach((item) => {
+      const bucket = normalizeNumberToBucket(item, 6)
+      if (bucket) out.add(bucket)
+    })
+    return Array.from(out)
+  }
+
+  const getSupportedBathrooms = (product: PartnerProduct): string[] => {
+    const raw = (product.product_fields as any)?.supported_bathroom
+    if (!raw) return []
+    const arr = Array.isArray(raw) ? raw : [raw]
+    const out = new Set<string>()
+    arr.forEach((item) => {
+      const bucket = normalizeNumberToBucket(item, 4)
+      if (bucket) out.add(bucket)
+    })
+    return Array.from(out)
+  }
+
+  const getBoilerTypes = (product: PartnerProduct): string[] => {
+    const raw = (product.product_fields as any)?.boiler_type
+    if (!raw) return []
+    const arr = Array.isArray(raw) ? raw : [raw]
+    return arr
+      .map((v) => String(v).toLowerCase().trim())
+      .filter(Boolean)
+  }
+
+  const normalizeBoilerTypeAnswer = (value: any): string | null => {
+    if (value === null || value === undefined) return null
+    const raw = String(Array.isArray(value) ? value[0] : value).toLowerCase().trim()
+    if (!raw) return null
+    if (/(combi)/i.test(raw)) return 'combi'
+    if (/(regular|conventional|heat\s*only)/i.test(raw)) return 'regular'
+    if (/(system)/i.test(raw)) return 'system'
+    return null
+  }
+
+  // Derive prefill values from submission answers when they load
+  useEffect(() => {
+    const answers = submissionInfo?.form_answers
+    if (!answers || !Array.isArray(answers)) {
+      setPrefillBathroom(null)
+      setPrefillBedroom(null)
+      setPrefillBoilerType(null)
+      return
+    }
+
+    const BATHROOM_Q = 'c9b962d4-baa5-419e-99bf-933216d531e7'
+    const BEDROOM_Q = 'fc39112a-0d71-4766-845d-3fdec496d471'
+    const BOILER_TYPE_Q = 'bbe071af-72d0-4ce4-85a7-83d5f3c82180'
+
+    const bathroomAns = answers.find((a: any) => a.question_id === BATHROOM_Q)?.answer
+    const bedroomAns = answers.find((a: any) => a.question_id === BEDROOM_Q)?.answer
+    const typeAns = answers.find((a: any) => a.question_id === BOILER_TYPE_Q)?.answer
+
+    setPrefillBathroom(normalizeNumberToBucket(bathroomAns, 4))
+    setPrefillBedroom(normalizeNumberToBucket(bedroomAns, 6))
+    setPrefillBoilerType(normalizeBoilerTypeAnswer(typeAns))
+  }, [submissionInfo?.form_answers])
+
+  // Apply prefill to filters initially (without overriding user changes later)
+  useEffect(() => {
+    if (filterBathroom === null && prefillBathroom) setFilterBathroom(prefillBathroom)
+    if (filterBedroom === null && prefillBedroom) setFilterBedroom(prefillBedroom)
+    if (filterBoilerType === null && prefillBoilerType) setFilterBoilerType(prefillBoilerType)
+  }, [prefillBathroom, prefillBedroom, prefillBoilerType])
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (filterBoilerType) {
+        const types = getBoilerTypes(p)
+        if (!types.length || !types.includes(filterBoilerType)) return false
+      }
+      if (filterBedroom) {
+        const beds = getSupportedBedrooms(p)
+        if (!beds.length || !beds.includes(filterBedroom)) return false
+      }
+      if (filterBathroom) {
+        const baths = getSupportedBathrooms(p)
+        if (!baths.length || !baths.includes(filterBathroom)) return false
+      }
+      return true
+    })
+  }, [products, filterBoilerType, filterBedroom, filterBathroom])
+
+  const displayProducts = useMemo(() => {
+    return filteredProducts.map((product) => {
+      const priceLabel = typeof product.price === 'number' ? `£${product.price.toFixed(2)}` : 'Contact for price'
+      return { ...product, priceLabel }
+    })
+  }, [filteredProducts])
+
+  const productsForEmail = useMemo(() => {
+    return displayProducts.map((p) => ({
+      id: p.partner_product_id,
+      name: p.name,
+      priceLabel: (p as any).priceLabel as string,
+    }))
+  }, [displayProducts])
+
+  const clearFilters = () => {
+    setFilterBoilerType(null)
+    setFilterBedroom(null)
+    setFilterBathroom(null)
+  }
+
+  const resetFiltersToSubmission = () => {
+    setFilterBoilerType(prefillBoilerType)
+    setFilterBedroom(prefillBedroom)
+    setFilterBathroom(prefillBathroom)
+  }
+
   const handleMoreDetails = (product: PartnerProduct) => {
     setSelectedProduct(product)
     setShowModal(true)
@@ -245,6 +393,43 @@ function BoilerProductsContent() {
   const closeModal = () => {
     setShowModal(false)
     setSelectedProduct(null)
+  }
+
+  async function handleSaveQuoteEmail(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const form = e.currentTarget
+    const formData = new FormData(form)
+    const email = String(formData.get('email') || '').trim()
+    if (!email) return
+
+    try {
+      const hostname = window.location.hostname
+      const fromHost = hostname.split('.')[0]
+      const urlParams = new URLSearchParams(window.location.search)
+      const fromQuery = urlParams.get('subdomain') || ''
+      const computed = fromQuery || (fromHost && fromHost !== 'localhost' && fromHost !== 'www' ? fromHost : '')
+      const subdomain = computed || null
+
+      const res = await fetch('/api/email/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: email,
+          productName: selectedProduct?.name,
+          subdomain,
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data?.error || 'Failed to send email')
+      } else {
+        alert('Saved! We sent you an email with the details.')
+        form.reset()
+      }
+    } catch (err) {
+      console.error('Save quote email error:', err)
+      alert('Failed to send email')
+    }
   }
 
   // Helper: normalize included item structures from various shapes
@@ -423,57 +608,35 @@ function BoilerProductsContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24">
-      {/* Header Section */}
-      <div className=" border-b ">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {formattedProducts.length} available installation packages
-              </h1>
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <span className="text-sm text-gray-600">Suitable for</span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  1 bedroom
-                </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  1 bathroom
-                </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                  in {submissionInfo?.postcode || 'your area'}
-                  <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                What's included?
-              </button>
-              <button className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                Save for later
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProductHeaderTile
+        count={displayProducts.length}
+        postcode={submissionInfo?.postcode || null}
+        filterBedroom={filterBedroom}
+        filterBathroom={filterBathroom}
+        filterBoilerType={filterBoilerType}
+        setFilterBedroom={setFilterBedroom}
+        setFilterBathroom={setFilterBathroom}
+        setFilterBoilerType={setFilterBoilerType}
+        clearFilters={clearFilters}
+        resetFiltersToSubmission={resetFiltersToSubmission}
+        includedItems={partnerSettings?.included_items || null}
+        brandColor={brandColor}
+        defaultFirstName={submissionInfo?.first_name || null}
+        defaultLastName={submissionInfo?.last_name || null}
+        defaultEmail={submissionInfo?.email || null}
+        submissionId={submissionId}
+        productsForEmail={productsForEmail}
+      />
 
       {/* Products Grid */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {formattedProducts.length === 0 ? (
+        {displayProducts.length === 0 ? (
           <div className="bg-white rounded-xl shadow p-10 text-center text-gray-600">
-            No products available right now.
+            No products match your filters.
           </div>
         ) : (
           <div className="grid gap-6 lg:grid-cols-3">
-            {formattedProducts.map((product) => (
+            {displayProducts.map((product) => (
               <div key={product.partner_product_id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 {/* Product Header */}
                 <div className="relative p-6 pb-4">
@@ -724,129 +887,33 @@ function BoilerProductsContent() {
                   Close
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Partner Details Section */}
-      {partnerInfo && (
-        <div className="bg-white border-t mt-10">
-          <div className="max-w-7xl mx-auto px-6 py-8">
-            <div className="bg-gray-50 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">About {partnerInfo.company_name}</h3>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Company</p>
-                  <p className="text-gray-900">{partnerInfo.company_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Contact Person</p>
-                  <p className="text-gray-900">{partnerInfo.contact_person}</p>
-                </div>
-                {partnerInfo.phone && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Phone</p>
-                    <p className="text-gray-900">{partnerInfo.phone}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Location</p>
-                  <p className="text-gray-900">{partnerInfo.postcode}</p>
-                </div>
-                {partnerInfo.website_url && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Website</p>
-                    <a 
-                      href={partnerInfo.website_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      Visit website
-                    </a>
-                  </div>
-                )}
-                {partnerInfo.business_description && (
-                  <div className="sm:col-span-2 lg:col-span-3">
-                    <p className="text-sm font-medium text-gray-700 mb-2">About Us</p>
-                    <p className="text-gray-900">{partnerInfo.business_description}</p>
-                  </div>
-                )}
+              {/* Save Quote simple form */}
+              <div className="mt-6 border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Save Quote</h3>
+                <form onSubmit={handleSaveQuoteEmail} className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="email"
+                    name="email"
+                    required
+                    placeholder="Enter your email"
+                    className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Save & Email Me
+                  </button>
+                </form>
               </div>
-
-              {/* Partner Settings */}
-              {partnerSettings && (
-                <div className="mt-8">
-                  <h4 className="text-md font-semibold text-gray-900 mb-3">Partner Settings</h4>
-                  <div className="grid gap-6">
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">APR Settings</p>
-                      {partnerSettings.apr_settings && Object.keys(partnerSettings.apr_settings).length > 0 ? (
-                        renderKeyValueObject(partnerSettings.apr_settings)
-                      ) : (
-                        <p className="text-sm text-gray-600">No APR settings provided.</p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">OTP</p>
-                      <p className="text-sm text-gray-900">{partnerSettings.otp_enabled ? 'Enabled' : 'Disabled'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">Included Items</p>
-                      {Array.isArray(partnerSettings.included_items) && partnerSettings.included_items.length > 0 ? (
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          {partnerSettings.included_items.map((entry: any, idx: number) => {
-                            const normalized = normalizeIncludedItem(entry)
-                            if (!normalized) return (
-                              <div key={idx} className="p-3 bg-white rounded border text-sm text-gray-900">Invalid item</div>
-                            )
-                            const { image, title, subtitle } = normalized
-                            return (
-                              <div key={idx} className="flex items-start gap-3 p-3 bg-white rounded border">
-                                {image && (
-                                  <img src={image} alt={title} className="h-12 w-12 rounded object-cover border" />
-                                )}
-                                <div>
-                                  <div className="font-medium text-gray-900">{title}</div>
-                                  {subtitle && <div className="text-gray-600 text-sm">{subtitle}</div>}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-600">No included items provided.</p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-2">FAQs</p>
-                      {Array.isArray(partnerSettings.faqs) && partnerSettings.faqs.length > 0 ? (
-                        <div className="space-y-3">
-                          {partnerSettings.faqs.map((faq: any, idx: number) => (
-                            <div key={idx} className="p-3 bg-white rounded border">
-                              {faq.question || faq.q ? (
-                                <>
-                                  <div className="font-medium text-gray-900">{faq.question || faq.q}</div>
-                                  <div className="text-gray-700 text-sm">{faq.answer || faq.a}</div>
-                                </>
-                              ) : (
-                                <div className="text-sm text-gray-900">{JSON.stringify(faq)}</div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-600">No FAQs provided.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
+
+      {/* FAQs at bottom */}
+      <ProductFaqs faqs={partnerSettings?.faqs || null} brandColor={brandColor} />
 
       {/* User Info Section at Bottom */}
       {submissionInfo && (
