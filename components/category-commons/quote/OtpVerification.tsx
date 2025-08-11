@@ -61,12 +61,18 @@ export default function OtpVerification({
     setError('')
     
     try {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+      const fromHost = hostname?.split?.('.')?.[0] || ''
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+      const fromQuery = urlParams?.get('subdomain') || ''
+      const computed = fromQuery || (fromHost && fromHost !== 'localhost' && fromHost !== 'www' ? fromHost : '')
+      const subdomain = computed || null
       const response = await fetch('/api/otp/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phoneNumber }),
+        body: JSON.stringify({ phoneNumber, subdomain }),
       })
       
       const data = await response.json()
@@ -105,6 +111,12 @@ export default function OtpVerification({
     setError('')
     
     try {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+      const fromHost = hostname?.split?.('.')?.[0] || ''
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+      const fromQuery = urlParams?.get('subdomain') || ''
+      const computed = fromQuery || (fromHost && fromHost !== 'localhost' && fromHost !== 'www' ? fromHost : '')
+      const subdomain = computed || null
       const response = await fetch('/api/otp/verify', {
         method: 'POST',
         headers: {
@@ -113,7 +125,8 @@ export default function OtpVerification({
         body: JSON.stringify({ 
           phoneNumber, 
           code: otpCode,
-          verificationSid 
+          verificationSid,
+          subdomain
         }),
       })
       

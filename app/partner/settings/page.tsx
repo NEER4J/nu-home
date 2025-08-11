@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { Settings, DollarSign, Shield, List, HelpCircle } from 'lucide-react';
+import { Settings, List, HelpCircle, Mail, Phone } from 'lucide-react';
 
 interface ServiceCategory {
   service_category_id: string;
@@ -16,12 +16,13 @@ interface PartnerSettings {
   apr_settings: {
     [key: number]: number; // month -> apr percentage
   };
-  otp_enabled: boolean;
   included_items: string[];
   faqs: {
     question: string;
     answer: string;
   }[];
+  company_color?: string;
+  otp_enabled?: boolean;
 }
 
 interface APREntry {
@@ -29,25 +30,66 @@ interface APREntry {
   apr: number;
 }
 
+// SMTP fields (global)
+interface SmtpSettings {
+  SMTP_HOST: string;
+  SMTP_PORT: number;
+  SMTP_SECURE: boolean;
+  SMTP_USER: string;
+  SMTP_PASSWORD: string;
+  SMTP_FROM: string;
+}
+
+// Twilio Verify fields (global)
+interface TwilioSettings {
+  TWILIO_ACCOUNT_SID: string;
+  TWILIO_AUTH_TOKEN: string;
+  TWILIO_VERIFY_SID: string;
+}
+
+const defaultSmtp: SmtpSettings = {
+  SMTP_HOST: '',
+  SMTP_PORT: 587,
+  SMTP_SECURE: false,
+  SMTP_USER: '',
+  SMTP_PASSWORD: '',
+  SMTP_FROM: '',
+};
+
+const defaultTwilio: TwilioSettings = {
+  TWILIO_ACCOUNT_SID: '',
+  TWILIO_AUTH_TOKEN: '',
+  TWILIO_VERIFY_SID: '',
+};
+
 export default function PartnerSettingsPage() {
+  const [mainTab, setMainTab] = useState<'account' | 'category'>('account');
   const [activeTab, setActiveTab] = useState('general');
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [settings, setSettings] = useState<PartnerSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // category loading
   const [saving, setSaving] = useState(false);
-  
-  // Form states
-  const [aprEntries, setAprEntries] = useState<APREntry[]>([{ months: 12, apr: 0 }]);
-  const [otpEnabled, setOtpEnabled] = useState(false);
+
+  // Global account states
+  const [loadingIntegrations, setLoadingIntegrations] = useState(true);
+  const [savingIntegrations, setSavingIntegrations] = useState(false);
+  const [smtpSettings, setSmtpSettings] = useState<SmtpSettings>(defaultSmtp);
+  const [twilioSettings, setTwilioSettings] = useState<TwilioSettings>(defaultTwilio);
   const [companyColor, setCompanyColor] = useState('#3B82F6');
+  const [otpEnabled, setOtpEnabled] = useState(false);
+  
+  // Category form states
+  const [aprEntries, setAprEntries] = useState<APREntry[]>([{ months: 12, apr: 0 }]);
   const [includedItems, setIncludedItems] = useState<string[]>(['']);
   const [faqs, setFaqs] = useState<{question: string; answer: string}[]>([{ question: '', answer: '' }]);
 
   const supabase = createClient();
 
   useEffect(() => {
+    // Load both categories and global integrations
     loadCategories();
+    loadIntegrations();
   }, []);
 
   useEffect(() => {
@@ -58,32 +100,158 @@ export default function PartnerSettingsPage() {
     }
   }, [selectedCategory, categories.length]);
 
-  const loadCategories = async () => {
-    console.log('Loading categories...');
+  const migrateSmtp = (raw: any): SmtpSettings => {
+    const merged: SmtpSettings = {
+      ...defaultSmtp,
+      ...(raw || {}),
+    };
+    // Backward compat mapping from previous lower-case keys
+    if (!merged.SMTP_HOST && raw?.host) merged.SMTP_HOST = raw.host;
+    if (!merged.SMTP_PORT && (raw?.port || raw?.SMTP_PORT === 0)) merged.SMTP_PORT = Number(raw.port ?? raw.SMTP_PORT ?? 587);
+    if (typeof merged.SMTP_SECURE !== 'boolean' && typeof raw?.secure === 'boolean') merged.SMTP_SECURE = raw.secure;
+    if (!merged.SMTP_USER && (raw?.username || raw?.user)) merged.SMTP_USER = raw.username ?? raw.user;
+    if (!merged.SMTP_PASSWORD && raw?.password) merged.SMTP_PASSWORD = raw.password;
+    if (!merged.SMTP_FROM && (raw?.from_email || raw?.from)) merged.SMTP_FROM = raw.from_email ?? raw.from;
+    return merged;
+  };
+
+  const migrateTwilio = (raw: any): TwilioSettings => {
+    const merged: TwilioSettings = {
+      ...defaultTwilio,
+      ...(raw || {}),
+    };
+    if (!merged.TWILIO_ACCOUNT_SID && raw?.account_sid) merged.TWILIO_ACCOUNT_SID = raw.account_sid;
+    if (!merged.TWILIO_AUTH_TOKEN && raw?.auth_token) merged.TWILIO_AUTH_TOKEN = raw.auth_token;
+    if (!merged.TWILIO_VERIFY_SID && (raw?.verify_sid || raw?.messaging_service_sid)) merged.TWILIO_VERIFY_SID = raw.verify_sid ?? raw.messaging_service_sid;
+    return merged;
+  };
+
+  const loadIntegrations = async () => {
+    setLoadingIntegrations(true);
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('User:', user, 'Error:', userError);
-      
+      if (userError) console.error('Auth error (integrations):', userError);
       if (!user) {
-        console.log('No user found');
+        setLoadingIntegrations(false);
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('UserProfiles')
+        .select('smtp_settings, twilio_settings, company_color, otp')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error loading profile integrations:', profileError);
+      } else if (profile) {
+        // Check if we have encrypted data
+        if (profile.smtp_settings && Object.keys(profile.smtp_settings).length > 0) {
+          // Decrypt the settings using server-side API
+          const response = await fetch('/api/partner/decrypt-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              smtp_settings: profile.smtp_settings,
+              twilio_settings: profile.twilio_settings,
+            }),
+          });
+
+          if (response.ok) {
+            const { smtp_settings, twilio_settings } = await response.json();
+            const smtp = migrateSmtp(smtp_settings || {});
+            const twilio = migrateTwilio(twilio_settings || {});
+            setSmtpSettings(smtp);
+            setTwilioSettings(twilio);
+          } else {
+            console.error('Failed to decrypt settings, using empty defaults');
+            setSmtpSettings(defaultSmtp);
+            setTwilioSettings(defaultTwilio);
+          }
+        } else {
+          // No encrypted data, use defaults
+          setSmtpSettings(defaultSmtp);
+          setTwilioSettings(defaultTwilio);
+        }
+        
+        setCompanyColor(profile.company_color || '#3B82F6');
+        setOtpEnabled(Boolean(profile.otp));
+      }
+    } catch (error) {
+      console.error('Unexpected error loading integrations:', error);
+      // Fallback to defaults on error
+      setSmtpSettings(defaultSmtp);
+      setTwilioSettings(defaultTwilio);
+    } finally {
+      setLoadingIntegrations(false);
+    }
+  };
+
+  const saveIntegrations = async () => {
+    setSavingIntegrations(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Encrypt the settings using server-side API
+      const response = await fetch('/api/partner/encrypt-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          smtp_settings: smtpSettings,
+          twilio_settings: twilioSettings,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Encryption API error:', errorData);
+        throw new Error('Failed to encrypt settings');
+      }
+
+      const { encrypted_smtp, encrypted_twilio } = await response.json();
+
+      const { error } = await supabase
+        .from('UserProfiles')
+        .update({
+          smtp_settings: encrypted_smtp,
+          twilio_settings: encrypted_twilio,
+          company_color: companyColor,
+          otp: otpEnabled,
+        })
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error saving integrations:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Unexpected error saving integrations:', error);
+      // You might want to show a user-friendly error message here
+    } finally {
+      setSavingIntegrations(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         setLoading(false);
         return;
       }
 
-      const { data: categoryAccess, error: categoryError } = await supabase
+      const { data: categoryAccess } = await supabase
         .from('UserCategoryAccess')
         .select('*, ServiceCategories(service_category_id, name)')
         .eq('user_id', user.id)
         .eq('status', 'approved');
-
-      console.log('Category access:', categoryAccess, 'Error:', categoryError);
 
       const categories = categoryAccess?.map((access: any) => ({
         service_category_id: access.ServiceCategories.service_category_id,
         name: access.ServiceCategories.name
       })) || [];
 
-      console.log('Processed categories:', categories);
       setCategories(categories);
       
       if (categories.length > 0 && !selectedCategory) {
@@ -98,36 +266,26 @@ export default function PartnerSettingsPage() {
   };
 
   const loadSettings = async () => {
-    console.log('Loading settings for category:', selectedCategory);
     setLoading(true);
     try {
       const response = await fetch(`/api/partner-settings?service_category_id=${selectedCategory}`);
-      console.log('Settings API response status:', response.status);
-      
       const result = await response.json();
-      console.log('Settings API result:', result);
       
       if (result.data) {
         setSettings(result.data);
         
         // Convert apr_settings object to array
-        const aprArray = Object.entries(result.data.apr_settings || {}).map(([months, apr]) => ({
+        const aprArray = Object.entries(result.data.apr_settings || {}).map(([months, apr]: [string, any]) => ({
           months: parseInt(months),
           apr: parseFloat(apr as string)
         }));
         setAprEntries(aprArray.length > 0 ? aprArray : [{ months: 12, apr: 0 }]);
         
-        setOtpEnabled(result.data.otp_enabled || false);
-        setCompanyColor(result.data.company_color || '#3B82F6');
         setIncludedItems(result.data.included_items?.length > 0 ? result.data.included_items : ['']);
         setFaqs(result.data.faqs?.length > 0 ? result.data.faqs : [{ question: '', answer: '' }]);
       } else {
-        // No settings exist, use defaults
-        console.log('No settings found, using defaults');
         setSettings(null);
         setAprEntries([{ months: 12, apr: 0 }]);
-        setOtpEnabled(false);
-        setCompanyColor('#3B82F6');
         setIncludedItems(['']);
         setFaqs([{ question: '', answer: '' }]);
       }
@@ -154,8 +312,6 @@ export default function PartnerSettingsPage() {
       const payload = {
         service_category_id: selectedCategory,
         apr_settings: aprSettings,
-        otp_enabled: otpEnabled,
-        company_color: companyColor,
         included_items: includedItems.filter(item => item.trim() !== ''),
         faqs: faqs.filter(faq => faq.question.trim() !== '' || faq.answer.trim() !== '')
       };
@@ -230,7 +386,8 @@ export default function PartnerSettingsPage() {
     setFaqs(updated);
   };
 
-  if (loading) {
+  // Page-level loader: only block when viewing category tab
+  if (mainTab === 'category' && loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -245,7 +402,166 @@ export default function PartnerSettingsPage() {
           <Settings className="h-6 w-6" />
           Partner Settings
         </h1>
-        <p className="text-gray-600 mt-2">Configure your settings for each service category</p>
+        <p className="text-gray-600 mt-2">Configure account-wide integrations or category-specific settings.</p>
+      </div>
+
+      {/* Main Tabs */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex space-x-8">
+          <button
+            onClick={() => setMainTab('account')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              mainTab === 'account'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Account Settings
+          </button>
+          <button
+            onClick={() => setMainTab('category')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              mainTab === 'category'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Category Settings
+          </button>
+        </nav>
+      </div>
+
+      {mainTab === 'account' && (
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Account Integrations</h2>
+          <p className="text-sm text-gray-600 mb-6">These settings apply to all categories.</p>
+
+          {/* Brand Color */}
+          <div className="bg-gray-50 p-4 rounded-lg border mb-6">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company Brand Color
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Choose a color that represents your brand. This will be used in customer-facing interfaces.
+              </p>
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="color"
+                    value={companyColor}
+                    onChange={(e) => setCompanyColor(e.target.value)}
+                    className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={companyColor}
+                    onChange={(e) => setCompanyColor(e.target.value)}
+                    placeholder="#3B82F6"
+                    className="block w-24 px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <span>Preview:</span>
+                  <div 
+                    className="w-8 h-8 rounded border-2 border-gray-200"
+                    style={{ backgroundColor: companyColor }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* OTP Setting */}
+          <div className="bg-gray-50 p-4 rounded-lg border mb-6">
+            <div className="flex items-start">
+              <input
+                type="checkbox"
+                checked={otpEnabled}
+                onChange={(e) => setOtpEnabled(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+              />
+              <div className="ml-3">
+                <label className="text-sm font-medium text-gray-700">
+                  Enable OTP Verification
+                </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Require customers to verify their phone number via SMS before submitting quotes
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* SMTP */}
+          <div className="bg-gray-50 rounded-lg border p-4 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Mail className="h-5 w-5 text-gray-700" />
+              <h3 className="font-medium text-gray-900">SMTP Settings</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">SMTP_HOST</label>
+                <input type="text" value={smtpSettings.SMTP_HOST} onChange={(e) => setSmtpSettings({ ...smtpSettings, SMTP_HOST: e.target.value })} className="block w-full px-3 py-2 border rounded-md" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">SMTP_PORT</label>
+                <input type="number" value={smtpSettings.SMTP_PORT} onChange={(e) => setSmtpSettings({ ...smtpSettings, SMTP_PORT: parseInt(e.target.value) || 0 })} className="block w-full px-3 py-2 border rounded-md" />
+              </div>
+              <div className="flex items-center gap-2">
+                <input id="smtp-secure" type="checkbox" checked={smtpSettings.SMTP_SECURE} onChange={(e) => setSmtpSettings({ ...smtpSettings, SMTP_SECURE: e.target.checked })} className="h-4 w-4" />
+                <label htmlFor="smtp-secure" className="text-sm text-gray-700">SMTP_SECURE (TLS/SSL)</label>
+              </div>
+              <div></div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">SMTP_USER</label>
+                <input type="text" value={smtpSettings.SMTP_USER} onChange={(e) => setSmtpSettings({ ...smtpSettings, SMTP_USER: e.target.value })} className="block w-full px-3 py-2 border rounded-md" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">SMTP_PASSWORD</label>
+                <input type="password" value={smtpSettings.SMTP_PASSWORD} onChange={(e) => setSmtpSettings({ ...smtpSettings, SMTP_PASSWORD: e.target.value })} className="block w-full px-3 py-2 border rounded-md" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">SMTP_FROM</label>
+                <input type="email" value={smtpSettings.SMTP_FROM} onChange={(e) => setSmtpSettings({ ...smtpSettings, SMTP_FROM: e.target.value })} className="block w-full px-3 py-2 border rounded-md" />
+              </div>
+            </div>
+          </div>
+
+          {/* Twilio Verify */}
+          <div className="bg-gray-50 rounded-lg border p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Phone className="h-5 w-5 text-gray-700" />
+              <h3 className="font-medium text-gray-900">Twilio Verify Settings</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">TWILIO_ACCOUNT_SID</label>
+                <input type="text" value={twilioSettings.TWILIO_ACCOUNT_SID} onChange={(e) => setTwilioSettings({ ...twilioSettings, TWILIO_ACCOUNT_SID: e.target.value })} className="block w-full px-3 py-2 border rounded-md" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">TWILIO_AUTH_TOKEN</label>
+                <input type="password" value={twilioSettings.TWILIO_AUTH_TOKEN} onChange={(e) => setTwilioSettings({ ...twilioSettings, TWILIO_AUTH_TOKEN: e.target.value })} className="block w-full px-3 py-2 border rounded-md" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">TWILIO_VERIFY_SID</label>
+                <input type="text" value={twilioSettings.TWILIO_VERIFY_SID} onChange={(e) => setTwilioSettings({ ...twilioSettings, TWILIO_VERIFY_SID: e.target.value })} className="block w-full px-3 py-2 border rounded-md" />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <button onClick={saveIntegrations} disabled={savingIntegrations || loadingIntegrations} className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-md font-medium">
+              {savingIntegrations ? 'Saving...' : (loadingIntegrations ? 'Loading...' : 'Save Integrations')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mainTab === 'category' && (
+        <>
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Per-Category Settings</h2>
+            <p className="text-sm text-gray-600">These settings apply to the selected category only.</p>
       </div>
 
       {/* Category Selection */}
@@ -280,7 +596,6 @@ export default function PartnerSettingsPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <Settings className="inline h-4 w-4 mr-1" />
                 General Settings
               </button>
               <button
@@ -291,7 +606,6 @@ export default function PartnerSettingsPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <List className="inline h-4 w-4 mr-1" />
                 What's Included
               </button>
               <button
@@ -302,7 +616,6 @@ export default function PartnerSettingsPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <HelpCircle className="inline h-4 w-4 mr-1" />
                 FAQs
               </button>
             </nav>
@@ -373,64 +686,6 @@ export default function PartnerSettingsPage() {
                     >
                       + Add APR Option
                     </button>
-                  </div>
-                </div>
-
-                {/* OTP Setting */}
-                <div className="bg-gray-50 p-4 rounded-lg border">
-                  <div className="flex items-start">
-                    <input
-                      type="checkbox"
-                      checked={otpEnabled}
-                      onChange={(e) => setOtpEnabled(e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
-                    />
-                    <div className="ml-3">
-                      <label className="text-sm font-medium text-gray-700">
-                        Enable OTP Verification
-                      </label>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Require customers to verify their phone number via SMS before submitting quotes
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Company Color Setting */}
-                <div className="bg-gray-50 p-4 rounded-lg border">
-                  <div className="flex items-start">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Company Brand Color
-                      </label>
-                      <p className="text-xs text-gray-500 mb-3">
-                        Choose a color that represents your brand. This will be used in customer-facing interfaces.
-                      </p>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="color"
-                            value={companyColor}
-                            onChange={(e) => setCompanyColor(e.target.value)}
-                            className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
-                          />
-                          <input
-                            type="text"
-                            value={companyColor}
-                            onChange={(e) => setCompanyColor(e.target.value)}
-                            placeholder="#3B82F6"
-                            className="block w-24 px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <span>Preview:</span>
-                          <div 
-                            className="w-8 h-8 rounded border-2 border-gray-200"
-                            style={{ backgroundColor: companyColor }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -554,6 +809,8 @@ export default function PartnerSettingsPage() {
               </button>
             </div>
           </div>
+            </>
+          )}
         </>
       )}
     </div>

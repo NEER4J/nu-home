@@ -1,8 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
+import { decryptObject } from '@/lib/encryption';
+
+type TwilioCredentials = {
+  accountSid: string | null;
+  authToken: string | null;
+  verifySid: string | null;
+};
+
+function parseSubdomain(request: NextRequest, bodySubdomain?: string | null): string | null {
+  try {
+    const url = new URL(request.url);
+    const urlParamSubdomain = url.searchParams.get('subdomain');
+    if (urlParamSubdomain) return urlParamSubdomain;
+  } catch {}
+
+  if (bodySubdomain) return bodySubdomain;
+
+  const host = request.headers.get('host') || '';
+  const hostname = host.split(':')[0];
+  const maybe = hostname.split('.')[0];
+  if (!maybe || maybe === 'www' || maybe === 'localhost') return null;
+  return maybe;
+}
+
+async function getTwilioCredentials(request: NextRequest, bodySubdomain?: string | null): Promise<TwilioCredentials> {
+  const subdomain = parseSubdomain(request, bodySubdomain);
+  if (subdomain) {
+    const supabase = await createClient();
+    const { data: profile } = await supabase
+      .from('UserProfiles')
+      .select('twilio_settings')
+      .eq('subdomain', subdomain)
+      .eq('status', 'active')
+      .single();
+
+    if (profile?.twilio_settings) {
+      const decrypted = decryptObject(profile.twilio_settings || {});
+      const accountSid = (decrypted.TWILIO_ACCOUNT_SID || decrypted.account_sid || decrypted.ACCOUNT_SID) || null;
+      const authToken = (decrypted.TWILIO_AUTH_TOKEN || decrypted.auth_token || decrypted.AUTH_TOKEN) || null;
+      const verifySid = (decrypted.TWILIO_VERIFY_SID || decrypted.verify_sid || decrypted.messaging_service_sid || decrypted.VERIFY_SID) || null;
+      return { accountSid, authToken, verifySid };
+    }
+  }
+
+  // Fallback to environment variables
+  return {
+    accountSid: process.env.TWILIO_ACCOUNT_SID || null,
+    authToken: process.env.TWILIO_AUTH_TOKEN || null,
+    verifySid: process.env.TWILIO_VERIFY_SID || null,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { phoneNumber, code, verificationSid } = await request.json();
+    const { phoneNumber, code, verificationSid, subdomain: bodySubdomain } = await request.json();
 
     if (!phoneNumber || !code) {
       return NextResponse.json(
@@ -11,16 +63,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get Twilio credentials from environment variables
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const verifySid = process.env.TWILIO_VERIFY_SID;
+    // Resolve Twilio credentials (by subdomain if available)
+    const { accountSid, authToken, verifySid } = await getTwilioCredentials(request, bodySubdomain);
 
     if (!accountSid || !authToken || !verifySid) {
       console.error('Missing Twilio credentials');
       return NextResponse.json(
         { error: 'SMS service not configured' },
         { status: 500 }
+      );
+    }
+
+    if (!String(accountSid).startsWith('AC')) {
+      return NextResponse.json(
+        { error: 'Invalid TWILIO_ACCOUNT_SID format. It should start with AC...', value: accountSid },
+        { status: 400 }
+      );
+    }
+    if (!/^VA[0-9a-zA-Z]{32}$/.test(String(verifySid))) {
+      return NextResponse.json(
+        { error: 'Invalid TWILIO_VERIFY_SID format. It should start with VA and be 34 chars long.', value: verifySid },
+        { status: 400 }
       );
     }
 
@@ -45,7 +108,9 @@ export async function POST(request: NextRequest) {
 
       if (!response.ok) {
         console.error('Twilio verification error:', data);
-        throw new Error(data.message || 'Verification failed');
+        const message = data?.message || data?.error || 'Verification failed';
+        const status = response.status;
+        return NextResponse.json({ error: message, details: data }, { status });
       }
 
       if (data.status === 'approved') {
@@ -63,9 +128,10 @@ export async function POST(request: NextRequest) {
       }
 
     } catch (twilioError) {
-      console.error('Twilio verification error:', twilioError);
+      const message = twilioError instanceof Error ? twilioError.message : 'Verification failed';
+      console.error('Twilio verification error:', message);
       return NextResponse.json(
-        { error: 'Invalid verification code' },
+        { error: message },
         { status: 400 }
       );
     }

@@ -1,8 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
+import { decryptObject } from '@/lib/encryption';
+
+type TwilioCredentials = {
+  accountSid: string | null;
+  authToken: string | null;
+  verifySid: string | null;
+};
+
+function parseSubdomain(request: NextRequest, bodySubdomain?: string | null): string | null {
+  try {
+    const url = new URL(request.url);
+    const urlParamSubdomain = url.searchParams.get('subdomain');
+    if (urlParamSubdomain) return urlParamSubdomain;
+  } catch {}
+
+  if (bodySubdomain) return bodySubdomain;
+
+  const host = request.headers.get('host') || '';
+  const hostname = host.split(':')[0];
+  const maybe = hostname.split('.')[0];
+  if (!maybe || maybe === 'www' || maybe === 'localhost') return null;
+  return maybe;
+}
+
+async function getTwilioCredentials(request: NextRequest, bodySubdomain?: string | null): Promise<TwilioCredentials> {
+  const subdomain = parseSubdomain(request, bodySubdomain);
+  if (subdomain) {
+    const supabase = await createClient();
+    const { data: profile } = await supabase
+      .from('UserProfiles')
+      .select('twilio_settings')
+      .eq('subdomain', subdomain)
+      .eq('status', 'active')
+      .single();
+
+    if (profile?.twilio_settings) {
+      const decrypted = decryptObject(profile.twilio_settings || {});
+      const accountSid = (decrypted.TWILIO_ACCOUNT_SID || decrypted.account_sid || decrypted.ACCOUNT_SID) || null;
+      const authToken = (decrypted.TWILIO_AUTH_TOKEN || decrypted.auth_token || decrypted.AUTH_TOKEN) || null;
+      const verifySid = (decrypted.TWILIO_VERIFY_SID || decrypted.verify_sid || decrypted.messaging_service_sid || decrypted.VERIFY_SID) || null;
+      return { accountSid, authToken, verifySid };
+    }
+  }
+
+  // Fallback to environment variables
+  return {
+    accountSid: process.env.TWILIO_ACCOUNT_SID || null,
+    authToken: process.env.TWILIO_AUTH_TOKEN || null,
+    verifySid: process.env.TWILIO_VERIFY_SID || null,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { phoneNumber } = await request.json();
+    const { phoneNumber, subdomain: bodySubdomain } = await request.json();
 
     if (!phoneNumber) {
       return NextResponse.json(
@@ -11,16 +63,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get Twilio credentials from environment variables
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const verifySid = process.env.TWILIO_VERIFY_SID;
+    // Resolve Twilio credentials (by subdomain if available)
+    const { accountSid, authToken, verifySid } = await getTwilioCredentials(request, bodySubdomain);
 
     if (!accountSid || !authToken || !verifySid) {
-      console.error('Missing Twilio credentials');
+      console.error('Missing Twilio credentials', { hasAccountSid: !!accountSid, hasAuthToken: !!authToken, hasVerifySid: !!verifySid });
       return NextResponse.json(
-        { error: 'SMS service not configured' },
-        { status: 500 }
+        { 
+          error: 'SMS service not configured',
+          missing: {
+            TWILIO_ACCOUNT_SID: !accountSid,
+            TWILIO_AUTH_TOKEN: !authToken,
+            TWILIO_VERIFY_SID: !verifySid,
+          },
+          hint: 'Ensure Twilio Verify Service SID (starts with VA...) is saved in your Account Settings.'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Basic sanity checks to help users configure correctly before calling Twilio
+    if (!String(accountSid).startsWith('AC')) {
+      return NextResponse.json(
+        { error: 'Invalid TWILIO_ACCOUNT_SID format. It should start with AC...', value: accountSid },
+        { status: 400 }
+      );
+    }
+    if (!/^VA[0-9a-zA-Z]{32}$/.test(String(verifySid))) {
+      return NextResponse.json(
+        { error: 'Invalid TWILIO_VERIFY_SID format. It should start with VA and be 34 chars long.', value: verifySid },
+        { status: 400 }
       );
     }
 
@@ -45,7 +117,12 @@ export async function POST(request: NextRequest) {
 
       if (!response.ok) {
         console.error('Twilio API error:', data);
-        throw new Error(data.message || 'Failed to send OTP');
+        const message = data?.message || data?.error || 'Failed to send OTP';
+        const code = data?.code || data?.status || response.status;
+        return NextResponse.json(
+          { error: message, code, details: data },
+          { status: 400 }
+        );
       }
 
       console.log(`OTP sent successfully to ${phoneNumber}:`, data.sid);
@@ -57,10 +134,11 @@ export async function POST(request: NextRequest) {
       });
 
     } catch (twilioError) {
-      console.error('Twilio error:', twilioError);
+      const message = twilioError instanceof Error ? twilioError.message : 'Failed to send OTP';
+      console.error('Twilio error:', message);
       return NextResponse.json(
-        { error: 'Failed to send OTP. Please check your phone number.' },
-        { status: 500 }
+        { error: message },
+        { status: 400 }
       );
     }
 

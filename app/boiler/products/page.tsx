@@ -35,6 +35,18 @@ interface PartnerProduct {
   service_category_id: string
 }
 
+interface PartnerSettings {
+  setting_id: string
+  partner_id: string
+  service_category_id: string
+  apr_settings: Record<string, unknown> | null
+  otp_enabled: boolean | null
+  included_items: Array<any> | null
+  faqs: Array<any> | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
 interface QuoteSubmission {
   submission_id: string
   first_name: string
@@ -59,6 +71,7 @@ function BoilerProductsContent() {
   const [error, setError] = useState<string | null>(null)
   const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(null)
   const [products, setProducts] = useState<PartnerProduct[]>([])
+  const [partnerSettings, setPartnerSettings] = useState<PartnerSettings | null>(null)
   const [submissionInfo, setSubmissionInfo] = useState<QuoteSubmission | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<PartnerProduct | null>(null)
   const [showModal, setShowModal] = useState(false)
@@ -140,6 +153,20 @@ function BoilerProductsContent() {
         }
 
         setProducts((partnerProducts || []) as PartnerProduct[])
+
+        // Fetch Partner Settings for this partner + service category
+        const { data: settings, error: settingsError } = await supabase
+          .from('PartnerSettings')
+          .select('*')
+          .eq('partner_id', partnerInfo.user_id)
+          .eq('service_category_id', category.service_category_id)
+          .single()
+
+        if (!settingsError && settings) {
+          setPartnerSettings(settings as PartnerSettings)
+        } else {
+          setPartnerSettings(null)
+        }
       } catch (err: any) {
         console.error('Error loading products:', err)
         setError(err?.message || 'Failed to load products')
@@ -218,6 +245,141 @@ function BoilerProductsContent() {
   const closeModal = () => {
     setShowModal(false)
     setSelectedProduct(null)
+  }
+
+  // Helper: normalize included item structures from various shapes
+  const normalizeIncludedItem = (entry: any) => {
+    if (!entry) return null
+    const base = typeof entry === 'string' ? { title: entry } : (entry.items ?? entry)
+    const image = base?.image || base?.icon || base?.img || base?.image_url || base?.url
+    const title = base?.title || base?.name || base?.label || (typeof base === 'string' ? base : undefined) || 'Included'
+    const subtitle = base?.subtitle || base?.sub_title || base?.description || base?.text || ''
+    return { image, title, subtitle }
+  }
+
+  // Helper function to render product field values
+  const renderProductFieldValue = (key: string, value: any) => {
+    if (key === 'specs' && Array.isArray(value)) {
+      return (
+        <div className="space-y-1">
+          {value.map((spec: any, index: number) => (
+            <div key={index} className="flex items-center gap-2 text-xs">
+              <svg className="w-3 h-3 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+              </svg>
+              <span>{spec.items || spec.name || (typeof spec === 'string' ? spec : JSON.stringify(spec))}</span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (key === 'dimensions' && typeof value === 'object') {
+      return (
+        <div className="text-xs space-y-1">
+          <div>D: {(value as any).depth}mm</div>
+          <div>W: {(value as any).widht || (value as any).width}mm</div>
+          <div>H: {(value as any).height}mm</div>
+        </div>
+      )
+    }
+
+    if (key === 'power_and_price' && Array.isArray(value)) {
+      return (
+        <div className="text-xs space-y-1">
+          {value.map((item: any, index: number) => (
+            <div key={index}>
+              {item.power}kW: £{item.price}
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (key === 'supported_bedroom' && Array.isArray(value)) {
+      return value.join(', ')
+    }
+
+    if (key === 'highlighted_features' && Array.isArray(value)) {
+      return (
+        <div className="space-y-1">
+          {value.map((feature: any, index: number) => (
+            <div key={index} className="flex items-center gap-2 text-xs">
+              <svg className="w-3 h-3 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span>{feature.name || (typeof feature === 'string' ? feature : JSON.stringify(feature))}</span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (key === 'image_gallery' && Array.isArray(value)) {
+      return (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+          {value.map((img: any, idx: number) => (
+            <img
+              key={idx}
+              src={typeof img === 'string' ? img : img.image || img.url}
+              alt={`Gallery ${idx + 1}`}
+              className="h-12 w-16 object-cover rounded border"
+            />
+          ))}
+        </div>
+      )
+    }
+
+    if (key === "what_s_included" && Array.isArray(value)) {
+      return (
+        <div className="space-y-2">
+          {value.map((entry: any, idx: number) => {
+            const normalized = normalizeIncludedItem(entry)
+            if (!normalized) return null
+            const { image, title, subtitle } = normalized
+            return (
+              <div key={idx} className="flex items-center gap-3 text-xs">
+                {image && (
+                  <img src={image} alt={title} className="h-8 w-8 rounded object-cover border" />
+                )}
+                <div>
+                  <div className="font-medium text-gray-900">{title}</div>
+                  {subtitle && <div className="text-gray-600">{subtitle}</div>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )
+    }
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      return String(value)
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item: any) => 
+        typeof item === 'object' ? JSON.stringify(item) : String(item)
+      ).join(', ')
+    }
+
+    return 'Yes'
+  }
+
+  const renderKeyValueObject = (obj: any) => {
+    if (!obj || typeof obj !== 'object') return null
+    return (
+      <div className="grid gap-2 sm:grid-cols-2">
+        {Object.entries(obj).map(([key, value]) => (
+          <div key={key} className="flex justify-between gap-3 p-2 bg-white rounded border">
+            <span className="text-sm font-medium text-gray-600 capitalize">{key.replace(/_/g, ' ')}</span>
+            <span className="text-sm text-gray-900">
+              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   if (loading) {
@@ -316,12 +478,12 @@ function BoilerProductsContent() {
                 {/* Product Header */}
                 <div className="relative p-6 pb-4">
                   {/* Product Image */}
-                  <div className="relative h-48 bg-gray-50 rounded-lg mb-4">
+                  <div className="relative h-48 bg-gray-50 rounded-lg mb-2">
                     {product.image_url ? (
                       <img
                         src={product.image_url}
                         alt={product.name}
-                        className="w-full h-full object-cover rounded-lg"
+                        className="w-full h-full object-contain rounded-lg"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm rounded-lg">
@@ -329,6 +491,19 @@ function BoilerProductsContent() {
                       </div>
                     )}
                   </div>
+                  {/* Thumbnails from image_gallery */}
+                  {Array.isArray((product.product_fields as any)?.image_gallery) && (
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
+                      {((product.product_fields as any).image_gallery as any[]).map((img: any, idx: number) => (
+                        <img
+                          key={idx}
+                          src={typeof img === 'string' ? img : img.image}
+                          alt={`${product.name} ${idx + 1}`}
+                          className="h-12 w-16 object-cover rounded border"
+                        />
+                      ))}
+                    </div>
+                  )}
 
                   {/* Brand Logo */}
                   <div className="text-sm font-semibold text-gray-600 mb-2">
@@ -343,24 +518,28 @@ function BoilerProductsContent() {
                     </svg>
                   </div>
 
-                  {/* Key Features from Product Fields */}
-                  {product.product_fields && Object.keys(product.product_fields).length > 0 && (
-                    <div className="flex items-center gap-2 mb-4">
-                      <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                      </svg>
-                      <span className="text-sm text-gray-700">
-                        {Object.entries(product.product_fields).slice(0, 1).map(([key, value]) => 
-                          `${key}: ${typeof value === 'string' || typeof value === 'number' ? String(value) : 'Yes'}`
-                        )}
-                      </span>
-                    </div>
-                  )}
-
                   {/* Description */}
                   {product.description && (
                     <div className="bg-gray-50 rounded-lg p-3 mb-4">
                       <p className="text-sm text-gray-700">{product.description}</p>
+                    </div>
+                  )}
+
+                  {/* All Product Fields Display */}
+                  {product.product_fields && Object.keys(product.product_fields).length > 0 && (
+                    <div className="space-y-3 mb-4">
+                      {Object.entries(product.product_fields).map(([key, value]) => (
+                        <div key={key} className="border-b border-gray-100 pb-2 last:border-b-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-xs font-medium text-gray-600 capitalize">
+                              {key.replace(/_/g, ' ')}:
+                            </span>
+                            <div className="text-xs text-gray-900 text-right flex-1">
+                              {renderProductFieldValue(key, value)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -447,6 +626,23 @@ function BoilerProductsContent() {
                 </div>
               )}
 
+              {/* Image Gallery */}
+              {Array.isArray((selectedProduct.product_fields as any)?.image_gallery) && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Gallery</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {((selectedProduct.product_fields as any).image_gallery as any[]).map((img: any, idx: number) => (
+                      <img
+                        key={idx}
+                        src={typeof img === 'string' ? img : img.image}
+                        alt={`${selectedProduct.name} ${idx + 1}`}
+                        className="w-full h-36 object-cover rounded-lg border"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Description */}
               {selectedProduct.description && (
                 <div>
@@ -479,9 +675,9 @@ function BoilerProductsContent() {
                   <div className="grid gap-3 sm:grid-cols-2">
                     {Object.entries(selectedProduct.product_fields).map(([key, value]) => (
                       <div key={key} className="flex justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="text-gray-700 font-medium">{String(key)}:</span>
+                        <span className="text-gray-700 font-medium capitalize">{key.replace(/_/g, ' ')}:</span>
                         <span className="text-gray-900">
-                          {typeof value === 'string' || typeof value === 'number' ? String(value) : 'Yes'}
+                          {renderProductFieldValue(key, value)}
                         </span>
                       </div>
                     ))}
@@ -528,6 +724,125 @@ function BoilerProductsContent() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Partner Details Section */}
+      {partnerInfo && (
+        <div className="bg-white border-t mt-10">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">About {partnerInfo.company_name}</h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Company</p>
+                  <p className="text-gray-900">{partnerInfo.company_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Contact Person</p>
+                  <p className="text-gray-900">{partnerInfo.contact_person}</p>
+                </div>
+                {partnerInfo.phone && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Phone</p>
+                    <p className="text-gray-900">{partnerInfo.phone}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Location</p>
+                  <p className="text-gray-900">{partnerInfo.postcode}</p>
+                </div>
+                {partnerInfo.website_url && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Website</p>
+                    <a 
+                      href={partnerInfo.website_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Visit website
+                    </a>
+                  </div>
+                )}
+                {partnerInfo.business_description && (
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <p className="text-sm font-medium text-gray-700 mb-2">About Us</p>
+                    <p className="text-gray-900">{partnerInfo.business_description}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Partner Settings */}
+              {partnerSettings && (
+                <div className="mt-8">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3">Partner Settings</h4>
+                  <div className="grid gap-6">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">APR Settings</p>
+                      {partnerSettings.apr_settings && Object.keys(partnerSettings.apr_settings).length > 0 ? (
+                        renderKeyValueObject(partnerSettings.apr_settings)
+                      ) : (
+                        <p className="text-sm text-gray-600">No APR settings provided.</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">OTP</p>
+                      <p className="text-sm text-gray-900">{partnerSettings.otp_enabled ? 'Enabled' : 'Disabled'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Included Items</p>
+                      {Array.isArray(partnerSettings.included_items) && partnerSettings.included_items.length > 0 ? (
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {partnerSettings.included_items.map((entry: any, idx: number) => {
+                            const normalized = normalizeIncludedItem(entry)
+                            if (!normalized) return (
+                              <div key={idx} className="p-3 bg-white rounded border text-sm text-gray-900">Invalid item</div>
+                            )
+                            const { image, title, subtitle } = normalized
+                            return (
+                              <div key={idx} className="flex items-start gap-3 p-3 bg-white rounded border">
+                                {image && (
+                                  <img src={image} alt={title} className="h-12 w-12 rounded object-cover border" />
+                                )}
+                                <div>
+                                  <div className="font-medium text-gray-900">{title}</div>
+                                  {subtitle && <div className="text-gray-600 text-sm">{subtitle}</div>}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-600">No included items provided.</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">FAQs</p>
+                      {Array.isArray(partnerSettings.faqs) && partnerSettings.faqs.length > 0 ? (
+                        <div className="space-y-3">
+                          {partnerSettings.faqs.map((faq: any, idx: number) => (
+                            <div key={idx} className="p-3 bg-white rounded border">
+                              {faq.question || faq.q ? (
+                                <>
+                                  <div className="font-medium text-gray-900">{faq.question || faq.q}</div>
+                                  <div className="text-gray-700 text-sm">{faq.answer || faq.a}</div>
+                                </>
+                              ) : (
+                                <div className="text-sm text-gray-900">{JSON.stringify(faq)}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-600">No FAQs provided.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
