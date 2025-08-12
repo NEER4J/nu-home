@@ -40,3 +40,27 @@ export interface Addon {
   allow_multiple: boolean;
   max_count?: number | null;
 } 
+
+export interface BundleAddonItem {
+  bundle_addon_id: string;
+  bundle_id: string;
+  addon_id: string;
+  quantity: number;
+  created_at: string;
+  Addons?: Addon;
+}
+
+export type BundleDiscountType = 'fixed' | 'percent';
+
+export interface Bundle {
+  bundle_id: string;
+  partner_id: string;
+  title: string;
+  description?: string | null;
+  discount_type: BundleDiscountType;
+  discount_value: number;
+  service_category_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  BundlesAddons?: BundleAddonItem[];
+}

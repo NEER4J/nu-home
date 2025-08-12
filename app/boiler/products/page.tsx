@@ -607,7 +607,7 @@ function BoilerProductsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24">
+    <div className="min-h-screen bg-gray-50">
       <ProductHeaderTile
         count={displayProducts.length}
         postcode={submissionInfo?.postcode || null}
@@ -735,7 +735,7 @@ function BoilerProductsContent() {
                     <button
                       className="w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
                       onClick={() => {
-                        const url = new URL('/boiler/quote', window.location.origin)
+                        const url = new URL('/boiler/addons', window.location.origin)
                         if (submissionId) url.searchParams.set('submission', submissionId)
                         url.searchParams.set('product', product.partner_product_id)
                         window.location.href = url.toString()
@@ -872,7 +872,7 @@ function BoilerProductsContent() {
                 <button
                   className="flex-1 py-3 px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
                   onClick={() => {
-                    const url = new URL('/boiler/quote', window.location.origin)
+                    const url = new URL('/boiler/addons', window.location.origin)
                     if (submissionId) url.searchParams.set('submission', submissionId)
                     url.searchParams.set('product', selectedProduct.partner_product_id)
                     window.location.href = url.toString()
