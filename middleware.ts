@@ -19,7 +19,10 @@ function forceDomain(url: URL) {
 
 export async function middleware(request: NextRequest) {
   const requestUrl = new URL(request.url);
-  const hostname = requestUrl.hostname;
+  // Prefer forwarded or host header to detect real hostname in dev/proxy environments
+  const headerHost = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  const headerHostname = headerHost ? headerHost.split(':')[0] : undefined;
+  const hostname = headerHostname || requestUrl.hostname;
   const path = requestUrl.pathname;
   const searchParams = requestUrl.searchParams;
 
@@ -36,7 +39,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Handle subdomains and custom domains first (no auth required)
-  const isLocalhost = hostname.includes('localhost');
+  const isLocalhost = hostname.includes('localhost') || hostname === '127.0.0.1';
   const isVercel = hostname.includes('vercel.app');
   
   // Define main domain based on environment
@@ -48,6 +51,7 @@ export async function middleware(request: NextRequest) {
   } else {
     mainDomain = 'aifortrades.co.uk';
   }
+  const mainHostname = mainDomain.split(':')[0];
 
   // Extract subdomain
   let subdomain: string | null = null;
@@ -132,6 +136,18 @@ export async function middleware(request: NextRequest) {
       });
       return NextResponse.redirect(forceDomain(redirectUrl));
     }
+  }
+
+  // Domain restriction logic for subdomains and custom domains
+  // Consider any host different from the main hostname as subdomain/custom
+  const isSubdomainOrCustomDomain = hostname !== mainHostname;
+  const allowedPaths = ['/boiler', '/solar'];
+  const isAllowedPath = allowedPaths.some(allowedPath => path.startsWith(allowedPath));
+  
+  if (isSubdomainOrCustomDomain && !isAllowedPath && path !== '/domain-restricted') {
+    // Redirect to domain restricted page on the same host
+    const redirectUrl = new URL('/domain-restricted', request.url);
+    return NextResponse.redirect(redirectUrl);
   }
 
   // Only check auth for protected routes

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CheckoutLayout, { SelectedAddonItem, SelectedBundleItem, BundleLite } from '@/components/category-commons/checkout/CheckoutLayout'
+import { resolvePartnerByHost } from '@/lib/partner'
 
 interface Addon {
   addon_id: string
@@ -47,19 +48,10 @@ function BoilerCheckoutPageContent() {
         setLoading(true)
         setError(null)
         const hostname = window.location.hostname
-        const subdomain = hostname.split('.')[0]
-        if (!subdomain || subdomain === 'localhost' || subdomain === 'www') {
-          setError('Please access this page through a partner subdomain')
-          return
-        }
-        const { data: partner, error: partnerError } = await supabase
-          .from('UserProfiles')
-          .select('user_id, company_color')
-          .eq('subdomain', subdomain)
-          .eq('status', 'active')
-          .single()
-        if (partnerError || !partner) { setError('Partner not found for this subdomain'); return }
-        setPartnerId(partner.user_id)
+        const partner = await resolvePartnerByHost(supabase, hostname)
+        if (!partner) { setError('Partner not found for this domain'); return }
+        const partnerUserId = partner.user_id
+        setPartnerId(partnerUserId)
         setCompanyColor(partner.company_color || null)
 
         // Load cart from partner_leads.cart_state by submission id
@@ -81,7 +73,7 @@ function BoilerCheckoutPageContent() {
           if (pInfo && pInfo.product_id) {
             setProduct({
               partner_product_id: pInfo.product_id,
-              partner_id: partner.user_id,
+              partner_id: partnerUserId,
               name: pInfo.name,
               price: pInfo.price ?? null,
               image_url: pInfo.image_url ?? null,
@@ -94,7 +86,7 @@ function BoilerCheckoutPageContent() {
             .from('PartnerProducts')
             .select('partner_product_id, partner_id, name, price, image_url')
             .eq('partner_product_id', cart.product_id)
-            .eq('partner_id', partner.user_id)
+            .eq('partner_id', partnerUserId)
             .single()
           if (prod) setProduct(prod as PartnerProduct)
         }
@@ -112,7 +104,7 @@ function BoilerCheckoutPageContent() {
             max_count: null,
             addon_type_id: '', // Not stored in addon_info
             service_category_id: '',
-            partner_id: partner.user_id,
+            partner_id: partnerUserId,
             created_at: '',
             updated_at: '',
           })) as Addon[])
@@ -120,7 +112,7 @@ function BoilerCheckoutPageContent() {
           // Fallback to fetching from database
           const addonIds = Array.isArray(cart.addons) ? cart.addons.map((a: any) => a.addon_id) : []
           if (addonIds.length) {
-            const { data: rows } = await supabase.from('Addons').select('*').in('addon_id', addonIds).eq('partner_id', partner.user_id)
+            const { data: rows } = await supabase.from('Addons').select('*').in('addon_id', addonIds).eq('partner_id', partnerUserId)
             setAddons((rows || []) as Addon[])
           }
         }
@@ -129,7 +121,7 @@ function BoilerCheckoutPageContent() {
           // Use the stored bundle info
           setBundles(bInfo.map((b: any) => ({
             bundle_id: b.bundle_id,
-            partner_id: partner.user_id,
+            partner_id: partnerUserId,
             title: b.name,
             description: null,
             discount_type: 'fixed' as const,
@@ -147,7 +139,7 @@ function BoilerCheckoutPageContent() {
               .from('Bundles')
               .select('*, BundlesAddons(*, Addons(*))')
               .in('bundle_id', bundleIds)
-              .eq('partner_id', partner.user_id)
+              .eq('partner_id', partnerUserId)
             setBundles((bRows || []) as unknown as Bundle[])
           }
         }

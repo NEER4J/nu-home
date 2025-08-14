@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import ProductHeaderTile from '@/components/category-commons/product/ProductHeaderTile'
 import ProductFaqs from '@/components/category-commons/product/ProductFaqs'
+import { resolvePartnerByHost } from '@/lib/partner'
 
 interface PartnerInfo {
   company_name: string
@@ -98,41 +99,26 @@ function BoilerProductsContent() {
   const brandColor = partnerInfo?.company_color || '#2563eb'
   const classes = useDynamicStyles(brandColor)
 
-  // Fetch partner from subdomain
+  // Fetch partner by host (custom domain preferred, fallback to subdomain)
   useEffect(() => {
-    async function fetchPartnerFromSubdomain() {
+    async function fetchPartnerByHost() {
       try {
         const hostname = window.location.hostname
-        const subdomain = hostname.split('.')[0]
-
-        if (!subdomain || subdomain === 'localhost' || subdomain === 'www') {
-          setError('Partner not found for this subdomain')
+        const partner = await resolvePartnerByHost(supabase, hostname)
+        if (!partner) {
+          setError('Partner not found for this domain')
           setLoading(false)
           return
         }
-
-        const { data: partner, error: partnerError } = await supabase
-          .from('UserProfiles')
-          .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color')
-          .eq('subdomain', subdomain)
-          .eq('status', 'active')
-          .single()
-
-        if (partnerError || !partner) {
-          setError('Partner not found for this subdomain')
-          setLoading(false)
-          return
-        }
-
         setPartnerInfo(partner as PartnerInfo)
       } catch (err) {
-        console.error('Error fetching partner from subdomain:', err)
+        console.error('Error resolving partner from host:', err)
         setError('Failed to load partner information')
         setLoading(false)
       }
     }
 
-    fetchPartnerFromSubdomain()
+    fetchPartnerByHost()
   }, [])
 
   // Fetch heating service category id and then load products

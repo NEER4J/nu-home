@@ -9,6 +9,7 @@ import PostcodeStep from '@/components/category-commons/quote/PostcodeStep';
 import UserInfoForm from '@/components/category-commons/quote/UserInfoForm';
 import QuoteFormSteps from '@/components/category-commons/quote/QuoteFormSteps';
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles';
+import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
 
 interface HeatingQuotePageProps {
   serviceCategoryId?: string;
@@ -47,17 +48,17 @@ export default function HeatingQuotePage({
   const [formValues, setFormValues] = useState<FormValues>({});
   const [userInfo, setUserInfo] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [partnerInfoFromSubdomain, setPartnerInfoFromSubdomain] = useState<any>(null);
+  const [partnerInfoFromDomain, setPartnerInfoFromDomain] = useState<PartnerProfile | null>(null);
   const supabase = createClient();
 
   // Get dynamic color based on partner info
   const getDynamicColor = () => {
-    const effectivePartner = partnerInfo || partnerInfoFromSubdomain;
+    const effectivePartner = partnerInfo || partnerInfoFromDomain;
     return effectivePartner?.company_color || '#2563eb';
   }; 
 
   // Use dynamic styles hook
-  const effectivePartner = partnerInfo || partnerInfoFromSubdomain;
+  const effectivePartner = partnerInfo || partnerInfoFromDomain;
   const classes = useDynamicStyles(effectivePartner?.company_color || null); 
 
   // Get the heating service category ID
@@ -110,32 +111,21 @@ export default function HeatingQuotePage({
     loadQuestions();
   }, [serviceCategoryId]);
 
-  // Fetch partner information from subdomain
+  // Fetch partner information by host (custom domain preferred, fallback to subdomain)
   useEffect(() => {
-    async function fetchPartnerFromSubdomain() {
+    async function fetchPartnerByHost() {
       try {
         const hostname = window.location.hostname;
-        const subdomain = hostname.split('.')[0];
-        
-        if (subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
-          const { data: partner, error } = await supabase
-            .from('UserProfiles')
-            .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp')
-            .eq('subdomain', subdomain)
-            .eq('status', 'active')
-            .single();
-          
-          if (!error && partner) {
-            setPartnerInfoFromSubdomain(partner);
-          }
+        const partner = await resolvePartnerByHost(supabase, hostname);
+        if (partner) {
+          setPartnerInfoFromDomain(partner);
         }
       } catch (error) {
-        console.error('Error fetching partner from subdomain:', error);
+        console.error('Error resolving partner from host:', error);
       }
     }
-    
     if (!partnerInfo) {
-      fetchPartnerFromSubdomain();
+      fetchPartnerByHost();
     }
   }, [partnerInfo]);
 
@@ -277,7 +267,7 @@ export default function HeatingQuotePage({
       
       const apiUrl = new URL('/api/quote-submissions', window.location.origin);
       
-      const effectivePartnerId = partnerInfo?.user_id || partnerId;
+      const effectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id || null;
       if (effectivePartnerId) {
         apiUrl.searchParams.append('partner_id', effectivePartnerId);
       }

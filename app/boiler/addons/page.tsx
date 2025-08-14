@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AddonsLayout, { BundleLite } from '@/components/category-commons/addon/AddonsLayout'
+import { resolvePartnerByHost } from '@/lib/partner'
 
 interface AddonType {
   id: string
@@ -98,26 +99,15 @@ function BoilerAddonsPageContent() {
           setIsUserActive(false)
         }
 
-        // 1) Resolve subdomain → partner
+        // 1) Resolve partner by host (custom domain preferred, fallback to subdomain)
         const hostname = window.location.hostname
-        const subdomain = hostname.split('.')[0]
-        if (!subdomain || subdomain === 'localhost' || subdomain === 'www') {
-          setError('Please access this page through a partner subdomain')
+        const partner = await resolvePartnerByHost(supabase, hostname)
+        if (!partner) {
+          setError('Partner not found for this domain')
           return
         }
-
-        const { data: partner, error: partnerError } = await supabase
-          .from('UserProfiles')
-          .select('user_id, company_color')
-          .eq('subdomain', subdomain)
-          .eq('status', 'active')
-          .single()
-
-        if (partnerError || !partner) {
-          setError('Partner not found for this subdomain')
-          return
-        }
-        setPartnerId(partner.user_id)
+        const partnerUserId = partner.user_id
+        setPartnerId(partnerUserId)
         setCompanyColor(partner.company_color || null)
 
         // 2) Resolve boiler service category
@@ -175,7 +165,7 @@ function BoilerAddonsPageContent() {
             .from('PartnerProducts')
             .select('partner_product_id, partner_id, name, price, image_url, service_category_id')
             .eq('partner_product_id', resolvedProductId)
-            .eq('partner_id', partner.user_id)
+            .eq('partner_id', partnerUserId)
             .eq('service_category_id', categoryData.service_category_id)
             .single()
 
@@ -190,7 +180,7 @@ function BoilerAddonsPageContent() {
           .from('Addons')
           .select('*')
           .eq('service_category_id', categoryData.service_category_id)
-          .eq('partner_id', partner.user_id)
+          .eq('partner_id', partnerUserId)
 
         if (addonsError) {
           setError('Failed to load addons')
@@ -203,7 +193,7 @@ function BoilerAddonsPageContent() {
         const { data: bundlesData, error: bundlesError } = await supabase
           .from('Bundles')
           .select('*, BundlesAddons(*, Addons(*))')
-          .eq('partner_id', partner.user_id)
+          .eq('partner_id', partnerUserId)
           .eq('service_category_id', categoryData.service_category_id)
           .order('created_at', { ascending: false })
 
