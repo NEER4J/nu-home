@@ -62,6 +62,11 @@ export async function POST(request: NextRequest) {
     const { first_name, last_name, email, submission_id, postcode, products, subdomain: bodySubdomain } = body || {}
 
     const hostname = parseHostname(request, bodySubdomain)
+    console.log('save-quote - Parsed hostname:', hostname);
+    console.log('save-quote - Request headers host:', request.headers.get('host'));
+    console.log('save-quote - Request URL:', request.url);
+    console.log('save-quote - All headers:', Object.fromEntries(request.headers.entries()));
+    
     if (!hostname) {
       return NextResponse.json({ error: 'Missing hostname' }, { status: 400 })
     }

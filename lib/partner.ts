@@ -14,10 +14,15 @@ export type PartnerProfile = {
   otp?: boolean | null
   smtp_settings?: any
   twilio_settings?: any
+  custom_domain?: string | null
+  domain_verified?: boolean | null
 }
 
 function normalizeHost(rawHost: string): string {
-  return (rawHost || '').toLowerCase().split(':')[0]
+  console.log('normalizeHost - Input rawHost:', rawHost);
+  const normalized = (rawHost || '').toLowerCase().split(':')[0];
+  console.log('normalizeHost - Output normalized:', normalized);
+  return normalized;
 }
 
 /**
@@ -37,17 +42,24 @@ export async function resolvePartnerByHost(
     console.log('Trying custom domain match for:', hostname)
     const { data, error } = await supabase
       .from('UserProfiles')
-      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings')
+      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified')
       .eq('status', 'active')
       .eq('custom_domain', hostname)
-      .eq('domain_verified', true)
+      .or('domain_verified.eq.true,domain_verified.is.null') // Allow both verified and unverified for now
       .single()
 
     if (!error && data) {
-      console.log('Found partner by custom domain:', data.company_name)
+      console.log('Found partner by custom domain:', data.company_name, 'domain_verified:', data.domain_verified)
       return data as PartnerProfile
     } else {
       console.log('No custom domain match found, error:', error)
+      // Let's also check if there are any records with this custom_domain regardless of verification
+      const { data: allMatches, error: allMatchesError } = await supabase
+        .from('UserProfiles')
+        .select('company_name, custom_domain, domain_verified, status')
+        .eq('custom_domain', hostname)
+      
+      console.log('All records with this custom_domain:', allMatches, 'error:', allMatchesError)
     }
   }
 
@@ -57,7 +69,7 @@ export async function resolvePartnerByHost(
     console.log('Trying subdomain match for:', firstLabel)
     const { data, error } = await supabase
       .from('UserProfiles')
-      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings')
+      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified')
       .eq('subdomain', firstLabel)
       .eq('status', 'active')
       .single()

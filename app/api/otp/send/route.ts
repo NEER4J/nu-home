@@ -26,6 +26,11 @@ function parseHostname(request: NextRequest, bodySubdomain?: string | null): str
 
 async function getTwilioCredentials(request: NextRequest, bodySubdomain?: string | null): Promise<TwilioCredentials> {
   const hostname = parseHostname(request, bodySubdomain);
+  console.log('getTwilioCredentials - Parsed hostname:', hostname);
+  console.log('getTwilioCredentials - Request headers host:', request.headers.get('host'));
+  console.log('getTwilioCredentials - Request URL:', request.url);
+  console.log('getTwilioCredentials - All headers:', Object.fromEntries(request.headers.entries()));
+  
   if (hostname) {
     const supabase = await createClient();
     const partner = await resolvePartnerByHostname(supabase, hostname);
