@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
-import ProfileForm from './ProfileForm';
+import TabSwitcher from './TabSwitcher';
 
 export default async function PartnerProfilePage() {
   const supabase = await createClient();
@@ -47,9 +47,9 @@ export default async function PartnerProfilePage() {
           </div>
         </div>
 
-        {/* Profile Form */}
+        {/* Tabs */}
         <div className="mt-8">
-          <ProfileForm profile={profile} tiers={tiers || []} />
+          <TabSwitcher profile={profile} tiers={tiers || []} />
         </div>
       </div>
     </div>

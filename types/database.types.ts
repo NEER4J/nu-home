@@ -15,6 +15,31 @@ export interface UserCategoryAccess {
   notes: string | null;
 }
 
+export interface UserProfile {
+  profile_id: string;
+  user_id: string;
+  company_name: string;
+  contact_person: string;
+  address: string | null;
+  phone: string | null;
+  postcode: string;
+  status: string;
+  verification_data: any;
+  business_description: string | null;
+  website_url: string | null;
+  logo_url: string | null;
+  tier_id: string | null;
+  role: string;
+  subdomain: string | null;
+  custom_domain: string | null;
+  company_color?: string | null;
+  otp?: boolean | null;
+  smtp_settings?: any;
+  twilio_settings?: any;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ServiceCategory {
   service_category_id: string;
   name: string;

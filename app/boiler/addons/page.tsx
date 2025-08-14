@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AddonsLayout, { BundleLite } from '@/components/category-commons/addon/AddonsLayout'
@@ -58,7 +58,7 @@ interface PartnerProduct {
     BundlesAddons?: BundleAddonItem[]
   }
 
-export default function BoilerAddonsPage() {
+function BoilerAddonsPageContent() {
   const supabase = createClient()
   const searchParams = useSearchParams()
   const submissionId = searchParams?.get('submission') || null
@@ -458,6 +458,18 @@ export default function BoilerAddonsPage() {
                   window.location.href = url.toString()
                 }}
     />
+  )
+}
+
+export default function BoilerAddonsPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12">
+        <p className="text-gray-600">Loading add-ons…</p>
+      </div>
+    }>
+      <BoilerAddonsPageContent />
+    </Suspense>
   )
 }
 

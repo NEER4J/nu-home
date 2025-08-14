@@ -6,7 +6,6 @@ const nextConfig = {
   },
 
   reactStrictMode: true,
-  swcMinify: false, // Disable SWC minification
   compiler: {
     removeConsole: {
       exclude: ['error'],

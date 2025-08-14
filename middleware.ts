@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle subdomains first (no auth required)
+  // Handle subdomains and custom domains first (no auth required)
   const isLocalhost = hostname.includes('localhost');
   const isVercel = hostname.includes('vercel.app');
   
@@ -46,7 +46,7 @@ export async function middleware(request: NextRequest) {
   } else if (isVercel) {
     mainDomain = hostname.split('-')[0] + '.vercel.app';
   } else {
-    mainDomain = 'apstic.com';
+    mainDomain = 'aifortrades.co.uk';
   }
 
   // Extract subdomain
@@ -68,7 +68,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Handle protected paths that need subdomain processing
+  // Handle protected paths that need subdomain/custom domain processing
   const isProtectedPath = (path.includes('/quote') || path.includes('/products')) && 
     !path.includes('/products/addons');
   
@@ -76,6 +76,28 @@ export async function middleware(request: NextRequest) {
     // If we already have the partner_subdomain parameter, proceed
     if (searchParams.has('partner_subdomain')) {
       return NextResponse.next();
+    }
+
+    // Check if this is a custom domain first
+    if (hostname !== mainDomain && !isLocalhost) {
+      try {
+        const supabase = createClient(request);
+        const { data: profile } = await supabase
+          .from('UserProfiles')
+          .select('user_id, status, subdomain')
+          .eq('custom_domain', hostname)
+          .eq('status', 'active')
+          .single();
+
+        if (profile) {
+          // Valid custom domain - add the subdomain as a parameter and rewrite
+          const url = new URL(request.url);
+          url.searchParams.set('partner_subdomain', profile.subdomain);
+          return NextResponse.rewrite(forceDomain(url));
+        }
+      } catch (error) {
+        console.error('Error checking custom domain:', error);
+      }
     }
 
     // If we have a subdomain, validate it

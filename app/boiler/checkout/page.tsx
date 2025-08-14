@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CheckoutLayout, { SelectedAddonItem, SelectedBundleItem, BundleLite } from '@/components/category-commons/checkout/CheckoutLayout'
@@ -28,7 +28,7 @@ interface PartnerProduct {
 interface BundleAddonItem { bundle_addon_id: string; bundle_id: string; addon_id: string; quantity: number; Addons?: Addon }
 interface Bundle { bundle_id: string; partner_id: string; title: string; description: string | null; discount_type: 'fixed' | 'percent'; discount_value: number; service_category_id: string | null; BundlesAddons?: BundleAddonItem[] }
 
-export default function BoilerCheckoutPage() {
+function BoilerCheckoutPageContent() {
   const supabase = createClient()
   const sp = useSearchParams()
   const submissionId = sp?.get('submission') || null
@@ -202,6 +202,18 @@ export default function BoilerCheckoutPage() {
         alert('Booking submitted! (stub)')
       }}
     />
+  )
+}
+
+export default function BoilerCheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12">
+        <p className="text-gray-600">Preparing checkout…</p>
+      </div>
+    }>
+      <BoilerCheckoutPageContent />
+    </Suspense>
   )
 }
 
