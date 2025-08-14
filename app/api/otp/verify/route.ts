@@ -20,7 +20,7 @@ function parseHostname(request: NextRequest, bodySubdomain?: string | null): str
 
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
-  if (!hostname || hostname === 'www' || hostname === 'localhost') return null;
+  if (!hostname || hostname === 'localhost') return null;
   return hostname;
 }
 

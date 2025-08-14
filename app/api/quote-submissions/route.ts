@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     }
     
     // If no partner found and hostname is present, try to get partner from hostname
-    if (!assignedPartnerId && normalizedHostname && normalizedHostname !== 'localhost' && normalizedHostname !== 'www') {
+    if (!assignedPartnerId && normalizedHostname && normalizedHostname !== 'localhost') {
       const partner = await resolvePartnerByHostname(supabase, normalizedHostname);
 
       if (partner) {
