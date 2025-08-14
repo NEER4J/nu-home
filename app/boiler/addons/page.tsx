@@ -1,11 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { MinusCircle, PlusCircle, Info, ShoppingCart, ChevronRight, X, CheckCircle } from 'lucide-react'
-import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
+import AddonsLayout, { BundleLite } from '@/components/category-commons/addon/AddonsLayout'
 
 interface AddonType {
   id: string
@@ -63,8 +61,8 @@ interface PartnerProduct {
 export default function BoilerAddonsPage() {
   const supabase = createClient()
   const searchParams = useSearchParams()
-  const productId = searchParams?.get('product') || null
   const submissionId = searchParams?.get('submission') || null
+  const productIdFromUrl = searchParams?.get('product') || null
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -74,24 +72,31 @@ export default function BoilerAddonsPage() {
   const [addons, setAddons] = useState<Addon[]>([])
   const [selectedAddons, setSelectedAddons] = useState<Record<string, number>>({})
   const [selectedProduct, setSelectedProduct] = useState<PartnerProduct | null>(null)
-  const [showCart, setShowCart] = useState(false)
   const [bundles, setBundles] = useState<Bundle[]>([])
   const [selectedBundles, setSelectedBundles] = useState<Record<string, number>>({})
   const [companyColor, setCompanyColor] = useState<string | null>(null)
-  const classes = useDynamicStyles(companyColor)
 
-  const getImageUrl = (url: string | null) => {
-    if (!url) return null
-    if (url.startsWith('http://') || url.startsWith('https://')) return url
-    if (url.startsWith('/')) return url
-    return `/${url}`
-  }
 
   useEffect(() => {
     async function init() {
       try {
         setLoading(true)
         setError(null)
+        
+        // Check if this is a back navigation (user came from checkout or has existing data)
+        const isBackNavigation = document.referrer.includes('/checkout') || 
+                                document.referrer.includes('/addons') ||
+                                (submissionId && !productIdFromUrl) // Has submission but no product in URL
+        console.log('Addons page init - isBackNavigation:', isBackNavigation, {
+          referrer: document.referrer,
+          hasSubmission: !!submissionId,
+          hasProductInUrl: !!productIdFromUrl
+        })
+        
+        if (isBackNavigation) {
+          // Don't autosave when coming back from other pages
+          setIsUserActive(false)
+        }
 
         // 1) Resolve subdomain → partner
         const hostname = window.location.hostname
@@ -129,12 +134,47 @@ export default function BoilerAddonsPage() {
         }
         setCategory(categoryData as Category)
 
-        // 3) Fetch selected product summary
-        if (productId) {
+        // 3) Resolve cart from partner_leads if we have submission id
+        let cartState: any = {}
+        let pInfo: any = {}
+        let aInfo: any[] = []
+        let bInfo: any[] = []
+        
+        if (submissionId) {
+          const { data: lead, error: leadError } = await supabase
+            .from('partner_leads')
+            .select('cart_state, product_info, addon_info, bundle_info')
+            .eq('submission_id', submissionId)
+            .single()
+          
+          if (leadError) {
+            console.error('Failed to load lead data:', leadError)
+          } else {
+            console.log('Loaded lead data:', lead)
+          }
+          
+          cartState = (lead as any)?.cart_state || {}
+          pInfo = (lead as any)?.product_info || {}
+          aInfo = (lead as any)?.addon_info || []
+          bInfo = (lead as any)?.bundle_info || []
+          console.log('Product info from database:', pInfo)
+          console.log('Addon info from database:', aInfo)
+          console.log('Bundle info from database:', bInfo)
+          
+          if (pInfo && pInfo.product_id && !productIdFromUrl) {
+            // if product already saved, prefer it
+            ;(cartState as any).product_id = pInfo.product_id
+            console.log('Using product_id from database:', pInfo.product_id)
+          }
+        }
+
+        // If product passed via URL, override cart product and save later
+        const resolvedProductId = productIdFromUrl || cartState.product_id || null
+        if (resolvedProductId) {
           const { data: product, error: productError } = await supabase
             .from('PartnerProducts')
             .select('partner_product_id, partner_id, name, price, image_url, service_category_id')
-            .eq('partner_product_id', productId)
+            .eq('partner_product_id', resolvedProductId)
             .eq('partner_id', partner.user_id)
             .eq('service_category_id', categoryData.service_category_id)
             .single()
@@ -170,6 +210,39 @@ export default function BoilerAddonsPage() {
         if (!bundlesError && bundlesData) {
           setBundles(bundlesData as unknown as Bundle[])
         }
+        // Prefill selections from addon_info and bundle_info (preferred) or cart_state (fallback)
+        if (aInfo && aInfo.length > 0) {
+          // Use addon_info for preselection
+          const map: Record<string, number> = {}
+          aInfo.forEach((a: any) => { 
+            if (a.addon_id && a.quantity) map[a.addon_id] = Number(a.quantity) 
+          })
+          setSelectedAddons(map)
+          console.log('Preselected addons from addon_info:', map)
+        } else if (cartState?.addons && Array.isArray(cartState.addons)) {
+          // Fallback to cart_state
+          const map: Record<string, number> = {}
+          cartState.addons.forEach((a: any) => { if (a.addon_id) map[a.addon_id] = Number(a.quantity || 1) })
+          setSelectedAddons(map)
+          console.log('Preselected addons from cart_state:', map)
+        }
+        
+        if (bInfo && bInfo.length > 0) {
+          // Use bundle_info for preselection
+          const map: Record<string, number> = {}
+          bInfo.forEach((b: any) => { 
+            if (b.bundle_id && b.quantity) map[b.bundle_id] = Number(b.quantity) 
+          })
+          setSelectedBundles(map)
+          console.log('Preselected bundles from bundle_info:', map)
+        } else if (cartState?.bundles && Array.isArray(cartState.bundles)) {
+          // Fallback to cart_state
+          const map: Record<string, number> = {}
+          cartState.bundles.forEach((b: any) => { if (b.bundle_id) map[b.bundle_id] = Number(b.quantity || 1) })
+          setSelectedBundles(map)
+          console.log('Preselected bundles from cart_state:', map)
+        }
+
       } catch (err) {
         console.error('Error initializing addons page:', err)
         setError('An unexpected error occurred')
@@ -179,58 +252,9 @@ export default function BoilerAddonsPage() {
     }
 
     init()
-  }, [productId])
+  }, [productIdFromUrl, submissionId])
 
-  const addonsByType = useMemo(() => {
-    return addons.reduce((acc, addon) => {
-      if (!acc[addon.addon_type_id]) acc[addon.addon_type_id] = []
-      acc[addon.addon_type_id].push(addon)
-      return acc
-    }, {} as Record<string, Addon[]>)
-  }, [addons])
-
-  const selectedAddonsList = useMemo(() => {
-    return Object.entries(selectedAddons)
-      .filter(([_, qty]) => qty > 0)
-      .map(([addonId, qty]) => {
-        const addon = addons.find(a => a.addon_id === addonId)
-        if (!addon) return null
-        return { ...addon, quantity: qty }
-      })
-      .filter(Boolean) as (Addon & { quantity: number })[]
-  }, [selectedAddons, addons])
-
-  const itemsCount = useMemo(() => selectedAddonsList.reduce((n, a) => n + a.quantity, 0), [selectedAddonsList])
-  const addonsTotal = useMemo(() => selectedAddonsList.reduce((sum, a) => sum + a.quantity * a.price, 0), [selectedAddonsList])
-  const basePrice = useMemo(() => (typeof selectedProduct?.price === 'number' ? selectedProduct.price : 0), [selectedProduct?.price])
-  const getBundleUnitPrice = (bundle: Bundle): number => {
-    const items = bundle.BundlesAddons || []
-    const subtotal = items.reduce((s, i) => s + (i.Addons?.price || 0) * (i.quantity || 0), 0)
-    const dv = Number(bundle.discount_value || 0)
-    const discount = bundle.discount_type === 'percent' ? Math.min(subtotal * (dv / 100), subtotal) : Math.min(dv, subtotal)
-    return Math.max(0, subtotal - discount)
-  }
-  const selectedBundlesList = useMemo(() => {
-    return Object.entries(selectedBundles)
-      .filter(([_, qty]) => qty > 0)
-      .map(([bundleId, quantity]) => {
-        const bundle = bundles.find(b => b.bundle_id === bundleId)
-        if (!bundle) return null
-        return { bundle, quantity, unitPrice: getBundleUnitPrice(bundle) }
-      })
-      .filter(Boolean) as { bundle: Bundle, quantity: number, unitPrice: number }[]
-  }, [selectedBundles, bundles])
-  const bundlesTotal = useMemo(() => selectedBundlesList.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0), [selectedBundlesList])
-  const orderTotal = useMemo(() => Math.max(0, basePrice + addonsTotal + bundlesTotal), [basePrice, addonsTotal, bundlesTotal])
-
-  // Addon ids included by any selected bundle (for UI labels)
-  const bundleIncludedAddonIds = useMemo(() => {
-    const set = new Set<string>()
-    selectedBundlesList.forEach(({ bundle }) => {
-      (bundle.BundlesAddons || []).forEach(i => set.add(i.addon_id))
-    })
-    return set
-  }, [selectedBundlesList])
+  // UI aggregation moved into AddonsLayout
 
   const handleQuantityChange = (addon: Addon, change: number) => {
     const currentQty = selectedAddons[addon.addon_id] || 0
@@ -254,6 +278,7 @@ export default function BoilerAddonsPage() {
 
     updated[addon.addon_id] = newQty
     setSelectedAddons(updated)
+    setIsUserActive(true) // Mark user as active when they make changes
   }
 
   const handleAddBundle = (bundle: Bundle) => {
@@ -265,6 +290,7 @@ export default function BoilerAddonsPage() {
       }
       return { ...prev, [bundle.bundle_id]: 1 }
     })
+    setIsUserActive(true) // Mark user as active when they make changes
   }
 
   const handleBundleQtyChange = (bundleId: string, change: number) => {
@@ -276,7 +302,87 @@ export default function BoilerAddonsPage() {
       else updated[bundleId] = next
       return updated
     })
+    setIsUserActive(true) // Mark user as active when they make changes
   }
+
+  // Persist cart state whenever selections change (debounced)
+  const saveTimer = useRef<any>(null)
+  const cartPayload = useMemo(() => {
+    const addonsArr = Object.entries(selectedAddons)
+      .filter(([_, q]) => (q as number) > 0)
+      .map(([addon_id, quantity]) => ({ addon_id, quantity }))
+    const bundlesArr = Object.entries(selectedBundles)
+      .filter(([_, q]) => (q as number) > 0)
+      .map(([bundle_id, quantity]) => ({ bundle_id, quantity }))
+    return { addons: addonsArr, bundles: bundlesArr }
+  }, [selectedAddons, selectedBundles])
+
+  // Prepare addon and bundle info for storage
+  const addonInfo = useMemo(() => {
+    return Object.entries(selectedAddons)
+      .filter(([_, q]) => (q as number) > 0)
+      .map(([addon_id, quantity]) => {
+        const addon = addons.find(a => a.addon_id === addon_id)
+        return {
+          addon_id,
+          name: addon?.title || '',
+          price: addon?.price || 0,
+          quantity: quantity as number
+        }
+      })
+  }, [selectedAddons, addons])
+
+  const bundleInfo = useMemo(() => {
+    return Object.entries(selectedBundles)
+      .filter(([_, q]) => (q as number) > 0)
+      .map(([bundle_id, quantity]) => {
+        const bundle = bundles.find(b => b.bundle_id === bundle_id)
+        return {
+          bundle_id,
+          name: bundle?.title || '',
+          price: 0, // Bundles don't have a direct price, they have discount logic
+          quantity: quantity as number
+        }
+      })
+  }, [selectedBundles, bundles])
+
+  // Only autosave when user is actively making changes, not when navigating back
+  const [isUserActive, setIsUserActive] = useState(false)
+  
+  useEffect(() => {
+    if (!submissionId || !isUserActive) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(async () => {
+      try {
+        console.log('Autosaving addon/bundle selections to database...')
+        const updateResult = await supabase
+          .from('partner_leads')
+          .update({
+            cart_state: { ...cartPayload, product_id: selectedProduct?.partner_product_id || null },
+            product_info: selectedProduct ? {
+              product_id: selectedProduct.partner_product_id,
+              name: selectedProduct.name,
+              price: selectedProduct.price,
+              image_url: selectedProduct.image_url,
+            } : null,
+            addon_info: addonInfo,
+            bundle_info: bundleInfo,
+            progress_step: 'addons',
+            last_seen_at: new Date().toISOString(),
+          })
+          .eq('submission_id', submissionId)
+        
+        if (updateResult.error) {
+          console.error('Autosave failed:', updateResult.error)
+        } else {
+          console.log('Autosave successful')
+        }
+      } catch (e) {
+        console.warn('Failed to save cart state', e)
+      }
+    }, 400)
+    return () => saveTimer.current && clearTimeout(saveTimer.current)
+  }, [cartPayload, selectedProduct?.partner_product_id, submissionId, isUserActive])
 
   if (loading) {
     return (
@@ -295,420 +401,63 @@ export default function BoilerAddonsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 pb-32 lg:pb-8 lg:flex lg:gap-8">
-      <div className="flex-1">
-        {/* Back button */}
-        <div className="mb-6">
-          <a href="/boiler/products" className={`inline-flex items-center ${classes.link}`}>
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Products
-          </a>
-        </div>
-
-        {/* Selected product will be shown in the cart instead of here */}
-
-        {/* Bundles */}
-        {bundles.length > 0 && (
-          <div className="mb-10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Bundles</h2>
-              <span className={`text-sm ${classes.textColored}`}>Save with pre-selected add-ons</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {bundles.map((b) => {
-                const items = b.BundlesAddons || []
-                const images = items.map(i => i.Addons?.image_link).filter(Boolean).slice(0, 4) as string[]
-                const subtotal = items.reduce((s, i) => s + (i.Addons?.price || 0) * (i.quantity || 0), 0)
-                const dv = Number(b.discount_value || 0)
-                const discount = b.discount_type === 'percent' ? Math.min(subtotal * (dv / 100), subtotal) : Math.min(dv, subtotal)
-                const unitPrice = Math.max(0, subtotal - discount)
-                const selectedQty = selectedBundles[b.bundle_id] || 0
-                return (
-                  <div key={b.bundle_id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                    {/* Media - simple white background */}
-                    <div className="bg-white h-48 sm:h-56 flex items-center justify-center">
-                      <div className="flex -space-x-6">
-                        {[0,1,2].map((n, idx) => (
-                          <div key={idx} className="w-36 h-24 sm:w-44 sm:h-28 rounded-xl bg-gray-50 border flex items-center justify-center">
-                            {images[idx] ? (
-                              <img src={images[idx] as string} alt="Bundle" className="w-full h-full object-contain p-2" />
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-5">
-                      <h3 className="text-lg font-semibold text-gray-900">{b.title}</h3>
-                      <ul className="mt-3 space-y-2">
-                        {items.map((i) => (
-                          <li key={i.bundle_addon_id} className="flex items-start gap-2 text-sm text-gray-800">
-                            <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />
-                            <span>
-                              {i.Addons?.title || 'Addon'}
-                              {i.quantity && i.quantity > 1 ? ` × ${i.quantity}` : ''}
-                              {typeof i.Addons?.price === 'number' && (
-                                <span className="text-gray-500"> (worth £{(i.Addons!.price as number).toFixed(0)})</span>
-                              )}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <div className="mt-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="text-xl font-semibold text-gray-900">£{unitPrice.toFixed(0)}</div>
-                          {discount > 0 && (
-                            <span className={`text-xs px-2 py-1 rounded-full ${classes.badge}`}>Save £{discount.toFixed(0)}</span>
-                          )}
-                        </div>
-                        <div>
-                          {selectedQty > 0 ? (
-                            <button className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${classes.bgLight} ${classes.textColored}`} onClick={() => handleAddBundle(b)}>Remove</button>
-                          ) : (
-                            <button className={`px-4 py-2 rounded-full ${classes.button} ${classes.buttonText}`} onClick={() => handleAddBundle(b)}>Add</button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Addon sections */}
-        {category?.addon_types.map((type) => {
-          const typeAddons = addonsByType[type.id] || []
-          if (typeAddons.length === 0) return null
-          return (
-            <div key={type.id} className="mb-12">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-medium text-gray-900">{type.name}</h2>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <Info size={18} />
-                  </button>
-                </div>
-                {!type.allow_multiple_selection && (
-                  <div className={`text-sm px-3 py-1 rounded-full ${classes.badge}`}>Select one only</div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {typeAddons.map((addon) => {
-                  const isSelected = (selectedAddons[addon.addon_id] || 0) > 0
-                  const quantity = selectedAddons[addon.addon_id] || 0
-                  const isInBundle = bundleIncludedAddonIds.has(addon.addon_id)
-                  return (
-                    <div key={addon.addon_id} className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border ${isSelected ? 'border-blue-500' : 'border-gray-100'}`}>
-                      <div className="relative p-4 bg-white rounded-t-xl">
-                        <div className="relative h-48 w-full flex items-center justify-center bg-white">
-                          <Image src={getImageUrl(addon.image_link) || '/placeholder-image.jpg'} alt={addon.title} fill className="object-contain p-2" />
-                        </div>
-
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        )}
-
-                        {addon.allow_multiple && (
-                          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-white rounded-full shadow-sm border border-gray-100 p-1">
-                            <button onClick={() => handleQuantityChange(addon, -1)} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 disabled:opacity-50" disabled={!quantity}>
-                              <MinusCircle size={18} />
-                            </button>
-                            <span className="w-6 text-center font-medium text-sm">{quantity}</span>
-                            <button onClick={() => handleQuantityChange(addon, 1)} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700" disabled={addon.max_count ? quantity >= addon.max_count : false}>
-                              <PlusCircle size={18} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-lg font-medium text-gray-900">{addon.title}</h3>
-                          <p className="text-lg font-semibold text-gray-900">£{addon.price.toFixed(2)}</p>
-                        </div>
-                        {isInBundle && (
-                          <div className="mb-2">
-                            <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full ${classes.badge}`}>Included in bundle</span>
-                          </div>
-                        )}
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{addon.description}</p>
-                        {!addon.allow_multiple && (
-                          <button
-                            className={`w-full py-2.5 px-4 rounded-lg transition-colors ${isSelected ? `${classes.bgLight} ${classes.textColored}` : (isInBundle ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${classes.button} ${classes.buttonText}`)}`}
-                            onClick={() => {
-                              if (!isSelected && isInBundle) return
-                              handleQuantityChange(addon, isSelected ? -1 : 1)
-                            }}
-                            disabled={!isSelected && isInBundle}
-                            title={!isSelected && isInBundle ? 'Included in selected bundle' : undefined}
-                          >
-                            {isSelected ? 'Added' : (isInBundle ? 'Included' : 'Add to Quote')}
-                          </button>
-                        )}
-                        {addon.max_count && <p className="text-xs text-gray-500 text-center mt-2">Maximum: {addon.max_count}</p>}
-                        {addon.allow_multiple && isInBundle && (
-                          <p className={`text-xs text-center mt-2 ${classes.textColored}`}>Included in bundle; you can add more.</p>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
-
-        {addons.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No add-ons available for this category</p>
-          </div>
-        )}
-      </div>
-
-      {/* Desktop cart panel */}
-      <div className="hidden lg:block w-[400px] flex-shrink-0">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-8">
-          <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-            <h2 className="text-sm font-medium text-gray-900">Your fixed price including installation</h2>
-          </div>
-
-          {selectedProduct || selectedAddonsList.length > 0 || selectedBundlesList.length > 0 ? (
-            <>
-
-<div className="border-gray-100 pt-4 space-y-4">
-               
-                <div className="flex justify-between items-center">
-                  <span className="text-2xl font-semibold text-gray-900">£{orderTotal.toFixed(2)}</span>
-                </div>
-                <button
-                  className={`w-full ${classes.button} ${classes.buttonText} px-6 py-3 rounded-lg flex items-center justify-center gap-2 font-medium`}
-                  onClick={() => {
-                    const url = new URL('/boiler/quote', window.location.origin)
-                    if (submissionId) url.searchParams.set('submission', submissionId)
-                    if (productId) url.searchParams.set('product', productId)
-                    if (selectedAddonsList.length) {
-                      const pairs = selectedAddonsList.map(a => `${a.addon_id}:${a.quantity}`).join(',')
-                      url.searchParams.set('addons', pairs)
-                    }
-                    if (selectedBundlesList.length) {
-                      const bPairs = selectedBundlesList.map(b => `${b.bundle.bundle_id}:${b.quantity}`).join(',')
-                      url.searchParams.set('bundles', bPairs)
-                    }
-                    window.location.href = url.toString()
-                  }}
-                >
-                  Continue to Installation <ChevronRight size={16} />
-                </button>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Info size={16} />
-                    <span>Installation Included</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4 mb-6">
-                {selectedProduct && (
-                  <div className="flex items-center gap-4">
-                    <div className="relative h-12 w-12 flex-shrink-0 bg-gray-200 rounded-md p-3">
-                      <Image src={getImageUrl(selectedProduct.image_url) || '/placeholder-image.jpg'} alt={selectedProduct.name} fill className="object-contain" />
-                    </div>
-                    <div className="flex-grow min-w-0">
-                      <h4 className="font-medium text-sm text-gray-900 truncate">{selectedProduct.name}</h4>
-                      <p className="text-gray-600 text-xs">{typeof selectedProduct.price === 'number' ? `£${selectedProduct.price.toFixed(2)}` : 'Contact for price'}</p>
-                    </div>
-                  </div>
-                )}
-                {selectedBundlesList.map(({ bundle, quantity, unitPrice }) => (
-                  <div key={bundle.bundle_id} className="bg-blue-50 p-3 rounded-lg">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-8 w-8 flex items-center justify-center rounded-md bg-white text-blue-600 font-semibold">B</div>
-                        <div className="min-w-0">
-                          <h4 className="font-medium text-sm text-gray-900 truncate">{bundle.title}</h4>
-                          <p className="text-gray-600 text-xs">£{unitPrice.toFixed(2)}</p>
-                        </div>
-                      </div>
-                      <button onClick={() => handleAddBundle(bundle)} className={`text-xs ${classes.link}`}>Remove</button>
-                    </div>
-                    <div className="mt-2 space-y-2">
-                      {(bundle.BundlesAddons || []).map((i) => (
-                        <div key={i.bundle_addon_id} className="flex items-center gap-2">
-                          <div className="h-8 w-8 bg-white rounded-md overflow-hidden flex items-center justify-center border">
-                            {i.Addons?.image_link ? (
-                              <img src={i.Addons.image_link} alt={i.Addons?.title || 'Addon'} className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="text-[10px] text-gray-400">No image</div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-medium text-gray-900 truncate">{i.Addons?.title || 'Addon'}</div>
-                            {i.Addons?.description && (
-                              <div className="text-[11px] text-gray-500 truncate">{i.Addons.description}</div>
-                            )}
-                          </div>
-                          {i.quantity && i.quantity > 1 && (
-                            <div className="text-[11px] text-gray-600">×{i.quantity}</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {selectedAddonsList.map(addon => (
-                  <div key={addon.addon_id} className="flex items-center gap-4">
-                    <div className="relative h-12 w-12 flex-shrink-0 bg-gray-200 rounded-md p-3">
-                      <Image src={getImageUrl(addon.image_link) || '/placeholder-image.jpg'} alt={addon.title} fill className="object-contain" />
-                    </div>
-                    <div className="flex-grow min-w-0">
-                      <h4 className="font-medium text-sm text-gray-900 truncate">{addon.title}</h4>
-                      <p className="text-gray-600 text-xs">{addon.quantity} × £{addon.price.toFixed(2)}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {addon.allow_multiple ? (
-                        <>
-                          <button onClick={() => handleQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200">
-                            <MinusCircle size={14} />
-                          </button>
-                          <span className="w-6 text-center text-sm">{addon.quantity}</span>
-                          <button onClick={() => handleQuantityChange(addon, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200" disabled={addon.max_count ? addon.quantity >= addon.max_count : false}>
-                            <PlusCircle size={14} />
-                          </button>
-                        </>
-                      ) : (
-                        <button onClick={() => handleQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200">
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              
-            </>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <ShoppingCart size={32} className="mx-auto mb-2 opacity-50" />
-              <p>No items selected</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Mobile cart */}
-      {(selectedProduct || selectedAddonsList.length > 0 || selectedBundlesList.length > 0) && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-10">
-          <div className="container mx-auto flex justify-between items-center">
-            <button onClick={() => setShowCart(!showCart)} className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg relative">
-              <ShoppingCart size={20} />
-              <span>Cart</span>
-              <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{itemsCount}</span>
-            </button>
-            <div className="flex items-center gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Your order</p>
-                <p className="text-lg font-semibold">£{orderTotal.toFixed(2)}</p>
-              </div>
-              <button
-                className={`${classes.button} ${classes.buttonText} px-6 py-2.5 rounded-lg flex items-center gap-1`}
-                onClick={() => {
-                  const url = new URL('/boiler/quote', window.location.origin)
+    <AddonsLayout
+      category={category as any}
+      addons={addons as any}
+      bundles={bundles as unknown as BundleLite[]}
+      selectedAddons={selectedAddons}
+      selectedBundles={selectedBundles}
+      selectedProduct={selectedProduct as any}
+      companyColor={companyColor}
+      backHref="/boiler/products"
+      backLabel="Back to Products"
+      showBack
+      onChangeAddonQuantity={handleQuantityChange as any}
+      onToggleBundle={(b) => handleAddBundle(b as unknown as Bundle)}
+      onChangeBundleQuantity={handleBundleQtyChange}
+      onContinue={async (selectedAddonsList, selectedBundlesList) => {
+        // Persist cart and move with only submission in URL
+        try {
+          if (submissionId) {
+            await supabase
+              .from('partner_leads')
+              .update({
+                cart_state: {
+                  product_id: selectedProduct?.partner_product_id || null,
+                  addons: selectedAddonsList.map(a => ({ addon_id: a.addon_id, quantity: a.quantity })),
+                  bundles: selectedBundlesList.map(b => ({ bundle_id: b.bundle.bundle_id, quantity: b.quantity })),
+                },
+                product_info: selectedProduct ? {
+                  product_id: selectedProduct.partner_product_id,
+                  name: selectedProduct.name,
+                  price: selectedProduct.price,
+                  image_url: selectedProduct.image_url,
+                } : null,
+                addon_info: selectedAddonsList.map(a => ({
+                  addon_id: a.addon_id,
+                  name: a.title,
+                  price: a.price,
+                  quantity: a.quantity
+                })),
+                bundle_info: selectedBundlesList.map(b => ({
+                  bundle_id: b.bundle.bundle_id,
+                  name: b.bundle.title,
+                  price: 0, // Bundles don't have direct price
+                  quantity: b.quantity
+                })),
+                progress_step: 'checkout',
+                last_seen_at: new Date().toISOString(),
+              })
+              .eq('submission_id', submissionId)
+          }
+        } catch (e) {
+          console.warn('Failed to persist cart before checkout', e)
+        }
+        const url = new URL('/boiler/checkout', window.location.origin)
                   if (submissionId) url.searchParams.set('submission', submissionId)
-                  if (productId) url.searchParams.set('product', productId)
-                  if (selectedAddonsList.length) {
-                    const pairs = selectedAddonsList.map(a => `${a.addon_id}:${a.quantity}`).join(',')
-                    url.searchParams.set('addons', pairs)
-                  }
-                  if (selectedBundlesList.length) {
-                    const bPairs = selectedBundlesList.map(b => `${b.bundle.bundle_id}:${b.quantity}`).join(',')
-                    url.searchParams.set('bundles', bPairs)
-                  }
                   window.location.href = url.toString()
                 }}
-              >
-                Continue <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-
-          {showCart && (
-            <div className="container mx-auto mt-4 bg-gray-50 rounded-lg p-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-medium text-gray-900">Your Selected Items</h3>
-                <button onClick={() => setShowCart(false)} className="text-gray-500"><X size={18} /></button>
-              </div>
-              <div className="max-h-60 overflow-y-auto">
-                {selectedProduct && (
-                  <div className="flex items-center gap-4 py-3 border-b border-gray-200">
-                    <div className="relative h-12 w-12 flex-shrink-0 bg-gray-200 rounded-md p-3">
-                      <Image src={getImageUrl(selectedProduct.image_url) || '/placeholder-image.jpg'} alt={selectedProduct.name} fill className="object-contain" />
-                    </div>
-                    <div className="flex-grow min-w-0">
-                      <h4 className="font-medium text-sm text-gray-900 truncate">{selectedProduct.name}</h4>
-                      <p className="text-gray-600 text-xs">{typeof selectedProduct.price === 'number' ? `£${selectedProduct.price.toFixed(2)}` : 'Contact for price'}</p>
-                    </div>
-                  </div>
-                )}
-                {selectedBundlesList.map(({ bundle, quantity, unitPrice }) => (
-                  <div key={bundle.bundle_id} className="flex items-center gap-4 py-3 border-b border-gray-200">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-md bg-white text-indigo-600 font-semibold">B</div>
-                    <div className="flex-grow min-w-0">
-                      <h4 className="font-medium text-sm text-gray-900 truncate">{bundle.title}</h4>
-                      <p className="text-gray-600 text-xs">{quantity} × £{unitPrice.toFixed(2)}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => handleBundleQtyChange(bundle.bundle_id, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200">-</button>
-                      <span className="w-6 text-center text-sm">{quantity}</span>
-                      <button onClick={() => handleBundleQtyChange(bundle.bundle_id, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200">+</button>
-                    </div>
-                  </div>
-                ))}
-                {selectedAddonsList.map(addon => (
-                  <div key={addon.addon_id} className="flex items-center gap-4 py-3 border-b border-gray-200 last:border-b-0">
-                    <div className="relative h-12 w-12 flex-shrink-0 bg-gray-200 rounded-md p-3">
-                      <Image src={getImageUrl(addon.image_link) || '/placeholder-image.jpg'} alt={addon.title} fill className="object-contain" />
-                    </div>
-                    <div className="flex-grow min-w-0">
-                      <h4 className="font-medium text-sm text-gray-900 truncate">{addon.title}</h4>
-                      <p className="text-gray-600 text-xs">{addon.quantity} × £{addon.price.toFixed(2)}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {addon.allow_multiple ? (
-                        <>
-                          <button onClick={() => handleQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200">
-                            <MinusCircle size={14} />
-                          </button>
-                          <span className="w-6 text-center text-sm">{addon.quantity}</span>
-                          <button onClick={() => handleQuantityChange(addon, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200" disabled={addon.max_count ? addon.quantity >= addon.max_count : false}>
-                            <PlusCircle size={14} />
-                          </button>
-                        </>
-                      ) : (
-                        <button onClick={() => handleQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200">
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    />
   )
 }
 

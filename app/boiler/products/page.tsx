@@ -89,6 +89,10 @@ function BoilerProductsContent() {
 
   // Read submission id to persist context (if present)
   const submissionId = searchParams?.get('submission') ?? null
+  
+  // Debug logging
+  console.log('Products page - submissionId from URL:', submissionId)
+  console.log('Products page - all search params:', Object.fromEntries(searchParams?.entries() || []))
 
   // Resolve brand color and classes
   const brandColor = partnerInfo?.company_color || '#2563eb'
@@ -393,6 +397,114 @@ function BoilerProductsContent() {
   const closeModal = () => {
     setShowModal(false)
     setSelectedProduct(null)
+  }
+
+  // Persist selected product (with snapshot) in partner_leads.cart_state and advance progress
+  const persistProductAndGo = async (product: PartnerProduct) => {
+    try {
+      console.log('persistProductAndGo called with:', { submissionId, partnerInfo: partnerInfo?.user_id })
+      
+      if (!submissionId || !partnerInfo?.user_id) {
+        console.error('Missing submissionId or partnerInfo:', { submissionId, partnerUserId: partnerInfo?.user_id })
+        const url = new URL('/boiler/addons', window.location.origin)
+        if (submissionId) url.searchParams.set('submission', submissionId)
+        url.searchParams.set('product', product.partner_product_id)
+        window.location.href = url.toString()
+        return
+      }
+
+      
+      // Load existing cart_state to preserve addons/bundles
+      const { data: lead } = await supabase
+        .from('partner_leads')
+        .select('cart_state')
+        .eq('submission_id', submissionId)
+        .single()
+      const existing = (lead as any)?.cart_state || {}
+      const updated = {
+        ...existing,
+        product_id: product.partner_product_id,
+      }
+      console.log('Attempting to update partner_leads with:', {
+        submissionId,
+        cart_state: updated,
+        product_info: {
+          product_id: product.partner_product_id,
+          name: product.name,
+          price: product.price,
+          image_url: product.image_url,
+        }
+      })
+      
+      const updateResult = await supabase
+        .from('partner_leads')
+        .update({
+          cart_state: updated,
+          product_info: {
+            product_id: product.partner_product_id,
+            name: product.name,
+            price: product.price,
+            image_url: product.image_url,
+          },
+          progress_step: 'addons',
+          last_seen_at: new Date().toISOString(),
+        })
+        .eq('submission_id', submissionId)
+      
+      if (updateResult.error) {
+        console.error('Failed to update partner_leads:', updateResult.error)
+        console.error('Error details:', {
+          message: updateResult.error.message,
+          details: updateResult.error.details,
+          hint: updateResult.error.hint
+        })
+        throw new Error('Database update failed')
+      }
+      
+      console.log('Successfully saved product to database:', {
+        submissionId,
+        product_id: product.partner_product_id,
+        product_info: {
+          product_id: product.partner_product_id,
+          name: product.name,
+          price: product.price,
+          image_url: product.image_url,
+        }
+      })
+      
+      // Verify what was actually saved in the database (for console logging only)
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('partner_leads')
+        .select('cart_state, product_info, progress_step, last_seen_at')
+        .eq('submission_id', submissionId)
+        .single()
+      
+      if (verifyError) {
+        console.error('Database update successful but verification failed:', verifyError)
+      } else {
+        console.log('Database update successful - verification:', {
+          submissionId,
+          productName: product.name,
+          productId: product.partner_product_id,
+          progressStep: verifyData.progress_step,
+          timestamp: verifyData.last_seen_at,
+          cartStateProductId: verifyData.cart_state?.product_id,
+          productInfoProductId: verifyData.product_info?.product_id,
+          productInfoName: verifyData.product_info?.name,
+          productInfoPrice: verifyData.product_info?.price
+        })
+      }
+      
+      const url = new URL('/boiler/addons', window.location.origin)
+      url.searchParams.set('submission', submissionId)
+      window.location.href = url.toString()
+    } catch (e) {
+      console.error('Failed to persist product selection:', e)
+      const fallback = new URL('/boiler/addons', window.location.origin)
+      if (submissionId) fallback.searchParams.set('submission', submissionId)
+      fallback.searchParams.set('product', product.partner_product_id)
+      window.location.href = fallback.toString()
+    }
   }
 
   async function handleSaveQuoteEmail(e: React.FormEvent<HTMLFormElement>) {
@@ -734,12 +846,7 @@ function BoilerProductsContent() {
                     {/* Primary Action Button */}
                     <button
                       className="w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
-                      onClick={() => {
-                        const url = new URL('/boiler/addons', window.location.origin)
-                        if (submissionId) url.searchParams.set('submission', submissionId)
-                        url.searchParams.set('product', product.partner_product_id)
-                        window.location.href = url.toString()
-                      }}
+                      onClick={() => persistProductAndGo(product)}
                     >
                       Continue with this
                     </button>
@@ -872,10 +979,8 @@ function BoilerProductsContent() {
                 <button
                   className="flex-1 py-3 px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
                   onClick={() => {
-                    const url = new URL('/boiler/addons', window.location.origin)
-                    if (submissionId) url.searchParams.set('submission', submissionId)
-                    url.searchParams.set('product', selectedProduct.partner_product_id)
-                    window.location.href = url.toString()
+                    console.log('Continue with this clicked from modal for product:', selectedProduct)
+                    persistProductAndGo(selectedProduct)
                   }}
                 >
                   Continue with this
