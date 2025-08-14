@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/client';
 import QuoteForm from '@/components/QuoteForm';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
 
 interface QuoteFormWrapperProps {
   serviceCategoryId: string;
@@ -11,17 +12,6 @@ interface QuoteFormWrapperProps {
   partnerId: string;
   showThankYou: boolean;
   redirectToProducts: boolean;
-}
-
-interface PartnerInfo {
-  company_name: string;
-  contact_person: string;
-  postcode: string;
-  subdomain: string;
-  business_description?: string;
-  website_url?: string;
-  logo_url?: string;
-  user_id: string;
 }
 
 export default function QuoteFormWrapper({
@@ -32,7 +22,7 @@ export default function QuoteFormWrapper({
   redirectToProducts,
 }: QuoteFormWrapperProps) {
   const router = useRouter();
-  const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(null);
+  const [partnerInfo, setPartnerInfo] = useState<PartnerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,24 +31,18 @@ export default function QuoteFormWrapper({
       try {
         const supabase = await createClient();
         
-        // Get subdomain from hostname
+        // Get hostname from window location
         const hostname = window.location.hostname;
-        const subdomain = hostname.split('.')[0];
         
-        if (subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
-          // Fetch partner info by subdomain
-          const { data: partner, error } = await supabase
-            .from('UserProfiles')
-            .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id')
-            .eq('subdomain', subdomain)
-            .single();
+        if (hostname && hostname !== 'localhost' && hostname !== 'www') {
+          // Fetch partner info by hostname
+          const partner = await resolvePartnerByHost(supabase, hostname);
 
-          if (error) {
-            console.error('Error fetching partner info:', error);
-            setError('Failed to load partner information');
-          } else if (partner) {
+          if (partner) {
             console.log('Found partner info:', partner);
-            setPartnerInfo(partner as PartnerInfo);
+            setPartnerInfo(partner);
+          } else {
+            setError('Partner not found for this domain');
           }
         }
       } catch (err) {
@@ -78,8 +62,7 @@ export default function QuoteFormWrapper({
       
       // Get the current hostname
       const hostname = window.location.hostname;
-      const subdomain = hostname.split('.')[0];
-      const isSubdomain = subdomain !== 'localhost' && subdomain !== 'www' && subdomain !== 'apstic';
+      const isCustomDomain = hostname !== 'localhost' && hostname !== 'www' && hostname !== 'apstic';
 
       // Get the partner lead submission ID
       const { data: lead, error: leadError } = await supabase

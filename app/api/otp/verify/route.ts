@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { decryptObject } from '@/lib/encryption';
+import { resolvePartnerByHostname } from '@/lib/partner';
 
 type TwilioCredentials = {
   accountSid: string | null;
@@ -8,7 +9,7 @@ type TwilioCredentials = {
   verifySid: string | null;
 };
 
-function parseSubdomain(request: NextRequest, bodySubdomain?: string | null): string | null {
+function parseHostname(request: NextRequest, bodySubdomain?: string | null): string | null {
   try {
     const url = new URL(request.url);
     const urlParamSubdomain = url.searchParams.get('subdomain');
@@ -19,24 +20,18 @@ function parseSubdomain(request: NextRequest, bodySubdomain?: string | null): st
 
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
-  const maybe = hostname.split('.')[0];
-  if (!maybe || maybe === 'www' || maybe === 'localhost') return null;
-  return maybe;
+  if (!hostname || hostname === 'www' || hostname === 'localhost') return null;
+  return hostname;
 }
 
 async function getTwilioCredentials(request: NextRequest, bodySubdomain?: string | null): Promise<TwilioCredentials> {
-  const subdomain = parseSubdomain(request, bodySubdomain);
-  if (subdomain) {
+  const hostname = parseHostname(request, bodySubdomain);
+  if (hostname) {
     const supabase = await createClient();
-    const { data: profile } = await supabase
-      .from('UserProfiles')
-      .select('twilio_settings')
-      .eq('subdomain', subdomain)
-      .eq('status', 'active')
-      .single();
+    const partner = await resolvePartnerByHostname(supabase, hostname);
 
-    if (profile?.twilio_settings) {
-      const decrypted = decryptObject(profile.twilio_settings || {});
+    if (partner?.twilio_settings) {
+      const decrypted = decryptObject(partner.twilio_settings || {});
       const accountSid = (decrypted.TWILIO_ACCOUNT_SID || decrypted.account_sid || decrypted.ACCOUNT_SID) || null;
       const authToken = (decrypted.TWILIO_AUTH_TOKEN || decrypted.auth_token || decrypted.AUTH_TOKEN) || null;
       const verifySid = (decrypted.TWILIO_VERIFY_SID || decrypted.verify_sid || decrypted.messaging_service_sid || decrypted.VERIFY_SID) || null;
@@ -63,7 +58,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve Twilio credentials (by subdomain if available)
+    // Resolve Twilio credentials (by hostname if available)
     const { accountSid, authToken, verifySid } = await getTwilioCredentials(request, bodySubdomain);
 
     if (!accountSid || !authToken || !verifySid) {

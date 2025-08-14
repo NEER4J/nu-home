@@ -4,33 +4,21 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronDown, Phone, Mail, MessageCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-
-interface PartnerInfo {
-  company_name: string;
-  contact_person?: string;
-  postcode?: string;
-  subdomain?: string;
-  business_description?: string;
-  website_url?: string;
-  logo_url?: string;
-  user_id: string;
-  phone?: string;
-  company_color?: string;
-}
+import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
 
 interface HeaderProps {
-  partnerInfo?: PartnerInfo;
+  partnerInfo?: PartnerProfile;
 }
 
 export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
   const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
-  const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(propPartnerInfo || null);
+  const [partnerInfo, setPartnerInfo] = useState<PartnerProfile | null>(propPartnerInfo || null);
   const [loading, setLoading] = useState(!propPartnerInfo);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch partner info from subdomain if not provided as prop
+  // Fetch partner info by host (custom domain preferred, fallback to subdomain) if not provided as prop
   useEffect(() => {
-    async function fetchPartnerFromSubdomain() {
+    async function fetchPartnerByHost() {
       if (propPartnerInfo) {
         setPartnerInfo(propPartnerInfo);
         setLoading(false);
@@ -39,31 +27,20 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
 
       try {
         const supabase = createClient();
-        
-        // Get subdomain from hostname
         const hostname = window.location.hostname;
-        const subdomain = hostname.split('.')[0];
+        const partner = await resolvePartnerByHost(supabase, hostname);
         
-        if (subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
-          const { data: partner, error } = await supabase
-            .from('UserProfiles')
-            .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color')
-            .eq('subdomain', subdomain)
-            .eq('status', 'active')
-            .single();
-          
-          if (!error && partner) {
-            setPartnerInfo(partner);
-          }
+        if (partner) {
+          setPartnerInfo(partner);
         }
       } catch (error) {
-        console.error('Error fetching partner from subdomain:', error);
+        console.error('Error resolving partner from host:', error);
       } finally {
         setLoading(false);
       }
     }
     
-    fetchPartnerFromSubdomain();
+    fetchPartnerByHost();
   }, [propPartnerInfo]);
 
   // Close dropdown when clicking outside

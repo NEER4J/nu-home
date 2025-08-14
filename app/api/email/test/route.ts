@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { decryptObject } from '@/lib/encryption';
+import { resolvePartnerByHostname } from '@/lib/partner';
 import nodemailer from 'nodemailer';
 
 export const runtime = 'nodejs';
@@ -22,7 +23,7 @@ type SmtpSettings = {
   from_email?: string;
 };
 
-function parseSubdomain(request: NextRequest, bodySubdomain?: string | null): string | null {
+function parseHostname(request: NextRequest, bodySubdomain?: string | null): string | null {
   try {
     const url = new URL(request.url);
     const urlParamSubdomain = url.searchParams.get('subdomain');
@@ -33,9 +34,8 @@ function parseSubdomain(request: NextRequest, bodySubdomain?: string | null): st
 
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
-  const maybe = hostname.split('.')[0];
-  if (!maybe || maybe === 'www' || maybe === 'localhost') return null;
-  return maybe;
+  if (!hostname || hostname === 'www' || hostname === 'localhost') return null;
+  return hostname;
 }
 
 type NormalizedSmtp = {
@@ -83,25 +83,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { to, subject, text, html, subdomain: bodySubdomain, productName } = body || {};
 
-    const subdomain = parseSubdomain(request, bodySubdomain);
-    if (!subdomain) {
-      return NextResponse.json({ error: 'Missing subdomain' }, { status: 400 });
+    const hostname = parseHostname(request, bodySubdomain);
+    if (!hostname) {
+      return NextResponse.json({ error: 'Missing hostname' }, { status: 400 });
     }
 
     const supabase = await createClient();
-    const { data: profile } = await supabase
-      .from('UserProfiles')
-      .select('smtp_settings, company_name')
-      .eq('subdomain', subdomain)
-      .eq('status', 'active')
-      .single();
+    const partner = await resolvePartnerByHostname(supabase, hostname);
+    if (!partner) {
+      return NextResponse.json({ error: 'Partner not found for this domain' }, { status: 400 });
+    }
 
-    const companyName: string | undefined = profile?.company_name || undefined;
-    if (!profile?.smtp_settings) {
+    const companyName: string | undefined = partner.company_name || undefined;
+    if (!partner.smtp_settings) {
       return NextResponse.json({ error: 'SMTP settings not configured' }, { status: 400 });
     }
 
-    const decrypted = decryptObject(profile.smtp_settings || {});
+    const decrypted = decryptObject(partner.smtp_settings || {});
     const smtp: NormalizedSmtp = migrateSmtp(decrypted);
     if (!smtp.SMTP_HOST || !smtp.SMTP_USER || !smtp.SMTP_PASSWORD) {
       return NextResponse.json({ error: 'Incomplete SMTP settings' }, { status: 400 });

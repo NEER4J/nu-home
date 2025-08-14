@@ -4,6 +4,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState, use } from 'react'
 import Image from 'next/image'
 import { MinusCircle, PlusCircle, Info, ShoppingCart, ChevronRight, X } from 'lucide-react'
+import { resolvePartnerByHost } from '@/lib/partner'
 
 interface AddonType {
   id: string
@@ -54,9 +55,8 @@ export default function AddonsPage({
         setLoading(true)
         setError(null)
 
-        // Get the host from window location
-        const host = window.location.host
-        const subdomain = host.split('.')[0]
+        // Get the hostname from window location
+        const hostname = window.location.hostname
         
         // First verify the category exists and get its details
         const { data: categoryData, error: categoryError } = await supabase
@@ -78,25 +78,19 @@ export default function AddonsPage({
 
         setCategory(categoryData)
 
-        // Get partner details from subdomain if it exists
+        // Get partner details from hostname if it exists
         let partnerId: string | null = null
-        if (subdomain && subdomain !== 'localhost') {
-          const { data: partner, error: partnerError } = await supabase
-            .from('UserProfiles')
-            .select('user_id')
-            .eq('subdomain', subdomain)
-            .eq('status', 'active')
-            .single()
+        if (hostname && hostname !== 'localhost') {
+          const partner = await resolvePartnerByHost(supabase, hostname)
 
-          if (partnerError) {
-            console.error('Partner error:', partnerError)
-            setError('Invalid partner subdomain')
-            return
-          } else if (partner) {
+          if (partner) {
             partnerId = partner.user_id
+          } else {
+            setError('Partner not found for this domain')
+            return
           }
         } else {
-          setError('Please access this page through a partner subdomain')
+          setError('Please access this page through a partner domain')
           return
         }
 

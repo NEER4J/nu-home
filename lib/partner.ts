@@ -12,6 +12,8 @@ export type PartnerProfile = {
   phone?: string | null
   company_color?: string | null
   otp?: boolean | null
+  smtp_settings?: any
+  twilio_settings?: any
 }
 
 function normalizeHost(rawHost: string): string {
@@ -33,7 +35,7 @@ export async function resolvePartnerByHost(
   {
     const { data, error } = await supabase
       .from('UserProfiles')
-      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp')
+      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings')
       .eq('status', 'active')
       .eq('custom_domain', hostname)
       .single()
@@ -46,7 +48,7 @@ export async function resolvePartnerByHost(
   if (firstLabel && firstLabel !== 'www' && firstLabel !== 'localhost') {
     const { data, error } = await supabase
       .from('UserProfiles')
-      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp')
+      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings')
       .eq('subdomain', firstLabel)
       .eq('status', 'active')
       .single()
@@ -55,4 +57,15 @@ export async function resolvePartnerByHost(
   }
 
   return null
+}
+
+/**
+ * Server-side version of partner resolver for API routes and server components
+ * Takes a hostname string directly instead of using window.location
+ */
+export async function resolvePartnerByHostname(
+  supabase: SupabaseClient,
+  hostname: string
+): Promise<PartnerProfile | null> {
+  return resolvePartnerByHost(supabase, hostname)
 }

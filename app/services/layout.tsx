@@ -6,14 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { HelpCircle, MessageCircle, PhoneCall } from 'lucide-react'
 import { useOnClickOutside } from '@/hooks/use-click-outside'
-
-interface PartnerProfile {
-  company_name: string
-  contact_person: string
-  phone: string | null
-  website_url: string | null
-  logo_url: string | null
-}
+import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
 
 export default function CategoryLayout({
   children,
@@ -30,24 +23,14 @@ export default function CategoryLayout({
   useEffect(() => {
     async function fetchPartnerProfile() {
       try {
-        // Get the host from window location
-        const host = window.location.host
-        const subdomain = host.split('.')[0]
+        // Get the hostname from window location
+        const hostname = window.location.hostname
 
-        if (subdomain && subdomain !== 'localhost') {
-          const { data: profile, error } = await supabase
-            .from('UserProfiles')
-            .select('company_name, contact_person, phone, website_url, logo_url')
-            .eq('subdomain', subdomain)
-            .eq('status', 'active')
-            .single()
-
-          if (error) {
-            console.error('Error fetching partner profile:', error)
-            return
+        if (hostname && hostname !== 'localhost') {
+          const partner = await resolvePartnerByHost(supabase, hostname)
+          if (partner) {
+            setPartnerProfile(partner)
           }
-
-          setPartnerProfile(profile)
         }
       } catch (err) {
         console.error('Unexpected error:', err)

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import QuoteFormWrapper from './QuoteFormWrapper';
 import { headers } from 'next/headers';
+import { resolvePartnerByHostname } from '@/lib/partner';
 
 interface SearchParams {
   submission?: string;
@@ -22,14 +23,10 @@ export async function generateMetadata({
   
   const supabase = await createClient();
 
-  // Get partner info from subdomain if available
+  // Get partner info from hostname if available
   let partnerId = resolvedSearchParams.partner_id;
   if (resolvedSearchParams.subdomain) {
-    const { data: partner } = await supabase
-      .from('UserProfiles')
-      .select('user_id')
-      .eq('subdomain', resolvedSearchParams.subdomain)
-      .single();
+    const partner = await resolvePartnerByHostname(supabase, resolvedSearchParams.subdomain as string);
 
     if (partner) {
       partnerId = partner.user_id;
@@ -117,21 +114,15 @@ export default async function QuotePage({
     notFound();
   }
 
-  // Get the partner info from subdomain
+  // Get the partner info from hostname
   const headersList = await headers();
   const hostname = headersList.toString().includes('host=') 
     ? headersList.toString().split('host=')[1].split(',')[0] 
     : '';
-  const subdomain = hostname.split('.')[0];
   
   let partner = null;
-  if (subdomain && subdomain !== 'localhost') {
-    const { data: partnerData } = await supabase
-      .from('UserProfiles')
-      .select('*')
-      .eq('subdomain', subdomain)
-      .single();
-    partner = partnerData;
+  if (hostname && hostname !== 'localhost') {
+    partner = await resolvePartnerByHostname(supabase, hostname);
   }
 
   return (

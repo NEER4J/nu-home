@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { resolvePartnerByHostname } from '@/lib/partner';
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,16 +47,16 @@ export async function POST(req: NextRequest) {
     const url = new URL(req.url);
     const partnerId = url.searchParams.get('partner_id');
     
-    // Get subdomain from hostname (same logic as header component)
+    // Get hostname from request headers
     const hostname = req.headers.get('host') || '';
-    const subdomain = hostname.split('.')[0];
+    const normalizedHostname = hostname.split(':')[0];
     
     console.log('Hostname:', hostname);
-    console.log('Extracted subdomain:', subdomain);
+    console.log('Normalized hostname:', normalizedHostname);
     console.log('Form data assigned_partner_id:', formData.assigned_partner_id);
     console.log('URL partner_id:', partnerId);
     
-    // Get partner's user ID if partner ID or subdomain is present
+    // Get partner's user ID if partner ID or hostname is present
     let assignedPartnerId = null;
     
     // First try to get partner from form data (assigned_partner_id)
@@ -80,20 +81,15 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    // If no partner found and subdomain is present, try to get partner from subdomain
-    if (!assignedPartnerId && subdomain && subdomain !== 'localhost' && subdomain !== 'www') {
-      const { data: partner } = await supabase
-        .from('UserProfiles')
-        .select('user_id')
-        .eq('subdomain', subdomain)
-        .eq('status', 'active')
-        .single();
+    // If no partner found and hostname is present, try to get partner from hostname
+    if (!assignedPartnerId && normalizedHostname && normalizedHostname !== 'localhost' && normalizedHostname !== 'www') {
+      const partner = await resolvePartnerByHostname(supabase, normalizedHostname);
 
       if (partner) {
         assignedPartnerId = partner.user_id;
-        console.log('Partner assigned from subdomain:', assignedPartnerId);
+        console.log('Partner assigned from hostname:', assignedPartnerId);
       } else {
-        console.log('No partner found for subdomain:', subdomain);
+        console.log('No partner found for hostname:', normalizedHostname);
       }
     }
 
