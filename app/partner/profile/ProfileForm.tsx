@@ -27,6 +27,8 @@ interface UserProfile {
   tier_id: string | null;
   role: string;
   subdomain: string | null;
+  custom_domain?: string | null;
+  domain_verified: boolean;
   tier?: PartnerTier;
 }
 
@@ -110,7 +112,7 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
                 id="company_name"
                 defaultValue={profile.company_name}
                 required
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
               />
             </div>
           </div>
@@ -127,7 +129,7 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
                 id="contact_person"
                 defaultValue={profile.contact_person}
                 required
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
               />
             </div>
           </div>
@@ -143,7 +145,7 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
                 name="phone"
                 id="phone"
                 defaultValue={profile.phone || ''}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
               />
             </div>
           </div>
@@ -159,7 +161,7 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
                 name="website_url"
                 id="website_url"
                 defaultValue={profile.website_url || ''}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                 placeholder="https://example.com"
               />
             </div>
@@ -176,7 +178,7 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
                 id="address"
                 rows={3}
                 defaultValue={profile.address || ''}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
               />
             </div>
           </div>
@@ -193,7 +195,7 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
                 id="postcode"
                 defaultValue={profile.postcode}
                 required
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
               />
             </div>
           </div>
@@ -212,7 +214,7 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
                 className="block w-full min-w-0 flex-1 rounded-none rounded-l-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
               />
               <span className="inline-flex items-center rounded-r-md border border-l-0 border-gray-300 bg-gray-50 px-3 text-gray-500 sm:text-sm">
-                .yourdomain.com
+                .aifortrades.co.uk
               </span>
             </div>
           </div>
@@ -228,7 +230,7 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
                 id="business_description"
                 rows={4}
                 defaultValue={profile.business_description || ''}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
               />
               <p className="mt-2 text-sm text-gray-500">
                 Brief description of your business that will be displayed on your profile.
@@ -247,7 +249,7 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
                   name="tier_id"
                   id="tier_id"
                   defaultValue={profile.tier_id || ''}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                 >
                   <option value="">Select a tier</option>
                   {tiers.map((tier) => (

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Check if the domain belongs to the current user
     const { data: profile, error: profileError } = await supabase
       .from('UserProfiles')
-      .select('custom_domain')
+      .select('custom_domain, domain_verified')
       .eq('user_id', user.id)
       .single();
 
@@ -76,58 +76,63 @@ export async function POST(request: NextRequest) {
     const data = await vercelResponse.json();
     console.log('Vercel domain data:', JSON.stringify(data, null, 2));
     
+    // Determine verification status
+    let isVerified = false;
+    let status = 'error';
+    let message = 'Domain exists in Vercel but may need DNS configuration. Please check your DNS settings.';
+
     // Check if domain is verified (Vercel's primary verification field)
     if (data.verified === true) {
-      return NextResponse.json({
-        verified: true,
-        status: 'verified'
-      });
+      isVerified = true;
+      status = 'verified';
+      message = 'Domain is verified and ready to use';
     }
-
     // Check if domain is configured (Vercel considers it configured if it has a valid configuration)
-    if (data.configured === true) {
-      return NextResponse.json({
-        verified: true,
-        status: 'verified'
-      });
+    else if (data.configured === true) {
+      isVerified = true;
+      status = 'verified';
+      message = 'Domain is configured and ready to use';
     }
-
     // Check verification status if available
-    if (data.verification && data.verification.length > 0) {
+    else if (data.verification && data.verification.length > 0) {
       const verification = data.verification[0];
       
       if (verification.status === 'VALID') {
-        return NextResponse.json({
-          verified: true,
-          status: 'verified'
-        });
+        isVerified = true;
+        status = 'verified';
+        message = 'Domain verification is valid';
       } else if (verification.status === 'PENDING') {
-        return NextResponse.json({
-          verified: false,
-          status: 'pending'
-        });
+        isVerified = false;
+        status = 'pending';
+        message = 'Domain verification is pending';
       } else {
-        return NextResponse.json({
-          verified: false,
-          status: 'error',
-          message: verification.reason || 'Verification failed'
-        });
+        isVerified = false;
+        status = 'error';
+        message = verification.reason || 'Verification failed';
       }
     }
-
     // Check for other indicators of proper configuration
-    if (data.redirect || data.redirectStatusCode || data.gitBranch) {
-      return NextResponse.json({
-        verified: true,
-        status: 'verified'
-      });
+    else if (data.redirect || data.redirectStatusCode || data.gitBranch) {
+      isVerified = true;
+      status = 'verified';
+      message = 'Domain is properly configured';
     }
 
-    // If we reach here, the domain exists but might not be fully configured
+    // Update the domain_verified status in the database
+    const { error: updateError } = await supabase
+      .from('UserProfiles')
+      .update({ domain_verified: isVerified })
+      .eq('user_id', user.id)
+      .eq('custom_domain', domain);
+
+    if (updateError) {
+      console.error('Error updating domain verification status:', updateError);
+    }
+
     return NextResponse.json({
-      verified: false,
-      status: 'error',
-      message: 'Domain exists in Vercel but may need DNS configuration. Please check your DNS settings.'
+      verified: isVerified,
+      status: status,
+      message: message
     });
 
   } catch (error) {

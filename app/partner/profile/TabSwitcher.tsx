@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ProfileForm from './ProfileForm';
 import CustomDomainForm from './CustomDomainForm';
 
@@ -21,6 +21,7 @@ interface UserProfile {
   role: string;
   subdomain: string | null;
   custom_domain?: string | null;
+  domain_verified: boolean;
 }
 
 interface PartnerTier {
@@ -37,11 +38,28 @@ interface TabSwitcherProps {
 
 export default function TabSwitcher({ profile, tiers }: TabSwitcherProps) {
   const [activeTab, setActiveTab] = useState<'profile' | 'custom-domain'>('profile');
+  const [currentProfile, setCurrentProfile] = useState(profile);
 
   const tabs = [
     { id: 'profile', name: 'Profile' },
     { id: 'custom-domain', name: 'Custom Domain' }
   ] as const;
+
+  // Listen for domain verification updates
+  useEffect(() => {
+    const handleDomainVerificationUpdate = (event: CustomEvent) => {
+      setCurrentProfile(prev => ({
+        ...prev,
+        domain_verified: event.detail.verified
+      }));
+    };
+
+    window.addEventListener('domainVerificationUpdated', handleDomainVerificationUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('domainVerificationUpdated', handleDomainVerificationUpdate as EventListener);
+    };
+  }, []);
 
   return (
     <>
@@ -66,11 +84,11 @@ export default function TabSwitcher({ profile, tiers }: TabSwitcherProps) {
       {/* Tab Content */}
       <div className="mt-8">
         {activeTab === 'profile' && (
-          <ProfileForm profile={profile} tiers={tiers} />
+          <ProfileForm profile={currentProfile} tiers={tiers} />
         )}
         
         {activeTab === 'custom-domain' && (
-          <CustomDomainForm profile={profile} />
+          <CustomDomainForm profile={currentProfile} />
         )}
       </div>
     </>

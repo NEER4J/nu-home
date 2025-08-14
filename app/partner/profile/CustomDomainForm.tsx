@@ -22,6 +22,7 @@ interface UserProfile {
   role: string;
   subdomain: string | null;
   custom_domain?: string | null;
+  domain_verified: boolean;
 }
 
 interface CustomDomainFormProps {
@@ -42,6 +43,8 @@ export default function CustomDomainForm({ profile }: CustomDomainFormProps) {
   const [isDebugging, setIsDebugging] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const [verificationUpdateMessage, setVerificationUpdateMessage] = useState<string | null>(null);
+  const [isRemovingDomain, setIsRemovingDomain] = useState(false);
 
   // Check domain status when component mounts or custom_domain changes
   useEffect(() => {
@@ -64,6 +67,24 @@ export default function CustomDomainForm({ profile }: CustomDomainFormProps) {
       if (response.ok) {
         const status = await response.json();
         setDomainStatus(status);
+        
+        // Update the profile state to reflect the new verification status
+        if (status.verified !== profile.domain_verified) {
+          // Trigger parent component to refresh data
+          window.dispatchEvent(new CustomEvent('domainVerificationUpdated', { 
+            detail: { verified: status.verified } 
+          }));
+          
+          // Show success message
+          if (status.verified) {
+            setVerificationUpdateMessage('Domain verification successful! Your domain is now ready to use.');
+          } else {
+            setVerificationUpdateMessage('Domain verification failed. Please check your DNS settings.');
+          }
+          
+          // Clear message after 5 seconds
+          setTimeout(() => setVerificationUpdateMessage(null), 5000);
+        }
       } else {
         setDomainStatus({ verified: false, status: 'error', message: 'Failed to check domain status' });
       }
@@ -178,6 +199,20 @@ export default function CustomDomainForm({ profile }: CustomDomainFormProps) {
         </div>
       )}
 
+      {/* Verification Update Message */}
+      {verificationUpdateMessage && (
+        <div className="mb-4 rounded-md bg-blue-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <CheckCircle2 className="h-5 w-5 text-blue-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-blue-800">{verificationUpdateMessage}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-6">
         <div>
           <h3 className="text-lg font-medium leading-6 text-gray-900">Custom Domain</h3>
@@ -198,7 +233,7 @@ export default function CustomDomainForm({ profile }: CustomDomainFormProps) {
                 id="custom_domain"
                 defaultValue={profile.custom_domain || ''}
                 placeholder="shop.yourdomain.com"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
               />
             </div>
             <p className="mt-2 text-sm text-gray-500">
@@ -298,21 +333,40 @@ export default function CustomDomainForm({ profile }: CustomDomainFormProps) {
               </div>
             </div>
             
+            {/* Show stored verification status */}
+            <div className="mt-3">
+              {profile.domain_verified ? (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle2 className="h-5 w-5 mr-2" />
+                  <span className="text-sm font-medium">Domain is verified and ready to use</span>
+                </div>
+              ) : (
+                <div className="flex items-center text-red-600">
+                  <XCircle className="h-5 w-5 mr-2" />
+                  <span className="text-sm font-medium">
+                    Domain verification failed. Please check your DNS settings and try again.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Show real-time status from API check */}
             {domainStatus && (
-              <div className="mt-3">
+              <div className="mt-3 hidden">
+                <div className="text-sm text-gray-600 mb-2">Latest check result:</div>
                 {domainStatus.status === 'verified' ? (
                   <div className="flex items-center text-green-600">
-                    <CheckCircle2 className="h-5 w-5 mr-2" />
-                    <span className="text-sm font-medium">Domain is verified and ready to use</span>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    <span className="text-sm font-medium">{domainStatus.message || 'Domain is verified'}</span>
                   </div>
                 ) : domainStatus.status === 'pending' ? (
                   <div className="flex items-center text-yellow-600">
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    <span className="text-sm font-medium">Domain verification in progress</span>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <span className="text-sm font-medium">{domainStatus.message || 'Domain verification in progress'}</span>
                   </div>
                 ) : (
                   <div className="flex items-center text-red-600">
-                    <XCircle className="h-5 w-5 mr-2" />
+                    <XCircle className="h-4 w-4 mr-2" />
                     <span className="text-sm font-medium">
                       {domainStatus.message || 'Domain verification failed'}
                     </span>
@@ -343,6 +397,53 @@ export default function CustomDomainForm({ profile }: CustomDomainFormProps) {
             )}
           </div>
         )}
+
+        {/* Remove Domain Section */}
+        <div className="border-t border-gray-200 pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-md font-medium text-gray-900">Remove Custom Domain</h4>
+              <p className="text-sm text-gray-500 mt-1">
+                Remove your custom domain and revert to using only the subdomain.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                const confirmed = confirm(
+                  `Are you sure you want to remove your custom domain "${profile.custom_domain}"?\n\n` +
+                  'This will:\n' +
+                  '• Remove the custom domain from your account\n' +
+                  '• Remove the domain from Vercel (if configured)\n' +
+                  '• Revert to using only your subdomain\n' +
+                  '• Keep your subdomain working as before\n\n' +
+                  'Your forms will still be accessible at your subdomain.'
+                );
+                
+                if (confirmed) {
+                  setIsRemovingDomain(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append('custom_domain', '');
+                    await formAction(formData);
+                  } finally {
+                    setIsRemovingDomain(false);
+                  }
+                }
+              }}
+              disabled={isRemovingDomain}
+              className="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isRemovingDomain ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Removing...
+                </>
+              ) : (
+                'Remove Domain'
+              )}
+            </button>
+          </div>
+        </div>
 
         {/* Current Subdomain Info */}
         <div className="border-t border-gray-200 pt-6">

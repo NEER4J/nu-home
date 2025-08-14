@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CheckCircle, Clock, Package, ShoppingCart, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle, Clock, Package, ShoppingCart, Users, Globe } from "lucide-react";
 import CategoryUrlSection from './CategoryUrlSection';
 
 // Add CopyButton component before the main component
@@ -88,6 +88,9 @@ export default async function PartnerDashboard() {
     .order('created_at', { ascending: false })
     .limit(5);
 
+  // Use the stored domain verification status from the database
+  const customDomainVerified = profile?.domain_verified || false;
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Account status bar */}
@@ -117,6 +120,36 @@ export default async function PartnerDashboard() {
           )}
         </div>
       </div>
+
+      {/* Custom Domain Status */}
+      {profile?.custom_domain && (
+        <div className={`mb-6 p-4 rounded-lg ${customDomainVerified ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Globe className={`h-5 w-5 mr-2 ${customDomainVerified ? 'text-green-500' : 'text-yellow-500'}`} />
+              <div>
+                <span className={`font-medium ${customDomainVerified ? 'text-green-700' : 'text-yellow-700'}`}>
+                  Custom Domain: {profile.custom_domain}
+                </span>
+                <p className="text-sm text-gray-600 mt-1">
+                  {customDomainVerified 
+                    ? 'Your custom domain is verified and ready to use' 
+                    : 'Your custom domain is pending verification. Please check your DNS settings.'
+                  }
+                </p>
+              </div>
+            </div>
+            {!customDomainVerified && (
+              <Link 
+                href="/partner/profile" 
+                className="text-sm font-medium text-yellow-700 hover:text-yellow-600"
+              >
+                Verify Domain
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Dashboard stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -214,7 +247,7 @@ export default async function PartnerDashboard() {
               <div className="space-y-4">
                 {approvedCategories.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Approved Categories</h3>
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">Your Categories</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {approvedCategories.map((category) => (
                         <div key={category.access_id} className="p-3 bg-gray-50 rounded-md">

@@ -431,7 +431,7 @@ export default function ImportPage() {
                 <input
                   id="baseUrl"
                   type="text"
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                   placeholder="https://your-site.com/wp-json/wp/v2/your-post-type-name?_fields=slug,status,type,link,title,acf,taxonomy_info,featured_image_src_large,featured_media&per_page=100"
                   value={apiUrl}
                   onChange={(e) => setApiUrl(e.target.value)}
@@ -445,7 +445,7 @@ export default function ImportPage() {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                 >
                   <option value="">Select a category</option>
                   {serviceCategories.map((category) => (

@@ -55,6 +55,7 @@ export async function updateCustomDomain(prevState: any, formData: FormData) {
     }
 
     // If a custom domain is provided, add it to Vercel first
+    // If no custom domain is provided (removing), remove it from Vercel
     let vercelSuccess = true;
     let vercelMessage = '';
     
@@ -96,12 +97,50 @@ export async function updateCustomDomain(prevState: any, formData: FormData) {
         vercelSuccess = false;
         vercelMessage = 'Failed to add domain to Vercel. Please try again or contact support.';
       }
+    } else {
+      // Removing custom domain - also remove from Vercel
+      try {
+        // Get the current domain to remove from Vercel
+        const { data: currentProfile } = await supabase
+          .from('UserProfiles')
+          .select('custom_domain')
+          .eq('user_id', user.id)
+          .single();
+
+        if (currentProfile?.custom_domain) {
+          console.log('Removing domain from Vercel:', currentProfile.custom_domain);
+          const vercelResponse = await fetch(`https://api.vercel.com/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${currentProfile.custom_domain}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${process.env.VERCEL_AUTH_TOKEN}`,
+            },
+          });
+
+          if (vercelResponse.ok) {
+            vercelMessage = 'Domain successfully removed from Vercel.';
+            console.log('Domain removed from Vercel successfully');
+          } else {
+            const vercelData = await vercelResponse.json();
+            console.error('Vercel API error when removing domain:', vercelData);
+            vercelMessage = 'Domain removed from database but there was an issue removing it from Vercel.';
+            // Don't fail the operation if Vercel removal fails
+          }
+        }
+      } catch (vercelError) {
+        console.error('Error removing domain from Vercel:', vercelError);
+        vercelMessage = 'Domain removed from database but there was an issue removing it from Vercel.';
+        // Don't fail the operation if Vercel removal fails
+      }
     }
 
     // Update the custom domain in the database
+    // Reset domain_verified to false when setting a new domain
     const { error: updateError } = await supabase
       .from('UserProfiles')
-      .update({ custom_domain: customDomain })
+      .update({ 
+        custom_domain: customDomain,
+        domain_verified: false // Reset verification status when domain changes
+      })
       .eq('user_id', user.id);
 
     if (updateError) throw updateError;
@@ -124,7 +163,7 @@ export async function updateCustomDomain(prevState: any, formData: FormData) {
     } else {
       return { 
         success: true, 
-        message: 'Custom domain removed successfully' 
+        message: `Custom domain removed successfully. ${vercelMessage}` 
       };
     }
   } catch (error) {

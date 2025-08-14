@@ -32,6 +32,7 @@ export interface UserProfile {
   role: string;
   subdomain: string | null;
   custom_domain: string | null;
+  domain_verified: boolean;
   company_color?: string | null;
   otp?: boolean | null;
   smtp_settings?: any;
