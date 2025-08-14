@@ -502,11 +502,7 @@ function BoilerProductsContent() {
 
     try {
       const hostname = window.location.hostname
-      const fromHost = hostname.split('.')[0]
-      const urlParams = new URLSearchParams(window.location.search)
-      const fromQuery = urlParams.get('subdomain') || ''
-      const computed = fromQuery || (fromHost && fromHost !== 'localhost' && fromHost !== 'www' ? fromHost : '')
-      const subdomain = computed || null
+      const subdomain = hostname || null
 
       const res = await fetch('/api/email/test', {
         method: 'POST',

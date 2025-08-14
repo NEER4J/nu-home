@@ -62,11 +62,7 @@ export default function OtpVerification({
     
     try {
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-      const fromHost = hostname?.split?.('.')?.[0] || ''
-      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
-      const fromQuery = urlParams?.get('subdomain') || ''
-      const computed = fromQuery || (fromHost && fromHost !== 'localhost' && fromHost !== 'www' ? fromHost : '')
-      const subdomain = computed || null
+      const subdomain = hostname || null
       const response = await fetch('/api/otp/send', {
         method: 'POST',
         headers: {
@@ -112,11 +108,7 @@ export default function OtpVerification({
     
     try {
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-      const fromHost = hostname?.split?.('.')?.[0] || ''
-      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
-      const fromQuery = urlParams?.get('subdomain') || ''
-      const computed = fromQuery || (fromHost && fromHost !== 'localhost' && fromHost !== 'www' ? fromHost : '')
-      const subdomain = computed || null
+      const subdomain = hostname || null
       const response = await fetch('/api/otp/verify', {
         method: 'POST',
         headers: {
