@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Image from 'next/image'
 import { MinusCircle, PlusCircle, Info, ShoppingCart, ChevronRight, X, CheckCircle } from 'lucide-react'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
@@ -55,6 +55,19 @@ export interface SelectedProductLite {
   name: string
   price: number | null
   image_url: string | null
+  calculator_settings?: {
+    selected_plan?: {
+      apr: number
+      months: number
+    }
+    selected_deposit?: number
+  } | null
+  selected_power?: {
+    power: string
+    price: number
+    additional_cost: number
+  } | null
+  [key: string]: any // Allow additional fields from product_info
 }
 
 export interface AddonsLayoutProps {
@@ -79,6 +92,20 @@ function getImageUrl(url: string | null): string | null {
   if (url.startsWith('http://') || url.startsWith('https://')) return url
   if (url.startsWith('/')) return url
   return `/${url}`
+}
+
+function calculateMonthlyPayment(price: number, months: number, apr: number, depositPercentage: number): number {
+  if (depositPercentage > 0) {
+    const depositAmount = (price * depositPercentage) / 100
+    const loanAmount = price - depositAmount
+    const monthlyRate = apr / 100 / 12
+    return (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+           (Math.pow(1 + monthlyRate, months) - 1)
+  } else {
+    const monthlyRate = apr / 100 / 12
+    return (price * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+           (Math.pow(1 + monthlyRate, months) - 1)
+  }
 }
 
 export default function AddonsLayout({
@@ -121,7 +148,12 @@ export default function AddonsLayout({
 
   const itemsCount = useMemo(() => selectedAddonsList.reduce((n, a) => n + a.quantity, 0), [selectedAddonsList])
   const addonsTotal = useMemo(() => selectedAddonsList.reduce((sum, a) => sum + a.quantity * a.price, 0), [selectedAddonsList])
-  const basePrice = useMemo(() => (typeof selectedProduct?.price === 'number' ? selectedProduct.price : 0), [selectedProduct?.price])
+  const basePrice = useMemo(() => {
+    if (selectedProduct?.selected_power?.price) {
+      return selectedProduct.selected_power.price
+    }
+    return (typeof selectedProduct?.price === 'number' ? selectedProduct.price : 0)
+  }, [selectedProduct?.price, selectedProduct?.selected_power?.price])
 
   const getBundleUnitPrice = (bundle: BundleLite): number => {
     const items = bundle.BundlesAddons || []
@@ -144,6 +176,35 @@ export default function AddonsLayout({
 
   const bundlesTotal = useMemo(() => selectedBundlesList.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0), [selectedBundlesList])
   const orderTotal = useMemo(() => Math.max(0, basePrice + addonsTotal + bundlesTotal), [basePrice, addonsTotal, bundlesTotal])
+  
+  // Calculate monthly payment using finance calculator settings
+  const monthlyPayment = useMemo(() => {
+    if (!selectedProduct?.calculator_settings?.selected_plan || !selectedProduct.price) {
+      console.log('Monthly payment calculation - missing data:', {
+        hasCalculatorSettings: !!selectedProduct?.calculator_settings,
+        hasSelectedPlan: !!selectedProduct?.calculator_settings?.selected_plan,
+        hasPrice: !!selectedProduct?.price,
+        calculatorSettings: selectedProduct?.calculator_settings,
+        price: selectedProduct?.price
+      })
+      return null
+    }
+    
+    const { months, apr } = selectedProduct.calculator_settings.selected_plan
+    const depositPercentage = selectedProduct.calculator_settings.selected_deposit || 0
+    const productPrice = selectedProduct.selected_power?.price || selectedProduct.price
+    
+    const calculated = calculateMonthlyPayment(productPrice, months, apr, depositPercentage)
+    console.log('Monthly payment calculated:', {
+      productPrice,
+      months,
+      apr,
+      depositPercentage,
+      monthlyPayment: calculated
+    })
+    
+    return calculated
+  }, [selectedProduct?.calculator_settings, selectedProduct?.price, selectedProduct?.selected_power?.price])
 
   const bundleIncludedAddonIds = useMemo(() => {
     const set = new Set<string>()
@@ -152,6 +213,11 @@ export default function AddonsLayout({
     })
     return set
   }, [selectedBundlesList])
+
+  // Debug: Log when monthly payment changes
+  useEffect(() => {
+    console.log('Monthly payment changed:', monthlyPayment)
+  }, [monthlyPayment])
 
   return (
     <div className="container mx-auto px-4 py-8 pb-32 lg:pb-8 lg:flex lg:gap-8">
@@ -328,6 +394,174 @@ export default function AddonsLayout({
 
       <div className="hidden lg:block w-[400px] flex-shrink-0">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-8">
+                     {/* Main Product Price Display */}
+           {selectedProduct && (
+             <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+               <div className="text-center">
+                 <h3 className="text-sm font-medium text-gray-700 mb-2">Your Selected Product</h3>
+                 <div className="flex items-center justify-center gap-3 mb-3">
+                   <div className="relative h-16 w-16 flex-shrink-0 bg-white rounded-lg p-2 shadow-sm">
+                     <Image src={getImageUrl(selectedProduct.image_url) || '/placeholder-image.jpg'} alt={selectedProduct.name} fill className="object-contain" />
+                   </div>
+                   <div className="text-left">
+                     <h4 className="font-semibold text-gray-900 text-lg leading-tight">{selectedProduct.name}</h4>
+                     <div className="space-y-1">
+                       {/* Main Price Display */}
+                       {typeof selectedProduct.price === 'number' && (
+                         <p className="text-2xl font-bold text-blue-600">£{selectedProduct.price.toFixed(0)}</p>
+                       )}
+                       {/* Power-specific details */}
+                       {selectedProduct.selected_power && (
+                         <>
+                           <p className="text-sm text-gray-600">{selectedProduct.selected_power.power}kW</p>
+                           {selectedProduct.selected_power.additional_cost > 0 && (
+                             <p className="text-xs text-gray-500">+£{selectedProduct.selected_power.additional_cost} additional</p>
+                           )}
+                         </>
+                       )}
+                     </div>
+                   </div>
+                 </div>
+                 
+                 {/* Finance Calculator Info - if available */}
+                 {selectedProduct && typeof selectedProduct.price === 'number' && (
+                   <div className="text-center">
+                     <p className="text-sm text-gray-600 mb-1">Monthly from</p>
+                     {(() => {
+                       const productPrice = selectedProduct.price
+                       
+                       if (selectedProduct.calculator_settings?.selected_plan) {
+                         return (
+                           <>
+                             <p className="text-lg font-semibold text-gray-900">
+                               £{calculateMonthlyPayment(
+                                 productPrice,
+                                 selectedProduct.calculator_settings.selected_plan.months,
+                                 selectedProduct.calculator_settings.selected_plan.apr,
+                                 selectedProduct.calculator_settings.selected_deposit || 0
+                               ).toFixed(0)}/month
+                             </p>
+                             <p className="text-xs text-gray-500">
+                               {selectedProduct.calculator_settings.selected_plan.months} months at {selectedProduct.calculator_settings.selected_plan.apr}% APR
+                               {selectedProduct.calculator_settings.selected_deposit ? ` with ${selectedProduct.calculator_settings.selected_deposit}% deposit` : ''}
+                             </p>
+                           </>
+                         )
+                       } else {
+                         return (
+                           <>
+                             <p className="text-lg font-semibold text-gray-900">£{(productPrice / 12).toFixed(0)}/month</p>
+                             <p className="text-xs text-gray-500">Interest-free over 12 months</p>
+                           </>
+                         )
+                       }
+                     })()}
+                   </div>
+                 )}
+                 
+                 {/* Monthly Payment Summary */}
+                 {monthlyPayment && (
+                   <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                     <div className="text-center">
+                       <p className="text-sm text-gray-600 mb-1">Your monthly payment</p>
+                       <p className="text-xl font-bold text-green-600">£{monthlyPayment.toFixed(0)}/month</p>
+                       <p className="text-xs text-gray-500">
+                         Based on your selected finance plan
+                       </p>
+                     </div>
+                   </div>
+                 )}
+                 
+                 {/* Additional Product Details */}
+                 <div className="mt-4 text-left">
+                   <h5 className="text-sm font-medium text-gray-700 mb-2">Product Details</h5>
+                   <div className="space-y-2 text-xs text-gray-600">
+                     {selectedProduct.partner_product_id && (
+                       <div className="flex justify-between">
+                         <span>Product ID:</span>
+                         <span className="font-mono text-gray-500">{selectedProduct.partner_product_id.slice(0, 8)}...</span>
+                       </div>
+                     )}
+                     {selectedProduct.partner_id && (
+                       <div className="flex justify-between">
+                         <span>Partner ID:</span>
+                         <span className="font-mono text-gray-500">{selectedProduct.partner_id.slice(0, 8)}...</span>
+                       </div>
+                     )}
+                     {selectedProduct.selected_power && (
+                       <>
+                         <div className="flex justify-between">
+                           <span>Power Rating:</span>
+                           <span className="font-medium">{selectedProduct.selected_power.power}kW</span>
+                         </div>
+                         <div className="flex justify-between">
+                           <span>Base Price:</span>
+                           <span className="font-medium">£{selectedProduct.selected_power.price.toFixed(0)}</span>
+                         </div>
+                         {selectedProduct.selected_power.additional_cost > 0 && (
+                           <div className="flex justify-between">
+                             <span>Additional Cost:</span>
+                             <span className="font-medium text-orange-600">+£{selectedProduct.selected_power.additional_cost.toFixed(0)}</span>
+                           </div>
+                         )}
+                       </>
+                     )}
+                     {selectedProduct.calculator_settings && (
+                       <>
+                         <div className="border-t border-gray-200 pt-2 mt-2">
+                           <h6 className="text-xs font-medium text-gray-700 mb-1">Finance Options</h6>
+                           {selectedProduct.calculator_settings.selected_plan && (
+                             <>
+                               <div className="flex justify-between">
+                                 <span>Term:</span>
+                                 <span className="font-medium">{selectedProduct.calculator_settings.selected_plan.months} months</span>
+                               </div>
+                               <div className="flex justify-between">
+                                 <span>APR:</span>
+                                 <span className="font-medium">{selectedProduct.calculator_settings.selected_plan.apr}%</span>
+                               </div>
+                             </>
+                           )}
+                           {selectedProduct.calculator_settings.selected_deposit !== undefined && (
+                             <div className="flex justify-between">
+                               <span>Deposit:</span>
+                               <span className="font-medium">{selectedProduct.calculator_settings.selected_deposit}%</span>
+                             </div>
+                           )}
+                         </div>
+                       </>
+                     )}
+                     
+                     {/* Show any other fields that might exist */}
+                     {Object.entries(selectedProduct).map(([key, value]) => {
+                       // Skip fields we've already displayed
+                       if (['partner_product_id', 'partner_id', 'name', 'price', 'image_url', 'selected_power', 'calculator_settings'].includes(key)) {
+                         return null
+                       }
+                       
+                       if (value && typeof value === 'object') {
+                         return (
+                           <div key={key} className="border-t border-gray-200 pt-2 mt-2">
+                             <h6 className="text-xs font-medium text-gray-700 mb-1">{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h6>
+                             <pre className="text-xs text-gray-500 overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>
+                           </div>
+                         )
+                       } else if (value !== null && value !== undefined) {
+                         return (
+                           <div key={key} className="flex justify-between">
+                             <span>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>
+                             <span className="font-medium">{String(value)}</span>
+                           </div>
+                         )
+                       }
+                       return null
+                     })}
+                   </div>
+                 </div>
+               </div>
+             </div>
+           )}
+
           <div className="flex items-center justify-between border-b border-gray-200 pb-4">
             <h2 className="text-sm font-medium text-gray-900">Your fixed price including installation</h2>
           </div>
@@ -337,6 +571,21 @@ export default function AddonsLayout({
                 <div className="flex justify-between items-center">
                   <span className="text-2xl font-semibold text-gray-900">£{orderTotal.toFixed(2)}</span>
                 </div>
+                
+                {/* Monthly Payment Display */}
+                {monthlyPayment && (
+                  <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-gray-600 mb-1">Monthly payment</p>
+                    <p className="text-lg font-semibold text-blue-600">£{monthlyPayment.toFixed(0)}/month</p>
+                    {selectedProduct?.calculator_settings?.selected_plan && (
+                      <p className="text-xs text-gray-500">
+                        {selectedProduct.calculator_settings.selected_plan.months} months at {selectedProduct.calculator_settings.selected_plan.apr}% APR
+                        {selectedProduct.calculator_settings.selected_deposit ? ` with ${selectedProduct.calculator_settings.selected_deposit}% deposit` : ''}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
                 <button
                   className={`w-full ${classes.button} ${classes.buttonText} px-6 py-3 rounded-lg flex items-center justify-center gap-2 font-medium`}
                   onClick={() => onContinue(selectedAddonsList, selectedBundlesList)}
@@ -358,7 +607,10 @@ export default function AddonsLayout({
                     </div>
                     <div className="flex-grow min-w-0">
                       <h4 className="font-medium text-sm text-gray-900 truncate">{selectedProduct.name}</h4>
-                      <p className="text-gray-600 text-xs">{typeof selectedProduct.price === 'number' ? `£${selectedProduct.price.toFixed(2)}` : 'Contact for price'}</p>
+                      <p className="text-gray-600 text-xs">
+                        £{selectedProduct.price?.toFixed(0) || 'Contact for price'}
+                        {selectedProduct.selected_power && ` (${selectedProduct.selected_power.power}kW)`}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -428,16 +680,26 @@ export default function AddonsLayout({
                     </div>
                   </div>
                 ))}
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <ShoppingCart size={32} className="mx-auto mb-2 opacity-50" />
-              <p>No items selected</p>
-            </div>
-          )}
-        </div>
-      </div>
+                             </div>
+             </>
+           ) : (
+             <div className="text-center py-8 text-gray-500">
+               <ShoppingCart size={32} className="mx-auto mb-2 opacity-50" />
+               <p>No items selected</p>
+             </div>
+           )}
+           
+           {/* Debug: Raw Product Info */}
+           {selectedProduct && process.env.NODE_ENV === 'development' && (
+             <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+               <h6 className="text-xs font-medium text-gray-700 mb-2">Debug: Raw Product Info</h6>
+               <pre className="text-xs text-gray-500 overflow-x-auto whitespace-pre-wrap">
+                 {JSON.stringify(selectedProduct, null, 2)}
+               </pre>
+             </div>
+           )}
+         </div>
+       </div>
 
       {(selectedProduct || selectedAddonsList.length > 0 || selectedBundlesList.length > 0) && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-10">
@@ -451,6 +713,9 @@ export default function AddonsLayout({
               <div>
                 <p className="text-sm text-gray-500">Your order</p>
                 <p className="text-lg font-semibold">£{orderTotal.toFixed(2)}</p>
+                {monthlyPayment && (
+                  <p className="text-xs text-blue-600">£{monthlyPayment.toFixed(0)}/month</p>
+                )}
               </div>
               <button
                 className={`${classes.button} ${classes.buttonText} px-6 py-2.5 rounded-lg flex items-center gap-1`}
@@ -466,6 +731,97 @@ export default function AddonsLayout({
                 <h3 className="font-medium text-gray-900">Your Selected Items</h3>
                 <button onClick={() => setShowCart(false)} className="text-gray-500"><X size={18} /></button>
               </div>
+              
+                             {/* Main Product Price Display - Mobile */}
+               {selectedProduct && (
+                 <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                   <div className="text-center">
+                     <h4 className="font-semibold text-gray-900 text-base mb-2">{selectedProduct.name}</h4>
+                     {typeof selectedProduct.price === 'number' && (
+                       <div className="space-y-1">
+                         <p className="text-xl font-bold text-blue-600">£{selectedProduct.price.toFixed(0)}</p>
+                         {selectedProduct.selected_power && (
+                           <>
+                             <p className="text-sm text-gray-600">{selectedProduct.selected_power.power}kW</p>
+                             {selectedProduct.selected_power.additional_cost > 0 && (
+                               <p className="text-xs text-orange-600">+£{selectedProduct.selected_power.additional_cost} additional</p>
+                             )}
+                           </>
+                         )}
+                         {(() => {
+                           const productPrice = selectedProduct.price
+                           
+                           if (selectedProduct.calculator_settings?.selected_plan) {
+                             return (
+                               <p className="text-sm text-gray-600">
+                                 Monthly from £{calculateMonthlyPayment(
+                                   productPrice,
+                                   selectedProduct.calculator_settings.selected_plan.months,
+                                   selectedProduct.calculator_settings.selected_plan.apr,
+                                   selectedProduct.calculator_settings.selected_deposit || 0
+                                 ).toFixed(0)}/month
+                               </p>
+                             )
+                           } else {
+                             return (
+                               <p className="text-sm text-gray-600">Monthly from £{(productPrice / 12).toFixed(0)}/month</p>
+                             )
+                           }
+                         })()}
+                       </div>
+                     )}
+                     
+                     {/* Additional Product Details - Mobile */}
+                     <div className="mt-3 text-left text-xs">
+                       <div className="space-y-1 text-gray-600">
+                         {selectedProduct.selected_power && (
+                           <>
+                             <div className="flex justify-between">
+                               <span>Power:</span>
+                               <span className="font-medium">{selectedProduct.selected_power.power}kW</span>
+                             </div>
+                             {selectedProduct.selected_power.additional_cost > 0 && (
+                               <div className="flex justify-between">
+                                 <span>Extra:</span>
+                                 <span className="font-medium text-orange-600">+£{selectedProduct.selected_power.additional_cost}</span>
+                               </div>
+                             )}
+                           </>
+                         )}
+                         {selectedProduct.calculator_settings?.selected_plan && (
+                           <>
+                             <div className="flex justify-between">
+                               <span>Term:</span>
+                               <span className="font-medium">{selectedProduct.calculator_settings.selected_plan.months}m</span>
+                             </div>
+                             <div className="flex justify-between">
+                               <span>APR:</span>
+                               <span className="font-medium">{selectedProduct.calculator_settings.selected_plan.apr}%</span>
+                             </div>
+                           </>
+                         )}
+                         {selectedProduct.calculator_settings?.selected_deposit !== undefined && (
+                           <div className="flex justify-between">
+                             <span>Deposit:</span>
+                             <span className="font-medium">{selectedProduct.calculator_settings.selected_deposit}%</span>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                     
+                     {/* Monthly Payment Summary - Mobile */}
+                     {monthlyPayment && (
+                       <div className="mt-3 p-2 bg-green-50 rounded-lg border border-green-200">
+                         <div className="text-center">
+                           <p className="text-xs text-gray-600 mb-1">Monthly payment</p>
+                           <p className="text-lg font-bold text-green-600">£{monthlyPayment.toFixed(0)}/month</p>
+                         </div>
+                       </div>
+                     )}
+                   </div>
+                 </div>
+               )}
+              
               <div className="max-h-60 overflow-y-auto">
                 {selectedProduct && (
                   <div className="flex items-center gap-4 py-3 border-b border-gray-200">
@@ -474,7 +830,10 @@ export default function AddonsLayout({
                     </div>
                     <div className="flex-grow min-w-0">
                       <h4 className="font-medium text-sm text-gray-900 truncate">{selectedProduct.name}</h4>
-                      <p className="text-gray-600 text-xs">{typeof selectedProduct.price === 'number' ? `£${selectedProduct.price.toFixed(2)}` : 'Contact for price'}</p>
+                      <p className="text-gray-600 text-xs">
+                        £{selectedProduct.price?.toFixed(0) || 'Contact for price'}
+                        {selectedProduct.selected_power && ` (${selectedProduct.selected_power.power}kW)`}
+                      </p>
                     </div>
                   </div>
                 )}

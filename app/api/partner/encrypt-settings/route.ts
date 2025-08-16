@@ -8,13 +8,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log('Request body:', body);
     
-    const { smtp_settings, twilio_settings } = body;
+    const { smtp_settings, twilio_settings, stripe_settings, kanda_settings } = body;
 
-    if (!smtp_settings && !twilio_settings) {
+    if (!smtp_settings && !twilio_settings && !stripe_settings && !kanda_settings) {
       console.log('No settings provided');
       return NextResponse.json({
         encrypted_smtp: {},
         encrypted_twilio: {},
+        encrypted_stripe: {},
+        encrypted_kanda: {},
       });
     }
 
@@ -26,9 +28,19 @@ export async function POST(req: NextRequest) {
     const encrypted_twilio = twilio_settings ? encryptObject(twilio_settings) : {};
     console.log('Twilio encryption complete');
 
+    console.log('Encrypting Stripe settings...');
+    const encrypted_stripe = stripe_settings ? encryptObject(stripe_settings) : {};
+    console.log('Stripe encryption complete');
+
+    console.log('Encrypting Kanda settings...');
+    const encrypted_kanda = kanda_settings ? encryptObject(kanda_settings) : {};
+    console.log('Kanda encryption complete');
+
     return NextResponse.json({
       encrypted_smtp,
       encrypted_twilio,
+      encrypted_stripe,
+      encrypted_kanda,
     });
   } catch (error) {
     console.error('Error in encryption API:', error);

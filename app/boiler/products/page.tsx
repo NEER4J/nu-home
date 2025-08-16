@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import ProductHeaderTile from '@/components/category-commons/product/ProductHeaderTile'
 import ProductFaqs from '@/components/category-commons/product/ProductFaqs'
+import FinanceCalculator from '@/components/FinanceCalculator'
+import ImageGallery from '@/components/ImageGallery'
 import { resolvePartnerByHost } from '@/lib/partner'
 
 interface PartnerInfo {
@@ -38,11 +40,17 @@ interface PartnerProduct {
   service_category_id: string
 }
 
+interface PowerAndPrice {
+  power: string
+  price: number
+  additional_cost?: number
+}
+
 interface PartnerSettings {
   setting_id: string
   partner_id: string
   service_category_id: string
-  apr_settings: Record<string, unknown> | null
+  apr_settings: Record<number, number> | null
   otp_enabled: boolean | null
   included_items: Array<any> | null
   faqs: Array<any> | null
@@ -76,8 +84,14 @@ function BoilerProductsContent() {
   const [products, setProducts] = useState<PartnerProduct[]>([])
   const [partnerSettings, setPartnerSettings] = useState<PartnerSettings | null>(null)
   const [submissionInfo, setSubmissionInfo] = useState<QuoteSubmission | null>(null)
-  const [selectedProduct, setSelectedProduct] = useState<PartnerProduct | null>(null)
-  const [showModal, setShowModal] = useState(false)
+  const [showFinanceCalculator, setShowFinanceCalculator] = useState(false)
+  const [selectedProductForFinance, setSelectedProductForFinance] = useState<PartnerProduct | null>(null)
+  const [selectedPowerOptions, setSelectedPowerOptions] = useState<Record<string, PowerAndPrice>>({})
+  const [selectedPlans, setSelectedPlans] = useState<Record<string, { months: number; apr: number }>>({})
+  const [selectedDeposits, setSelectedDeposits] = useState<Record<string, number>>({})
+  const [monthlyPayments, setMonthlyPayments] = useState<Record<string, number>>({})
+  const [showWhatsIncluded, setShowWhatsIncluded] = useState(false)
+  const [selectedProductForWhatsIncluded, setSelectedProductForWhatsIncluded] = useState<PartnerProduct | null>(null)
 
   // Filters
   const [filterBoilerType, setFilterBoilerType] = useState<string | null>(null)
@@ -98,6 +112,118 @@ function BoilerProductsContent() {
   // Resolve brand color and classes
   const brandColor = partnerInfo?.company_color || '#2563eb'
   const classes = useDynamicStyles(brandColor)
+
+  // Helper functions for power and price handling
+  const getPowerAndPriceOptions = (product: PartnerProduct): PowerAndPrice[] => {
+    const raw = (product.product_fields as any)?.power_and_price
+    if (!Array.isArray(raw)) return []
+    
+    return raw.map((item: any) => {
+      const power = item.power || item.kw || item.power_rating || '0'
+      const price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0
+      const additionalCost = item.additional_cost || item.additional_cost_pounds || item.extra_cost || item.cost_difference || 0
+      
+      return {
+        power,
+        price,
+        additional_cost: additionalCost
+      }
+    })
+  }
+
+  const getSelectedPowerOption = (product: PartnerProduct): PowerAndPrice | null => {
+    const productId = product.partner_product_id
+    return selectedPowerOptions[productId] || null
+  }
+
+  const getCurrentPrice = (product: PartnerProduct): number => {
+    const selectedPower = getSelectedPowerOption(product)
+    if (selectedPower) {
+      return selectedPower.price
+    }
+    return product.price || 0
+  }
+
+  const getMonthlyPayment = (product: PartnerProduct): number | null => {
+    // First check if we have a calculated monthly payment
+    const calculatedPayment = monthlyPayments[product.partner_product_id]
+    if (calculatedPayment) {
+      return calculatedPayment
+    }
+    
+    // If no calculated payment, calculate it using saved calculator settings
+    const selectedPlan = getSelectedPlan(product)
+    const selectedDeposit = getSelectedDeposit(product)
+    const currentPrice = getCurrentPrice(product)
+    
+    if (selectedPlan && partnerSettings?.apr_settings) {
+      const apr = partnerSettings.apr_settings[selectedPlan.months]
+      if (apr && apr > 0) {
+        const monthlyPayment = calculateMonthlyPaymentWithDeposit(currentPrice, apr, selectedPlan.months, selectedDeposit)
+        // Store this calculation for future use
+        setMonthlyPayments(prev => ({
+          ...prev,
+          [product.partner_product_id]: monthlyPayment
+        }))
+        return monthlyPayment
+      }
+    }
+    
+    return null
+  }
+
+  // Helper function to calculate monthly payment using APR
+  const calculateMonthlyPayment = (price: number, apr: number, months: number): number => {
+    const monthlyRate = apr / 100 / 12
+    return (price * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1)
+  }
+
+  // Helper function to calculate monthly payment with deposit
+  const calculateMonthlyPaymentWithDeposit = (price: number, apr: number, months: number, depositPercentage: number): number => {
+    const depositAmount = (price * depositPercentage) / 100
+    const loanAmount = price - depositAmount
+    
+    if (depositAmount > 0) {
+      const monthlyRate = apr / 100 / 12
+      return (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1)
+    } else {
+      return calculateMonthlyPayment(price, apr, months)
+    }
+  }
+
+  const getSelectedPlan = (product: PartnerProduct): { months: number; apr: number } | null => {
+    return selectedPlans[product.partner_product_id] || null
+  }
+
+  const getSelectedDeposit = (product: PartnerProduct): number => {
+    return selectedDeposits[product.partner_product_id] || 0
+  }
+
+  const selectPowerOption = (product: PartnerProduct, powerOption: PowerAndPrice) => {
+    setSelectedPowerOptions(prev => ({
+      ...prev,
+      [product.partner_product_id]: powerOption
+    }))
+    
+    // Recalculate monthly payment when power option changes
+    const newPrice = powerOption.price
+    if (newPrice > 0 && partnerSettings?.apr_settings) {
+      const selectedPlan = getSelectedPlan(product)
+      const availableTerms = Object.keys(partnerSettings.apr_settings).map(Number).sort((a, b) => a - b)
+      if (availableTerms.length > 0) {
+        const term = selectedPlan?.months || availableTerms[0]
+        const apr = partnerSettings.apr_settings[term]
+        if (apr && apr > 0) {
+          const depositPercentage = getSelectedDeposit(product)
+          const monthlyPayment = calculateMonthlyPaymentWithDeposit(newPrice, apr, term, depositPercentage)
+          setMonthlyPayments(prev => ({
+            ...prev,
+            [product.partner_product_id]: monthlyPayment
+          }))
+        }
+      }
+    }
+  }
 
   // Fetch partner by host (custom domain preferred, fallback to subdomain)
   useEffect(() => {
@@ -164,7 +290,18 @@ function BoilerProductsContent() {
           .single()
 
         if (!settingsError && settings) {
-          setPartnerSettings(settings as PartnerSettings)
+          // Convert APR settings keys from string to number
+          const convertedSettings = {
+            ...settings,
+            apr_settings: settings.apr_settings ? 
+              Object.fromEntries(
+                Object.entries(settings.apr_settings).map(([key, value]) => [
+                  parseInt(key),
+                  typeof value === 'number' ? value : parseFloat(String(value))
+                ])
+              ) : null
+          }
+          setPartnerSettings(convertedSettings as PartnerSettings)
         } else {
           setPartnerSettings(null)
         }
@@ -233,10 +370,35 @@ function BoilerProductsContent() {
 
   const formattedProducts = useMemo(() => {
     return products.map((product) => {
-      const priceLabel = typeof product.price === 'number' ? `£${product.price.toFixed(2)}` : 'Contact for price'
-      return { ...product, priceLabel }
+      const powerOptions = getPowerAndPriceOptions(product)
+      
+      // Auto-select first power option if none selected and power options exist
+      if (powerOptions.length > 0 && !selectedPowerOptions[product.partner_product_id]) {
+        const firstOption = powerOptions[0]
+        selectPowerOption(product, firstOption)
+      }
+      
+      // Calculate initial monthly payment for products without power options
+      if (powerOptions.length === 0 && typeof product.price === 'number' && product.price > 0 && partnerSettings?.apr_settings) {
+        const selectedPlan = getSelectedPlan(product)
+        const availableTerms = Object.keys(partnerSettings.apr_settings).map(Number).sort((a, b) => a - b)
+        if (availableTerms.length > 0) {
+          const term = selectedPlan?.months || availableTerms[0]
+          const apr = partnerSettings.apr_settings[term]
+          if (apr && apr > 0) {
+            const depositPercentage = getSelectedDeposit(product)
+            const monthlyPayment = calculateMonthlyPaymentWithDeposit(product.price, apr, term, depositPercentage)
+            setMonthlyPayments(prev => ({
+              ...prev,
+              [product.partner_product_id]: monthlyPayment
+            }))
+          }
+        }
+      }
+      
+      return { ...product }
     })
-  }, [products])
+  }, [products, selectedPowerOptions, partnerSettings])
 
   // Normalization helpers for filtering
   const normalizeNumberToBucket = (value: any, cap: number): string | null => {
@@ -349,10 +511,7 @@ function BoilerProductsContent() {
   }, [products, filterBoilerType, filterBedroom, filterBathroom])
 
   const displayProducts = useMemo(() => {
-    return filteredProducts.map((product) => {
-      const priceLabel = typeof product.price === 'number' ? `£${product.price.toFixed(2)}` : 'Contact for price'
-      return { ...product, priceLabel }
-    })
+    return filteredProducts
   }, [filteredProducts])
 
   const productsForEmail = useMemo(() => {
@@ -375,14 +534,60 @@ function BoilerProductsContent() {
     setFilterBathroom(prefillBathroom)
   }
 
-  const handleMoreDetails = (product: PartnerProduct) => {
-    setSelectedProduct(product)
-    setShowModal(true)
+
+
+  const openFinanceCalculator = (product: PartnerProduct) => {
+    setSelectedProductForFinance(product)
+    setShowFinanceCalculator(true)
+    
+    // Calculate and store monthly payment for this product
+    const currentPrice = getCurrentPrice(product)
+    if (currentPrice > 0 && partnerSettings?.apr_settings) {
+      // Use saved calculator settings or default to first available term
+      const selectedPlan = getSelectedPlan(product)
+      const selectedDeposit = getSelectedDeposit(product)
+      
+      if (selectedPlan && selectedDeposit !== undefined) {
+        // Use saved settings
+        const apr = partnerSettings.apr_settings[selectedPlan.months]
+        if (apr && apr > 0) {
+          const monthlyPayment = calculateMonthlyPaymentWithDeposit(currentPrice, apr, selectedPlan.months, selectedDeposit)
+          setMonthlyPayments(prev => ({
+            ...prev,
+            [product.partner_product_id]: monthlyPayment
+          }))
+        }
+      } else {
+        // Default calculation for new products
+        const availableTerms = Object.keys(partnerSettings.apr_settings).map(Number).sort((a, b) => a - b)
+        if (availableTerms.length > 0) {
+          const defaultTerm = availableTerms[0]
+          const apr = partnerSettings.apr_settings[defaultTerm]
+          if (apr && apr > 0) {
+            const monthlyPayment = calculateMonthlyPayment(currentPrice, apr, defaultTerm)
+            setMonthlyPayments(prev => ({
+              ...prev,
+              [product.partner_product_id]: monthlyPayment
+            }))
+          }
+        }
+      }
+    }
   }
 
-  const closeModal = () => {
-    setShowModal(false)
-    setSelectedProduct(null)
+  const closeFinanceCalculator = () => {
+    setShowFinanceCalculator(false)
+    setSelectedProductForFinance(null)
+  }
+
+  const openWhatsIncluded = (product: PartnerProduct) => {
+    setSelectedProductForWhatsIncluded(product)
+    setShowWhatsIncluded(true)
+  }
+
+  const closeWhatsIncluded = () => {
+    setShowWhatsIncluded(false)
+    setSelectedProductForWhatsIncluded(null)
   }
 
   // Persist selected product (with snapshot) in partner_leads.cart_state and advance progress
@@ -407,9 +612,20 @@ function BoilerProductsContent() {
         .eq('submission_id', submissionId)
         .single()
       const existing = (lead as any)?.cart_state || {}
+      const selectedPower = getSelectedPowerOption(product)
+      const currentPrice = getCurrentPrice(product)
+      const selectedPlan = getSelectedPlan(product)
+      const selectedDeposit = getSelectedDeposit(product)
+      
       const updated = {
         ...existing,
         product_id: product.partner_product_id,
+        selected_power: selectedPower,
+        current_price: currentPrice,
+        calculator_settings: {
+          selected_plan: selectedPlan,
+          selected_deposit: selectedDeposit,
+        }
       }
       console.log('Attempting to update partner_leads with:', {
         submissionId,
@@ -417,7 +633,12 @@ function BoilerProductsContent() {
         product_info: {
           product_id: product.partner_product_id,
           name: product.name,
-          price: product.price,
+          price: currentPrice,
+          selected_power: selectedPower,
+          calculator_settings: {
+            selected_plan: selectedPlan,
+            selected_deposit: selectedDeposit,
+          },
           image_url: product.image_url,
         }
       })
@@ -429,7 +650,12 @@ function BoilerProductsContent() {
           product_info: {
             product_id: product.partner_product_id,
             name: product.name,
-            price: product.price,
+            price: currentPrice,
+            selected_power: selectedPower,
+            calculator_settings: {
+              selected_plan: selectedPlan,
+              selected_deposit: selectedDeposit,
+            },
             image_url: product.image_url,
           },
           progress_step: 'addons',
@@ -453,7 +679,8 @@ function BoilerProductsContent() {
         product_info: {
           product_id: product.partner_product_id,
           name: product.name,
-          price: product.price,
+          price: currentPrice,
+          selected_power: selectedPower,
           image_url: product.image_url,
         }
       })
@@ -477,7 +704,9 @@ function BoilerProductsContent() {
           cartStateProductId: verifyData.cart_state?.product_id,
           productInfoProductId: verifyData.product_info?.product_id,
           productInfoName: verifyData.product_info?.name,
-          productInfoPrice: verifyData.product_info?.price
+          productInfoPrice: verifyData.product_info?.price,
+          productInfoSelectedPower: verifyData.product_info?.selected_power,
+          productInfoCalculatorSettings: verifyData.product_info?.calculator_settings
         })
       }
       
@@ -493,38 +722,7 @@ function BoilerProductsContent() {
     }
   }
 
-  async function handleSaveQuoteEmail(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const form = e.currentTarget
-    const formData = new FormData(form)
-    const email = String(formData.get('email') || '').trim()
-    if (!email) return
 
-    try {
-      const hostname = window.location.hostname
-      const subdomain = hostname || null
-
-      const res = await fetch('/api/email/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: email,
-          productName: selectedProduct?.name,
-          subdomain,
-        })
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        alert(data?.error || 'Failed to send email')
-      } else {
-        alert('Saved! We sent you an email with the details.')
-        form.reset()
-      }
-    } catch (err) {
-      console.error('Save quote email error:', err)
-      alert('Failed to send email')
-    }
-  }
 
   // Helper: normalize included item structures from various shapes
   const normalizeIncludedItem = (entry: any) => {
@@ -569,6 +767,9 @@ function BoilerProductsContent() {
           {value.map((item: any, index: number) => (
             <div key={index}>
               {item.power}kW: £{item.price}
+              {item.additional_cost && item.additional_cost > 0 && (
+                <span className="text-green-600 ml-1">(+£{item.additional_cost})</span>
+              )}
             </div>
           ))}
         </div>
@@ -602,7 +803,7 @@ function BoilerProductsContent() {
               key={idx}
               src={typeof img === 'string' ? img : img.image || img.url}
               alt={`Gallery ${idx + 1}`}
-              className="h-12 w-16 object-cover rounded border"
+              className="h-12 w-16 object-contain rounded border"
             />
           ))}
         </div>
@@ -619,7 +820,7 @@ function BoilerProductsContent() {
             return (
               <div key={idx} className="flex items-center gap-3 text-xs">
                 {image && (
-                  <img src={image} alt={title} className="h-8 w-8 rounded object-cover border" />
+                  <img src={image} alt={title} className="h-8 w-8 rounded object-contain border" />
                 )}
                 <div>
                   <div className="font-medium text-gray-900">{title}</div>
@@ -734,33 +935,19 @@ function BoilerProductsContent() {
               <div key={product.partner_product_id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 {/* Product Header */}
                 <div className="relative p-6 pb-4">
-                  {/* Product Image */}
-                  <div className="relative h-48 bg-gray-50 rounded-lg mb-2">
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm rounded-lg">
-                        No image
-                      </div>
-                    )}
-                  </div>
-                  {/* Thumbnails from image_gallery */}
-                  {Array.isArray((product.product_fields as any)?.image_gallery) && (
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
-                      {((product.product_fields as any).image_gallery as any[]).map((img: any, idx: number) => (
-                        <img
-                          key={idx}
-                          src={typeof img === 'string' ? img : img.image}
-                          alt={`${product.name} ${idx + 1}`}
-                          className="h-12 w-16 object-cover rounded border"
-                        />
-                      ))}
-                    </div>
-                  )}
+                  {/* Product Image Gallery */}
+                  <ImageGallery
+                    images={(() => {
+                      const gallery = (product.product_fields as any)?.image_gallery
+                      if (Array.isArray(gallery) && gallery.length > 0) {
+                        return gallery
+                      }
+                      // Fallback to main product image if no gallery
+                      return product.image_url ? [{ image: product.image_url }] : []
+                    })()}
+                    productName={product.name}
+                    className="mb-4"
+                  />
 
                   {/* Brand Logo */}
                   <div className="text-sm font-semibold text-gray-600 mb-2">
@@ -775,6 +962,8 @@ function BoilerProductsContent() {
                     </svg>
                   </div>
 
+            
+
                   {/* Description */}
                   {product.description && (
                     <div className="bg-gray-50 rounded-lg p-3 mb-4">
@@ -782,46 +971,219 @@ function BoilerProductsContent() {
                     </div>
                   )}
 
-                  {/* All Product Fields Display */}
-                  {product.product_fields && Object.keys(product.product_fields).length > 0 && (
-                    <div className="space-y-3 mb-4">
-                      {Object.entries(product.product_fields).map(([key, value]) => (
-                        <div key={key} className="border-b border-gray-100 pb-2 last:border-b-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-xs font-medium text-gray-600 capitalize">
-                              {key.replace(/_/g, ' ')}:
-                            </span>
-                            <div className="text-xs text-gray-900 text-right flex-1">
-                              {renderProductFieldValue(key, value)}
+                  {/* Highlighted Features as Badges */}
+                  {(() => {
+                    const highlightedFeatures = (product.product_fields as any)?.highlighted_features
+                    if (Array.isArray(highlightedFeatures) && highlightedFeatures.length > 0) {
+                      return (
+                        <div className="mb-4">
+                          <div className="flex flex-wrap gap-2">
+                            {highlightedFeatures.map((feature: any, index: number) => {
+                              const featureText = typeof feature === 'string' ? feature : feature.name || JSON.stringify(feature)
+                              return (
+                                <span
+                                  key={index}
+                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
+                                >
+                                  {featureText}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
+
+                  {/* Specifications Section */}
+                  {(() => {
+                    const specs = (product.product_fields as any)?.specs
+                    if (Array.isArray(specs) && specs.length > 0) {
+                      return (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Specifications</h4>
+                          <div className="space-y-1">
+                            {specs.map((spec: any, index: number) => (
+                              <div key={index} className="flex items-center gap-2 text-xs text-gray-700">
+                                <svg className="w-3 h-3 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span>{spec.items}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
+
+                  {/* Warranty Section */}
+                  {(() => {
+                    const warranty = (product.product_fields as any)?.warranty
+                    if (warranty) {
+                      return (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Warranty</h4>
+                          <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <svg className="w-3 h-3 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span>{warranty} years warranty</span>
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
+
+                
+
+                  {/* Dimensions Section */}
+                  {(() => {
+                    const dimensions = (product.product_fields as any)?.dimensions
+                    if (dimensions && typeof dimensions === 'object') {
+                      return (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Dimensions</h4>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="text-center p-2 bg-gray-50 rounded">
+                              <div className="text-gray-600">Depth</div>
+                              <div className="font-medium text-gray-900">{dimensions.depth}mm</div>
+                            </div>
+                            <div className="text-center p-2 bg-gray-50 rounded">
+                              <div className="text-gray-600">Width</div>
+                              <div className="font-medium text-gray-900">{dimensions.widht || dimensions.width}mm</div>
+                            </div>
+                            <div className="text-center p-2 bg-gray-50 rounded">
+                              <div className="text-gray-600">Height</div>
+                              <div className="font-medium text-gray-900">{dimensions.height}mm</div>
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      )
+                    }
+                    return null
+                  })()}
 
-                  {/* Pricing */}
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Fixed price (inc. VAT)</span>
-                      <span className="text-lg font-bold text-gray-900">{product.priceLabel}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">or, monthly from</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm font-semibold text-gray-900">
-                          {product.price ? `£${(product.price / 12).toFixed(2)}` : 'Contact us'}
-                        </span>
-                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
+      {/* Power Selection */}
+      {(() => {
+                    const powerOptions = getPowerAndPriceOptions(product)
+                    if (powerOptions.length > 0) {
+                      const selectedPower = getSelectedPowerOption(product)
+                      return (
+                        <div className="mb-4">
+                          <div className="flex gap-2">
+                            {powerOptions.map((option) => {
+                              const isSelected = selectedPower?.power === option.power
+                              const selectedPrice = selectedPower ? selectedPower.price : powerOptions[0].price
+                              const priceDifference = option.price - selectedPrice
+                              return (
+                                <button
+                                  key={option.power}
+                                  onClick={() => selectPowerOption(product, option)}
+                                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    isSelected
+                                      ? 'bg-gray-900 text-white'
+                                      : 'bg-white text-gray-900 border border-gray-300 hover:border-gray-400'
+                                  }`}
+                                >
+                                  <div className="text-center">
+                                    <div>{option.power}kW</div>
+                                    {!isSelected && priceDifference !== 0 && (
+                                      <div className={`text-xs ${priceDifference > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                        {priceDifference > 0 ? '+' : '-'}£{Math.abs(priceDifference)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
+
+                  {/* Pricing - Moved here right below power selection */}
+                  {(() => {
+                    const powerOptions = getPowerAndPriceOptions(product)
+                    if (powerOptions.length > 0) {
+                      const currentPrice = getCurrentPrice(product)
+                      return (
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Fixed price (inc. VAT)</span>
+                            <span className="text-lg font-bold text-gray-900">
+                              £{currentPrice.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">or, monthly from</span>
+                            <button
+                              onClick={() => openFinanceCalculator(product)}
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              <span className="text-sm font-semibold">
+                                {(() => {
+                                  const monthlyPayment = getMonthlyPayment(product)
+                                  if (monthlyPayment) {
+                                    return `£${monthlyPayment.toFixed(2)}`
+                                  }
+                                  return `£${(currentPrice / 12).toFixed(2)}`
+                                })()}
+                              </span>
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    } else if (typeof product.price === 'number') {
+                      // Fallback for products without power options
+                      return (
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">Fixed price (inc. VAT)</span>
+                            <span className="text-lg font-bold text-gray-900">
+                              £{product.price.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">or, monthly from</span>
+                            <button
+                              onClick={() => openFinanceCalculator(product)}
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              <span className="text-sm font-semibold">
+                                {(() => {
+                                  const monthlyPayment = getMonthlyPayment(product)
+                                  if (monthlyPayment) {
+                                    return `£${monthlyPayment.toFixed(2)}`
+                                  }
+                                  return `£${(product.price / 12).toFixed(2)}`
+                                })()}
+                              </span>
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
 
                   {/* Action Links */}
                   <div className="space-y-3">
-                    <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    <button 
+                      onClick={() => openWhatsIncluded(product)}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
                       What's included in my installation?
                     </button>
                     
@@ -833,13 +1195,7 @@ function BoilerProductsContent() {
                       Continue with this
                     </button>
                     
-                    {/* Secondary Action Button */}
-                    <button
-                      className="w-full py-2 px-4 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                      onClick={() => handleMoreDetails(product)}
-                    >
-                      More details
-                    </button>
+
                   </div>
                 </div>
               </div>
@@ -848,15 +1204,74 @@ function BoilerProductsContent() {
         )}
       </main>
 
-      {/* Product Details Modal */}
-      {showModal && selectedProduct && (
+
+
+      {/* FAQs at bottom */}
+      <ProductFaqs faqs={partnerSettings?.faqs || null} brandColor={brandColor} />
+
+      {/* Finance Calculator Modal */}
+      {showFinanceCalculator && selectedProductForFinance && (
+        <FinanceCalculator
+          isOpen={showFinanceCalculator}
+          onClose={closeFinanceCalculator}
+          productPrice={getCurrentPrice(selectedProductForFinance)}
+          productName={selectedProductForFinance.name}
+          aprSettings={partnerSettings?.apr_settings || null}
+          brandColor={brandColor}
+          selectedPlan={getSelectedPlan(selectedProductForFinance)}
+          selectedDeposit={getSelectedDeposit(selectedProductForFinance)}
+          onPlanChange={(plan) => {
+            setSelectedPlans(prev => ({
+              ...prev,
+              [selectedProductForFinance.partner_product_id]: plan
+            }))
+            // Recalculate monthly payment with new plan
+            const currentPrice = getCurrentPrice(selectedProductForFinance)
+            const depositPercentage = getSelectedDeposit(selectedProductForFinance)
+            const monthlyPayment = calculateMonthlyPaymentWithDeposit(currentPrice, plan.apr, plan.months, depositPercentage)
+            setMonthlyPayments(prev => ({
+              ...prev,
+              [selectedProductForFinance.partner_product_id]: monthlyPayment
+            }))
+          }}
+          onDepositChange={(deposit) => {
+            setSelectedDeposits(prev => ({
+              ...prev,
+              [selectedProductForFinance.partner_product_id]: deposit
+            }))
+            // Recalculate monthly payment with new deposit
+            const currentPrice = getCurrentPrice(selectedProductForFinance)
+            const selectedPlan = getSelectedPlan(selectedProductForFinance)
+            if (selectedPlan) {
+              const monthlyPayment = calculateMonthlyPaymentWithDeposit(currentPrice, selectedPlan.apr, selectedPlan.months, deposit)
+              setMonthlyPayments(prev => ({
+                ...prev,
+                [selectedProductForFinance.partner_product_id]: monthlyPayment
+              }))
+            }
+          }}
+          onMonthlyPaymentUpdate={(monthlyPayment) => {
+            setMonthlyPayments(prev => ({
+              ...prev,
+              [selectedProductForFinance.partner_product_id]: monthlyPayment
+            }))
+          }}
+        />
+      )}
+
+      {/* What's Included Modal */}
+      {showWhatsIncluded && selectedProductForWhatsIncluded && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">{selectedProduct.name}</h2>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">What's Included in Your Installation</h2>
+                  <p className="text-sm text-gray-600 mt-1">{selectedProductForWhatsIncluded.name}</p>
+                </div>
                 <button
-                  onClick={closeModal}
+                  onClick={closeWhatsIncluded}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -865,142 +1280,50 @@ function BoilerProductsContent() {
                 </button>
               </div>
             </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Product Image */}
-              {selectedProduct.image_url && (
-                <div className="flex justify-center">
-                  <img
-                    src={selectedProduct.image_url}
-                    alt={selectedProduct.name}
-                    className="max-w-md h-64 object-contain rounded-lg"
-                  />
-                </div>
-              )}
 
-              {/* Image Gallery */}
-              {Array.isArray((selectedProduct.product_fields as any)?.image_gallery) && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Gallery</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {((selectedProduct.product_fields as any).image_gallery as any[]).map((img: any, idx: number) => (
-                      <img
-                        key={idx}
-                        src={typeof img === 'string' ? img : img.image}
-                        alt={`${selectedProduct.name} ${idx + 1}`}
-                        className="w-full h-36 object-cover rounded-lg border"
-                      />
-                    ))}
+            <div className="p-6">
+              {/* What's Included Items */}
+              {(() => {
+                const includedItems = (selectedProductForWhatsIncluded.product_fields as any)?.what_s_included
+                
+                if (Array.isArray(includedItems) && includedItems.length > 0) {
+                  return (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {includedItems.map((item: any, index: number) => {
+                        const itemData = item.items || item
+                        const { image, title, subtitle } = itemData
+                        return (
+                          <div key={index} className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
+                            {image && (
+                              <img 
+                                src={image} 
+                                alt={title} 
+                                className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900">{title}</h4>
+                              {subtitle && (
+                                <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                }
+                
+                return (
+                  <div className="text-center py-8 text-gray-500">
+                    No specific items listed for this product.
                   </div>
-                </div>
-              )}
-
-              {/* Description */}
-              {selectedProduct.description && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                  <p className="text-gray-700">{selectedProduct.description}</p>
-                </div>
-              )}
-
-              {/* All Specifications */}
-              {selectedProduct.specifications && Object.keys(selectedProduct.specifications).length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Specifications</h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {Object.entries(selectedProduct.specifications).map(([key, value]) => (
-                      <div key={key} className="flex justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="text-gray-700 font-medium">{String(key)}:</span>
-                        <span className="text-gray-900">
-                          {typeof value === 'string' || typeof value === 'number' ? String(value) : 'Yes'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* All Product Fields */}
-              {selectedProduct.product_fields && Object.keys(selectedProduct.product_fields).length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Product Details</h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {Object.entries(selectedProduct.product_fields).map(([key, value]) => (
-                      <div key={key} className="flex justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="text-gray-700 font-medium capitalize">{key.replace(/_/g, ' ')}:</span>
-                        <span className="text-gray-900">
-                          {renderProductFieldValue(key, value)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Pricing */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Pricing</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Fixed price (inc. VAT)</span>
-                    <span className="text-xl font-bold text-gray-900">
-                      {typeof selectedProduct.price === 'number' ? `£${selectedProduct.price.toFixed(2)}` : 'Contact for price'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Monthly payment</span>
-                    <span className="text-lg font-semibold text-gray-900">
-                      {selectedProduct.price ? `£${(selectedProduct.price / 12).toFixed(2)}/month` : 'Contact us'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  className="flex-1 py-3 px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
-                  onClick={() => {
-                    console.log('Continue with this clicked from modal for product:', selectedProduct)
-                    persistProductAndGo(selectedProduct)
-                  }}
-                >
-                  Continue with this
-                </button>
-                <button
-                  onClick={closeModal}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-
-              {/* Save Quote simple form */}
-              <div className="mt-6 border-t pt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Save Quote</h3>
-                <form onSubmit={handleSaveQuoteEmail} className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    placeholder="Enter your email"
-                    className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Save & Email Me
-                  </button>
-                </form>
-              </div>
+                )
+              })()}
             </div>
           </div>
         </div>
       )}
-
-      {/* FAQs at bottom */}
-      <ProductFaqs faqs={partnerSettings?.faqs || null} brandColor={brandColor} />
 
       {/* User Info Section at Bottom */}
       {submissionInfo && (

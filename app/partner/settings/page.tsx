@@ -23,6 +23,10 @@ interface PartnerSettings {
   }[];
   company_color?: string;
   otp_enabled?: boolean;
+  is_stripe_enabled?: boolean;
+  is_kanda_enabled?: boolean;
+  is_monthly_payment_enabled?: boolean;
+  is_pay_after_installation_enabled?: boolean;
 }
 
 interface APREntry {
@@ -47,6 +51,21 @@ interface TwilioSettings {
   TWILIO_VERIFY_SID: string;
 }
 
+// Stripe fields (global)
+interface StripeSettings {
+  STRIPE_PUBLISHABLE_KEY_LIVE: string;
+  STRIPE_SECRET_KEY_LIVE: string;
+  STRIPE_PUBLISHABLE_KEY_TEST: string;
+  STRIPE_SECRET_KEY_TEST: string;
+  enabled_environment: 'live' | 'test';
+}
+
+// Kanda Finance fields (global)
+interface KandaSettings {
+  KANDA_ENTERPRISE_ID: string;
+  KANDA_PROD: string;
+}
+
 const defaultSmtp: SmtpSettings = {
   SMTP_HOST: '',
   SMTP_PORT: 587,
@@ -60,6 +79,19 @@ const defaultTwilio: TwilioSettings = {
   TWILIO_ACCOUNT_SID: '',
   TWILIO_AUTH_TOKEN: '',
   TWILIO_VERIFY_SID: '',
+};
+
+const defaultStripe: StripeSettings = {
+  STRIPE_PUBLISHABLE_KEY_LIVE: '',
+  STRIPE_SECRET_KEY_LIVE: '',
+  STRIPE_PUBLISHABLE_KEY_TEST: '',
+  STRIPE_SECRET_KEY_TEST: '',
+  enabled_environment: 'live',
+};
+
+const defaultKanda: KandaSettings = {
+  KANDA_ENTERPRISE_ID: '',
+  KANDA_PROD: '',
 };
 
 export default function PartnerSettingsPage() {
@@ -76,6 +108,8 @@ export default function PartnerSettingsPage() {
   const [savingIntegrations, setSavingIntegrations] = useState(false);
   const [smtpSettings, setSmtpSettings] = useState<SmtpSettings>(defaultSmtp);
   const [twilioSettings, setTwilioSettings] = useState<TwilioSettings>(defaultTwilio);
+  const [stripeSettings, setStripeSettings] = useState<StripeSettings>(defaultStripe);
+  const [kandaSettings, setKandaSettings] = useState<KandaSettings>(defaultKanda);
   const [companyColor, setCompanyColor] = useState('#3B82F6');
   const [otpEnabled, setOtpEnabled] = useState(false);
   
@@ -83,6 +117,12 @@ export default function PartnerSettingsPage() {
   const [aprEntries, setAprEntries] = useState<APREntry[]>([{ months: 12, apr: 0 }]);
   const [includedItems, setIncludedItems] = useState<string[]>(['']);
   const [faqs, setFaqs] = useState<{question: string; answer: string}[]>([{ question: '', answer: '' }]);
+  
+  // Payment settings states
+  const [isStripeEnabled, setIsStripeEnabled] = useState(false);
+  const [isKandaEnabled, setIsKandaEnabled] = useState(false);
+  const [isMonthlyPaymentEnabled, setIsMonthlyPaymentEnabled] = useState(false);
+  const [isPayAfterInstallationEnabled, setIsPayAfterInstallationEnabled] = useState(false);
 
   const supabase = createClient();
 
@@ -126,6 +166,31 @@ export default function PartnerSettingsPage() {
     return merged;
   };
 
+  const migrateStripe = (raw: any): StripeSettings => {
+    const merged: StripeSettings = {
+      ...defaultStripe,
+      ...(raw || {}),
+    };
+    // Backward compat mapping from previous lower-case keys
+    if (!merged.STRIPE_PUBLISHABLE_KEY_LIVE && raw?.publishable_key_live) merged.STRIPE_PUBLISHABLE_KEY_LIVE = raw.publishable_key_live;
+    if (!merged.STRIPE_SECRET_KEY_LIVE && raw?.secret_key_live) merged.STRIPE_SECRET_KEY_LIVE = raw.secret_key_live;
+    if (!merged.STRIPE_PUBLISHABLE_KEY_TEST && raw?.publishable_key_test) merged.STRIPE_PUBLISHABLE_KEY_TEST = raw.publishable_key_test;
+    if (!merged.STRIPE_SECRET_KEY_TEST && raw?.secret_key_test) merged.STRIPE_SECRET_KEY_TEST = raw.secret_key_test;
+    if (!merged.enabled_environment && raw?.enabled_environment) merged.enabled_environment = raw.enabled_environment;
+    return merged;
+  };
+
+  const migrateKanda = (raw: any): KandaSettings => {
+    const merged: KandaSettings = {
+      ...defaultKanda,
+      ...(raw || {}),
+    };
+    // Backward compat mapping from previous lower-case keys
+    if (!merged.KANDA_ENTERPRISE_ID && raw?.enterprise_id) merged.KANDA_ENTERPRISE_ID = raw.enterprise_id;
+    if (!merged.KANDA_PROD && raw?.prod) merged.KANDA_PROD = raw.prod;
+    return merged;
+  };
+
   const loadIntegrations = async () => {
     setLoadingIntegrations(true);
     try {
@@ -138,7 +203,7 @@ export default function PartnerSettingsPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from('UserProfiles')
-        .select('smtp_settings, twilio_settings, company_color, otp')
+        .select('smtp_settings, twilio_settings, stripe_settings, kanda_settings, company_color, otp')
         .eq('user_id', user.id)
         .single();
 
@@ -154,24 +219,34 @@ export default function PartnerSettingsPage() {
             body: JSON.stringify({
               smtp_settings: profile.smtp_settings,
               twilio_settings: profile.twilio_settings,
+              stripe_settings: profile.stripe_settings,
+              kanda_settings: profile.kanda_settings,
             }),
           });
 
           if (response.ok) {
-            const { smtp_settings, twilio_settings } = await response.json();
+            const { smtp_settings, twilio_settings, stripe_settings, kanda_settings } = await response.json();
             const smtp = migrateSmtp(smtp_settings || {});
             const twilio = migrateTwilio(twilio_settings || {});
+            const stripe = migrateStripe(stripe_settings || {});
+            const kanda = migrateKanda(kanda_settings || {});
             setSmtpSettings(smtp);
             setTwilioSettings(twilio);
+            setStripeSettings(stripe);
+            setKandaSettings(kanda);
           } else {
             console.error('Failed to decrypt settings, using empty defaults');
             setSmtpSettings(defaultSmtp);
             setTwilioSettings(defaultTwilio);
+            setStripeSettings(defaultStripe);
+            setKandaSettings(defaultKanda);
           }
         } else {
           // No encrypted data, use defaults
           setSmtpSettings(defaultSmtp);
           setTwilioSettings(defaultTwilio);
+          setStripeSettings(defaultStripe);
+          setKandaSettings(defaultKanda);
         }
         
         setCompanyColor(profile.company_color || '#3B82F6');
@@ -182,6 +257,8 @@ export default function PartnerSettingsPage() {
       // Fallback to defaults on error
       setSmtpSettings(defaultSmtp);
       setTwilioSettings(defaultTwilio);
+      setStripeSettings(defaultStripe);
+      setKandaSettings(defaultKanda);
     } finally {
       setLoadingIntegrations(false);
     }
@@ -200,6 +277,8 @@ export default function PartnerSettingsPage() {
         body: JSON.stringify({
           smtp_settings: smtpSettings,
           twilio_settings: twilioSettings,
+          stripe_settings: stripeSettings,
+          kanda_settings: kandaSettings,
         }),
       });
 
@@ -209,13 +288,15 @@ export default function PartnerSettingsPage() {
         throw new Error('Failed to encrypt settings');
       }
 
-      const { encrypted_smtp, encrypted_twilio } = await response.json();
+      const { encrypted_smtp, encrypted_twilio, encrypted_stripe, encrypted_kanda } = await response.json();
 
       const { error } = await supabase
         .from('UserProfiles')
         .update({
           smtp_settings: encrypted_smtp,
           twilio_settings: encrypted_twilio,
+          stripe_settings: encrypted_stripe,
+          kanda_settings: encrypted_kanda,
           company_color: companyColor,
           otp: otpEnabled,
         })
@@ -283,6 +364,11 @@ export default function PartnerSettingsPage() {
         
         setIncludedItems(result.data.included_items?.length > 0 ? result.data.included_items : ['']);
         setFaqs(result.data.faqs?.length > 0 ? result.data.faqs : [{ question: '', answer: '' }]);
+        
+        setIsStripeEnabled(Boolean(result.data.is_stripe_enabled));
+        setIsKandaEnabled(Boolean(result.data.is_kanda_enabled));
+        setIsMonthlyPaymentEnabled(Boolean(result.data.is_monthly_payment_enabled));
+        setIsPayAfterInstallationEnabled(Boolean(result.data.is_pay_after_installation_enabled));
       } else {
         setSettings(null);
         setAprEntries([{ months: 12, apr: 0 }]);
@@ -301,36 +387,37 @@ export default function PartnerSettingsPage() {
     
     setSaving(true);
     try {
-      // Convert APR entries array to object
       const aprSettings = aprEntries.reduce((acc, entry) => {
-        if (entry.months > 0) {
-          acc[entry.months] = entry.apr;
-        }
+        acc[entry.months] = entry.apr;
         return acc;
-      }, {} as {[key: number]: number});
+      }, {} as Record<number, number>);
 
-      const payload = {
+      const settingsData = {
         service_category_id: selectedCategory,
         apr_settings: aprSettings,
         included_items: includedItems.filter(item => item.trim() !== ''),
-        faqs: faqs.filter(faq => faq.question.trim() !== '' || faq.answer.trim() !== '')
+        faqs: faqs.filter(faq => faq.question.trim() !== '' && faq.answer.trim() !== ''),
+        is_stripe_enabled: isStripeEnabled,
+        is_kanda_enabled: isKandaEnabled,
+        is_monthly_payment_enabled: isMonthlyPaymentEnabled,
+        is_pay_after_installation_enabled: isPayAfterInstallationEnabled,
       };
 
+      // Use PUT if settings exist, POST if creating new
+      const method = settings ? 'PUT' : 'POST';
+      
       const response = await fetch('/api/partner-settings', {
-        method: settings ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsData),
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        setSettings(result.data);
-      } else {
-        const error = await response.json();
-        console.error('Error saving settings:', error);
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
       }
+
+      // Reload settings to show the updated data
+      await loadSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
     } finally {
@@ -435,6 +522,24 @@ export default function PartnerSettingsPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Account Integrations</h2>
           <p className="text-sm text-gray-600 mb-6">These settings apply to all categories.</p>
+          
+          {/* Payment Gateway Note */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Payment Gateway Configuration</h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <p>Configure your Stripe and Kanda Finance API keys here. These are global settings that apply to your account.</p>
+                  <p className="mt-1">To enable payment methods for specific service categories, go to the Category Settings tab and check the payment options you want to offer.</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Brand Color */}
           <div className="bg-gray-50 p-4 rounded-lg border mb-6">
@@ -545,6 +650,105 @@ export default function PartnerSettingsPage() {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">TWILIO_VERIFY_SID</label>
                 <input type="text" value={twilioSettings.TWILIO_VERIFY_SID} onChange={(e) => setTwilioSettings({ ...twilioSettings, TWILIO_VERIFY_SID: e.target.value })} className="block w-full px-3 py-2 border rounded-md" />
+              </div>
+            </div>
+          </div>
+
+          {/* Stripe */}
+          <div className="bg-gray-50 rounded-lg border p-4 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                <span className="text-white text-xs font-bold">S</span>
+              </div>
+              <h3 className="font-medium text-gray-900">Stripe Payment Settings</h3>
+            </div>
+            
+            {/* Environment Toggle */}
+            <div className="mb-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-700">Environment:</span>
+                <div className="flex bg-gray-200 rounded-lg p-1">
+                  <button
+                    onClick={() => setStripeSettings({ ...stripeSettings, enabled_environment: 'live' })}
+                    className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                      stripeSettings.enabled_environment === 'live'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Live
+                  </button>
+                  <button
+                    onClick={() => setStripeSettings({ ...stripeSettings, enabled_environment: 'test' })}
+                    className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                      stripeSettings.enabled_environment === 'test'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Test
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Stripe Keys */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  {stripeSettings.enabled_environment === 'live' ? 'PUBLISHABLE KEY (LIVE)' : 'PUBLISHABLE KEY (TEST)'}
+                </label>
+                <input 
+                  type="text" 
+                  value={stripeSettings.enabled_environment === 'live' ? stripeSettings.STRIPE_PUBLISHABLE_KEY_LIVE : stripeSettings.STRIPE_PUBLISHABLE_KEY_TEST} 
+                  onChange={(e) => {
+                    if (stripeSettings.enabled_environment === 'live') {
+                      setStripeSettings({ ...stripeSettings, STRIPE_PUBLISHABLE_KEY_LIVE: e.target.value });
+                    } else {
+                      setStripeSettings({ ...stripeSettings, STRIPE_PUBLISHABLE_KEY_TEST: e.target.value });
+                    }
+                  }} 
+                  className="block w-full px-3 py-2 border rounded-md" 
+                  placeholder={stripeSettings.enabled_environment === 'live' ? 'pk_live_...' : 'pk_test_...'} 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  {stripeSettings.enabled_environment === 'live' ? 'SECRET KEY (LIVE)' : 'SECRET KEY (TEST)'}
+                </label>
+                <input 
+                  type="password" 
+                  value={stripeSettings.enabled_environment === 'live' ? stripeSettings.STRIPE_SECRET_KEY_LIVE : stripeSettings.STRIPE_SECRET_KEY_TEST} 
+                  onChange={(e) => {
+                    if (stripeSettings.enabled_environment === 'live') {
+                      setStripeSettings({ ...stripeSettings, STRIPE_SECRET_KEY_LIVE: e.target.value });
+                    } else {
+                      setStripeSettings({ ...stripeSettings, STRIPE_SECRET_KEY_TEST: e.target.value });
+                    }
+                  }} 
+                  className="block w-full px-3 py-2 border rounded-md" 
+                  placeholder={stripeSettings.enabled_environment === 'live' ? 'sk_live_...' : 'sk_test_...'} 
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Kanda Finance */}
+          <div className="bg-gray-50 rounded-lg border p-4 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-5 h-5 bg-purple-600 rounded flex items-center justify-center">
+                <span className="text-white text-xs font-bold">K</span>
+              </div>
+              <h3 className="font-medium text-gray-900">Kanda Finance Settings</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Enterprise ID *</label>
+                <input type="text" value={kandaSettings.KANDA_ENTERPRISE_ID} onChange={(e) => setKandaSettings({ ...kandaSettings, KANDA_ENTERPRISE_ID: e.target.value })} className="block w-full px-3 py-2 border rounded-md" placeholder="e.g., 1234567890123456" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Prod *</label>
+                <input type="text" value={kandaSettings.KANDA_PROD} onChange={(e) => setKandaSettings({ ...kandaSettings, KANDA_PROD: e.target.value })} className="block w-full px-3 py-2 border rounded-md" placeholder="e.g., prod" />
               </div>
             </div>
           </div>
@@ -686,6 +890,82 @@ export default function PartnerSettingsPage() {
                     >
                       + Add APR Option
                     </button>
+                  </div>
+                </div>
+
+                {/* Payment Settings */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Payment Settings
+                  </label>
+                  <div className="space-y-4">
+                    <div className="flex items-start">
+                      <input
+                        type="checkbox"
+                        checked={isStripeEnabled}
+                        onChange={(e) => setIsStripeEnabled(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+                      />
+                      <div className="ml-3">
+                        <label className="text-sm font-medium text-gray-700">
+                          Enable Stripe Payments
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Allow customers to pay via Stripe for this service category
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start">
+                      <input
+                        type="checkbox"
+                        checked={isKandaEnabled}
+                        onChange={(e) => setIsKandaEnabled(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+                      />
+                      <div className="ml-3">
+                        <label className="text-sm font-medium text-gray-700">
+                          Enable Kanda Finance
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Allow customers to finance their purchase through Kanda for this service category
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start">
+                      <input
+                        type="checkbox"
+                        checked={isMonthlyPaymentEnabled}
+                        onChange={(e) => setIsMonthlyPaymentEnabled(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+                      />
+                      <div className="ml-3">
+                        <label className="text-sm font-medium text-gray-700">
+                          Enable Monthly Payment Plans
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Allow customers to pay in monthly installments for this service category
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start">
+                      <input
+                        type="checkbox"
+                        checked={isPayAfterInstallationEnabled}
+                        onChange={(e) => setIsPayAfterInstallationEnabled(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+                      />
+                      <div className="ml-3">
+                        <label className="text-sm font-medium text-gray-700">
+                          Enable Pay After Installation
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Allow customers to pay after the service is completed for this service category
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

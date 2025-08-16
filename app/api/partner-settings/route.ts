@@ -104,6 +104,10 @@ export async function POST(request: NextRequest) {
         apr_settings: apr_settings || {},
         included_items: included_items || [],
         faqs: faqs || [],
+        is_stripe_enabled: body.is_stripe_enabled || false,
+        is_kanda_enabled: body.is_kanda_enabled || false,
+        is_monthly_payment_enabled: body.is_monthly_payment_enabled || false,
+        is_pay_after_installation_enabled: body.is_pay_after_installation_enabled || false,
         updated_at: new Date().toISOString()
       })
       .select()
@@ -165,6 +169,10 @@ export async function PUT(request: NextRequest) {
         apr_settings: apr_settings || {},
         included_items: included_items || [],
         faqs: faqs || [],
+        is_stripe_enabled: body.is_stripe_enabled || false,
+        is_kanda_enabled: body.is_kanda_enabled || false,
+        is_monthly_payment_enabled: body.is_monthly_payment_enabled || false,
+        is_pay_after_installation_enabled: body.is_pay_after_installation_enabled || false,
         updated_at: new Date().toISOString()
       })
       .eq('partner_id', user.id)

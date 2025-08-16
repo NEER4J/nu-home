@@ -29,6 +29,16 @@ interface PartnerProduct {
 interface BundleAddonItem { bundle_addon_id: string; bundle_id: string; addon_id: string; quantity: number; Addons?: Addon }
 interface Bundle { bundle_id: string; partner_id: string; title: string; description: string | null; discount_type: 'fixed' | 'percent'; discount_value: number; service_category_id: string | null; BundlesAddons?: BundleAddonItem[] }
 
+// User info interface matching the simplified form fields
+interface UserInfo {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  postcode: string
+  notes: string
+}
+
 function BoilerCheckoutPageContent() {
   const supabase = createClient()
   const sp = useSearchParams()
@@ -39,8 +49,79 @@ function BoilerCheckoutPageContent() {
   const [product, setProduct] = useState<PartnerProduct | null>(null)
   const [addons, setAddons] = useState<Addon[]>([])
   const [bundles, setBundles] = useState<Bundle[]>([])
+  const [userInfo, setUserInfo] = useState<UserInfo>({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    postcode: '',
+    notes: ''
+  })
+  
+  // Payment settings state
+  const [paymentSettings, setPaymentSettings] = useState({
+    is_stripe_enabled: false,
+    is_kanda_enabled: false,
+    is_monthly_payment_enabled: false,
+    is_pay_after_installation_enabled: false,
+    stripe_settings: null as any,
+    kanda_settings: null as any
+  })
+  
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const loadPaymentSettings = async (partnerUserId: string, serviceCategoryId: string) => {
+    try {
+      // Load partner settings for the service category
+      const { data: partnerSettings } = await supabase
+        .from('PartnerSettings')
+        .select('is_stripe_enabled, is_kanda_enabled, is_monthly_payment_enabled, is_pay_after_installation_enabled')
+        .eq('partner_id', partnerUserId)
+        .eq('service_category_id', serviceCategoryId)
+        .single()
+
+      // Load partner profile for API keys
+      const { data: partnerProfile } = await supabase
+        .from('UserProfiles')
+        .select('stripe_settings, kanda_settings')
+        .eq('user_id', partnerUserId)
+        .single()
+
+      // Decrypt the settings if they exist
+      let decryptedStripe = null
+      let decryptedKanda = null
+
+      if (partnerProfile?.stripe_settings && Object.keys(partnerProfile.stripe_settings).length > 0) {
+        const response = await fetch('/api/partner/decrypt-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stripe_settings: partnerProfile.stripe_settings,
+            kanda_settings: partnerProfile.kanda_settings || {}
+          }),
+        })
+
+        if (response.ok) {
+          const { stripe_settings, kanda_settings } = await response.json()
+          decryptedStripe = stripe_settings
+          decryptedKanda = kanda_settings
+        }
+      }
+
+      setPaymentSettings({
+        is_stripe_enabled: Boolean(partnerSettings?.is_stripe_enabled),
+        is_kanda_enabled: Boolean(partnerSettings?.is_kanda_enabled),
+        is_monthly_payment_enabled: Boolean(partnerSettings?.is_monthly_payment_enabled),
+        is_pay_after_installation_enabled: Boolean(partnerSettings?.is_pay_after_installation_enabled),
+        stripe_settings: decryptedStripe,
+        kanda_settings: decryptedKanda
+      })
+    } catch (error) {
+      console.error('Error loading payment settings:', error)
+      // Use default settings (all disabled) on error
+    }
+  }
 
   useEffect(() => {
     async function init() {
@@ -51,8 +132,20 @@ function BoilerCheckoutPageContent() {
         const partner = await resolvePartnerByHost(supabase, hostname)
         if (!partner) { setError('Partner not found for this domain'); return }
         const partnerUserId = partner.user_id
-        setPartnerId(partnerUserId)
+        setPartnerId(partnerUserId) 
         setCompanyColor(partner.company_color || null)
+
+        // Load payment settings for boiler service category
+        // Look up the boiler service category ID
+        const { data: boilerCategory } = await supabase
+          .from('ServiceCategories')
+          .select('service_category_id')
+          .eq('slug', 'boiler')
+          .single()
+        
+        if (boilerCategory) {
+          await loadPaymentSettings(partnerUserId, boilerCategory.service_category_id)
+        }
 
         // Load cart from partner_leads.cart_state by submission id
         let cart: any = {}
@@ -63,21 +156,37 @@ function BoilerCheckoutPageContent() {
         if (submissionId) {
           const { data: lead } = await supabase
             .from('partner_leads')
-            .select('cart_state, product_info, addon_info, bundle_info')
+            .select('cart_state, product_info, addon_info, bundle_info, first_name, last_name, email, phone, postcode')
             .eq('submission_id', submissionId)
             .single()
-          cart = (lead as any)?.cart_state || {}
-          pInfo = (lead as any)?.product_info || null
-          aInfo = (lead as any)?.addon_info || []
-          bInfo = (lead as any)?.bundle_info || []
-          if (pInfo && pInfo.product_id) {
-            setProduct({
-              partner_product_id: pInfo.product_id,
-              partner_id: partnerUserId,
-              name: pInfo.name,
-              price: pInfo.price ?? null,
-              image_url: pInfo.image_url ?? null,
-            } as PartnerProduct)
+          
+          if (lead) {
+            cart = (lead as any)?.cart_state || {}
+            pInfo = (lead as any)?.product_info || null
+            aInfo = (lead as any)?.addon_info || []
+            bInfo = (lead as any)?.bundle_info || []
+            
+            // Pre-fill user info from the database
+            if (lead.first_name || lead.last_name || lead.email || lead.phone || lead.postcode) {
+              setUserInfo({
+                first_name: lead.first_name || '',
+                last_name: lead.last_name || '',
+                email: lead.email || '',
+                phone: lead.phone || '',
+                postcode: lead.postcode || '',
+                notes: ''
+              })
+            }
+            
+            if (pInfo && pInfo.product_id) {
+              setProduct({
+                partner_product_id: pInfo.product_id,
+                partner_id: partnerUserId,
+                name: pInfo.name,
+                price: pInfo.price ?? null,
+                image_url: pInfo.image_url ?? null,
+              } as PartnerProduct)
+            }
           }
         }
 
@@ -188,6 +297,9 @@ function BoilerCheckoutPageContent() {
       selectedAddons={selectedAddons}
       selectedBundles={selectedBundles}
       companyColor={companyColor}
+      prefillUserInfo={userInfo}
+      paymentSettings={paymentSettings}
+      submissionId={submissionId || undefined}
       onSubmitBooking={async (payload) => {
         console.log('Booking submitted', payload)
         // TODO: integrate payments and booking save

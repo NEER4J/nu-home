@@ -36,6 +36,19 @@ interface PartnerProduct {
   name: string
   price: number | null
   image_url: string | null
+  calculator_settings?: {
+    selected_plan?: {
+      apr: number
+      months: number
+    }
+    selected_deposit?: number
+  } | null
+  selected_power?: {
+    power: string
+    price: number
+    additional_cost: number
+  } | null
+  [key: string]: any // Allow additional fields from product_info
 }
 
   type BundleDiscountType = 'fixed' | 'percent'
@@ -150,6 +163,9 @@ function BoilerAddonsPageContent() {
           console.log('Product info from database:', pInfo)
           console.log('Addon info from database:', aInfo)
           console.log('Bundle info from database:', bInfo)
+          console.log('Cart state:', cartState)
+          console.log('Calculator settings from pInfo:', pInfo?.calculator_settings)
+          console.log('Selected power from pInfo:', pInfo?.selected_power)
           
           if (pInfo && pInfo.product_id && !productIdFromUrl) {
             // if product already saved, prefer it
@@ -171,8 +187,29 @@ function BoilerAddonsPageContent() {
 
           if (!productError && product) {
             const { service_category_id: _omit, ...rest } = product as any
-            setSelectedProduct(rest as PartnerProduct)
+            // Merge with product_info from database to include calculator settings
+            const productWithSettings = {
+              ...rest,
+              calculator_settings: pInfo.calculator_settings || null,
+              selected_power: pInfo.selected_power || null
+            }
+            console.log('Product with settings (from URL):', productWithSettings)
+            setSelectedProduct(productWithSettings as PartnerProduct)
           }
+        } else if (pInfo && pInfo.product_id) {
+          // If no product from URL but we have product_info from database, use that
+          const productWithSettings = {
+            partner_product_id: pInfo.product_id,
+            partner_id: partnerUserId,
+            name: pInfo.name || '',
+            price: pInfo.price || null,
+            image_url: pInfo.image_url || null,
+            calculator_settings: pInfo.calculator_settings || null,
+            selected_power: pInfo.selected_power || null
+          }
+          console.log('Product with settings (from database):', productWithSettings)
+          setSelectedProduct(productWithSettings as PartnerProduct)
+          console.log('Set selected product to:', productWithSettings)
         }
 
         // 4) Fetch partner addons for this category
@@ -243,6 +280,11 @@ function BoilerAddonsPageContent() {
 
     init()
   }, [productIdFromUrl, submissionId])
+
+  // Debug: Log when selectedProduct changes
+  useEffect(() => {
+    console.log('selectedProduct state changed:', selectedProduct)
+  }, [selectedProduct])
 
   // UI aggregation moved into AddonsLayout
 
@@ -354,6 +396,8 @@ function BoilerAddonsPageContent() {
               name: selectedProduct.name,
               price: selectedProduct.price,
               image_url: selectedProduct.image_url,
+              calculator_settings: selectedProduct.calculator_settings,
+              selected_power: selectedProduct.selected_power,
             } : null,
             addon_info: addonInfo,
             bundle_info: bundleInfo,
@@ -422,6 +466,8 @@ function BoilerAddonsPageContent() {
                   name: selectedProduct.name,
                   price: selectedProduct.price,
                   image_url: selectedProduct.image_url,
+                  calculator_settings: selectedProduct.calculator_settings,
+                  selected_power: selectedProduct.selected_power,
                 } : null,
                 addon_info: selectedAddonsList.map(a => ({
                   addon_id: a.addon_id,
