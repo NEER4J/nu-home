@@ -89,6 +89,9 @@ function BoilerAddonsPageContent() {
   const [bundles, setBundles] = useState<Bundle[]>([])
   const [selectedBundles, setSelectedBundles] = useState<Record<string, number>>({})
   const [companyColor, setCompanyColor] = useState<string | null>(null)
+  const [partnerSettings, setPartnerSettings] = useState<{
+    apr_settings: Record<number, number> | null
+  } | null>(null)
 
 
   useEffect(() => {
@@ -137,7 +140,31 @@ function BoilerAddonsPageContent() {
         }
         setCategory(categoryData as Category)
 
-        // 3) Resolve cart from partner_leads if we have submission id
+        // 3) Load partner settings for APR configurations
+        const { data: settingsData, error: settingsError } = await supabase
+          .from('PartnerSettings')
+          .select('apr_settings')
+          .eq('partner_id', partnerUserId)
+          .eq('service_category_id', categoryData.service_category_id)
+          .single()
+
+        if (!settingsError && settingsData) {
+          // Convert APR settings keys from string to number
+          const convertedSettings = {
+            apr_settings: settingsData.apr_settings ? 
+              Object.fromEntries(
+                Object.entries(settingsData.apr_settings).map(([key, value]) => [
+                  parseInt(key),
+                  typeof value === 'number' ? value : parseFloat(String(value))
+                ])
+              ) : null
+          }
+          setPartnerSettings(convertedSettings)
+        } else {
+          setPartnerSettings(null)
+        }
+
+        // 4) Resolve cart from partner_leads if we have submission id
         let cartState: any = {}
         let pInfo: any = {}
         let aInfo: any[] = []
@@ -443,6 +470,7 @@ function BoilerAddonsPageContent() {
       selectedBundles={selectedBundles}
       selectedProduct={selectedProduct as any}
       companyColor={companyColor}
+      partnerSettings={partnerSettings}
       backHref="/boiler/products"
       backLabel="Back to Products"
       showBack
