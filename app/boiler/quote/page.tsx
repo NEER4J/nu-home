@@ -10,6 +10,7 @@ import UserInfoForm from '@/components/category-commons/quote/UserInfoForm';
 import QuoteFormSteps from '@/components/category-commons/quote/QuoteFormSteps';
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles';
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
+import { QuoteLoader } from '@/components/category-commons/Loader';
 
 interface HeatingQuotePageProps {
   serviceCategoryId?: string;
@@ -395,15 +396,7 @@ export default function HeatingQuotePage({
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center justify-center min-h-[300px]">
-          <div 
-            className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mb-4"
-            style={{ 
-              borderColor: `${getDynamicColor()}40`,
-              borderTopColor: 'transparent'
-            }}
-          ></div>
-        </div>
+        <QuoteLoader />
       </div>
     );
   }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Settings, List, HelpCircle, Mail, Phone } from 'lucide-react';
+import { SettingsLoader } from '@/components/category-commons/Loader';
 
 interface ServiceCategory {
   service_category_id: string;
@@ -477,7 +478,7 @@ export default function PartnerSettingsPage() {
   if (mainTab === 'category' && loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <SettingsLoader />
       </div>
     );
   }

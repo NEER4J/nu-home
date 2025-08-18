@@ -9,6 +9,7 @@ import ProductFaqs from '@/components/category-commons/product/ProductFaqs'
 import FinanceCalculator from '@/components/FinanceCalculator'
 import ImageGallery from '@/components/ImageGallery'
 import { resolvePartnerByHost } from '@/lib/partner'
+import { ProductsLoader } from '@/components/category-commons/Loader'
 
 interface PartnerInfo {
   company_name: string
@@ -92,6 +93,7 @@ function BoilerProductsContent() {
   const [monthlyPayments, setMonthlyPayments] = useState<Record<string, number>>({})
   const [showWhatsIncluded, setShowWhatsIncluded] = useState(false)
   const [selectedProductForWhatsIncluded, setSelectedProductForWhatsIncluded] = useState<PartnerProduct | null>(null)
+  const [isContinuing, setIsContinuing] = useState(false)
 
   // Filters
   const [filterBoilerType, setFilterBoilerType] = useState<string | null>(null)
@@ -192,11 +194,32 @@ function BoilerProductsContent() {
   }
 
   const getSelectedPlan = (product: PartnerProduct): { months: number; apr: number } | null => {
-    return selectedPlans[product.partner_product_id] || null
+    // If user has explicitly selected a plan, use that
+    if (selectedPlans[product.partner_product_id]) {
+      return selectedPlans[product.partner_product_id]
+    }
+    
+    // Otherwise, use default plan from partner settings
+    if (partnerSettings?.apr_settings) {
+      const availableTerms = Object.keys(partnerSettings.apr_settings).map(Number).sort((a, b) => a - b)
+      if (availableTerms.length > 0) {
+        const defaultTerm = availableTerms[0] // Use the shortest term as default
+        const defaultApr = partnerSettings.apr_settings[defaultTerm]
+        return { months: defaultTerm, apr: defaultApr }
+      }
+    }
+    
+    return null
   }
 
   const getSelectedDeposit = (product: PartnerProduct): number => {
-    return selectedDeposits[product.partner_product_id] || 0
+    // If user has explicitly selected a deposit, use that
+    if (selectedDeposits[product.partner_product_id] !== undefined) {
+      return selectedDeposits[product.partner_product_id]
+    }
+    
+    // Otherwise, use default deposit (0%)
+    return 0
   }
 
   const selectPowerOption = (product: PartnerProduct, powerOption: PowerAndPrice) => {
@@ -592,6 +615,7 @@ function BoilerProductsContent() {
 
   // Persist selected product (with snapshot) in partner_leads.cart_state and advance progress
   const persistProductAndGo = async (product: PartnerProduct) => {
+    setIsContinuing(true)
     try {
       console.log('persistProductAndGo called with:', { submissionId, partnerInfo: partnerInfo?.user_id })
       
@@ -635,11 +659,11 @@ function BoilerProductsContent() {
           name: product.name,
           price: currentPrice,
           selected_power: selectedPower,
-          calculator_settings: {
-            selected_plan: selectedPlan,
-            selected_deposit: selectedDeposit,
-          },
           image_url: product.image_url,
+        },
+        calculator_info: {
+          selected_plan: selectedPlan,
+          selected_deposit: selectedDeposit,
         }
       })
       
@@ -652,11 +676,11 @@ function BoilerProductsContent() {
             name: product.name,
             price: currentPrice,
             selected_power: selectedPower,
-            calculator_settings: {
-              selected_plan: selectedPlan,
-              selected_deposit: selectedDeposit,
-            },
             image_url: product.image_url,
+          },
+          calculator_info: {
+            selected_plan: selectedPlan,
+            selected_deposit: selectedDeposit,
           },
           progress_step: 'addons',
           last_seen_at: new Date().toISOString(),
@@ -688,7 +712,7 @@ function BoilerProductsContent() {
       // Verify what was actually saved in the database (for console logging only)
       const { data: verifyData, error: verifyError } = await supabase
         .from('partner_leads')
-        .select('cart_state, product_info, progress_step, last_seen_at')
+        .select('cart_state, product_info, calculator_info, progress_step, last_seen_at')
         .eq('submission_id', submissionId)
         .single()
       
@@ -706,7 +730,7 @@ function BoilerProductsContent() {
           productInfoName: verifyData.product_info?.name,
           productInfoPrice: verifyData.product_info?.price,
           productInfoSelectedPower: verifyData.product_info?.selected_power,
-          productInfoCalculatorSettings: verifyData.product_info?.calculator_settings
+          calculatorInfo: verifyData.calculator_info
         })
       }
       
@@ -865,13 +889,7 @@ function BoilerProductsContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center justify-center min-h-[300px]">
-          <div
-            className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mb-4"
-            style={{ borderColor: `${brandColor}40`, borderTopColor: 'transparent' }}
-          />
-          <p className="text-gray-600">Loading products...</p>
-        </div>
+        <ProductsLoader />
       </div>
     )
   }
@@ -1189,10 +1207,21 @@ function BoilerProductsContent() {
                     
                     {/* Primary Action Button */}
                     <button
-                      className="w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
+                      className={`w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 ${isContinuing ? 'opacity-75 cursor-not-allowed' : 'hover:bg-green-700'}`}
                       onClick={() => persistProductAndGo(product)}
+                      disabled={isContinuing}
                     >
-                      Continue with this
+                      {isContinuing ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Loading...
+                        </>
+                      ) : (
+                        'Continue with this'
+                      )}
                     </button>
                     
 

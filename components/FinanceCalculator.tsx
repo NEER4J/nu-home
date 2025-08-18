@@ -89,9 +89,20 @@ export default function FinanceCalculator({
         
         // Update selected option with new calculations
         if (options.length > 0) {
-          if (selectedPlan) {
+          if (selectedOption) {
+            // Try to find the currently selected option in the new options
+            const currentOption = options.find(opt => opt.months === selectedOption.months)
+            if (currentOption) {
+              setSelectedOption(currentOption)
+            }
+          } else if (selectedPlan) {
+            // If no current selection but we have a selectedPlan, try to match it
             const matchingOption = options.find(opt => opt.months === selectedPlan.months)
-            setSelectedOption(matchingOption || options[0])
+            if (matchingOption) {
+              setSelectedOption(matchingOption)
+            } else {
+              setSelectedOption(options[0])
+            }
           } else {
             setSelectedOption(options[0])
           }
@@ -245,7 +256,10 @@ export default function FinanceCalculator({
                 <span>0% min</span>
                 <span>50% max</span>
               </div>
-              <div className="text-right">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">
+                  Selected: <span className="font-semibold text-gray-900">{depositPercentage}%</span>
+                </span>
                 <span className="text-lg font-semibold text-gray-900">
                   £{depositAmount.toFixed(2)}
                 </span>

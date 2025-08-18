@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AddonsLayout, { BundleLite } from '@/components/category-commons/addon/AddonsLayout'
 import { resolvePartnerByHost } from '@/lib/partner'
+import { AddonsLoader } from '@/components/category-commons/Loader'
 
 interface AddonType {
   id: string
@@ -92,6 +93,16 @@ function BoilerAddonsPageContent() {
   const [partnerSettings, setPartnerSettings] = useState<{
     apr_settings: Record<number, number> | null
   } | null>(null)
+  const [calculatorSettings, setCalculatorSettings] = useState<{
+    selected_plan?: { months: number; apr: number } | null
+    selected_deposit?: number
+  } | null>(null)
+  const [isContinuing, setIsContinuing] = useState(false)
+
+  // Debug calculator settings changes
+  useEffect(() => {
+    console.log('calculatorSettings state changed:', calculatorSettings)
+  }, [calculatorSettings])
 
 
   useEffect(() => {
@@ -169,11 +180,12 @@ function BoilerAddonsPageContent() {
         let pInfo: any = {}
         let aInfo: any[] = []
         let bInfo: any[] = []
+        let calculatorInfo: any = null
         
         if (submissionId) {
           const { data: lead, error: leadError } = await supabase
             .from('partner_leads')
-            .select('cart_state, product_info, addon_info, bundle_info')
+            .select('cart_state, product_info, addon_info, bundle_info, calculator_info')
             .eq('submission_id', submissionId)
             .single()
           
@@ -187,11 +199,24 @@ function BoilerAddonsPageContent() {
           pInfo = (lead as any)?.product_info || {}
           aInfo = (lead as any)?.addon_info || []
           bInfo = (lead as any)?.bundle_info || []
+          let calculatorInfo = (lead as any)?.calculator_info || null
+          
+          // Handle case where calculator_info might be stored as a string
+          if (typeof calculatorInfo === 'string') {
+            try {
+              calculatorInfo = JSON.parse(calculatorInfo)
+            } catch (e) {
+              console.error('Failed to parse calculator_info as JSON:', e)
+              calculatorInfo = null
+            }
+          }
           console.log('Product info from database:', pInfo)
           console.log('Addon info from database:', aInfo)
           console.log('Bundle info from database:', bInfo)
           console.log('Cart state:', cartState)
-          console.log('Calculator settings from pInfo:', pInfo?.calculator_settings)
+          console.log('Calculator info from database:', calculatorInfo)
+          console.log('Raw lead data:', lead)
+          console.log('Lead calculator_info field:', (lead as any)?.calculator_info)
           console.log('Selected power from pInfo:', pInfo?.selected_power)
           
           if (pInfo && pInfo.product_id && !productIdFromUrl) {
@@ -206,7 +231,7 @@ function BoilerAddonsPageContent() {
         if (resolvedProductId) {
           const { data: product, error: productError } = await supabase
             .from('PartnerProducts')
-            .select('partner_product_id, partner_id, name, price, image_url, service_category_id')
+            .select('partner_product_id, partner_id, name, price, image_url, service_category_id, product_fields')
             .eq('partner_product_id', resolvedProductId)
             .eq('partner_id', partnerUserId)
             .eq('service_category_id', categoryData.service_category_id)
@@ -217,10 +242,12 @@ function BoilerAddonsPageContent() {
             // Merge with product_info from database to include calculator settings
             const productWithSettings = {
               ...rest,
-              calculator_settings: pInfo.calculator_settings || null,
+              product_fields: product.product_fields || null,
+              calculator_settings: calculatorInfo || null,
               selected_power: pInfo.selected_power || null
             }
             console.log('Product with settings (from URL):', productWithSettings)
+            console.log('Calculator info being set:', calculatorInfo)
             setSelectedProduct(productWithSettings as PartnerProduct)
           }
         } else if (pInfo && pInfo.product_id) {
@@ -231,10 +258,12 @@ function BoilerAddonsPageContent() {
             name: pInfo.name || '',
             price: pInfo.price || null,
             image_url: pInfo.image_url || null,
-            calculator_settings: pInfo.calculator_settings || null,
+            product_fields: pInfo.product_fields || null,
+            calculator_settings: calculatorInfo || null,
             selected_power: pInfo.selected_power || null
           }
           console.log('Product with settings (from database):', productWithSettings)
+          console.log('Calculator info being set (from database):', calculatorInfo)
           setSelectedProduct(productWithSettings as PartnerProduct)
           console.log('Set selected product to:', productWithSettings)
         }
@@ -311,7 +340,41 @@ function BoilerAddonsPageContent() {
   // Debug: Log when selectedProduct changes
   useEffect(() => {
     console.log('selectedProduct state changed:', selectedProduct)
+    
+    // Initialize calculator settings from selectedProduct
+    if (selectedProduct?.calculator_settings) {
+      console.log('Initializing calculator settings from selectedProduct:', selectedProduct.calculator_settings)
+      setCalculatorSettings(selectedProduct.calculator_settings)
+    } else {
+      console.log('No calculator settings found in selectedProduct')
+      console.log('selectedProduct.calculator_settings:', selectedProduct?.calculator_settings)
+    }
   }, [selectedProduct])
+
+  // Initialize calculator settings from loaded data
+  useEffect(() => {
+    if (submissionId && !calculatorSettings) {
+      // Try to load calculator settings directly from the database
+      const loadCalculatorSettings = async () => {
+        try {
+          const { data: lead } = await supabase
+            .from('partner_leads')
+            .select('calculator_info')
+            .eq('submission_id', submissionId)
+            .single()
+          
+          if (lead?.calculator_info) {
+            console.log('Loading calculator settings directly from database:', lead.calculator_info)
+            setCalculatorSettings(lead.calculator_info)
+          }
+        } catch (e) {
+          console.error('Failed to load calculator settings:', e)
+        }
+      }
+      
+      loadCalculatorSettings()
+    }
+  }, [submissionId, calculatorSettings, supabase])
 
   // UI aggregation moved into AddonsLayout
 
@@ -364,6 +427,28 @@ function BoilerAddonsPageContent() {
     setIsUserActive(true) // Mark user as active when they make changes
   }
 
+  // Calculator callback handlers
+  const handleCalculatorPlanChange = (plan: { months: number; apr: number }) => {
+    setCalculatorSettings(prev => ({
+      ...prev,
+      selected_plan: plan
+    }))
+    setIsUserActive(true)
+  }
+
+  const handleCalculatorDepositChange = (deposit: number) => {
+    setCalculatorSettings(prev => ({
+      ...prev,
+      selected_deposit: deposit
+    }))
+    setIsUserActive(true)
+  }
+
+  const handleCalculatorMonthlyPaymentUpdate = (monthlyPayment: number) => {
+    // This could be used to update the UI in real-time if needed
+    console.log('Monthly payment updated:', monthlyPayment)
+  }
+
   // Persist cart state whenever selections change (debounced)
   const saveTimer = useRef<any>(null)
   const cartPayload = useMemo(() => {
@@ -414,6 +499,8 @@ function BoilerAddonsPageContent() {
     saveTimer.current = setTimeout(async () => {
       try {
         console.log('Autosaving addon/bundle selections to database...')
+        console.log('Calculator settings being saved:', calculatorSettings)
+        console.log('Selected product calculator settings:', selectedProduct?.calculator_settings)
         const updateResult = await supabase
           .from('partner_leads')
           .update({
@@ -423,9 +510,9 @@ function BoilerAddonsPageContent() {
               name: selectedProduct.name,
               price: selectedProduct.price,
               image_url: selectedProduct.image_url,
-              calculator_settings: selectedProduct.calculator_settings,
               selected_power: selectedProduct.selected_power,
             } : null,
+            calculator_info: calculatorSettings || selectedProduct?.calculator_settings,
             addon_info: addonInfo,
             bundle_info: bundleInfo,
             progress_step: 'addons',
@@ -437,18 +524,19 @@ function BoilerAddonsPageContent() {
           console.error('Autosave failed:', updateResult.error)
         } else {
           console.log('Autosave successful')
+          console.log('Saved calculator_info:', calculatorSettings || selectedProduct?.calculator_settings)
         }
       } catch (e) {
         console.warn('Failed to save cart state', e)
       }
     }, 400)
     return () => saveTimer.current && clearTimeout(saveTimer.current)
-  }, [cartPayload, selectedProduct?.partner_product_id, submissionId, isUserActive])
+  }, [cartPayload, selectedProduct?.partner_product_id, submissionId, isUserActive, calculatorSettings])
 
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-12">
-        <p className="text-gray-600">Loading add-ons…</p>
+        <AddonsLoader />
       </div>
     )
   }
@@ -461,6 +549,8 @@ function BoilerAddonsPageContent() {
     )
   }
 
+  console.log('Rendering AddonsLayout with calculatorSettings:', calculatorSettings)
+  
   return (
     <AddonsLayout
       category={category as any}
@@ -471,13 +561,21 @@ function BoilerAddonsPageContent() {
       selectedProduct={selectedProduct as any}
       companyColor={companyColor}
       partnerSettings={partnerSettings}
-      backHref="/boiler/products"
+      backHref={`/boiler/products${submissionId ? `?submission=${submissionId}` : ''}`}
       backLabel="Back to Products"
       showBack
       onChangeAddonQuantity={handleQuantityChange as any}
       onToggleBundle={(b) => handleAddBundle(b as unknown as Bundle)}
       onChangeBundleQuantity={handleBundleQtyChange}
+      onCalculatorPlanChange={handleCalculatorPlanChange}
+      onCalculatorDepositChange={handleCalculatorDepositChange}
+      onCalculatorMonthlyPaymentUpdate={handleCalculatorMonthlyPaymentUpdate}
+      currentCalculatorSettings={calculatorSettings}
+      isLoading={isContinuing}
+      // Debug: Log what's being passed to AddonsLayout
+      // This will help us see if the calculator settings are being passed correctly
       onContinue={async (selectedAddonsList, selectedBundlesList) => {
+        setIsContinuing(true)
         // Persist cart and move with only submission in URL
         try {
           if (submissionId) {
@@ -494,9 +592,9 @@ function BoilerAddonsPageContent() {
                   name: selectedProduct.name,
                   price: selectedProduct.price,
                   image_url: selectedProduct.image_url,
-                  calculator_settings: selectedProduct.calculator_settings,
                   selected_power: selectedProduct.selected_power,
                 } : null,
+                calculator_info: calculatorSettings || selectedProduct?.calculator_settings,
                 addon_info: selectedAddonsList.map(a => ({
                   addon_id: a.addon_id,
                   name: a.title,
@@ -529,7 +627,7 @@ export default function BoilerAddonsPage() {
   return (
     <Suspense fallback={
       <div className="container mx-auto px-4 py-12">
-        <p className="text-gray-600">Loading add-ons…</p>
+        <AddonsLoader />
       </div>
     }>
       <BoilerAddonsPageContent />

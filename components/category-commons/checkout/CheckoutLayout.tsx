@@ -8,6 +8,8 @@ import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
 import StripePaymentForm from './StripePaymentForm'
 import KandaFinanceForm from './KandaFinanceForm'
+import OrderSummarySidebar from './OrderSummarySidebar'
+import FinanceCalculator from '@/components/FinanceCalculator'
 
 // Initialize Stripe (this will be overridden by the actual keys from partner settings)
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder')
@@ -50,6 +52,18 @@ export interface SelectedProductLite {
   name: string
   price: number | null
   image_url: string | null
+  calculator_settings?: {
+    selected_plan?: {
+      apr: number
+      months: number
+    }
+    selected_deposit?: number
+  } | null
+  selected_power?: {
+    power: string
+    price: number
+    additional_cost: number
+  } | null
 }
 
 export interface SelectedAddonItem extends AddonLite { quantity: number }
@@ -69,6 +83,13 @@ export interface CheckoutLayoutProps {
   selectedAddons: SelectedAddonItem[]
   selectedBundles: SelectedBundleItem[]
   companyColor?: string | null
+  partnerSettings?: {
+    apr_settings: Record<number, number> | null
+  } | null
+  currentCalculatorSettings?: {
+    selected_plan?: { months: number; apr: number } | null
+    selected_deposit?: number
+  } | null
   prefillUserInfo?: {
     first_name: string
     last_name: string
@@ -86,7 +107,13 @@ export interface CheckoutLayoutProps {
     kanda_settings: any
   }
   submissionId?: string
+  onCalculatorPlanChange?: (plan: { months: number; apr: number }) => void
+  onCalculatorDepositChange?: (deposit: number) => void
+  onCalculatorMonthlyPaymentUpdate?: (monthlyPayment: number) => void
   onSubmitBooking: (details: CustomerDetails & { date: string }) => void
+  backHref?: string
+  backLabel?: string
+  showBack?: boolean
 }
 
 function getImageUrl(url: string | null): string | null {
@@ -104,16 +131,29 @@ export default function CheckoutLayout({
   selectedAddons,
   selectedBundles,
   companyColor = null,
+  partnerSettings = null,
+  currentCalculatorSettings = null,
   prefillUserInfo,
   paymentSettings,
   submissionId,
+  onCalculatorPlanChange,
+  onCalculatorDepositChange,
+  onCalculatorMonthlyPaymentUpdate,
   onSubmitBooking,
+  backHref = '/boiler/addons',
+  backLabel = 'Back to Add-ons',
+  showBack = true,
 }: CheckoutLayoutProps) {
   const classes = useDynamicStyles(companyColor)
   const [step, setStep] = useState<1 | 2>(1)
   const [cursor, setCursor] = useState<Date>(new Date())
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null)
+  const [showFinanceCalculator, setShowFinanceCalculator] = useState(false)
+  const [calculatorSettings, setCalculatorSettings] = useState<{
+    selected_plan?: { months: number; apr: number } | null
+    selected_deposit?: number
+  } | null>(null)
   const [details, setDetails] = useState<CustomerDetails>({
     firstName: '', lastName: '', email: '', phone: '', postcode: '', notes: ''
   })
@@ -132,7 +172,39 @@ export default function CheckoutLayout({
     }
   }, [prefillUserInfo])
 
-  const basePrice = useMemo(() => (typeof selectedProduct?.price === 'number' ? selectedProduct.price : 0), [selectedProduct?.price])
+  // Initialize calculator settings from selected product
+  useEffect(() => {
+    if (selectedProduct?.calculator_settings) {
+      setCalculatorSettings(selectedProduct.calculator_settings)
+    }
+  }, [selectedProduct?.calculator_settings])
+
+  // Calculator handlers
+  const handleCalculatorPlanChange = (plan: { months: number; apr: number }) => {
+    setCalculatorSettings(prev => ({
+      ...prev,
+      selected_plan: plan
+    }))
+  }
+
+  const handleCalculatorDepositChange = (deposit: number) => {
+    setCalculatorSettings(prev => ({
+      ...prev,
+      selected_deposit: deposit
+    }))
+  }
+
+  const handleCalculatorMonthlyPaymentUpdate = (monthlyPayment: number) => {
+    // This is handled by the calculator itself, but we can use it for logging if needed
+    console.log('Monthly payment updated:', monthlyPayment)
+  }
+
+  const basePrice = useMemo(() => {
+    if (selectedProduct?.selected_power?.price) {
+      return selectedProduct.selected_power.price
+    }
+    return (typeof selectedProduct?.price === 'number' ? selectedProduct.price : 0)
+  }, [selectedProduct?.price, selectedProduct?.selected_power?.price])
   const addonsTotal = useMemo(() => selectedAddons.reduce((s, a) => s + a.price * a.quantity, 0), [selectedAddons])
   const bundlesTotal = useMemo(() => selectedBundles.reduce((s, b) => s + b.quantity * b.unitPrice, 0), [selectedBundles])
   const orderTotal = useMemo(() => Math.max(0, basePrice + addonsTotal + bundlesTotal), [basePrice, addonsTotal, bundlesTotal])
@@ -201,6 +273,19 @@ export default function CheckoutLayout({
   return (
     <div className="container mx-auto px-4 py-8 grid lg:grid-cols-[1fr_380px] gap-8">
       <div>
+        {showBack && (
+          <button 
+            onClick={() => {
+              const url = new URL(backHref, window.location.origin)
+              if (submissionId) url.searchParams.set('submission', submissionId)
+              window.location.href = url.toString()
+            }} 
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            {backLabel}
+          </button>
+        )}
         <h1 className="text-2xl font-semibold text-gray-900 mb-4">{step === 1 ? 'Book your install' : 'Complete your order'}</h1>
         {/* Stepper */}
         <div className="flex items-center gap-3 mb-6">
@@ -276,10 +361,14 @@ export default function CheckoutLayout({
                 </div>
                 <div className="col-span-2 flex gap-3">
                   <button 
-                    onClick={() => window.history.back()} 
+                    onClick={() => {
+                      const url = new URL(backHref, window.location.origin)
+                      if (submissionId) url.searchParams.set('submission', submissionId)
+                      window.location.href = url.toString()
+                    }} 
                     className="flex-1 py-3 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
                   >
-                    Go Back
+                    {backLabel}
                   </button>
                   <button 
                     onClick={handleBookInstall} 
@@ -298,37 +387,6 @@ export default function CheckoutLayout({
         {step === 2 && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Complete your payment</h2>
-            
-            {/* Payment Summary */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-medium text-gray-900 mb-3">Order Summary</h3>
-              <div className="space-y-2 text-sm">
-                {selectedProduct && (
-                  <div className="flex justify-between">
-                    <span>{selectedProduct.name}</span>
-                    <span className="font-medium">£{selectedProduct.price?.toFixed(2) || '0.00'}</span>
-                  </div>
-                )}
-                {selectedAddons.map(addon => (
-                  <div key={addon.addon_id} className="flex justify-between text-gray-600">
-                    <span>{addon.title} × {addon.quantity}</span>
-                    <span>£{(addon.price * addon.quantity).toFixed(2)}</span>
-                    </div>
-                ))}
-                {selectedBundles.map(({ bundle, quantity, unitPrice }) => (
-                  <div key={bundle.bundle_id} className="flex justify-between text-gray-600">
-                    <span>{bundle.title} × {quantity}</span>
-                    <span>£{(unitPrice * quantity).toFixed(2)}</span>
-                    </div>
-                ))}
-                <div className="border-t pt-2 mt-2">
-                  <div className="flex justify-between font-medium text-lg">
-                    <span>Total</span>
-                    <span>£{orderTotal.toFixed(2)}</span>
-                    </div>
-                    </div>
-                  </div>
-                </div>
             
             {/* Payment Options */}
             <div className="space-y-4">
@@ -588,51 +646,43 @@ export default function CheckoutLayout({
         )}
       </div>
 
-      {/* Summary */}
-      <div className="bg-white rounded-xl border p-5 h-max">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500">Fixed price (inc. VAT)</div>
-          <div className="text-2xl font-semibold">£{orderTotal.toFixed(2)}</div>
-        </div>
-        <div className="mt-4">
-          {selectedProduct && (
-            <div className="flex items-center gap-3 py-3 border-b">
-              <div className="relative h-12 w-12 bg-gray-50 rounded-md overflow-hidden">
-                <Image src={getImageUrl(selectedProduct.image_url) || '/placeholder-image.jpg'} alt={selectedProduct.name} fill className="object-contain" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">{selectedProduct.name}</div>
-                <div className="text-xs text-gray-500">{typeof selectedProduct.price === 'number' ? `£${selectedProduct.price.toFixed(2)}` : 'Contact for price'}</div>
-              </div>
-            </div>
-          )}
-          {selectedBundles.map(({ bundle, quantity, unitPrice }) => (
-            <div key={bundle.bundle_id} className="py-3 border-b">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-gray-900 truncate">{bundle.title}</div>
-                <div className="text-sm text-gray-700">{quantity} × £{unitPrice.toFixed(2)}</div>
-              </div>
-              <div className="mt-2 space-y-1">
-                {(bundle.BundlesAddons || []).map(i => (
-                  <div key={i.bundle_addon_id} className="flex items-center gap-2 text-xs text-gray-600">
-                    <span>{i.Addons?.title || 'Addon'}</span>
-                    {i.quantity > 1 ? <span>×{i.quantity}</span> : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-          {selectedAddons.map(a => (
-            <div key={a.addon_id} className="py-3 border-b flex items-center justify-between">
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">{a.title}</div>
-                <div className="text-xs text-gray-500 truncate">{a.quantity} × £{a.price.toFixed(2)}</div>
-              </div>
-              <div className="text-sm">£{(a.quantity * a.price).toFixed(2)}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Order Summary Sidebar */}
+      <OrderSummarySidebar
+        selectedProduct={selectedProduct}
+        selectedAddons={selectedAddons}
+        selectedBundles={selectedBundles}
+        companyColor={companyColor}
+        partnerSettings={partnerSettings}
+        currentCalculatorSettings={currentCalculatorSettings}
+        onContinue={() => {
+          if (step === 1) {
+            handleBookInstall()
+          } else {
+            handlePay()
+          }
+        }}
+        onOpenFinanceCalculator={() => setShowFinanceCalculator(true)}
+        continueButtonText={step === 1 ? "Book install" : "Complete payment"}
+        showContinueButton={false}
+        showInstallationIncluded={true}
+      />
+
+      {/* Finance Calculator Modal */}
+      {selectedProduct && (
+        <FinanceCalculator
+          isOpen={showFinanceCalculator}
+          onClose={() => setShowFinanceCalculator(false)}
+          productPrice={orderTotal}
+          productName={`${selectedProduct.name} + Add-ons`}
+          aprSettings={partnerSettings?.apr_settings || null}
+          brandColor={companyColor || undefined}
+          selectedPlan={currentCalculatorSettings?.selected_plan || selectedProduct?.calculator_settings?.selected_plan || undefined}
+          selectedDeposit={currentCalculatorSettings?.selected_deposit ?? selectedProduct?.calculator_settings?.selected_deposit ?? 0}
+          onPlanChange={onCalculatorPlanChange}
+          onDepositChange={onCalculatorDepositChange}
+          onMonthlyPaymentUpdate={onCalculatorMonthlyPaymentUpdate}
+        />
+      )}
     </div>
   )
 }

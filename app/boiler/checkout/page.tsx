@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CheckoutLayout, { SelectedAddonItem, SelectedBundleItem, BundleLite } from '@/components/category-commons/checkout/CheckoutLayout'
 import { resolvePartnerByHost } from '@/lib/partner'
+import { CheckoutLoader } from '@/components/category-commons/Loader'
 
 interface Addon {
   addon_id: string
@@ -24,6 +25,18 @@ interface PartnerProduct {
   name: string
   price: number | null
   image_url: string | null
+  calculator_settings?: {
+    selected_plan?: {
+      apr: number
+      months: number
+    }
+    selected_deposit?: number
+  } | null
+  selected_power?: {
+    power: string
+    price: number
+    additional_cost: number
+  } | null
 }
 
 interface BundleAddonItem { bundle_addon_id: string; bundle_id: string; addon_id: string; quantity: number; Addons?: Addon }
@@ -49,6 +62,8 @@ function BoilerCheckoutPageContent() {
   const [product, setProduct] = useState<PartnerProduct | null>(null)
   const [addons, setAddons] = useState<Addon[]>([])
   const [bundles, setBundles] = useState<Bundle[]>([])
+  const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>({})
+  const [bundleQuantities, setBundleQuantities] = useState<Record<string, number>>({})
   const [userInfo, setUserInfo] = useState<UserInfo>({
     first_name: '',
     last_name: '',
@@ -68,8 +83,78 @@ function BoilerCheckoutPageContent() {
     kanda_settings: null as any
   })
   
+  const [partnerSettings, setPartnerSettings] = useState<{
+    apr_settings: Record<number, number> | null
+  } | null>(null)
+  
+  const [calculatorSettings, setCalculatorSettings] = useState<{
+    selected_plan?: { months: number; apr: number } | null
+    selected_deposit?: number
+  } | null>(null)
+  
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Debug calculator settings changes
+  useEffect(() => {
+    console.log('Checkout: calculatorSettings state changed:', calculatorSettings)
+  }, [calculatorSettings])
+
+  // Initialize calculator settings from selected product
+  useEffect(() => {
+    if (product?.calculator_settings) {
+      console.log('Checkout: Initializing calculator settings from product:', product.calculator_settings)
+      setCalculatorSettings(product.calculator_settings)
+    } else {
+      console.log('Checkout: No calculator settings found in product')
+      console.log('Checkout: product.calculator_settings:', product?.calculator_settings)
+    }
+  }, [product?.calculator_settings])
+
+  // Initialize calculator settings from loaded data
+  useEffect(() => {
+    if (submissionId && !calculatorSettings) {
+      // Try to load calculator settings directly from the database
+      const loadCalculatorSettings = async () => {
+        try {
+          const { data: lead } = await supabase
+            .from('partner_leads')
+            .select('calculator_info')
+            .eq('submission_id', submissionId)
+            .single()
+          
+          if (lead?.calculator_info) {
+            console.log('Checkout: Loading calculator settings directly from database:', lead.calculator_info)
+            setCalculatorSettings(lead.calculator_info)
+          }
+        } catch (e) {
+          console.error('Checkout: Failed to load calculator settings:', e)
+        }
+      }
+      
+      loadCalculatorSettings()
+    }
+  }, [submissionId, calculatorSettings, supabase])
+
+  // Calculator handlers
+  const handleCalculatorPlanChange = (plan: { months: number; apr: number }) => {
+    setCalculatorSettings(prev => ({
+      ...prev,
+      selected_plan: plan
+    }))
+  }
+
+  const handleCalculatorDepositChange = (deposit: number) => {
+    setCalculatorSettings(prev => ({
+      ...prev,
+      selected_deposit: deposit
+    }))
+  }
+
+  const handleCalculatorMonthlyPaymentUpdate = (monthlyPayment: number) => {
+    // This is handled by the calculator itself, but we can use it for logging if needed
+    console.log('Checkout: Monthly payment updated:', monthlyPayment)
+  }
 
   const loadPaymentSettings = async (partnerUserId: string, serviceCategoryId: string) => {
     try {
@@ -135,8 +220,7 @@ function BoilerCheckoutPageContent() {
         setPartnerId(partnerUserId) 
         setCompanyColor(partner.company_color || null)
 
-        // Load payment settings for boiler service category
-        // Look up the boiler service category ID
+        // Load partner settings for APR configurations
         const { data: boilerCategory } = await supabase
           .from('ServiceCategories')
           .select('service_category_id')
@@ -144,7 +228,32 @@ function BoilerCheckoutPageContent() {
           .single()
         
         if (boilerCategory) {
+          // Load payment settings
           await loadPaymentSettings(partnerUserId, boilerCategory.service_category_id)
+          
+          // Load partner settings for APR configurations
+          const { data: settingsData, error: settingsError } = await supabase
+            .from('PartnerSettings')
+            .select('apr_settings')
+            .eq('partner_id', partnerUserId)
+            .eq('service_category_id', boilerCategory.service_category_id)
+            .single()
+
+          if (!settingsError && settingsData) {
+            // Convert APR settings keys from string to number
+            const convertedSettings = {
+              apr_settings: settingsData.apr_settings ? 
+                Object.fromEntries(
+                  Object.entries(settingsData.apr_settings).map(([key, value]) => [
+                    parseInt(key),
+                    typeof value === 'number' ? value : parseFloat(String(value))
+                  ])
+                ) : null
+            }
+            setPartnerSettings(convertedSettings)
+          } else {
+            setPartnerSettings(null)
+          }
         }
 
         // Load cart from partner_leads.cart_state by submission id
@@ -152,11 +261,14 @@ function BoilerCheckoutPageContent() {
         let pInfo: any = null
         let aInfo: any[] = []
         let bInfo: any[] = []
+        let calculatorInfo: any = null
+        let addonQuantities: Record<string, number> = {}
+        let bundleQuantities: Record<string, number> = {}
         
         if (submissionId) {
           const { data: lead } = await supabase
             .from('partner_leads')
-            .select('cart_state, product_info, addon_info, bundle_info, first_name, last_name, email, phone, postcode')
+            .select('cart_state, product_info, addon_info, bundle_info, calculator_info, first_name, last_name, email, phone, postcode')
             .eq('submission_id', submissionId)
             .single()
           
@@ -165,6 +277,29 @@ function BoilerCheckoutPageContent() {
             pInfo = (lead as any)?.product_info || null
             aInfo = (lead as any)?.addon_info || []
             bInfo = (lead as any)?.bundle_info || []
+            calculatorInfo = (lead as any)?.calculator_info || null
+            
+            console.log('Checkout: Raw lead data:', lead)
+            console.log('Checkout: Calculator info from database:', calculatorInfo)
+            
+            // Extract quantities from stored data
+            const extractedAddonQuantities: Record<string, number> = {}
+            const extractedBundleQuantities: Record<string, number> = {}
+            
+            aInfo.forEach((a: any) => {
+              if (a.addon_id && a.quantity) {
+                extractedAddonQuantities[a.addon_id] = Number(a.quantity)
+              }
+            })
+            
+            bInfo.forEach((b: any) => {
+              if (b.bundle_id && b.quantity) {
+                extractedBundleQuantities[b.bundle_id] = Number(b.quantity)
+              }
+            })
+            
+            setAddonQuantities(extractedAddonQuantities)
+            setBundleQuantities(extractedBundleQuantities)
             
             // Pre-fill user info from the database
             if (lead.first_name || lead.last_name || lead.email || lead.phone || lead.postcode) {
@@ -185,7 +320,18 @@ function BoilerCheckoutPageContent() {
                 name: pInfo.name,
                 price: pInfo.price ?? null,
                 image_url: pInfo.image_url ?? null,
+                calculator_settings: calculatorInfo ?? null,
+                selected_power: pInfo.selected_power ?? null,
               } as PartnerProduct)
+              console.log('Checkout: Product with settings (from database):', {
+                partner_product_id: pInfo.product_id,
+                partner_id: partnerUserId,
+                name: pInfo.name,
+                price: pInfo.price ?? null,
+                image_url: pInfo.image_url ?? null,
+                calculator_settings: calculatorInfo ?? null,
+                selected_power: pInfo.selected_power ?? null,
+              })
             }
           }
         }
@@ -193,64 +339,61 @@ function BoilerCheckoutPageContent() {
         if (!product && cart.product_id) {
           const { data: prod } = await supabase
             .from('PartnerProducts')
-            .select('partner_product_id, partner_id, name, price, image_url')
+            .select('partner_product_id, partner_id, name, price, image_url, service_category_id, product_fields')
             .eq('partner_product_id', cart.product_id)
             .eq('partner_id', partnerUserId)
             .single()
-          if (prod) setProduct(prod as PartnerProduct)
-        }
-
-        // Use addon_info and bundle_info from database if available, otherwise fetch from database
-        if (aInfo && aInfo.length > 0) {
-          // Use the stored addon info
-          setAddons(aInfo.map((a: any) => ({
-            addon_id: a.addon_id,
-            title: a.name,
-            description: '', // Not stored in addon_info
-            price: a.price,
-            image_link: null, // Not stored in addon_info
-            allow_multiple: true, // Default assumption
-            max_count: null,
-            addon_type_id: '', // Not stored in addon_info
-            service_category_id: '',
-            partner_id: partnerUserId,
-            created_at: '',
-            updated_at: '',
-          })) as Addon[])
-        } else {
-          // Fallback to fetching from database
-          const addonIds = Array.isArray(cart.addons) ? cart.addons.map((a: any) => a.addon_id) : []
-          if (addonIds.length) {
-            const { data: rows } = await supabase.from('Addons').select('*').in('addon_id', addonIds).eq('partner_id', partnerUserId)
-            setAddons((rows || []) as Addon[])
+          if (prod) {
+            const { service_category_id: _omit, ...rest } = prod as any
+            // Merge with product_info from database to include calculator settings
+            const productWithSettings = {
+              ...rest,
+              product_fields: prod.product_fields || null,
+              calculator_settings: calculatorInfo || null,
+              selected_power: pInfo?.selected_power || null
+            }
+            console.log('Checkout: Product with settings (from URL):', productWithSettings)
+            console.log('Checkout: Calculator info being set (from URL):', calculatorInfo)
+            setProduct(productWithSettings as PartnerProduct)
           }
         }
 
-        if (bInfo && bInfo.length > 0) {
-          // Use the stored bundle info
-          setBundles(bInfo.map((b: any) => ({
-            bundle_id: b.bundle_id,
-            partner_id: partnerUserId,
-            title: b.name,
-            description: null,
-            discount_type: 'fixed' as const,
-            discount_value: 0,
-            service_category_id: null,
-            created_at: '',
-            updated_at: '',
-            BundlesAddons: [],
-          })) as unknown as Bundle[])
-        } else {
-          // Fallback to fetching from database
-          const bundleIds = Array.isArray(cart.bundles) ? cart.bundles.map((b: any) => b.bundle_id) : []
-          if (bundleIds.length) {
-            const { data: bRows } = await supabase
-              .from('Bundles')
-              .select('*, BundlesAddons(*, Addons(*))')
-              .in('bundle_id', bundleIds)
-              .eq('partner_id', partnerUserId)
-            setBundles((bRows || []) as unknown as Bundle[])
+        // Always fetch complete addon data from database for full information
+        const addonIds = aInfo && aInfo.length > 0 
+          ? aInfo.map((a: any) => a.addon_id)
+          : (Array.isArray(cart.addons) ? cart.addons.map((a: any) => a.addon_id) : [])
+        
+        if (addonIds.length > 0) {
+          const { data: rows } = await supabase
+            .from('Addons')
+            .select('*')
+            .in('addon_id', addonIds)
+            .eq('partner_id', partnerUserId)
+          
+          if (rows && rows.length > 0) {
+            setAddons(rows as Addon[])
           }
+        } else {
+          setAddons([])
+        }
+
+        // Always fetch complete bundle data from database for full information
+        const bundleIds = bInfo && bInfo.length > 0 
+          ? bInfo.map((b: any) => b.bundle_id)
+          : (Array.isArray(cart.bundles) ? cart.bundles.map((b: any) => b.bundle_id) : [])
+        
+        if (bundleIds.length > 0) {
+          const { data: bRows } = await supabase
+            .from('Bundles')
+            .select('*, BundlesAddons(*, Addons(*))')
+            .in('bundle_id', bundleIds)
+            .eq('partner_id', partnerUserId)
+          
+          if (bRows && bRows.length > 0) {
+            setBundles(bRows as unknown as Bundle[])
+          }
+        } else {
+          setBundles([])
         }
       } catch (e) {
         console.error(e)
@@ -263,15 +406,11 @@ function BoilerCheckoutPageContent() {
   }, [submissionId])
 
   const selectedAddons: SelectedAddonItem[] = useMemo(() => {
-    // Infer quantities from partner_leads.cart_state by intersecting with fetched addons
-    // If cart quantities are missing, fallback to 1
-    const map = new Map<string, number>()
-    addons.forEach(a => { if (!map.has(a.addon_id)) map.set(a.addon_id, 1) })
-    return Array.from(map.entries()).map(([id, qty]) => {
-      const a = addons.find(x => x.addon_id === id)!
-      return { ...a, quantity: qty }
-    })
-  }, [addons])
+    return addons.map(addon => ({
+      ...addon,
+      quantity: addonQuantities[addon.addon_id] || 1
+    }))
+  }, [addons, addonQuantities])
 
   const selectedBundles: SelectedBundleItem[] = useMemo(() => {
     return (bundles || []).map(b => {
@@ -280,31 +419,49 @@ function BoilerCheckoutPageContent() {
       const dv = Number(b.discount_value || 0)
       const discount = b.discount_type === 'percent' ? Math.min(subtotal * (dv / 100), subtotal) : Math.min(dv, subtotal)
       const unitPrice = Math.max(0, subtotal - discount)
-      return { bundle: b as unknown as BundleLite, quantity: 1, unitPrice }
+      return { 
+        bundle: b as unknown as BundleLite, 
+        quantity: bundleQuantities[b.bundle_id] || 1, 
+        unitPrice 
+      }
     })
-  }, [bundles])
+  }, [bundles, bundleQuantities])
 
   if (loading) {
-    return <div className="container mx-auto px-4 py-12"><p className="text-gray-600">Preparing checkout…</p></div>
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <CheckoutLoader />
+      </div>
+    )
   }
   if (error) {
     return <div className="container mx-auto px-4 py-12"><div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div></div>
   }
 
+  console.log('Checkout: Rendering CheckoutLayout with calculatorSettings:', calculatorSettings)
+  
   return (
     <CheckoutLayout
       selectedProduct={product}
       selectedAddons={selectedAddons}
       selectedBundles={selectedBundles}
       companyColor={companyColor}
+      partnerSettings={partnerSettings}
+      currentCalculatorSettings={calculatorSettings}
       prefillUserInfo={userInfo}
       paymentSettings={paymentSettings}
       submissionId={submissionId || undefined}
+      onCalculatorPlanChange={handleCalculatorPlanChange}
+      onCalculatorDepositChange={handleCalculatorDepositChange}
+      onCalculatorMonthlyPaymentUpdate={handleCalculatorMonthlyPaymentUpdate}
       onSubmitBooking={async (payload) => {
         console.log('Booking submitted', payload)
         // TODO: integrate payments and booking save
         alert('Booking submitted! (stub)')
       }}
+      backHref={`/boiler/addons${submissionId ? `?submission=${submissionId}` : ''}`}
+      backLabel="Back to Add-ons"
+      showBack={true}
     />
   )
 }
@@ -313,7 +470,7 @@ export default function BoilerCheckoutPage() {
   return (
     <Suspense fallback={
       <div className="container mx-auto px-4 py-12">
-        <p className="text-gray-600">Preparing checkout…</p>
+        <CheckoutLoader />
       </div>
     }>
       <BoilerCheckoutPageContent />
