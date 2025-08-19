@@ -114,6 +114,7 @@ export interface CheckoutLayoutProps {
   backHref?: string
   backLabel?: string
   showBack?: boolean
+  showMobileCard?: boolean
 }
 
 function getImageUrl(url: string | null): string | null {
@@ -143,6 +144,7 @@ export default function CheckoutLayout({
   backHref = '/boiler/addons',
   backLabel = 'Back to Add-ons',
   showBack = true,
+  showMobileCard = false,
 }: CheckoutLayoutProps) {
   const classes = useDynamicStyles(companyColor)
   const [step, setStep] = useState<1 | 2>(1)
@@ -665,6 +667,7 @@ export default function CheckoutLayout({
         continueButtonText={step === 1 ? "Book install" : "Complete payment"}
         showContinueButton={false}
         showInstallationIncluded={true}
+        showMobileCard={showMobileCard}
       />
 
       {/* Finance Calculator Modal */}

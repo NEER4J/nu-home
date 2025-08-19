@@ -383,11 +383,11 @@ function BoilerCheckoutPageContent() {
           : (Array.isArray(cart.bundles) ? cart.bundles.map((b: any) => b.bundle_id) : [])
         
         if (bundleIds.length > 0) {
-          const { data: bRows } = await supabase
-            .from('Bundles')
-            .select('*, BundlesAddons(*, Addons(*))')
-            .in('bundle_id', bundleIds)
-            .eq('partner_id', partnerUserId)
+            const { data: bRows } = await supabase
+              .from('Bundles')
+              .select('*, BundlesAddons(*, Addons(*))')
+              .in('bundle_id', bundleIds)
+              .eq('partner_id', partnerUserId)
           
           if (bRows && bRows.length > 0) {
             setBundles(bRows as unknown as Bundle[])
@@ -439,7 +439,7 @@ function BoilerCheckoutPageContent() {
   }
 
   console.log('Checkout: Rendering CheckoutLayout with calculatorSettings:', calculatorSettings)
-  
+
   return (
     <CheckoutLayout
       selectedProduct={product}
@@ -462,6 +462,7 @@ function BoilerCheckoutPageContent() {
       backHref={`/boiler/addons${submissionId ? `?submission=${submissionId}` : ''}`}
       backLabel="Back to Add-ons"
       showBack={true}
+      showMobileCard={true}
     />
   )
 }
