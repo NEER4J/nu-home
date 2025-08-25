@@ -20,13 +20,13 @@ export default function DomainRestrictedPage() {
           </p>
           
           <div className="space-y-3">
-            <Link href="/boiler" className="block">
+            <Link href="/boiler/quote" className="block">
               <Button className="w-full bg-slate-700 hover:bg-slate-800 text-white">
                 Boiler Services
               </Button>
             </Link>
             
-            <Link href="/solar" className="block">
+            <Link href="/solar/quote" className="block">
               <Button className="w-full bg-slate-700 hover:bg-slate-800 text-white">
                 Solar Services
               </Button>

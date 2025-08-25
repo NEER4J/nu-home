@@ -65,14 +65,15 @@ export async function POST(request: NextRequest) {
       email, 
       phone,
       postcode, 
-      order_details,
-      installation_date,
+      enquiry_details,
       submission_id,
+      category,
+      uploaded_image_urls,
       subdomain: bodySubdomain 
     } = body || {}
 
     const hostname = parseHostname(request, bodySubdomain)
-    console.log('checkout-pay-later - Parsed hostname:', hostname);
+    console.log('enquiry-submitted - Parsed hostname:', hostname);
     
     if (!hostname) {
       return NextResponse.json({ error: 'Missing hostname' }, { status: 400 })
@@ -111,49 +112,63 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
 
-    const subject = `Installation Booked - Pay After Completion${companyName ? ' with ' + companyName : ''}`
-    
-    const formatOrderDetails = (orderData: any) => {
-      if (!orderData) return 'Order details not available'
+    const categoryName = category || 'boiler'
+    const subject = `Enquiry Complete - Your ${categoryName.charAt(0).toUpperCase() + categoryName.slice(1)} Installation${companyName ? ' with ' + companyName : ''}`
+
+    const formatEnquiryDetails = (details: any) => {
+      if (!details || typeof details !== 'object') return 'No additional details provided'
       
-      let details = []
-      if (orderData.product) {
-        details.push(`Product: ${orderData.product.name} - £${(orderData.product.price || 0).toFixed(2)}`)
-      }
-      if (orderData.addons && orderData.addons.length > 0) {
-        details.push('Add-ons:')
-        orderData.addons.forEach((addon: any) => {
-          details.push(`  • ${addon.title} (x${addon.quantity}) - £${(addon.price * addon.quantity).toFixed(2)}`)
-        })
-      }
-      if (orderData.bundles && orderData.bundles.length > 0) {
-        details.push('Bundles:')
-        orderData.bundles.forEach((bundle: any) => {
-          details.push(`  • ${bundle.title} (x${bundle.quantity}) - £${(bundle.unitPrice * bundle.quantity).toFixed(2)}`)
-        })
-      }
-      if (orderData.total) {
-        details.push(`\nTotal: £${orderData.total.toFixed(2)}`)
-      }
-      return details.join('\n')
+      const formatted = []
+      Object.entries(details).forEach(([key, value]) => {
+        if (value) {
+          const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
+          formatted.push(`${formattedKey}: ${value}`)
+        }
+      })
+      return formatted.join('\n')
     }
 
-    const orderInfo = formatOrderDetails(order_details)
-    const installationInfo = installation_date ? `Scheduled installation date: ${new Date(installation_date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : ''
+    const formatUploadedImages = (imageUrls: Record<number, string[]>) => {
+      if (!imageUrls || Object.keys(imageUrls).length === 0) {
+        return 'No images uploaded'
+      }
+
+      const imageAreaTitles = [
+        'Gas meter area',
+        'Front of property',
+        'Hot water tank', 
+        'Existing controls/thermostat',
+        'Existing pump/valves',
+        'Rear of property'
+      ]
+
+      const formatted = []
+      Object.entries(imageUrls).forEach(([areaIndex, urls]) => {
+        const areaTitle = imageAreaTitles[parseInt(areaIndex)] || `Area ${areaIndex}`
+        formatted.push(`${areaTitle}:`)
+        urls.forEach((url, index) => {
+          formatted.push(`  • Image ${index + 1}: ${url}`)
+        })
+      })
+      return formatted.join('\n')
+    }
+
+    const enquiryInfo = formatEnquiryDetails(enquiry_details)
+    const imagesInfo = formatUploadedImages(uploaded_image_urls || {})
 
     const html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
         <div style="background: #f8fafc; padding: 32px 24px; text-align: center;">
-          <div style="background: #f59e0b; width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
-            <span style="color: white; font-size: 24px; font-weight: bold;">🔧</span>
+          <div style="background: #10b981; width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+            <span style="color: white; font-size: 24px; font-weight: bold;">📋</span>
           </div>
-          <h1 style="color: #1f2937; font-size: 28px; font-weight: 600; margin: 0;">Installation Booked!</h1>
-          <p style="color: #6b7280; font-size: 16px; margin: 8px 0 0 0;">Pay after your installation is complete${companyName ? ' with ' + companyName : ''}</p>
+          <h1 style="color: #1f2937; font-size: 28px; font-weight: 600; margin: 0;">Enquiry Complete!</h1>
+          <p style="color: #6b7280; font-size: 16px; margin: 8px 0 0 0;">Your ${categoryName} installation enquiry has been submitted${companyName ? ' to ' + companyName : ''}</p>
         </div>
         
         <div style="padding: 32px 24px;">
           <div style="margin-bottom: 32px;">
-            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Customer Details</h2>
+            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Your Details</h2>
             <div style="background: #f9fafb; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
               <p style="margin: 0 0 8px 0;"><strong>Name:</strong> ${first_name} ${last_name}</p>
               <p style="margin: 0 0 8px 0;"><strong>Email:</strong> ${email}</p>
@@ -162,44 +177,23 @@ export async function POST(request: NextRequest) {
             </div>
           </div>
 
-          ${installationInfo ? `
           <div style="margin-bottom: 32px;">
-            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Installation Details</h2>
-            <div style="background: #f0f9ff; padding: 16px; border-radius: 8px; border-left: 4px solid #0ea5e9;">
-              <p style="margin: 0; color: #1f2937;">${installationInfo}</p>
-            </div>
-          </div>
-          ` : ''}
-
-          <div style="margin-bottom: 32px;">
-            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Order Summary</h2>
+            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Enquiry Details</h2>
             <div style="background: #f9fafb; padding: 16px; border-radius: 8px;">
-              <pre style="font-family: inherit; margin: 0; white-space: pre-wrap; color: #374151;">${orderInfo}</pre>
+              <pre style="font-family: inherit; margin: 0; white-space: pre-wrap; color: #374151;">${enquiryInfo}</pre>
             </div>
           </div>
 
           <div style="margin-bottom: 32px;">
-            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Payment Information</h2>
-            <div style="background: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
-              <div style="margin-bottom: 12px;">
-                <p style="margin: 0; color: #92400e; font-weight: 600;">💳 Payment Method: Pay After Installation</p>
-                <p style="margin: 8px 0 0 0; color: #92400e; font-size: 14px;">You'll pay once your installation is complete and you're satisfied with the work.</p>
-              </div>
-              <div style="background: #fbbf24; background-opacity: 20%; padding: 12px; border-radius: 6px;">
-                <p style="margin: 0; color: #78350f; font-size: 14px; font-weight: 500;">🏠 How it works:</p>
-                <ul style="margin: 8px 0 0 0; color: #78350f; font-size: 14px; padding-left: 20px;">
-                  <li>Installation completed to your satisfaction</li>
-                  <li>Final inspection and sign-off</li>
-                  <li>Payment due upon completion</li>
-                  <li>Multiple payment options available</li>
-                </ul>
-              </div>
+            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Uploaded Images</h2>
+            <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
+              <pre style="font-family: inherit; margin: 0; white-space: pre-wrap; color: #374151;">${imagesInfo}</pre>
             </div>
           </div>
 
           ${submission_id ? `
           <div style="margin-bottom: 32px;">
-            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Booking Reference</h2>
+            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Reference Number</h2>
             <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center;">
               <p style="margin: 0; font-size: 18px; font-weight: 600; color: #1f2937;">${submission_id}</p>
               <p style="margin: 8px 0 0 0; color: #6b7280; font-size: 14px;">Keep this reference number for your records</p>
@@ -207,24 +201,16 @@ export async function POST(request: NextRequest) {
           </div>
           ` : ''}
 
-          <div style="background: #dcfce7; padding: 16px; border-radius: 8px; border-left: 4px solid #22c55e;">
-            <h3 style="color: #15803d; margin: 0 0 8px 0; font-size: 16px; font-weight: 600;">What happens next?</h3>
-            <ul style="color: #15803d; margin: 0; padding-left: 20px;">
-              <li>We'll send you a confirmation SMS</li>
-              <li>Our team will contact you 24-48 hours before installation</li>
-              <li>Our certified engineers will arrive on your scheduled date</li>
-              <li>Installation will be completed with full inspection</li>
-              <li>Payment will be collected upon satisfactory completion</li>
-              <li>Full warranty and aftercare support provided</li>
+          <div style="background: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+            <h3 style="color: #92400e; margin: 0 0 8px 0; font-size: 16px; font-weight: 600;">What happens next?</h3>
+            <ul style="color: #92400e; margin: 0; padding-left: 20px;">
+              <li>We'll review your enquiry and uploaded images</li>
+              <li>Our technical team will assess your requirements</li>
+              <li>We'll contact you within 24-48 hours to discuss details</li>
+              <li>We'll arrange a site survey at your convenience</li>
+              <li>You'll receive a detailed quote and installation plan</li>
+              <li>We'll schedule your ${categoryName} installation</li>
             </ul>
-          </div>
-
-          <div style="margin-top: 24px; background: #f1f5f9; padding: 16px; border-radius: 8px;">
-            <h4 style="color: #334155; margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">💡 Why pay after installation?</h4>
-            <p style="color: #475569; margin: 0; font-size: 14px;">
-              We believe you should only pay when you're completely satisfied with our work. 
-              This ensures we deliver the highest quality installation and service every time.
-            </p>
           </div>
         </div>
         
@@ -236,30 +222,24 @@ export async function POST(request: NextRequest) {
       </div>
     `
 
-    const text = `Installation Booked - Pay After Completion${companyName ? ' with ' + companyName : ''}\n\n` +
+    const text = `Enquiry Complete - Your ${categoryName.charAt(0).toUpperCase() + categoryName.slice(1)} Installation${companyName ? ' with ' + companyName : ''}\n\n` +
       `Hi ${first_name},\n\n` +
-      `Great news! Your boiler installation has been booked with our pay-after-completion option.\n\n` +
-      `Customer Details:\n` +
+      `Thank you for completing your ${categoryName} installation enquiry! We've received your details and uploaded images.\n\n` +
+      `Your Details:\n` +
       `Name: ${first_name} ${last_name}\n` +
       `Email: ${email}\n` +
       (phone ? `Phone: ${phone}\n` : '') +
       (postcode ? `Postcode: ${postcode}\n` : '') +
-      `\n${installationInfo ? installationInfo + '\n\n' : ''}` +
-      `Order Summary:\n${orderInfo}\n\n` +
-      `Payment Information:\n` +
-      `Payment Method: Pay After Installation\n` +
-      `You'll pay once your installation is complete and you're satisfied with the work.\n\n` +
-      (submission_id ? `Booking Reference: ${submission_id}\n\n` : '') +
+      `\nEnquiry Details:\n${enquiryInfo}\n\n` +
+      `Uploaded Images:\n${imagesInfo}\n\n` +
+      (submission_id ? `Reference Number: ${submission_id}\n\n` : '') +
       `What happens next?\n` +
-      `• We'll send you a confirmation SMS\n` +
-      `• Our team will contact you 24-48 hours before installation\n` +
-      `• Our certified engineers will arrive on your scheduled date\n` +
-      `• Installation will be completed with full inspection\n` +
-      `• Payment will be collected upon satisfactory completion\n` +
-      `• Full warranty and aftercare support provided\n\n` +
-      `Why pay after installation?\n` +
-      `We believe you should only pay when you're completely satisfied with our work. ` +
-      `This ensures we deliver the highest quality installation and service every time.\n\n` +
+      `• We'll review your enquiry and uploaded images\n` +
+      `• Our technical team will assess your requirements\n` +
+      `• We'll contact you within 24-48 hours to discuss details\n` +
+      `• We'll arrange a site survey at your convenience\n` +
+      `• You'll receive a detailed quote and installation plan\n` +
+      `• We'll schedule your ${categoryName} installation\n\n` +
       `Thank you for choosing ${companyName || 'our service'}!`
 
     try {
@@ -276,7 +256,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('Pay-later checkout email error:', error)
-    return NextResponse.json({ error: 'Failed to send pay-later checkout email', details: error?.message || String(error) }, { status: 500 })
+    console.error('Enquiry submission email error:', error)
+    return NextResponse.json({ error: 'Failed to send enquiry submission email', details: error?.message || String(error) }, { status: 500 })
   }
 }

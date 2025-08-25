@@ -7,6 +7,7 @@ import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import { useRouter } from 'next/navigation'
 import OrderSummarySidebar from '@/components/category-commons/checkout/OrderSummarySidebar'
 import FinanceCalculator from '@/components/FinanceCalculator'
+import CheckoutFAQ from '@/components/category-commons/checkout/CheckoutFAQ'
 
 export interface CustomerDetails {
   firstName: string
@@ -175,8 +176,29 @@ export default function SurveyLayout({
         })
       }
 
+      // Send survey submission email
+      try {
+        await fetch('/api/email/boiler/survey-submitted', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            first_name: details.firstName,
+            last_name: details.lastName,
+            email: details.email,
+            phone: details.phone,
+            postcode: details.postcode,
+            notes: details.notes,
+            submission_id: submissionId
+          }),
+        })
+      } catch (emailError) {
+        console.error('Failed to send survey email:', emailError)
+      }
+
       // Redirect to enquiry page
-      const enquiryUrl = new URL('/enquiry', window.location.origin)
+      const enquiryUrl = new URL('/boiler/enquiry', window.location.origin)
       if (submissionId) {
         enquiryUrl.searchParams.set('submission', submissionId)
       }
@@ -184,11 +206,13 @@ export default function SurveyLayout({
     } catch (error) {
       console.error('Failed to submit survey:', error)
       // Still redirect even if saving fails
-      const enquiryUrl = new URL('/enquiry', window.location.origin)
+      const enquiryUrl = new URL('/boiler/enquiry', window.location.origin)
       if (submissionId) {
         enquiryUrl.searchParams.set('submission', submissionId)
       }
       router.push(enquiryUrl.toString())
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -210,7 +234,14 @@ export default function SurveyLayout({
         )}
         <h1 className="text-2xl font-semibold text-gray-900 mb-4">Tell us about your project</h1>
         
-        <div className="bg-white rounded-xl border p-6">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* FAQ Section */}
+          <div className="hidden lg:block">
+            <CheckoutFAQ />
+          </div>
+          
+          {/* Survey Form */}
+          <div className="bg-white rounded-xl border p-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-700 mb-1">First name *</label>
@@ -299,6 +330,12 @@ export default function SurveyLayout({
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-3">By submitting your details, you agree to our privacy policy.</p>
+        </div>
+        
+        {/* Mobile FAQ Section */}
+        <div className="lg:hidden mt-8">
+          <CheckoutFAQ />
+        </div>
         </div>
       </div>
 

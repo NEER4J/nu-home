@@ -1,4 +1,4 @@
--- Add 'survey_completed' to the progress_step check constraint
+-- Add 'survey' to the progress_step check constraint
 ALTER TABLE public."partner_leads" 
 DROP CONSTRAINT partner_leads_progress_step_chk;
 
@@ -13,7 +13,7 @@ CHECK (
       'booked'::text,
       'paid'::text,
       'payment_completed'::text,
-      'survey_completed'::text
+      'survey'::text
     ]
   )
 );

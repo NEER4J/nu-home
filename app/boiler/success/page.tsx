@@ -36,7 +36,8 @@ interface OrderDetails {
 
 function SuccessContent() {
   const searchParams = useSearchParams()
-  const submissionId = searchParams?.get('submission_id')
+  const submissionId = searchParams?.get('submission_id') || searchParams?.get('submission')
+  const isEnquiry = searchParams?.get('type') === 'enquiry' || searchParams?.has('submission')
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,12 +45,18 @@ function SuccessContent() {
 
   useEffect(() => {
     if (submissionId) {
-      loadOrderDetails()
+      if (isEnquiry) {
+        // For enquiry submissions, we don't need to load order details
+        // Just show success message
+        setLoading(false)
+      } else {
+        loadOrderDetails()
+      }
     } else {
       setError('No submission ID provided')
       setLoading(false)
     }
-  }, [submissionId])
+  }, [submissionId, isEnquiry])
 
   const loadOrderDetails = async () => {
     try {

@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest) {
            phone: surveyDetails.phone,
            postcode: surveyDetails.postcode,
            notes: surveyDetails.notes,
-           progress_step: progressStep || 'survey_completed',
+           progress_step: progressStep || 'survey',
            updated_at: new Date().toISOString()
          })
          .eq('submission_id', submissionId)

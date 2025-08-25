@@ -183,7 +183,6 @@ export async function POST(request: NextRequest) {
             <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Installation Details</h2>
             <div style="background: #f0f9ff; padding: 16px; border-radius: 8px; border-left: 4px solid #0ea5e9;">
               <p style="margin: 0; color: #1f2937;">${installationInfo}</p>
-              <p style="margin: 8px 0 0 0; color: #6b7280; font-size: 14px;">Our installers will arrive between 8-10am and the installation typically takes 1-2 days to complete.</p>
             </div>
           </div>
           ` : ''}

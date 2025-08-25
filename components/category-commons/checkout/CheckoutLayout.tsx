@@ -10,6 +10,7 @@ import StripePaymentForm from './StripePaymentForm'
 import KandaFinanceForm from './KandaFinanceForm'
 import OrderSummarySidebar from './OrderSummarySidebar'
 import FinanceCalculator from '@/components/FinanceCalculator'
+import CheckoutFAQ from './CheckoutFAQ'
 
 // Initialize Stripe (this will be overridden by the actual keys from partner settings)
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder')
@@ -442,11 +443,18 @@ export default function CheckoutLayout({
         )}
 
         {step === 2 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Complete your payment</h2>
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* FAQ Section */}
+            <div className="hidden lg:block">
+              <CheckoutFAQ />
+            </div>
             
-            {/* Payment Options */}
+            {/* Payment Section */}
             <div className="space-y-4">
+              <h2 className="text-xl font-semibold">Complete your payment</h2>
+              
+              {/* Payment Options */}
+              <div className="space-y-4">
               {/* Stripe Payment */}
               {paymentSettings?.is_stripe_enabled && paymentSettings?.stripe_settings && (
                 <div className={`bg-white rounded-xl border p-4 ${selectedPaymentMethod === 'stripe' ? 'ring-2 ring-blue-500' : ''}`}>
@@ -721,6 +729,12 @@ export default function CheckoutLayout({
                 Change payment method
               </button>
             )}
+
+            {/* Mobile FAQ Section */}
+            <div className="lg:hidden mt-8">
+              <CheckoutFAQ />
+            </div>
+            </div>
           </div>
         )}
       </div>

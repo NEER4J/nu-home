@@ -838,7 +838,7 @@ function BoilerProductsContent() {
             selected_plan: selectedPlan,
             selected_deposit: selectedDeposit,
           },
-          progress_step: 'survey_completed',
+          progress_step: 'survey',
           last_seen_at: new Date().toISOString(),
         })
         .eq('submission_id', submissionId)
@@ -853,7 +853,7 @@ function BoilerProductsContent() {
         throw new Error('Database update failed')
       }
       
-      console.log('Successfully saved product to database for survey (progress_step: survey_completed):', {
+      console.log('Successfully saved product to database for survey (progress_step: survey):', {
         submissionId,
         product_id: product.partner_product_id,
         product_info: {
@@ -1378,6 +1378,7 @@ function BoilerProductsContent() {
                           Loading...
                         </>
                       ) : (
+                        
                         'Book and pick install date'
                       )}
                     </Button>
