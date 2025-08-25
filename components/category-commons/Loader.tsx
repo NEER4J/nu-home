@@ -12,7 +12,7 @@ const defaultMessages = {
   products: 'Loading products...',
   addons: 'Loading add-ons...',
   checkout: 'Preparing checkout...',
-  quote: 'Generating your quote...',
+  quote: 'Loading...',
   profile: 'Loading profile...',
   settings: 'Loading settings...',
   default: 'Loading...'

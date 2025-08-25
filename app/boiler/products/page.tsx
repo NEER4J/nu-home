@@ -10,6 +10,10 @@ import FinanceCalculator from '@/components/FinanceCalculator'
 import ImageGallery from '@/components/ImageGallery'
 import { resolvePartnerByHost } from '@/lib/partner'
 import { ProductsLoader } from '@/components/category-commons/Loader'
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface PartnerInfo {
   company_name: string
@@ -557,6 +561,12 @@ function BoilerProductsContent() {
     setFilterBathroom(prefillBathroom)
   }
 
+  const handleRestart = () => {
+    // Redirect to the boiler quote page to restart the journey
+    const url = new URL('/boiler/quote', window.location.origin)
+    window.location.href = url.toString()
+  }
+
 
 
   const openFinanceCalculator = (product: PartnerProduct) => {
@@ -897,24 +907,26 @@ function BoilerProductsContent() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md">
-          <div className="text-center">
-            <div className="text-red-600 mb-4">
-              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
+        <Card className="max-w-md">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <div className="text-red-600 mb-4">
+                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <CardTitle className="text-lg font-medium text-gray-900 mb-2">Unable to load products</CardTitle>
+              <p className="text-gray-600 mb-4">{error}</p>
+              <Button
+                onClick={() => window.location.reload()}
+                style={{ backgroundColor: brandColor }}
+                className="hover:opacity-90"
+              >
+                Try Again
+              </Button>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Unable to load products</h3>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 text-white rounded-md hover:opacity-90"
-              style={{ backgroundColor: brandColor }}
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -939,20 +951,21 @@ function BoilerProductsContent() {
         defaultEmail={submissionInfo?.email || null}
         submissionId={submissionId}
         productsForEmail={productsForEmail}
+        onRestart={handleRestart}
       />
 
       {/* Products Grid */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {displayProducts.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-10 text-center text-gray-600">
+          <Card className="p-10 text-center text-gray-600">
             No products match your filters.
-          </div>
+          </Card>
         ) : (
           <div className="grid gap-6 lg:grid-cols-3">
             {displayProducts.map((product) => (
-              <div key={product.partner_product_id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <Card key={product.partner_product_id} className="overflow-hidden">
                 {/* Product Header */}
-                <div className="relative p-6 pb-4">
+                <CardContent className="relative p-6 pb-4">
                   {/* Product Image Gallery */}
                   <ImageGallery
                     images={(() => {
@@ -999,12 +1012,13 @@ function BoilerProductsContent() {
                             {highlightedFeatures.map((feature: any, index: number) => {
                               const featureText = typeof feature === 'string' ? feature : feature.name || JSON.stringify(feature)
                               return (
-                                <span
+                                <Badge
                                   key={index}
-                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
+                                  variant="secondary"
+                                  className="bg-blue-100 text-blue-800 border border-blue-200"
                                 >
                                   {featureText}
-                                </span>
+                                </Badge>
                               )
                             })}
                           </div>
@@ -1098,14 +1112,11 @@ function BoilerProductsContent() {
                               const selectedPrice = selectedPower ? selectedPower.price : powerOptions[0].price
                               const priceDifference = option.price - selectedPrice
                               return (
-                                <button
+                                <Button
                                   key={option.power}
                                   onClick={() => selectPowerOption(product, option)}
-                                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                                    isSelected
-                                      ? 'bg-gray-900 text-white'
-                                      : 'bg-white text-gray-900 border border-gray-300 hover:border-gray-400'
-                                  }`}
+                                  variant={isSelected ? "default" : "outline"}
+                                  className="flex-1 px-3 py-2 rounded-lg text-sm font-medium"
                                 >
                                   <div className="text-center">
                                     <div>{option.power}kW</div>
@@ -1115,7 +1126,7 @@ function BoilerProductsContent() {
                                       </div>
                                     )}
                                   </div>
-                                </button>
+                                </Button>
                               )
                             })}
                           </div>
@@ -1198,18 +1209,20 @@ function BoilerProductsContent() {
 
                   {/* Action Links */}
                   <div className="space-y-3">
-                    <button 
+                    <Button 
+                      variant="ghost"
                       onClick={() => openWhatsIncluded(product)}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium p-0 h-auto"
                     >
                       What's included in my installation?
-                    </button>
+                    </Button>
                     
                     {/* Primary Action Button */}
-                    <button
-                      className={`w-full py-3 px-4 bg-green-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 ${isContinuing ? 'opacity-75 cursor-not-allowed' : 'hover:bg-green-700'}`}
+                    <Button
+                      className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${isContinuing ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
                       onClick={() => persistProductAndGo(product)}
                       disabled={isContinuing}
+                      style={{ backgroundColor: brandColor }}
                     >
                       {isContinuing ? (
                         <>
@@ -1222,12 +1235,10 @@ function BoilerProductsContent() {
                       ) : (
                         'Continue with this'
                       )}
-                    </button>
-                    
-
+                    </Button>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
@@ -1290,26 +1301,14 @@ function BoilerProductsContent() {
 
       {/* What's Included Modal */}
       {showWhatsIncluded && selectedProductForWhatsIncluded && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">What's Included in Your Installation</h2>
-                  <p className="text-sm text-gray-600 mt-1">{selectedProductForWhatsIncluded.name}</p>
-                </div>
-                <button
-                  onClick={closeWhatsIncluded}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
+        <Dialog open={showWhatsIncluded} onOpenChange={setShowWhatsIncluded}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>What's Included in Your Installation</DialogTitle>
+              <DialogDescription>
+                {selectedProductForWhatsIncluded.name}
+              </DialogDescription>
+            </DialogHeader>
             <div className="p-6">
               {/* What's Included Items */}
               {(() => {
@@ -1322,21 +1321,23 @@ function BoilerProductsContent() {
                         const itemData = item.items || item
                         const { image, title, subtitle } = itemData
                         return (
-                          <div key={index} className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-                            {image && (
-                              <img 
-                                src={image} 
-                                alt={title} 
-                                className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                              />
-                            )}
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900">{title}</h4>
-                              {subtitle && (
-                                <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+                          <Card key={index} className="p-4 bg-gray-50">
+                            <CardContent className="flex items-start gap-3 p-0">
+                              {image && (
+                                <img 
+                                  src={image} 
+                                  alt={title} 
+                                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                                />
                               )}
-                            </div>
-                          </div>
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900">{title}</h4>
+                                {subtitle && (
+                                  <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
                         )
                       })}
                     </div>
@@ -1350,75 +1351,81 @@ function BoilerProductsContent() {
                 )
               })()}
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* User Info Section at Bottom */}
       {submissionInfo && (
         <div className="bg-white border-t mt-10">
           <div className="max-w-7xl mx-auto px-6 py-8">
-            <div className="bg-gray-50 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Quote Details</h3>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Name</p>
-                  <p className="text-gray-900">{submissionInfo.first_name} {submissionInfo.last_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Email</p>
-                  <p className="text-gray-900">{submissionInfo.email}</p>
-                </div>
-                {submissionInfo.phone && (
+            <Card className="bg-gray-50">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-gray-900">Your Quote Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">Phone</p>
-                    <p className="text-gray-900">{submissionInfo.phone}</p>
+                    <p className="text-sm font-medium text-gray-700">Name</p>
+                    <p className="text-gray-900">{submissionInfo.first_name} {submissionInfo.last_name}</p>
                   </div>
-                )}
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Postcode</p>
-                  <p className="text-gray-900">{submissionInfo.postcode}</p>
-                </div>
-                {submissionInfo.city && (
                   <div>
-                    <p className="text-sm font-medium text-gray-700">City</p>
-                    <p className="text-gray-900">{submissionInfo.city}</p>
+                    <p className="text-sm font-medium text-gray-700">Email</p>
+                    <p className="text-gray-900">{submissionInfo.email}</p>
                   </div>
-                )}
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Submission Date</p>
-                  <p className="text-gray-900">
-                    {new Date(submissionInfo.submission_date).toLocaleDateString('en-GB', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric'
-                    })}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Form Answers Summary */}
-              {submissionInfo.form_answers && submissionInfo.form_answers.length > 0 && (
-                <div className="mt-6">
-                  <h4 className="text-md font-medium text-gray-900 mb-3">Your Requirements</h4>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {submissionInfo.form_answers.slice(0, 6).map((answer, index) => (
-                      <div key={index} className="bg-white rounded-lg p-3 border">
-                        <p className="text-xs font-medium text-gray-600 mb-1">{answer.question_text}</p>
-                        <p className="text-sm text-gray-900">
-                          {Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  {submissionInfo.form_answers.length > 6 && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      +{submissionInfo.form_answers.length - 6} more requirements
-                    </p>
+                  {submissionInfo.phone && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Phone</p>
+                      <p className="text-gray-900">{submissionInfo.phone}</p>
+                    </div>
                   )}
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Postcode</p>
+                    <p className="text-gray-900">{submissionInfo.postcode}</p>
+                  </div>
+                  {submissionInfo.city && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">City</p>
+                      <p className="text-gray-900">{submissionInfo.city}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Submission Date</p>
+                    <p className="text-gray-900">
+                      {new Date(submissionInfo.submission_date).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+                
+                {/* Form Answers Summary */}
+                {submissionInfo.form_answers && submissionInfo.form_answers.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-md font-medium text-gray-900 mb-3">Your Requirements</h4>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {submissionInfo.form_answers.slice(0, 6).map((answer, index) => (
+                        <Card key={index} className="p-3">
+                          <CardContent className="p-0">
+                            <p className="text-xs font-medium text-gray-600 mb-1">{answer.question_text}</p>
+                            <p className="text-sm text-gray-900">
+                              {Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                    {submissionInfo.form_answers.length > 6 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        +{submissionInfo.form_answers.length - 6} more requirements
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}

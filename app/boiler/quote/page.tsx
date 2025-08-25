@@ -429,7 +429,7 @@ export default function HeatingQuotePage({
   
 
   return (
-    <div className="min-h-screen bg-gray-100 relative flex items-center">
+    <div className="min-h-[calc(100vh-100px)] relative flex items-center">
       {/* Progress Bar */}
       <div className="h-1 bg-gray-200 relative overflow-hidden">
         <div
