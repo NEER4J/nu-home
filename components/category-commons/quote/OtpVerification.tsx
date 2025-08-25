@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Phone, Check, RotateCcw, Shield } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface OtpVerificationProps {
   phoneNumber: string
@@ -45,6 +45,56 @@ export default function OtpVerification({
   const [verificationSid, setVerificationSid] = useState<string | null>(null)
   
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut",
+        staggerChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const otpInputVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: { 
+      opacity: 1, 
+      scale: 1,
+      transition: {
+        duration: 0.15,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const loadingVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: { 
+      opacity: 1, 
+      scale: 1,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut"
+      }
+    }
+  };
 
   // Send initial OTP when component mounts
   useEffect(() => {
@@ -261,40 +311,67 @@ export default function OtpVerification({
   }
 
   return (
-    <div className={`space-y-6 ${className}`}>
+    <motion.div 
+      className={`space-y-6 ${className}`}
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Header */}
-      <div className="text-center space-y-4">
+      <motion.div 
+        className="text-center space-y-4"
+        variants={itemVariants}
+      >
         <p className="text-gray-600">
           We've sent a {otpConfig.codeLength}-digit code to{' '}
           <span className="font-medium text-gray-900">{formatPhoneNumber(phoneNumber)}</span> to verify your phone number.
         </p>
-      </div>
+      </motion.div>
 
       {/* OTP Input */}
-      <div className="space-y-4">
+      <motion.div 
+        className="space-y-4"
+        variants={itemVariants}
+      >
         {loading && !resendLoading ? (
-          <div className="text-center py-8">
-            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <motion.div 
+            className="text-center py-8"
+            variants={loadingVariants}
+          >
+            <motion.div 
+              className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            />
             <p className="text-gray-600">
               {verificationSid ? 'Verifying your code...' : 'Sending OTP...'}
             </p>
-          </div>
+          </motion.div>
         ) : error && !verificationSid ? (
           // Show retry button if initial OTP send failed
-          <div className="text-center py-8">
+          <motion.div 
+            className="text-center py-8"
+            variants={loadingVariants}
+          >
             <p className="text-red-600 text-sm mb-4">{error}</p>
-            <button
+            <motion.button
               onClick={sendOtp}
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.05 }}
             >
               {loading ? 'Sending...' : 'Send OTP'}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         ) : (
-          <div className="flex justify-center space-x-3">
+          <motion.div 
+            className="flex justify-center space-x-3"
+            variants={otpInputVariants}
+          >
             {otp.map((digit, index) => (
-              <input
+              <motion.input
                 key={index}
                 ref={el => { inputRefs.current[index] = el }}
                 type="text"
@@ -312,48 +389,82 @@ export default function OtpVerification({
                     : 'border-gray-300 bg-white'
                 }`}
                 disabled={loading || success}
+                whileFocus={{ scale: 1.05 }}
+                whileHover={{ scale: 1.02 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.15, delay: index * 0.05 }}
               />
             ))}
-          </div>
-        )}
-
-        {error && verificationSid && (
-          <motion.p
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-red-600 text-sm text-center"
-          >
-            {error}
-          </motion.p>
-        )}
-
-        {success && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-center space-x-2 text-green-600"
-          >
-            <Check size={16} />
-            <span className="text-sm font-medium">Phone verified successfully!</span>
           </motion.div>
         )}
-      </div>
+
+        <AnimatePresence>
+          {error && verificationSid && (
+            <motion.p
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.1 }}
+              className="text-red-600 text-sm text-center"
+            >
+              {error}
+            </motion.p>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center justify-center space-x-2 text-green-600"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.2, delay: 0.1 }}
+              >
+                <Check size={16} />
+              </motion.div>
+              <span className="text-sm font-medium">Phone verified successfully!</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       {/* Resend OTP */}
-      <div className="text-center">
+      <motion.div 
+        className="text-center"
+        variants={itemVariants}
+      >
         {resendCooldown > 0 ? (
-          <p className="text-sm text-gray-500">
+          <motion.p 
+            className="text-sm text-gray-500"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
             Resend code in {resendCooldown}s
-          </p>
+          </motion.p>
         ) : (
-          <button
+          <motion.button
             onClick={handleResend}
             disabled={resendLoading || loading}
             className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1 mx-auto"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.05 }}
           >
             {resendLoading ? (
               <>
-                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <motion.div 
+                  className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
                 <span>Sending...</span>
               </>
             ) : (
@@ -362,22 +473,18 @@ export default function OtpVerification({
                 <span>Resend code</span>
               </>
             )}
-          </button>
+          </motion.button>
         )}
-      </div>
+      </motion.div>
 
       {/* Help text */}
-      <div className="text-center space-y-2">
-        <p className="text-xs text-gray-500">
-          Didn't receive the code? Check your messages or try again.
-        </p>
-        <p className="text-xs text-gray-400">
-          Need help? Contact us at{' '}
-          <span className="text-blue-600 font-medium">
-            +44 20 7946 0958
-          </span>
-        </p>
-      </div>
-    </div>
+      <motion.div 
+        className="text-center space-y-2"
+        variants={itemVariants}
+      >
+       
+      
+      </motion.div>
+    </motion.div>
   )
 }

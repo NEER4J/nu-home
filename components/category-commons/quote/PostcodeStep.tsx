@@ -54,6 +54,66 @@ export default function PostcodeStep({
   const inputRef = useRef<HTMLInputElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut",
+        staggerChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const dropdownVariants = {
+    hidden: { opacity: 0, y: -10, scale: 0.95 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.15,
+        ease: "easeOut"
+      }
+    },
+    exit: {
+      opacity: 0,
+      y: -10,
+      scale: 0.95,
+      transition: {
+        duration: 0.1,
+        ease: "easeIn"
+      }
+    }
+  };
+
+  const addressItemVariants = {
+    hidden: { opacity: 0, x: -10 },
+    visible: { 
+      opacity: 1, 
+      x: 0,
+      transition: {
+        duration: 0.15,
+        ease: "easeOut"
+      }
+    }
+  };
+
   // Search addresses using Google Places API
   const searchAddresses = async (postcode: string, isLiveSearch = false) => {
     if (!postcode.trim() || postcode.trim().length < 3) {
@@ -261,12 +321,24 @@ export default function PostcodeStep({
   }, [value])
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      className="space-y-6"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Postcode Search */}
       {!showManualEntry && (
-        <div className="space-y-4">
+        <motion.div 
+          className="space-y-4"
+          variants={itemVariants}
+        >
+                    <h2 className="text-xl sm:text-3xl font-semibold text-gray-800 mb-2 text-center">What's your Postcode?</h2>
+
           <div className="relative">
-            <input
+
+
+            <motion.input
               ref={inputRef}
               type="text"
               value={postcode}
@@ -287,20 +359,37 @@ export default function PostcodeStep({
               }}
               maxLength={8}
               autoComplete="postal-code"
+              whileFocus={{ scale: 1.02 }}
+              transition={{ duration: 0.1 }}
             />
             <div className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2">
               {loading ? (
-                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                <motion.div 
+                  className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                />
               ) : (
                 <Search size={20} className="text-gray-400" />
               )}
             </div>
           </div>
           
-          {error && (
-            <p className="text-red-600 text-sm">{error}</p>
-          )}
-        </div>
+          <AnimatePresence>
+            {error && (
+              <motion.p 
+                className="text-red-600 text-sm"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.1 }}
+              >
+                {error}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </motion.div>
       )}
 
       {/* Address Dropdown */}
@@ -309,19 +398,22 @@ export default function PostcodeStep({
           <AnimatePresence>
             {showDropdown && addresses.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
+                variants={dropdownVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
                 className="absolute top-0 left-0 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"
               >
                 <div className="p-2">
-                  <p className="text-sm text-gray-600 px-3 py-2 border-b">
+                  <motion.p 
+                    className="text-sm text-gray-600 px-3 py-2 border-b"
+                    variants={addressItemVariants}
+                  >
                     Select your address (use ↑↓ arrow keys and Enter):
-                  </p>
+                  </motion.p>
                   <div>
                     {addresses.map((address, index) => (
-                      <button
+                      <motion.button
                         key={index}
                         ref={(el) => { itemRefs.current[index] = el }}
                         onClick={() => handleAddressSelect(address)}
@@ -334,6 +426,10 @@ export default function PostcodeStep({
                           backgroundColor: companyColor ? `${companyColor}10` : '#dbeafe',
                           borderLeftColor: companyColor || '#3b82f6'
                         } : {}}
+                        variants={addressItemVariants}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                        transition={{ duration: 0.05 }}
                       >
                         <MapPin size={16} className={`mt-1 flex-shrink-0 ${
                           index === highlightedIndex ? '' : 'text-gray-400'
@@ -382,14 +478,17 @@ export default function PostcodeStep({
                             </div>
                           )}
                         </div>
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                   
                   {addresses.length > 5 && (
-                    <p className="text-xs text-gray-500 px-3 py-2 border-t bg-gray-50">
+                    <motion.p 
+                      className="text-xs text-gray-500 px-3 py-2 border-t bg-gray-50"
+                      variants={addressItemVariants}
+                    >
                       Showing {addresses.length} addresses • Use arrow keys to navigate
-                    </p>
+                    </motion.p>
                   )}
                 </div>
               </motion.div>
@@ -399,299 +498,345 @@ export default function PostcodeStep({
       )}
 
       {/* Selected Address Display */}
-      {selectedAddress && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-green-50 border border-green-200 rounded-lg p-4"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <MapPin size={16} className="text-green-600" />
-              <span className="text-sm font-medium text-green-800">Selected Address:</span>
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => {
-                  // Set up manual editing with current address
-                  setManualAddress({
-                    address_line_1: selectedAddress.address_line_1 || '',
-                    address_line_2: selectedAddress.address_line_2 || '',
-                    town_or_city: selectedAddress.town_or_city || '',
-                    county: selectedAddress.county || '',
-                    postcode: selectedAddress.postcode || '',
-                    country: selectedAddress.country || 'United Kingdom'
-                  })
-                  setSelectedAddress(null)
-                  setShowManualEntry(true)
-                }}
-                className="text-sm underline hover:opacity-80 transition-opacity"
-                style={{ color: companyColor || '#2563eb' }}
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedAddress(null)
-                  setPostcode('')
-                  setError('')
-                  setShowDropdown(false)
-                  setHighlightedIndex(-1)
-                  inputRef.current?.focus()
-                }}
-                className="text-sm text-green-700 hover:text-green-800 underline"
-              >
-                Change
-              </button>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="text-gray-900">
-              <p className="font-semibold text-lg">{selectedAddress.address_line_1}</p>
-              {selectedAddress.address_line_2 && (
-                <p className="text-gray-700">{selectedAddress.address_line_2}</p>
-              )}
-            </div>
-            
-            <div className="text-gray-700">
-              <p>{selectedAddress.town_or_city}</p>
-              {selectedAddress.county && (
-                <p className="text-sm">{selectedAddress.county}</p>
-              )}
-              <p className="font-medium">{selectedAddress.postcode}</p>
-              {selectedAddress.country && (
-                <p className="text-sm text-gray-500">{selectedAddress.country}</p>
-              )}
-            </div>
-            
-            {(selectedAddress.building_name || selectedAddress.sub_building || selectedAddress.street_name) && (
-              <div className="pt-2 border-t border-green-200">
-                <p className="text-xs font-medium text-green-800 mb-1">Additional Details:</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedAddress.street_name && (
-                    <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded border">
-                      Street: {selectedAddress.street_name}
-                    </span>
-                  )}
-                  {selectedAddress.building_name && (
-                    <span className="text-xs px-2 py-1 rounded border" style={{
-                      backgroundColor: companyColor ? `${companyColor}20` : '#dbeafe',
-                      color: companyColor || '#1d4ed8',
-                      borderColor: companyColor ? `${companyColor}40` : '#93c5fd'
-                    }}>
-                      Building: {selectedAddress.building_name}
-                    </span>
-                  )}
-                  {selectedAddress.sub_building && (
-                    <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-200">
-                      Unit: {selectedAddress.sub_building}
-                    </span>
-                  )}
-                </div>
+      <AnimatePresence>
+        {selectedAddress && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="bg-green-50 border border-green-200 rounded-lg p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <MapPin size={16} className="text-green-600" />
+                <span className="text-sm font-medium text-green-800">Selected Address:</span>
               </div>
-            )}
-          </div>
-        </motion.div>
-      )}
+              <div className="flex space-x-2">
+                <motion.button
+                  onClick={() => {
+                    // Set up manual editing with current address
+                    setManualAddress({
+                      address_line_1: selectedAddress.address_line_1 || '',
+                      address_line_2: selectedAddress.address_line_2 || '',
+                      town_or_city: selectedAddress.town_or_city || '',
+                      county: selectedAddress.county || '',
+                      postcode: selectedAddress.postcode || '',
+                      country: selectedAddress.country || 'United Kingdom'
+                    })
+                    setSelectedAddress(null)
+                    setShowManualEntry(true)
+                  }}
+                  className="text-sm underline hover:opacity-80 transition-opacity"
+                  style={{ color: companyColor || '#2563eb' }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.05 }}
+                >
+                  Edit
+                </motion.button>
+                <motion.button
+                  onClick={() => {
+                    setSelectedAddress(null)
+                    setPostcode('')
+                    setError('')
+                    setShowDropdown(false)
+                    setHighlightedIndex(-1)
+                    inputRef.current?.focus()
+                  }}
+                  className="text-sm text-green-700 hover:text-green-800 underline"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.05 }}
+                >
+                  Change
+                </motion.button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="text-gray-900">
+                <p className="font-semibold text-lg">{selectedAddress.address_line_1}</p>
+                {selectedAddress.address_line_2 && (
+                  <p className="text-gray-700">{selectedAddress.address_line_2}</p>
+                )}
+              </div>
+              
+              <div className="text-gray-700">
+                <p>{selectedAddress.town_or_city}</p>
+                {selectedAddress.county && (
+                  <p className="text-sm">{selectedAddress.county}</p>
+                )}
+                <p className="font-medium">{selectedAddress.postcode}</p>
+                {selectedAddress.country && (
+                  <p className="text-sm text-gray-500">{selectedAddress.country}</p>
+                )}
+              </div>
+              
+              {(selectedAddress.building_name || selectedAddress.sub_building || selectedAddress.street_name) && (
+                <div className="pt-2 border-t border-green-200">
+                  <p className="text-xs font-medium text-green-800 mb-1">Additional Details:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAddress.street_name && (
+                      <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded border">
+                        Street: {selectedAddress.street_name}
+                      </span>
+                    )}
+                    {selectedAddress.building_name && (
+                      <span className="text-xs px-2 py-1 rounded border" style={{
+                        backgroundColor: companyColor ? `${companyColor}20` : '#dbeafe',
+                        color: companyColor || '#1d4ed8',
+                        borderColor: companyColor ? `${companyColor}40` : '#93c5fd'
+                      }}>
+                        Building: {selectedAddress.building_name}
+                      </span>
+                    )}
+                    {selectedAddress.sub_building && (
+                      <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-200">
+                        Unit: {selectedAddress.sub_building}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Manual Address Input Option */}
       {!selectedAddress && !showManualEntry && (
-        <div className="text-center">
+        <motion.div 
+          className="text-center"
+          variants={itemVariants}
+        >
           <p className="text-sm text-gray-600 mb-2">Can't find your address?</p>
-          <button
+          <motion.button
             type="button"
             onClick={() => setShowManualEntry(true)}
             className="hover:underline text-sm font-medium transition-opacity hover:opacity-80 company-text"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.05 }}
           >
             Enter address manually
-          </button>
-        </div>
-      )}
-
-      {/* Manual Address Entry Form */}
-      {showManualEntry && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-4 p-6 bg-gray-50 rounded-lg border"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Enter your address</h3>
-            <button
-              type="button"
-              onClick={() => setShowManualEntry(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <label htmlFor="address_line_1" className="block text-sm font-medium text-gray-700 mb-1">
-                Address Line 1 *
-              </label>
-              <input
-                type="text"
-                id="address_line_1"
-                value={manualAddress.address_line_1}
-                onChange={(e) => handleManualInputChange('address_line_1', e.target.value)}
-                placeholder="House number and street name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
-                style={{
-                  '--tw-ring-color': companyColor || '#3b82f6'
-                } as React.CSSProperties}
-                onFocus={(e) => {
-                  e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
-                }}
-                onBlur={(e) => {
-                  e.target.style.boxShadow = '';
-                }}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="address_line_2" className="block text-sm font-medium text-gray-700 mb-1">
-                Address Line 2
-              </label>
-              <input
-                type="text"
-                id="address_line_2"
-                value={manualAddress.address_line_2}
-                onChange={(e) => handleManualInputChange('address_line_2', e.target.value)}
-                placeholder="Apartment, suite, etc. (optional)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
-                style={{
-                  '--tw-ring-color': companyColor || '#3b82f6'
-                } as React.CSSProperties}
-                onFocus={(e) => {
-                  e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
-                }}
-                onBlur={(e) => {
-                  e.target.style.boxShadow = '';
-                }}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="town_or_city" className="block text-sm font-medium text-gray-700 mb-1">
-                  Town/City *
-                </label>
-                <input
-                  type="text"
-                  id="town_or_city"
-                  value={manualAddress.town_or_city}
-                  onChange={(e) => handleManualInputChange('town_or_city', e.target.value)}
-                  placeholder="Town or city"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
-                  style={{
-                    '--tw-ring-color': companyColor || '#3b82f6'
-                  } as React.CSSProperties}
-                  onFocus={(e) => {
-                    e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.boxShadow = '';
-                  }}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="county" className="block text-sm font-medium text-gray-700 mb-1">
-                  County
-                </label>
-                <input
-                  type="text"
-                  id="county"
-                  value={manualAddress.county}
-                  onChange={(e) => handleManualInputChange('county', e.target.value)}
-                  placeholder="County (optional)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
-                  style={{
-                    '--tw-ring-color': companyColor || '#3b82f6'
-                  } as React.CSSProperties}
-                  onFocus={(e) => {
-                    e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.boxShadow = '';
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="manual_postcode" className="block text-sm font-medium text-gray-700 mb-1">
-                  Postcode *
-                </label>
-                <input
-                  type="text"
-                  id="manual_postcode"
-                  value={manualAddress.postcode}
-                  onChange={(e) => handleManualInputChange('postcode', e.target.value.toUpperCase())}
-                  placeholder="Postcode"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
-                  Country
-                </label>
-                <select
-                  id="country"
-                  value={manualAddress.country}
-                  onChange={(e) => handleManualInputChange('country', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="United Kingdom">United Kingdom</option>
-                  <option value="Ireland">Ireland</option>
-                  <option value="United States">United States</option>
-                  <option value="Canada">Canada</option>
-                  <option value="Australia">Australia</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {error && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-red-600 text-sm"
-            >
-              {error}
-            </motion.p>
-          )}
-
-          <div className="flex space-x-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowManualEntry(false)}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleManualAddressSubmit}
-              className="flex-1 px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors"
-              style={{ backgroundColor: companyColor }}
-            >
-              Use this address
-            </button>
-          </div>
+          </motion.button>
         </motion.div>
       )}
 
-      {/* Navigation buttons */}
-      <div className="flex justify-center pt-6 max-w-md mx-auto">
+      {/* Manual Address Entry Form */}
+      <AnimatePresence>
+        {showManualEntry && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4 p-6 bg-gray-50 rounded-lg border"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Enter your address</h3>
+              <motion.button
+                type="button"
+                onClick={() => setShowManualEntry(false)}
+                className="text-gray-400 hover:text-gray-600"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ duration: 0.05 }}
+              >
+                ✕
+              </motion.button>
+            </div>
 
-        <button
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="address_line_1" className="block text-sm font-medium text-gray-700 mb-1">
+                  Address Line 1 *
+                </label>
+                <motion.input
+                  type="text"
+                  id="address_line_1"
+                  value={manualAddress.address_line_1}
+                  onChange={(e) => handleManualInputChange('address_line_1', e.target.value)}
+                  placeholder="House number and street name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{
+                    '--tw-ring-color': companyColor || '#3b82f6'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.boxShadow = '';
+                  }}
+                  whileFocus={{ scale: 1.02 }}
+                  transition={{ duration: 0.1 }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="address_line_2" className="block text-sm font-medium text-gray-700 mb-1">
+                  Address Line 2
+                </label>
+                <motion.input
+                  type="text"
+                  id="address_line_2"
+                  value={manualAddress.address_line_2}
+                  onChange={(e) => handleManualInputChange('address_line_2', e.target.value)}
+                  placeholder="Apartment, suite, etc. (optional)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{
+                    '--tw-ring-color': companyColor || '#3b82f6'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.boxShadow = '';
+                  }}
+                  whileFocus={{ scale: 1.02 }}
+                  transition={{ duration: 0.1 }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="town_or_city" className="block text-sm font-medium text-gray-700 mb-1">
+                    Town/City *
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="town_or_city"
+                    value={manualAddress.town_or_city}
+                    onChange={(e) => handleManualInputChange('town_or_city', e.target.value)}
+                    placeholder="Town or city"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                    style={{
+                      '--tw-ring-color': companyColor || '#3b82f6'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = '';
+                    }}
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="county" className="block text-sm font-medium text-gray-700 mb-1">
+                    County
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="county"
+                    value={manualAddress.county}
+                    onChange={(e) => handleManualInputChange('county', e.target.value)}
+                    placeholder="County (optional)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                    style={{
+                      '--tw-ring-color': companyColor || '#3b82f6'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = '';
+                    }}
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="manual_postcode" className="block text-sm font-medium text-gray-700 mb-1">
+                    Postcode *
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="manual_postcode"
+                    value={manualAddress.postcode}
+                    onChange={(e) => handleManualInputChange('postcode', e.target.value.toUpperCase())}
+                    placeholder="Postcode"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+                    Country
+                  </label>
+                  <motion.select
+                    id="country"
+                    value={manualAddress.country}
+                    onChange={(e) => handleManualInputChange('country', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  >
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="Ireland">Ireland</option>
+                    <option value="United States">United States</option>
+                    <option value="Canada">Canada</option>
+                    <option value="Australia">Australia</option>
+                  </motion.select>
+                </div>
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.1 }}
+                  className="text-red-600 text-sm"
+                >
+                  {error}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            <div className="flex space-x-3 pt-2">
+              <motion.button
+                type="button"
+                onClick={() => setShowManualEntry(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.05 }}
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={handleManualAddressSubmit}
+                className="flex-1 px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors"
+                style={{ backgroundColor: companyColor }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.05 }}
+              >
+                Use this address
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Navigation buttons */}
+      <motion.div 
+        className="flex justify-center pt-6 max-w-md mx-auto"
+        variants={itemVariants}
+      >
+        <motion.button
           type="button"
           onClick={() => {
             if (selectedAddress) {
@@ -707,10 +852,13 @@ export default function PostcodeStep({
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
           style={selectedAddress ? { backgroundColor: companyColor } : {}}
+          whileHover={selectedAddress ? { scale: 1.02 } : {}}
+          whileTap={selectedAddress ? { scale: 0.98 } : {}}
+          transition={{ duration: 0.05 }}
         >
           Next
-        </button>
-      </div>
-    </div>
+        </motion.button>
+      </motion.div>
+    </motion.div>
   );
 }

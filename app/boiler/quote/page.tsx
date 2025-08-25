@@ -307,33 +307,20 @@ export default function HeatingQuotePage({
       if (!currentQuestion) return null;
 
       return (
-        <div className="space-y-3 sm:space-y-4 text-center">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
-            {currentQuestion.question_text}
-            {currentQuestion.is_required && <span className="text-red-500 ml-1">*</span>}
-          </h1>
+        <div className="space-y-3 sm:space-y-4 text-center hidden">
+         
         </div>
       );
     } else if (currentStep === activeSteps.length + 1) {
       return (
-        <div className="space-y-6 text-center">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
-            What's your address?
-          </h1>
-          <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-            Enter your postcode to find your address
-          </p>
+        <div className="space-y-6 text-center hidden">
+         
         </div>
       );
     } else if (currentStep === activeSteps.length + 2) {
       return (
-        <div className="space-y-6 text-center">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-black leading-tight">
-            Tell us about yourself
-          </h1>
-          <p className="text-gray-600 text-base sm:text-lg lg:text-xl">
-            We'll use this information to prepare your quote
-          </p>
+        <div className="space-y-6 text-center hidden">
+          
         </div>
       );
     }
@@ -349,7 +336,7 @@ export default function HeatingQuotePage({
       if (currentQuestions.length === 0) return null;
 
       return (
-        <div className="mt-12 lg:mt-16">
+        <div className="">
           <QuoteFormSteps
             questions={currentQuestions}
             formValues={formValues}
@@ -365,7 +352,7 @@ export default function HeatingQuotePage({
       );
     } else if (currentStep === activeSteps.length + 1) {
       return (
-        <div className="mt-12 lg:mt-16 max-w-md mx-auto">
+        <div className="mt-6 lg:mt-8 max-w-md mx-auto">
           <PostcodeStep
             value={formValues.postcode || ''}
             onValueChange={(postcode) => handleValueChange('postcode', postcode)}
@@ -377,7 +364,7 @@ export default function HeatingQuotePage({
       );
     } else if (currentStep === activeSteps.length + 2) {
       return (
-        <div className="mt-12 lg:mt-16 max-w-lg mx-auto">
+        <div className="mt-6 lg:mt-8 max-w-lg mx-auto">
           <UserInfoForm
             initialUserInfo={userInfo}
             formValues={formValues}

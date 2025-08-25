@@ -80,6 +80,18 @@ interface QuoteSubmission {
   }>
 }
 
+interface FormQuestion {
+  question_id: string
+  question_text: string
+  is_multiple_choice: boolean
+  answer_options: Array<{
+    text: string
+    image?: string
+    hasAdditionalCost?: boolean
+    additionalCost?: number
+  }> | null
+}
+
 function BoilerProductsContent() {
   const supabase = createClient()
   const searchParams = useSearchParams()
@@ -89,6 +101,7 @@ function BoilerProductsContent() {
   const [products, setProducts] = useState<PartnerProduct[]>([])
   const [partnerSettings, setPartnerSettings] = useState<PartnerSettings | null>(null)
   const [submissionInfo, setSubmissionInfo] = useState<QuoteSubmission | null>(null)
+  const [questionDetails, setQuestionDetails] = useState<Record<string, FormQuestion>>({})
   const [showFinanceCalculator, setShowFinanceCalculator] = useState(false)
   const [selectedProductForFinance, setSelectedProductForFinance] = useState<PartnerProduct | null>(null)
   const [selectedPowerOptions, setSelectedPowerOptions] = useState<Record<string, PowerAndPrice>>({})
@@ -167,6 +180,61 @@ function BoilerProductsContent() {
       if (apr && apr > 0) {
         const monthlyPayment = calculateMonthlyPaymentWithDeposit(currentPrice, apr, selectedPlan.months, selectedDeposit)
         // Store this calculation for future use
+
+  // Helper function to fetch question details for cost calculation
+  const fetchQuestionDetails = async (questionIds: string[]) => {
+    if (questionIds.length === 0) return;
+    
+    try {
+      const { data: questions, error } = await supabase
+        .from('FormQuestions')
+        .select('question_id, question_text, is_multiple_choice, answer_options')
+        .in('question_id', questionIds);
+      
+      if (error) {
+        console.error('Error fetching question details:', error);
+        return;
+      }
+      
+      const questionMap = questions?.reduce((acc, question) => {
+        acc[question.question_id] = question as FormQuestion;
+        return acc;
+      }, {} as Record<string, FormQuestion>) || {};
+      
+      setQuestionDetails(prev => ({ ...prev, ...questionMap }));
+    } catch (error) {
+      console.error('Error fetching question details:', error);
+    }
+  };
+
+  // Helper function to get cost for a specific answer
+  const getAnswerCost = (questionId: string, answer: string | string[]): number => {
+    const question = questionDetails[questionId];
+    if (!question || !question.is_multiple_choice || !question.answer_options) {
+      return 0;
+    }
+    
+    const answers = Array.isArray(answer) ? answer : [answer];
+    let totalCost = 0;
+    
+    answers.forEach(answerText => {
+      const option = question.answer_options?.find(opt => opt.text === answerText);
+      if (option?.hasAdditionalCost && option.additionalCost) {
+        totalCost += option.additionalCost;
+      }
+    });
+    
+    return totalCost;
+  };
+
+  // Helper function to get total cost from all answers
+  const getTotalAnswersCost = (): number => {
+    if (!submissionInfo?.form_answers) return 0;
+    
+    return submissionInfo.form_answers.reduce((total, answer) => {
+      return total + getAnswerCost(answer.question_id, answer.answer);
+    }, 0);
+  };
         setMonthlyPayments(prev => ({
           ...prev,
           [product.partner_product_id]: monthlyPayment

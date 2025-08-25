@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { ServiceCategory, FormQuestion } from '@/types/database.types';
 import ConditionalLogic from './ConditionalLogic';
-import { AlertCircle, PlusCircle, Trash2, CheckCircle, Video, HelpCircle, ChevronDown, X, Save } from 'lucide-react';
+import { AlertCircle, PlusCircle, Trash2, CheckCircle, Video, HelpCircle, ChevronDown, X, Save, DollarSign } from 'lucide-react';
 
 // Define form validation schema with conditional logic fields
 const formSchema = z.object({
@@ -38,8 +38,16 @@ const formSchema = z.object({
   group_logical_operator: z.enum(['AND', 'OR']).optional()
 });
 
+// Updated interface for answer options to include cost information
+interface AnswerOption {
+  text: string;
+  image: string;
+  hasAdditionalCost: boolean;
+  additionalCost: number;
+}
+
 type FormValues = z.infer<typeof formSchema> & {
-  answer_options: Array<{ text: string, image: string }>;
+  answer_options: AnswerOption[];
 };
 
 interface QuestionFormProps {
@@ -65,27 +73,29 @@ export function QuestionForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
-  // Initialize answer options as an array of objects with text and image properties
-  const [answerOptions, setAnswerOptions] = useState<Array<{ text: string, image: string }>>(() => {
+  // Initialize answer options as an array of objects with text, image, and cost properties
+  const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>(() => {
     if (!question?.answer_options) {
-      return [{ text: '', image: '' }]; // Default for new questions
+      return [{ text: '', image: '', hasAdditionalCost: false, additionalCost: 0 }]; // Default for new questions
     }
     
     if (!Array.isArray(question.answer_options)) {
-      return [{ text: '', image: '' }];
+      return [{ text: '', image: '', hasAdditionalCost: false, additionalCost: 0 }];
     }
     
     if (question.answer_options.length === 0) {
-      return [{ text: '', image: '' }];
+      return [{ text: '', image: '', hasAdditionalCost: false, additionalCost: 0 }];
     }
     
     // Check if the first item is an object with a 'text' property
     const firstItem = question.answer_options[0];
     if (typeof firstItem === 'object' && firstItem !== null && 'text' in firstItem) {
-      // It's already the right format, but we need to properly type it
+      // It's already the right format, but we need to properly type it and add cost fields if missing
       return question.answer_options.map((opt: any) => ({
         text: opt.text || '',
-        image: opt.image || ''
+        image: opt.image || '',
+        hasAdditionalCost: opt.hasAdditionalCost || false,
+        additionalCost: opt.additionalCost || 0
       }));
     }
     
@@ -96,7 +106,9 @@ export function QuestionForm({
              Array.isArray((question as any).answer_images) && 
              (question as any).answer_images[index] 
         ? (question as any).answer_images[index] 
-        : ''
+        : '',
+      hasAdditionalCost: false,
+      additionalCost: 0
     }));
   });
   
@@ -269,7 +281,7 @@ useEffect(() => {
   }, [conditionalValues, setValue, showConditionalLogic]);
 
   const handleAddOption = () => {
-    setAnswerOptions([...answerOptions, { text: '', image: '' }]);
+    setAnswerOptions([...answerOptions, { text: '', image: '', hasAdditionalCost: false, additionalCost: 0 }]);
   };
   
 // Add this state to track selected values for each condition
@@ -296,10 +308,16 @@ const handleConditionOptionChange = (conditionIndex: number, option: string, isC
   setValue(`conditions.${conditionIndex}.conditional_values`, newValues);
 };
 
-// Add this function for answer option text/image changes
-const handleAnswerOptionChange = (index: number, field: 'text' | 'image', value: string) => {
+// Add this function for answer option changes
+const handleAnswerOptionChange = (index: number, field: keyof AnswerOption, value: string | boolean | number) => {
   const newOptions = [...answerOptions];
-  newOptions[index][field] = value;
+  if (field === 'text' || field === 'image') {
+    (newOptions[index] as any)[field] = value as string;
+  } else if (field === 'hasAdditionalCost') {
+    (newOptions[index] as any)[field] = value as boolean;
+  } else if (field === 'additionalCost') {
+    (newOptions[index] as any)[field] = value as number;
+  }
   setAnswerOptions(newOptions);
 };
   
@@ -634,7 +652,7 @@ const handleQuestionSelection = (index: number, questionId: string) => {
                   Answer Options
                 </h3>
                 <p className="text-sm text-gray-500">
-                  Define the options users can select from. Optionally include images for each option.
+                  Define the options users can select from. Optionally include images and additional costs for each option.
                 </p>
               </div>
               
@@ -648,7 +666,7 @@ const handleQuestionSelection = (index: number, questionId: string) => {
                       Option {index + 1}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-                      <div className="md:col-span-5">
+                      <div className="md:col-span-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Option Text
                         </label>
@@ -661,7 +679,7 @@ const handleQuestionSelection = (index: number, questionId: string) => {
                         />
                       </div>
                       
-                      <div className="md:col-span-6">
+                      <div className="md:col-span-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Image URL (optional)
                         </label>
@@ -672,6 +690,40 @@ const handleQuestionSelection = (index: number, questionId: string) => {
                           className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150"
                           placeholder="https://example.com/image.jpg"
                         />
+                      </div>
+
+                      <div className="md:col-span-3">
+                        <div className="space-y-3">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={option.hasAdditionalCost}
+                              onChange={(e) => handleAnswerOptionChange(index, 'hasAdditionalCost', e.target.checked)}
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                            />
+                            <span className="ml-2 text-sm text-gray-700 flex items-center">
+                              <DollarSign size={14} className="mr-1" />
+                              Additional Cost
+                            </span>
+                          </label>
+                          
+                          {option.hasAdditionalCost && (
+                            <div className="transition-all duration-300">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Cost Amount (£)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={option.additionalCost}
+                                onChange={(e) => handleAnswerOptionChange(index, 'additionalCost', parseFloat(e.target.value) || 0)}
+                                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 -sm transition duration-150"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="md:col-span-1 flex items-end">
@@ -693,6 +745,15 @@ const handleQuestionSelection = (index: number, questionId: string) => {
                         <div className="h-16 bg-contain bg-center bg-no-repeat rounded" 
                              style={{ backgroundImage: `url(${option.image})` }}>
                         </div>
+                      </div>
+                    )}
+
+                    {option.hasAdditionalCost && (
+                      <div className="mt-3 p-2 border border-blue-200 rounded-md bg-blue-50">
+                        <p className="text-xs text-blue-600 mb-1 flex items-center">
+                          <DollarSign size={12} className="mr-1" />
+                          Additional Cost: £{option.additionalCost.toFixed(2)}
+                        </p>
                       </div>
                     )}
                   </div>
