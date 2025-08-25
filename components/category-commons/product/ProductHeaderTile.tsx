@@ -10,9 +10,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { FilterIcon, RotateCcw, ChevronDown } from "lucide-react"
 
 interface ProductHeaderTileProps {
   count: number
@@ -67,18 +73,22 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
     onRestart,
   } = props
 
-  const [showEditor, setShowEditor] = useState(false)
   const [showIncluded, setShowIncluded] = useState(false)
   const [showSaveQuote, setShowSaveQuote] = useState(false)
   const [showRestartConfirm, setShowRestartConfirm] = useState(false)
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
 
-  const bedroomLabel = useMemo(() => (
-    filterBedroom ? `${filterBedroom} bedroom${filterBedroom === '1' ? '' : 's'}` : 'All bedrooms'
-  ), [filterBedroom])
+  const bedroomLabel = useMemo(() => {
+    const fullLabel = filterBedroom ? `${filterBedroom} bedroom${filterBedroom === '1' ? '' : 's'}` : 'All bedrooms'
+    const shortLabel = filterBedroom ? `${filterBedroom} bed` : 'All'
+    return { full: fullLabel, short: shortLabel }
+  }, [filterBedroom])
 
-  const bathroomLabel = useMemo(() => (
-    filterBathroom ? `${filterBathroom} bathroom${filterBathroom === '1' ? '' : 's'}` : 'All bathrooms'
-  ), [filterBathroom])
+  const bathroomLabel = useMemo(() => {
+    const fullLabel = filterBathroom ? `${filterBathroom} bathroom${filterBathroom === '1' ? '' : 's'}` : 'All bathrooms'
+    const shortLabel = filterBathroom ? `${filterBathroom} bath` : 'All'
+    return { full: fullLabel, short: shortLabel }
+  }, [filterBathroom])
 
   const handleRestart = () => {
     if (onRestart) {
@@ -94,114 +104,151 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
   }
 
   return (
-    <div className="">
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{count} available installation packages</h1>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className="text-sm text-gray-600">Suitable for</span>
-              <Badge variant="secondary">{bedroomLabel}</Badge>
-              <Badge variant="secondary">{bathroomLabel}</Badge>
-              <Badge variant="outline" className="inline-flex items-center">
-                in {postcode || 'your area'}
-                <Button
-                  aria-label="Edit filters"
-                  onClick={() => setShowEditor((v) => !v)}
-                  variant="ghost"
-                  size="sm"
-                  className="ml-2 p-1 rounded-full hover:bg-gray-200 text-gray-600"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </Button>
+    <div className="max-w-7xl mx-auto md:px-6 px-4 py-6 ">
+              <h2 className="md:text-3xl text-2xl font-semibold text-gray-900 md:mb-7 mb-4">{count} available installation packages</h2>
+
+      <div className="flex gap-4 justify-between flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full md:w-auto">
+
+          <div className='flex gap-2 items-center w-full'>
+            <div className="flex items-center gap-2 bg-white rounded-full p-1 border border-gray-100 w-full">
+              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm">
+                <span className="hidden sm:inline text-nowrap">{bedroomLabel.full}</span>
+                <span className="sm:hidden">{bedroomLabel.short}</span>
               </Badge>
+              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm">
+                <span className="hidden sm:inline text-nowrap">{bathroomLabel.full}</span>
+                <span className="sm:hidden">{bathroomLabel.short}</span>
+              </Badge>
+              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm">
+                <span className="hidden sm:inline text-nowrap">in {postcode || 'your area'}</span>
+                <span className="sm:hidden">in {postcode ? postcode.substring(0, 4) : 'area'}</span>
+              </Badge>
+              
+              <DropdownMenu onOpenChange={setIsFilterOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    aria-label="Edit filters"
+                    variant="ghost"
+                    size="sm"
+                    className="px-2 w-8 md:h-8 h-6"
+                  >
+                    {isFilterOpen ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <FilterIcon className="w-4 h-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  className="w-[calc(100vw-2rem)] md:w-96 p-4 bg-white border border-gray-200 rounded-lg shadow-lg max-w-[320px] md:max-w-none"
+                  sideOffset={8}
+                  side="bottom"
+                  align="start"
+                >
+                  <div className="space-y-4">
+                    {/* Boiler Type */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Boiler type:</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['combi', 'regular', 'system'].map((type) => (
+                          <Button
+                            key={type}
+                            onClick={() => setFilterBoilerType(filterBoilerType === type ? null : type)}
+                            variant={filterBoilerType === type ? "default" : "outline"}
+                            size="sm"
+                            className="px-2 py-1 rounded-full text-xs font-medium"
+                          >
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bedrooms */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Bedrooms:</label>
+                      <div className="grid grid-cols-6 gap-2">
+                        {['1', '2', '3', '4', '5', '6+'].map((b) => (
+                          <Button
+                            key={b}
+                            onClick={() => setFilterBedroom(filterBedroom === b ? null : b)}
+                            variant={filterBedroom === b ? "default" : "outline"}
+                            size="sm"
+                            className="px-2 py-1 rounded-full text-xs font-medium"
+                          >
+                            {b}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bathrooms */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Bathrooms:</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {['1', '2', '3', '4+'].map((b) => (
+                          <Button
+                            key={b}
+                            onClick={() => setFilterBathroom(filterBathroom === b ? null : b)}
+                            variant={filterBathroom === b ? "default" : "outline"}
+                            size="sm"
+                            className="px-2 py-1 rounded-full text-xs font-medium"
+                          >
+                            {b}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100">
+                      {resetFiltersToSubmission && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={resetFiltersToSubmission}
+                          className="text-xs"
+                        >
+                          Reset to submission
+                        </Button>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={clearFilters}
+                        className="text-xs"
+                      >
+                        Clear filters
+                      </Button>
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+             
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => setShowIncluded(true)}>
-              What's included?
-            </Button>
             {onRestart && (
-              <Button variant="outline" onClick={handleRestart}>
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Restart
+              <Button variant="outline" className='border-none bg-gray-200 rounded-full p-3 hover:bg-gray-300' onClick={handleRestart}>
+                <RotateCcw className="w-4 h-4" />
               </Button>
             )}
-            <Button onClick={() => setShowSaveQuote(true)} style={{ backgroundColor: brandColor }}>
+          </div>
+
+          
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+            <Button variant="outline" onClick={() => setShowIncluded(true)} className='bg-gray-200 text-gray-900 rounded-full'>
+              What's included?
+            </Button>
+           
+            <Button onClick={() => setShowSaveQuote(true)} style={{ backgroundColor: brandColor }} className='w-full'>
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
               Save for later
             </Button>
           </div>
-        </div>
       </div>
-
-      {showEditor && (
-        <div className="max-w-7xl mx-auto px-6">
-          <Card className="bg-white rounded-xl border p-4 flex flex-col gap-4 relative">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">Boiler type:</span>
-              {['combi', 'regular', 'system'].map((type) => (
-                <Button
-                  key={type}
-                  onClick={() => setFilterBoilerType(filterBoilerType === type ? null : type)}
-                  variant={filterBoilerType === type ? "default" : "outline"}
-                  className="px-3 py-1 rounded-full text-xs font-medium"
-                >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </Button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">Bedrooms:</span>
-              {['1', '2', '3', '4', '5', '6+'].map((b) => (
-                <Button
-                  key={b}
-                  onClick={() => setFilterBedroom(filterBedroom === b ? null : b)}
-                  variant={filterBedroom === b ? "default" : "outline"}
-                  className="px-3 py-1 rounded-full text-xs font-medium"
-                >
-                  {b}
-                </Button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">Bathrooms:</span>
-              {['1', '2', '3', '4+'].map((b) => (
-                <Button
-                  key={b}
-                  onClick={() => setFilterBathroom(filterBathroom === b ? null : b)}
-                  variant={filterBathroom === b ? "default" : "outline"}
-                  className="px-3 py-1 rounded-full text-xs font-medium"
-                >
-                  {b}
-                </Button>
-              ))}
-            </div>
-            <div className="flex justify-end gap-4">
-              {resetFiltersToSubmission && (
-                <Button variant="outline" onClick={resetFiltersToSubmission}>
-                  Reset to submission
-                </Button>
-              )}
-              <Button variant="outline" onClick={clearFilters}>
-                Clear filters
-              </Button>
-              <Button variant="outline" onClick={handleRestart}>
-                Restart
-              </Button>
-              <Button onClick={() => setShowEditor(false)} style={{ backgroundColor: brandColor }}>
-                Done
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
 
       {showIncluded && (
         <Dialog open={showIncluded} onOpenChange={setShowIncluded}>
