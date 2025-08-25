@@ -256,6 +256,61 @@ export default function CheckoutLayout({
     }
   }
 
+  const sendCheckoutEmail = async (paymentMethod: 'stripe' | 'monthly' | 'pay-later', additionalData: any = {}) => {
+    try {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+      const subdomain = hostname || null
+
+      const emailData = {
+        first_name: details.firstName,
+        last_name: details.lastName,
+        email: details.email,
+        phone: details.phone,
+        postcode: details.postcode,
+        order_details: {
+          product: selectedProduct ? {
+            name: selectedProduct.name,
+            price: basePrice
+          } : null,
+          addons: selectedAddons.map(addon => ({
+            title: addon.title,
+            quantity: addon.quantity,
+            price: addon.price
+          })),
+          bundles: selectedBundles.map(bundle => ({
+            title: bundle.bundle.title,
+            quantity: bundle.quantity,
+            unitPrice: bundle.unitPrice
+          })),
+          total: orderTotal
+        },
+        installation_date: selectedDate,
+        submission_id: submissionId,
+        subdomain,
+        ...additionalData
+      }
+
+      const apiEndpoints = {
+        stripe: '/api/email/boiler/checkout-stripe',
+        monthly: '/api/email/boiler/checkout-monthly',
+        'pay-later': '/api/email/boiler/checkout-pay-later'
+      }
+
+      const res = await fetch(apiEndpoints[paymentMethod], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailData),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        console.warn(`Failed to send ${paymentMethod} checkout email:`, data?.error || 'Unknown error')
+      }
+    } catch (err: any) {
+      console.warn(`Failed to send ${paymentMethod} checkout email:`, err?.message || 'Unknown error')
+    }
+  }
+
   const generateProductDescription = () => {
     let description = selectedProduct?.name || 'Boiler Installation'
     
@@ -427,8 +482,16 @@ export default function CheckoutLayout({
                                 : paymentSettings.stripe_settings.STRIPE_SECRET_KEY_TEST
                             }
                             submissionId={submissionId || ''}
-                            onPaymentSuccess={(paymentIntent) => {
+                            onPaymentSuccess={async (paymentIntent) => {
                               console.log('Payment successful:', paymentIntent)
+                              // Send checkout email
+                              await sendCheckoutEmail('stripe', {
+                                payment_details: {
+                                  payment_intent_id: paymentIntent.id,
+                                  amount: paymentIntent.amount,
+                                  payment_method: 'stripe'
+                                }
+                              })
                               // Redirect to success page
                               if (submissionId) {
                                 window.location.href = `/boiler/success?submission_id=${submissionId}`
@@ -509,6 +572,17 @@ export default function CheckoutLayout({
                       </p>
                       <button 
                         onClick={async () => {
+                          // Send checkout email first
+                          await sendCheckoutEmail('monthly', {
+                            payment_plan: calculatorSettings ? {
+                              monthly_amount: calculatorSettings.selected_plan?.months ? (orderTotal / calculatorSettings.selected_plan.months) : null,
+                              duration_months: calculatorSettings.selected_plan?.months,
+                              deposit: calculatorSettings.selected_deposit || 0,
+                              total_amount: orderTotal,
+                              apr: calculatorSettings.selected_plan?.apr
+                            } : null
+                          })
+                          
                           // Save payment completion for Monthly Plans
                           if (submissionId) {
                             try {
@@ -570,6 +644,9 @@ export default function CheckoutLayout({
                       </p>
                       <button 
                         onClick={async () => {
+                          // Send checkout email first
+                          await sendCheckoutEmail('pay-later')
+                          
                           // Save payment completion for Pay After Installation
                           if (submissionId) {
                             try {

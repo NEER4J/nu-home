@@ -385,6 +385,7 @@ export default function HeatingQuotePage({
             onSubmit={handleSubmit}
             companyColor={getDynamicColor()}
             otpEnabled={effectivePartner?.otp || false}
+            questions={questions}
           />
         </div>
       );

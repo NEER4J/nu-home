@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 
 export async function PUT(request: NextRequest) {
   try {
-    const { submissionId, paymentMethod, paymentStatus, progressStep } = await request.json()
+    const { submissionId, paymentMethod, paymentStatus, progressStep, surveyDetails } = await request.json()
 
     if (!submissionId) {
       return NextResponse.json(
@@ -12,6 +12,41 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Handle survey submission
+    if (surveyDetails) {
+      const supabase = await createClient()
+
+             // Update the partner_leads record with survey information
+       const { data, error } = await supabase
+         .from('partner_leads')
+         .update({
+           first_name: surveyDetails.firstName,
+           last_name: surveyDetails.lastName,
+           email: surveyDetails.email,
+           phone: surveyDetails.phone,
+           postcode: surveyDetails.postcode,
+           notes: surveyDetails.notes,
+           progress_step: progressStep || 'survey_completed',
+           updated_at: new Date().toISOString()
+         })
+         .eq('submission_id', submissionId)
+         .select()
+
+      if (error) {
+        console.error('Error updating partner_leads with survey details:', error)
+        return NextResponse.json(
+          { error: 'Failed to update survey information' },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: data[0]
+      })
+    }
+
+    // Handle payment submission
     if (!paymentMethod) {
       return NextResponse.json(
         { error: 'Payment method is required' },

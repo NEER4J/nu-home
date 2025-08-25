@@ -63,10 +63,11 @@ export async function POST(request: NextRequest) {
       first_name, 
       last_name, 
       email, 
-      phone, 
+      phone,
       postcode, 
-      city,
-      form_answers,
+      quote_data,
+      address_data,
+      questions,
       subdomain: bodySubdomain 
     } = body || {}
 
@@ -84,10 +85,6 @@ export async function POST(request: NextRequest) {
     }
 
     const companyName: string | undefined = partner.company_name || undefined
-    const companyPhone: string | undefined = partner.phone || undefined
-    const companyWebsite: string | undefined = partner.website_url || undefined
-    const companyDescription: string | undefined = partner.business_description || undefined
-    
     if (!partner.smtp_settings) {
       return NextResponse.json({ error: 'SMTP settings not configured' }, { status: 400 })
     }
@@ -98,7 +95,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Incomplete SMTP settings' }, { status: 400 })
     }
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: smtp.SMTP_HOST,
       port: smtp.SMTP_PORT,
       secure: smtp.SMTP_SECURE,
@@ -116,93 +113,62 @@ export async function POST(request: NextRequest) {
 
     const subject = `Your boiler quote request${companyName ? ' - ' + companyName : ''}`
     
-    // Format form answers for display
-    const formAnswersHtml = form_answers && Object.keys(form_answers).length > 0 
-      ? Object.entries(form_answers).map(([key, value]) => {
-          const question = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-          return `<tr><td style="padding: 8px; border-bottom: 1px solid #e5e7eb;"><strong>${question}:</strong></td><td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${String(value)}</td></tr>`
-        }).join('')
-      : '<tr><td colspan="2" style="padding: 8px; text-align: center; color: #6b7280;">No additional questions answered</td></tr>'
+    const formatQuoteData = (quoteData: Record<string, any>, questionsList: any[]) => {
+      if (!quoteData || !questionsList) return 'Quote details provided'
+      
+      return Object.entries(quoteData)
+        .filter(([key, value]) => {
+          // Filter out non-question data like postcode, address, etc.
+          const question = questionsList.find((q: any) => q.question_id === key)
+          return question !== undefined && value !== null && value !== undefined && value !== ''
+        })
+        .map(([questionId, answer]) => {
+          const question = questionsList.find((q: any) => q.question_id === questionId)
+          const questionText = question?.question_text || questionId
+          return `${questionText}: ${Array.isArray(answer) ? answer.join(', ') : answer}`
+        })
+        .join('\n')
+    }
+    
+    const quoteInfo = formatQuoteData(quote_data, questions || [])
+
+    const addressInfo = address_data ? Object.entries(address_data)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n') : ''
 
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          ${companyName ? `<h1 style="color: #1f2937; margin: 0;">${companyName}</h1>` : ''}
-          ${companyDescription ? `<p style="color: #6b7280; margin: 10px 0 0 0;">${companyDescription}</p>` : ''}
-        </div>
+      <div>
+        <p>Hi ${first_name ? String(first_name) : ''},</p>
+        <p>Thank you for requesting a boiler quote${companyName ? ' with <strong>' + companyName + '</strong>' : ''}.</p>
+        <p>We have received your initial information and will verify your phone number next.</p>
         
-        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-          <h2 style="color: #1f2937; margin: 0 0 20px 0;">Quote Request Received</h2>
-          <p style="color: #374151; margin: 0 0 15px 0;">Hi ${first_name ? String(first_name) : ''},</p>
-          <p style="color: #374151; margin: 0 0 15px 0;">Thank you for submitting your boiler quote request. We have received your information and will process it shortly.</p>
+        <div style="margin: 20px 0;">
+          <h3>Your Details:</h3>
+          <p><strong>Name:</strong> ${first_name} ${last_name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ''}
+          ${postcode ? `<p><strong>Postcode:</strong> ${postcode}</p>` : ''}
         </div>
 
-        <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 30px;">
-          <h3 style="color: #1f2937; margin: 0; padding: 20px 20px 10px 20px; border-bottom: 1px solid #e5e7eb;">Your Details</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;"><strong>Name:</strong></td><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;">${first_name ? String(first_name) : ''} ${last_name ? String(last_name) : ''}</td></tr>
-            <tr><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;"><strong>Email:</strong></td><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;">${email || 'Not provided'}</td></tr>
-            <tr><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;"><strong>Phone:</strong></td><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;">${phone || 'Not provided'}</td></tr>
-            <tr><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;"><strong>Postcode:</strong></td><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;">${postcode || 'Not provided'}</td></tr>
-            ${city ? `<tr><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;"><strong>City:</strong></td><td style="padding: 8px 20px; border-bottom: 1px solid #e5e7eb;">${city}</td></tr>` : ''}
-          </table>
-        </div>
-
-        <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 30px;">
-          <h3 style="color: #1f2937; margin: 0; padding: 20px 20px 10px 20px; border-bottom: 1px solid #e5e7eb;">Quote Requirements</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            ${formAnswersHtml}
-          </table>
-        </div>
-
-        <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-          <h3 style="color: #1e40af; margin: 0 0 15px 0;">Next Steps</h3>
-          <p style="color: #1e40af; margin: 0 0 10px 0;">1. We will review your requirements</p>
-          <p style="color: #1e40af; margin: 0 0 10px 0;">2. Our team will prepare your personalized quote</p>
-          <p style="color: #1e40af; margin: 0 0 15px 0;">3. You will receive your quote within 24-48 hours</p>
-        </div>
-
-        ${companyPhone || companyWebsite ? `
-        <div style="text-align: center; padding: 20px; background: #f9fafb; border-radius: 8px;">
-          <p style="color: #6b7280; margin: 0 0 10px 0;">Need immediate assistance?</p>
-          ${companyPhone ? `<p style="color: #1f2937; margin: 0 0 5px 0;"><strong>Phone:</strong> ${companyPhone}</p>` : ''}
-          ${companyWebsite ? `<p style="color: #1f2937; margin: 0;"><strong>Website:</strong> <a href="${companyWebsite}" style="color: #3b82f6;">${companyWebsite}</a></p>` : ''}
-        </div>
-        ` : ''}
-
-        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            This email was sent from your quote request form.
-            ${companyName ? `© ${new Date().getFullYear()} ${companyName}. All rights reserved.` : ''}
-          </p>
-        </div>
+        ${addressInfo ? `<div style="margin: 20px 0;"><h3>Property Details:</h3><pre style="background:#f9fafb;padding:12px;border:1px solid #e5e7eb;border-radius:8px;">${addressInfo}</pre></div>` : ''}
+        
+        ${quoteInfo ? `<div style="margin: 20px 0;"><h3>Quote Information:</h3><pre style="background:#f9fafb;padding:12px;border:1px solid #e5e7eb;border-radius:8px;">${quoteInfo}</pre></div>` : ''}
+        
+        <p>We will be in touch shortly after phone verification.</p>
       </div>
     `
 
-    const text = `Quote Request Received\n\n` +
-      `Hi ${first_name ? String(first_name) : ''},\n\n` +
-      `Thank you for submitting your boiler quote request. We have received your information and will process it shortly.\n\n` +
+    const text = `Hi ${first_name ? String(first_name) : ''},\n` +
+      `Thank you for requesting a boiler quote${companyName ? ' with ' + companyName : ''}.\n` +
+      `We have received your initial information and will verify your phone number next.\n\n` +
       `Your Details:\n` +
-      `Name: ${first_name ? String(first_name) : ''} ${last_name ? String(last_name) : ''}\n` +
-      `Email: ${email || 'Not provided'}\n` +
-      `Phone: ${phone || 'Not provided'}\n` +
-      `Postcode: ${postcode || 'Not provided'}\n` +
-      `${city ? `City: ${city}\n` : ''}` +
-      `\nQuote Requirements:\n` +
-      (form_answers && Object.keys(form_answers).length > 0 
-        ? Object.entries(form_answers).map(([key, value]) => {
-            const question = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-            return `${question}: ${String(value)}`
-          }).join('\n')
-        : 'No additional questions answered') +
-      `\n\nNext Steps:\n` +
-      `1. We will review your requirements\n` +
-      `2. Our team will prepare your personalized quote\n` +
-      `3. You will receive your quote within 24-48 hours\n\n` +
-      `${companyPhone ? `Need immediate assistance? Phone: ${companyPhone}\n` : ''}` +
-      `${companyWebsite ? `Website: ${companyWebsite}\n` : ''}` +
-      `\nThis email was sent from your quote request form.` +
-      `${companyName ? `\n© ${new Date().getFullYear()} ${companyName}. All rights reserved.` : ''}`
+      `Name: ${first_name} ${last_name}\n` +
+      `Email: ${email}\n` +
+      (phone ? `Phone: ${phone}\n` : '') +
+      (postcode ? `Postcode: ${postcode}\n` : '') +
+      (addressInfo ? `\nProperty Details:\n${addressInfo}\n` : '') +
+      (quoteInfo ? `\nQuote Information:\n${quoteInfo}\n` : '') +
+      `\nWe will be in touch shortly after phone verification.`
 
     try {
       await transporter.sendMail({
@@ -218,7 +184,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('Quote initial email error:', error)
-    return NextResponse.json({ error: 'Failed to send quote initial email', details: error?.message || String(error) }, { status: 500 })
+    console.error('Initial quote email error:', error)
+    return NextResponse.json({ error: 'Failed to send initial quote email', details: error?.message || String(error) }, { status: 500 })
   }
 }

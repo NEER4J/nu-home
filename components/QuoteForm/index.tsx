@@ -229,6 +229,7 @@ export default function QuoteForm({
           formValues={formValues}
           onUserInfoChange={setUserInfo}
           onSubmit={handleSubmit}
+          questions={questions}
         />
       );
     }

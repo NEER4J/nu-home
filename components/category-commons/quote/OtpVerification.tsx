@@ -9,13 +9,26 @@ interface OtpVerificationProps {
   onVerificationComplete: () => void
   onResendOtp?: () => void
   className?: string
+  userInfo?: {
+    firstName: string
+    lastName: string
+    email: string
+    phone: string
+  }
+  formValues?: Record<string, any>
+  submissionId?: string
+  questions?: any[]
 }
 
 export default function OtpVerification({ 
   phoneNumber, 
   onVerificationComplete, 
   onResendOtp,
-  className = '' 
+  className = '',
+  userInfo,
+  formValues = {},
+  submissionId,
+  questions = []
 }: OtpVerificationProps) {
   const otpConfig = {
     codeLength: 6,
@@ -130,6 +143,8 @@ export default function OtpVerification({
       
       if (data.status === 'approved') {
         setSuccess(true)
+        // Send verified quote email before completing
+        await sendVerifiedQuoteEmail()
         // Immediately notify parent to proceed; avoid lingering on OTP screen
         onVerificationComplete()
       } else {
@@ -145,6 +160,39 @@ export default function OtpVerification({
       inputRefs.current[0]?.focus()
     } finally {
       setLoading(false)
+    }
+  }
+
+  const sendVerifiedQuoteEmail = async () => {
+    if (!userInfo) return
+    
+    try {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+      const subdomain = hostname || null
+
+      const res = await fetch('/api/email/boiler/quote-verified', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: userInfo.firstName,
+          last_name: userInfo.lastName,
+          email: userInfo.email,
+          phone: userInfo.phone,
+          postcode: formValues.postcode,
+          quote_data: formValues,
+          address_data: formValues.address,
+          questions: questions,
+          submission_id: submissionId,
+          subdomain,
+        }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        console.warn('Failed to send verified quote email:', data?.error || 'Unknown error')
+      }
+    } catch (err: any) {
+      console.warn('Failed to send verified quote email:', err?.message || 'Unknown error')
     }
   }
 

@@ -756,7 +756,152 @@ function BoilerProductsContent() {
     }
   }
 
+  // Persist selected product (with snapshot) in partner_leads.cart_state and go to survey
+  const persistProductAndGoToSurvey = async (product: PartnerProduct) => {
+    setIsContinuing(true)
+    try {
+      console.log('persistProductAndGoToSurvey called with:', { 
+        submissionId, 
+        partnerUserId: partnerInfo?.user_id,
+        productId: product.partner_product_id,
+        productName: product.name
+      })
+      
+      if (!submissionId) {
+        console.warn('No submissionId found - redirecting to survey without saving product data')
+        setIsContinuing(false)
+        const url = new URL('/boiler/survey', window.location.origin)
+        window.location.href = url.toString()
+        return
+      }
 
+      if (!partnerInfo?.user_id) {
+        console.warn('No partnerInfo.user_id found - redirecting to survey without saving product data')
+        setIsContinuing(false)
+        const url = new URL('/boiler/survey', window.location.origin)
+        url.searchParams.set('submission', submissionId)
+        window.location.href = url.toString()
+        return
+      }
+
+      
+      // Load existing cart_state to preserve addons/bundles
+      const { data: lead } = await supabase
+        .from('partner_leads')
+        .select('cart_state')
+        .eq('submission_id', submissionId)
+        .single()
+      const existing = (lead as any)?.cart_state || {}
+      const selectedPower = getSelectedPowerOption(product)
+      const currentPrice = getCurrentPrice(product)
+      const selectedPlan = getSelectedPlan(product)
+      const selectedDeposit = getSelectedDeposit(product)
+      
+      const updated = {
+        ...existing,
+        product_id: product.partner_product_id,
+        selected_power: selectedPower,
+        current_price: currentPrice,
+        calculator_settings: {
+          selected_plan: selectedPlan,
+          selected_deposit: selectedDeposit,
+        }
+      }
+      console.log('Attempting to update partner_leads with:', {
+        submissionId,
+        cart_state: updated,
+        product_info: {
+          product_id: product.partner_product_id,
+          name: product.name,
+          price: currentPrice,
+          selected_power: selectedPower,
+          image_url: product.image_url,
+        },
+        calculator_info: {
+          selected_plan: selectedPlan,
+          selected_deposit: selectedDeposit,
+        }
+      })
+      
+      const updateResult = await supabase
+        .from('partner_leads')
+        .update({
+          cart_state: updated,
+          product_info: {
+            product_id: product.partner_product_id,
+            name: product.name,
+            price: currentPrice,
+            selected_power: selectedPower,
+            image_url: product.image_url,
+          },
+          calculator_info: {
+            selected_plan: selectedPlan,
+            selected_deposit: selectedDeposit,
+          },
+          progress_step: 'survey_completed',
+          last_seen_at: new Date().toISOString(),
+        })
+        .eq('submission_id', submissionId)
+      
+      if (updateResult.error) {
+        console.error('Failed to update partner_leads:', updateResult.error)
+        console.error('Error details:', {
+          message: updateResult.error.message,
+          details: updateResult.error.details,
+          hint: updateResult.error.hint
+        })
+        throw new Error('Database update failed')
+      }
+      
+      console.log('Successfully saved product to database for survey (progress_step: survey_completed):', {
+        submissionId,
+        product_id: product.partner_product_id,
+        product_info: {
+          product_id: product.partner_product_id,
+          name: product.name,
+          price: currentPrice,
+          selected_power: selectedPower,
+          image_url: product.image_url,
+        }
+      })
+      
+      // Verify what was actually saved in the database (for console logging only)
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('partner_leads')
+        .select('cart_state, product_info, calculator_info, progress_step, last_seen_at')
+        .eq('submission_id', submissionId)
+        .single()
+      
+      if (verifyError) {
+        console.error('Database update successful but verification failed:', verifyError)
+      } else {
+        console.log('Database update successful for survey - verification:', {
+          submissionId,
+          productName: product.name,
+          productId: product.partner_product_id,
+          progressStep: verifyData.progress_step,
+          timestamp: verifyData.last_seen_at,
+          cartStateProductId: verifyData.cart_state?.product_id,
+          productInfoProductId: verifyData.product_info?.product_id,
+          productInfoName: verifyData.product_info?.name,
+          productInfoPrice: verifyData.product_info?.price,
+          productInfoSelectedPower: verifyData.product_info?.selected_power,
+          calculatorInfo: verifyData.calculator_info
+        })
+      }
+      
+      const url = new URL('/boiler/survey', window.location.origin)
+      url.searchParams.set('submission', submissionId)
+      window.location.href = url.toString()
+    } catch (e) {
+      console.error('Failed to persist product selection for survey:', e)
+      const fallback = new URL('/boiler/survey', window.location.origin)
+      if (submissionId) fallback.searchParams.set('submission', submissionId)
+      window.location.href = fallback.toString()
+    } finally {
+      setIsContinuing(false)
+    }
+  }
 
   // Helper: normalize included item structures from various shapes
   const normalizeIncludedItem = (entry: any) => {
@@ -1233,8 +1378,18 @@ function BoilerProductsContent() {
                           Loading...
                         </>
                       ) : (
-                        'Continue with this'
+                        'Book and pick install date'
                       )}
+                    </Button>
+
+                    {/* Survey Button */}
+                    <Button
+                      variant="outline"
+                      className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
+                      onClick={() => persistProductAndGoToSurvey(product)}
+                      disabled={isContinuing}
+                    >
+                      {isContinuing ? 'Loading...' : 'or, book a call to discuss'}
                     </Button>
                   </div>
                 </CardContent>
@@ -1429,6 +1584,28 @@ function BoilerProductsContent() {
           </div>
         </div>
       )}
+
+      {/* Mobile Survey Button - Fixed Bottom Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
+        <button
+          className="w-full py-3 px-4 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
+          disabled={isContinuing}
+          onClick={() => {
+            // For mobile, we need to handle the case where no specific product is selected
+            // We'll just redirect to survey without storing product data
+            const surveyUrl = new URL('/boiler/survey', window.location.origin)
+            if (submissionId) {
+              surveyUrl.searchParams.set('submission', submissionId)
+            }
+            window.location.href = surveyUrl.toString()
+          }}
+        >
+          {isContinuing ? 'Loading...' : 'Get a Quote'}
+        </button>
+      </div>
+
+      {/* Bottom padding for mobile fixed button */}
+      <div className="lg:hidden h-20"></div>
     </div>
   )
 }

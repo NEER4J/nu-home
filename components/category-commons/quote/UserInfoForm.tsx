@@ -51,6 +51,7 @@ interface UserInfoFormProps {
   formValues?: Record<string, any>
   otpEnabled?: boolean
   companyColor?: string
+  questions?: any[]
 }
 
 export default function UserInfoForm({ 
@@ -61,7 +62,8 @@ export default function UserInfoForm({
   initialUserInfo = null,
   formValues = {},
   otpEnabled = false,
-  companyColor = '#2563eb'
+  companyColor = '#2563eb',
+  questions = []
 }: UserInfoFormProps) {
   const [userInfo, setUserInfo] = useState<UserInfo>({
     firstName: initialUserInfo?.firstName || '',
@@ -249,11 +251,49 @@ export default function UserInfoForm({
     }
   }
 
-  const handleUserSubmission = () => {
-    if (otpEnabled) {
-      setCurrentView('otp')
-    } else {
-      submitContactDetails()
+  const handleUserSubmission = async () => {
+    setIsSubmitting(true)
+    try {
+      await sendInitialQuoteEmail()
+      
+      if (otpEnabled) {
+        setCurrentView('otp')
+      } else {
+        submitContactDetails()
+      }
+    } catch (error) {
+      console.error('Error during user submission:', error)
+      setIsSubmitting(false)
+    }
+  }
+
+  const sendInitialQuoteEmail = async () => {
+    try {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+      const subdomain = hostname || null
+
+      const res = await fetch('/api/email/boiler/quote-initial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: userInfo.firstName,
+          last_name: userInfo.lastName,
+          email: userInfo.email,
+          phone: userInfo.fullPhoneNumber,
+          postcode: formValues.postcode,
+          quote_data: formValues,
+          address_data: formValues.address,
+          questions: questions,
+          subdomain,
+        }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        console.warn('Failed to send initial quote email:', data?.error || 'Unknown error')
+      }
+    } catch (err: any) {
+      console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
     }
   }
 
@@ -275,7 +315,6 @@ export default function UserInfoForm({
   const handleOtpVerificationComplete = () => {
     // Switch back to form view and show submitting state immediately
     setCurrentView('form')
-    setIsSubmitting(true)
     submitContactDetails()
   }
 
@@ -287,6 +326,15 @@ export default function UserInfoForm({
             phoneNumber={userInfo.fullPhoneNumber}
             onVerificationComplete={handleOtpVerificationComplete}
             className="max-w-md mx-auto"
+            userInfo={{
+              firstName: userInfo.firstName,
+              lastName: userInfo.lastName,
+              email: userInfo.email,
+              phone: userInfo.fullPhoneNumber
+            }}
+            formValues={formValues}
+            submissionId={formValues.submission_id}
+            questions={questions}
           />
           {/* Loading hint while we submit and redirect after verification */}
           {isSubmitting && (
