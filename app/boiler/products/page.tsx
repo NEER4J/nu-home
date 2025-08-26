@@ -112,6 +112,7 @@ function BoilerProductsContent() {
   const [showWhatsIncluded, setShowWhatsIncluded] = useState(false)
   const [selectedProductForWhatsIncluded, setSelectedProductForWhatsIncluded] = useState<PartnerProduct | null>(null)
   const [isContinuing, setIsContinuing] = useState(false)
+  const [isHorizontalLayout, setIsHorizontalLayout] = useState(false)
 
   // Filters
   const [filterBoilerType, setFilterBoilerType] = useState<string | null>(null)
@@ -1186,18 +1187,51 @@ function BoilerProductsContent() {
       />
 
       {/* Products Grid */}
-      <main className="max-w-[1500px] mx-auto px-6 py-8">
+      <main className="max-w-[1500px] mx-auto px-6 py-8 pt-0">
+        {/* Layout Toggle Controls */}
+        <div className="flex justify-end mb-6 hidden md:flex">
+          <div className="flex rounded-lg border border-gray-200 bg-white overflow-hidden">
+            <button
+              onClick={() => setIsHorizontalLayout(false)}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                !isHorizontalLayout 
+                  ? 'text-white' 
+                  : 'text-gray-700 hover:text-gray-900'
+              }`}
+              style={!isHorizontalLayout ? { backgroundColor: brandColor } : {}}
+            >
+             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => setIsHorizontalLayout(true)}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                isHorizontalLayout 
+                  ? 'text-white' 
+                  : 'text-gray-700 hover:text-gray-900'
+              }`}
+              style={isHorizontalLayout ? { backgroundColor: brandColor } : {}}
+            >
+              
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
         {displayProducts.length === 0 ? (
           <Card className="p-10 text-center text-gray-600">
             No products match your filters.
           </Card>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className={isHorizontalLayout ? "space-y-10" : "grid gap-10 lg:grid-cols-3"}>
             {displayProducts.map((product) => {
               const highlight = getProductHighlight(product)
               const cardClasses = highlight 
-                ? "bg-white rounded-2xl relative" 
-                : "bg-white rounded-2xl border-2 border-gray-200"
+                ? `bg-white rounded-2xl relative ${isHorizontalLayout ? 'border-0' : ''}` 
+                : `bg-white rounded-2xl border-2 border-gray-200 ${isHorizontalLayout ? '' : ''}`
               
               return (
                 <div 
@@ -1205,8 +1239,8 @@ function BoilerProductsContent() {
                   className={cardClasses}
                   style={highlight ? { borderColor: brandColor } : {}}
                 >
-                  {/* Product Highlight Title */}
-                  {highlight && (
+                  {/* Product Highlight Title for Vertical Layout */}
+                  {highlight && !isHorizontalLayout && (
                     <div 
                       className="absolute h-[calc(100%+2rem)] -top-8 text-white px-3 py-2 rounded-2xl text-sm font-medium shadow-md w-full text-center"
                       style={{ backgroundColor: brandColor }}
@@ -1214,326 +1248,636 @@ function BoilerProductsContent() {
                       {highlight.text}
                     </div>
                   )}
-                  
-                {/* Product Header */}
-                <div className="relative p-0 bg-white rounded-2xl m-[3px] h-[calc(100%-6px)]">
-                  {/* Product Image Gallery */}
-                  <ImageGallery
-                    images={(() => {
-                      const gallery = (product.product_fields as any)?.image_gallery
-                      if (Array.isArray(gallery) && gallery.length > 0) {
-                        return gallery
-                      }
-                      // Fallback to main product image if no gallery
-                      return product.image_url ? [{ image: product.image_url }] : []
-                    })()}
-                    productName={product.name}
-                    className="bg-gray-100 p-2 pt-5 rounded-2xl"
-                  />
 
-            <div className="p-5">
-
-                {/* Highlighted Features as Badges */}
-                {(() => {
-                    const highlightedFeatures = (product.product_fields as any)?.highlighted_features
-                    if (Array.isArray(highlightedFeatures) && highlightedFeatures.length > 0) {
-                      return (
-                        <div className="absolute top-0 left-0 p-5">
-                          <div className="flex flex-wrap gap-2">
-                            {highlightedFeatures.map((feature: any, index: number) => {
-                              const featureText = typeof feature === 'string' ? feature : feature.name || JSON.stringify(feature)
-                              const featureImage = feature.image
-                              return (
-                                <Badge
-                                  key={index}
-                                  variant="secondary"
-                                  className="px-3 py-1 flex items-center gap-2"
-                                  style={{ 
-                                    backgroundColor: `${brandColor}20`, 
-                                    color: brandColor,
-                                  }}
-                                >
-                                  {featureImage && (
-                                    <img 
-                                      src={featureImage} 
-                                      alt={featureText}
-                                      className="w-4 h-4 object-contain"
-                                    />
-                                  )}
-                                  {featureText}
-                                </Badge>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  })()}
-
-                  {/* Brand Logo */}
-                  {(() => {
-                    const brandImage = (product.product_fields as any)?.brand_image
-                    if (brandImage) {
-                      return (
-                        <div className="mb-2">
-                          <img 
-                            src={brandImage} 
-                            alt="Brand Logo"
-                            className="h-8 object-contain"
-                          />
-                        </div>
-                      )
-                    } else {
-                      return (
-                        <div className="text-sm font-semibold text-gray-600 mb-2">
-                          {product.name.split(' ')[0].toUpperCase()}
-                        </div>
-                      )
-                    }
-                  })()}
-
-                  {/* Product Name */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <h3 className="text-2xl font-semibold text-gray-900">{product.name}</h3>
-                  </div>
-
-            
-                 
-
-                  {/* Description */}
-                  {product.description && (
-                                          <p className="text-base text-gray-700 mb-4">{product.description}</p>
-
+                  {/* Product Highlight Title for Horizontal Layout */}
+                  {highlight && isHorizontalLayout && (
+                    <div 
+                      className="absolute h-[calc(100%+2.25rem)] -top-8 text-white px-3 py-2 rounded-2xl text-sm font-medium shadow-md w-full text-center"
+                      style={{ backgroundColor: brandColor }}
+                    >
+                      {highlight.text}
+                    </div>
                   )}
-
-           
-
-                
-
-                  {/* Specifications Section */}
-                  {(() => {
-                    const specs = (product.product_fields as any)?.specs
-                    if (Array.isArray(specs) && specs.length > 0) {
-                      return (
-                        <div className="mb-4">
-                          <div className="space-y-1">
-                            {specs.map((spec: any, index: number) => (
-                              <div key={index} className="flex items-center gap-2 text-base text-gray-700">
-                                  <Check className="w-5 h-5 text-green-500 flex-shrink-0 bg-gray-100 rounded-full p-1" strokeWidth={4} />
-                                <span>{spec.items}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  })()}
-
-
-                        {/* Product Specifications */}
-                        {(() => {
-                          const warranty = (product.product_fields as any)?.warranty
-                          const flow_rate = (product.product_fields as any)?.flow_rate
-                          const heating_output = (product.product_fields as any)?.heating_output
-                          const powerOptions = getPowerAndPriceOptions(product)
-                          const selectedPower = getSelectedPowerOption(product)
-                          
-                          const specs = []
-                          
-                          if (warranty) {
-                            specs.push({
-                              label: "Warranty",
-                              value: `${warranty} Years`,
-                              icon: ShieldCheck
-                            })
+                  
+                {/* Conditional Layout */}
+                {isHorizontalLayout ? (
+                  /* Horizontal Layout - Three Columns */
+                  <div className="grid grid-cols-1 md:grid-cols-12 relative bg-white relative p-0 bg-white rounded-2xl m-[4px]">
+                    {/* Column 1: Image Gallery, Brand Logo, Highlighted Features */}
+                    <div className="col-span-4 h-full ">
+                      {/* Product Image Gallery */}
+                      <ImageGallery
+                        images={(() => {
+                          const gallery = (product.product_fields as any)?.image_gallery
+                          if (Array.isArray(gallery) && gallery.length > 0) {
+                            return gallery
                           }
-                          
-                          if (flow_rate) {
-                            specs.push({
-                              label: "Hot water flow rate",
-                              value: `${flow_rate} litres / min`,
-                              icon: Droplets
-                            })
-                          }
-                          
-                          if (heating_output) {
-                            specs.push({
-                              label: "Central heating output",
-                              value: `${heating_output} kW`,
-                              icon: Flame
-                            })
-                          }
-                          
-                          if (selectedPower) {
-                            specs.push({
-                              label: "Power",
-                              value: `${selectedPower.power} kW`,
-                              icon: Flame
-                            })
-                          }
-                          
-                          if (specs.length > 0) {
-                            return (
-                              <div className="mb-2 px-3 py-2 bg-gray-100 rounded-lg">
-                                {specs.map((spec, index) => (
-                                  <div key={index} className="text-sm flex flex-wrap gap-1 items-center justify-between py-1.5 border-b border-gray-100 last:border-b-0">
-                                    <div className="flex items-center gap-2">
-                                      <spec.icon className="w-5 h-5 text-gray-400" />
-                                      <span className="text-gray-600">{spec.label}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-900">{spec.value}</span>
-                                    </div>
+                          return product.image_url ? [{ image: product.image_url }] : []
+                        })()}
+                        productName={product.name}
+                        className="bg-gray-100 p-2 md:pt-5 pt-10 rounded-2xl rounded-r-none mb-4 h-full flex items-center justify-center"
+                      />
+
+                      <div className="flex justify-center absolute top-0 left-0 w-full p-4 max-w-[500px] flex-col-reverse md:flex-col gap-3">
+                      
+                      {/* Brand Logo */}
+                      {(() => {
+                        const brandImage = (product.product_fields as any)?.brand_image
+                        if (brandImage) {
+                          return (
+                            <div className="mb-4">
+                              <img 
+                                src={brandImage} 
+                                alt="Brand Logo"
+                                className="md:h-8 h-5 object-contain"
+                              />
+                            </div>
+                          )
+                        } else {
+                          return (
+                            <div className="text-sm font-semibold text-gray-600 mb-4">
+                              {product.name.split(' ')[0].toUpperCase()}
+                            </div>
+                          )
+                        }
+                      })()}
+
+                      {/* Highlighted Features as Badges */}
+                      {(() => {
+                        const highlightedFeatures = (product.product_fields as any)?.highlighted_features
+                        if (Array.isArray(highlightedFeatures) && highlightedFeatures.length > 0) {
+                          return (
+                            <div className="flex flex-wrap gap-2">
+                              {highlightedFeatures.map((feature: any, index: number) => {
+                                const featureText = typeof feature === 'string' ? feature : feature.name || JSON.stringify(feature)
+                                const featureImage = feature.image
+                                return (
+                                  <Badge
+                                    key={index}
+                                    variant="secondary"
+                                    className="px-3 py-1 flex items-center gap-2"
+                                    style={{ 
+                                      backgroundColor: `${brandColor}20`, 
+                                      color: brandColor,
+                                    }}
+                                  >
+                                    {featureImage && (
+                                      <img 
+                                        src={featureImage} 
+                                        alt={featureText}
+                                        className="w-4 h-4 object-contain"
+                                      />
+                                    )}
+                                    {featureText}
+                                  </Badge>
+                                )
+                              })}
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+                      </div>
+                    </div>
+
+                    {/* Column 2: Description, Specifications */}
+                    <div className="col-span-4 md:p-6 p-4 pb-0">
+                      {/* Product Name */}
+                      <h3 className="text-2xl font-semibold text-gray-900 mb-3">{product.name}</h3>
+                      
+                      {/* Description */}
+                      {product.description && (
+                        <p className="md:text-base text-sm text-gray-700 mb-4">{product.description}</p>
+                      )}
+
+                      {/* Specifications Section */}
+                      {(() => {
+                        const specs = (product.product_fields as any)?.specs
+                        if (Array.isArray(specs) && specs.length > 0) {
+                          return (
+                            <div className="mb-4">
+                              <div className="space-y-1">
+                                {specs.map((spec: any, index: number) => (
+                                  <div key={index} className="flex items-center gap-2 text-base text-gray-700">
+                                    <Check className="w-5 h-5 text-green-500 flex-shrink-0 bg-gray-100 rounded-full p-1" strokeWidth={4} />
+                                    <span>{spec.items}</span>
                                   </div>
                                 ))}
                               </div>
-                            )
-                          }
-                          return null
-                        })()}
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
 
-                        {/* Dimensions Section - Outside specifications */}
-                        {(() => {
-                          const dimensions = (product.product_fields as any)?.dimensions
-                          if (dimensions && typeof dimensions === 'object') {
-                            return (
-                              <div className="mb-4 px-3 py-2 bg-gray-100 rounded-lg">
-                                <div className="flex items-center gap-2 text-sm justify-center">
-                                  <Box className="w-5 h-5 text-gray-400" />
-                                  <span className="text-gray-900">
-                                    W {dimensions.width || dimensions.widht}mm x D {dimensions.depth}mm x H {dimensions.height}mm
-                                  </span>
+                      {/* Product Specifications */}
+                      {(() => {
+                        const warranty = (product.product_fields as any)?.warranty
+                        const flow_rate = (product.product_fields as any)?.flow_rate
+                        const heating_output = (product.product_fields as any)?.heating_output
+                        const powerOptions = getPowerAndPriceOptions(product)
+                        const selectedPower = getSelectedPowerOption(product)
+                        
+                        const specs = []
+                        
+                        if (warranty) {
+                          specs.push({
+                            label: "Warranty",
+                            value: `${warranty} Years`,
+                            icon: ShieldCheck
+                          })
+                        }
+                        
+                        if (flow_rate) {
+                          specs.push({
+                            label: "Hot water flow rate",
+                            value: `${flow_rate} litres / min`,
+                            icon: Droplets
+                          })
+                        }
+                        
+                        if (heating_output) {
+                          specs.push({
+                            label: "Central heating output",
+                            value: `${heating_output} kW`,
+                            icon: Flame
+                          })
+                        }
+                        
+                        if (selectedPower) {
+                          specs.push({
+                            label: "Power",
+                            value: `${selectedPower.power} kW`,
+                            icon: Flame
+                          })
+                        }
+                        
+                        if (specs.length > 0) {
+                          return (
+                            <div className="mb-4 px-3 py-2 bg-gray-100 rounded-lg">
+                              {specs.map((spec, index) => (
+                                <div key={index} className="text-sm flex flex-wrap gap-1 items-center justify-between py-1.5 border-b border-gray-100 last:border-b-0">
+                                  <div className="flex items-center gap-2">
+                                    <spec.icon className="w-5 h-5 text-gray-400" />
+                                    <span className="text-gray-600">{spec.label}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-900">{spec.value}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Dimensions Section */}
+                      {(() => {
+                        const dimensions = (product.product_fields as any)?.dimensions
+                        if (dimensions && typeof dimensions === 'object') {
+                          return (
+                            <div className="mb-4 px-3 py-2 bg-gray-100 rounded-lg">
+                              <div className="flex items-center gap-2 text-sm justify-center">
+                                <Box className="w-5 h-5 text-gray-400" />
+                                <span className="text-gray-900">
+                                  W {dimensions.width || dimensions.widht}mm x D {dimensions.depth}mm x H {dimensions.height}mm
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+                    </div>
+
+                    {/* Column 3: Pricing and Actions */}
+                    <div className="col-span-4 bg-gray-100 rounded-2xl rounded-l-none md:p-8 p-4 h-full flex items-center justify-center">
+                      <div className='w-full'>
+                      {/* Power Selection */}
+                      <p className="text-base text-gray-600 mb-2 text-center mb-4">Your fixed price including installation</p>
+                      {(() => {
+                        const powerOptions = getPowerAndPriceOptions(product)
+                        if (powerOptions.length > 0) {
+                          const selectedPower = getSelectedPowerOption(product)
+                          return (
+                            <div className="mb-4">
+                              <div className="flex gap-2">
+                                {powerOptions.map((option) => {
+                                  const isSelected = selectedPower?.power === option.power
+                                  const selectedPrice = selectedPower ? selectedPower.price : powerOptions[0].price
+                                  const priceDifference = option.price - selectedPrice
+                                  return (
+                                    <Button
+                                      key={option.power}
+                                      onClick={() => selectPowerOption(product, option)}
+                                      variant={isSelected ? "default" : "outline"}
+                                      className="w-full px-3 py-2 rounded-lg text-sm font-medium"
+                                    >
+                                      <div className="text-center">
+                                        <div>{option.power}kW</div>
+                                        {!isSelected && priceDifference !== 0 && (
+                                          <div className={`text-xs ${priceDifference > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                            {priceDifference > 0 ? '+' : '-'}£{Math.abs(priceDifference)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </Button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Pricing Section */}
+                      {(() => {
+                        const powerOptions = getPowerAndPriceOptions(product)
+                        const currentPrice = powerOptions.length > 0 ? getCurrentPrice(product) : (typeof product.price === 'number' ? product.price : 0)
+                        const monthlyPayment = getMonthlyPayment(product) || (currentPrice / 12)
+                        
+                        if (currentPrice > 0) {
+                          return (
+                            <div className="mb-6 border border-gray-200 rounded-lg bg-gray-100">
+                              <div className="flex items-center justify-around p-4 bg-white">
+                                {/* Fixed Price */}
+                                <div className="text-center border-r border-gray-200 pr-4">
+                                  <p className="text-xs text-gray-600 mb-1 text-left">Fixed price (inc. VAT)</p>
+                                  <div className="flex items-end gap-2 justify-center">
+                                    <span className="text-xl font-medium text-gray-900">£{currentPrice.toFixed(2)}</span>
+                                    <span className="text-xs text-red-500 line-through">£{(currentPrice + 250).toFixed(2)}</span>
+                                  </div>
+                                </div>
+                                
+                                {/* Monthly Price */}
+                                <div className="text-center">
+                                  <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
+                                  <div className="flex items-center gap-2 justify-center">
+                                    <span className="text-xl font-medium text-gray-900">£{monthlyPayment.toFixed(0)}</span>
+                                    <button
+                                      onClick={() => openFinanceCalculator(product)}
+                                      className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                      title="Open Finance Calculator"
+                                    >
+                                      <ChevronDown size={16} className="text-gray-600" />
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                            )
-                          }
-                          return null
-                        })()}
-
-      {/* Power Selection */}
-      {(() => {
-                    const powerOptions = getPowerAndPriceOptions(product)
-                    if (powerOptions.length > 0) {
-                      const selectedPower = getSelectedPowerOption(product)
-                      return (
-                        <div className="mb-4">
-                          <div className="flex gap-2">
-                            {powerOptions.map((option) => {
-                              const isSelected = selectedPower?.power === option.power
-                              const selectedPrice = selectedPower ? selectedPower.price : powerOptions[0].price
-                              const priceDifference = option.price - selectedPrice
-                              return (
-                                <Button
-                                  key={option.power}
-                                  onClick={() => selectPowerOption(product, option)}
-                                  variant={isSelected ? "default" : "outline"}
-                                  className="flex-1 px-3 py-2 rounded-lg text-sm font-medium"
-                                >
-                                  <div className="text-center">
-                                    <div>{option.power}kW</div>
-                                    {!isSelected && priceDifference !== 0 && (
-                                      <div className={`text-xs ${priceDifference > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                        {priceDifference > 0 ? '+' : '-'}£{Math.abs(priceDifference)}
-                                      </div>
-                                    )}
-                                  </div>
-                                </Button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  })()}
-
-                  {/* Pricing Section */}
-                  {(() => {
-                    const powerOptions = getPowerAndPriceOptions(product)
-                    const currentPrice = powerOptions.length > 0 ? getCurrentPrice(product) : (typeof product.price === 'number' ? product.price : 0)
-                    const monthlyPayment = getMonthlyPayment(product) || (currentPrice / 12)
-                    
-                    if (currentPrice > 0) {
-                      return (
-                        <div className="mb-6 border border-gray-200 rounded-lg bg-gray-100">
-                          <div className="flex items-end justify-between p-4 bg-white">
-                            {/* Left Section - Fixed Price */}
-                            <div className="border-r border-gray-200 pr-4 w-1/2 flex flex-col items-center justify-center">
-                              <p className="text-xs text-gray-600 mb-1">Fixed price (inc. VAT)</p>
-                              <div className="flex items-end gap-2">
-                                <span className="text-xl font-medium text-gray-900">£{currentPrice.toFixed(2)}</span>
-                                <span className="text-xs text-red-500 line-through">£{(currentPrice + 250).toFixed(2)}</span>
-                              </div>
+                              <span 
+                                onClick={() => openWhatsIncluded(product)}
+                                className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer"
+                              >
+                                What's included in my installation?
+                              </span>
                             </div>
-                            
-                            {/* Right Section - Monthly Price */}
-                            <div className="text-left w-1/2 flex flex-col items-center justify-center">
-                              <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xl font-medium text-gray-900">£{monthlyPayment.toFixed(0)}</span>
-                                <button
-                                  onClick={() => openFinanceCalculator(product)}
-                                  className="p-1 hover:bg-gray-100 rounded transition-colors"
-                                  title="Open Finance Calculator"
-                                >
-                                  <ChevronDown size={16} className="text-gray-600" />
-                                </button>
-                              </div>
-                            </div>
+                          )
+                        }
+                        return null
+                      })()}
 
-                          </div>
-                          <span 
-                          
-                            onClick={() => openWhatsIncluded(product)}
-                            className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer"
-                          >
-                            What's included in my installation?
-                          </span>
-                        </div>
-                      )
-                    }
-                    return null
-                  })()}
+                      {/* Action Buttons */}
+                      <div className="space-y-3">
+                        {/* Primary Action Button */}
+                        <Button
+                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${isContinuing ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
+                          onClick={() => persistProductAndGo(product)}
+                          disabled={isContinuing}
+                          style={{ backgroundColor: brandColor }}
+                        >
+                          {isContinuing ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Loading...
+                            </>
+                          ) : (
+                            'Book and pick install date'
+                          )}
+                        </Button>
 
-                  {/* Action Links */}
-                  <div className="space-y-3">
-                   
-                    
-                    {/* Primary Action Button */}
-                    <Button
-                      className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${isContinuing ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
-                      onClick={() => persistProductAndGo(product)}
-                      disabled={isContinuing}
-                      style={{ backgroundColor: brandColor }}
-                    >
-                      {isContinuing ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Loading...
-                        </>
-                      ) : (
-                        
-                        'Book and pick install date'
-                      )}
-                    </Button>
-
-                    {/* Survey Button */}
-                    <Button
-                      variant="outline"
-                      className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
-                      onClick={() => persistProductAndGoToSurvey(product)}
-                      disabled={isContinuing}
-                    >
-                      {isContinuing ? 'Loading...' : 'or, book a call to discuss'}
-                    </Button>
+                        {/* Survey Button */}
+                        <Button
+                          variant="outline"
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          onClick={() => persistProductAndGoToSurvey(product)}
+                          disabled={isContinuing}
+                        >
+                          {isContinuing ? 'Loading...' : 'or, book a call to discuss'}
+                        </Button>
+                      </div>
+                    </div>
+                    </div>
                   </div>
-                </div>
-                </div>
+                ) : (
+                  /* Vertical Layout - Original Structure */
+                  <div className="relative p-0 bg-white rounded-2xl m-[3px] h-[calc(100%-6px)]">
+                    {/* Product Image Gallery */}
+                    <ImageGallery
+                      images={(() => {
+                        const gallery = (product.product_fields as any)?.image_gallery
+                        if (Array.isArray(gallery) && gallery.length > 0) {
+                          return gallery
+                        }
+                        return product.image_url ? [{ image: product.image_url }] : []
+                      })()}
+                      productName={product.name}
+                      className="bg-gray-100 p-2 pt-5 rounded-2xl"
+                    />
+
+                    <div className="p-5">
+                      {/* Highlighted Features as Badges */}
+                      {(() => {
+                        const highlightedFeatures = (product.product_fields as any)?.highlighted_features
+                        if (Array.isArray(highlightedFeatures) && highlightedFeatures.length > 0) {
+                          return (
+                            <div className="absolute top-0 left-0 p-5">
+                              <div className="flex flex-wrap gap-2">
+                                {highlightedFeatures.map((feature: any, index: number) => {
+                                  const featureText = typeof feature === 'string' ? feature : feature.name || JSON.stringify(feature)
+                                  const featureImage = feature.image
+                                  return (
+                                    <Badge
+                                      key={index}
+                                      variant="secondary"
+                                      className="px-3 py-1 flex items-center gap-2"
+                                      style={{ 
+                                        backgroundColor: `${brandColor}20`, 
+                                        color: brandColor,
+                                      }}
+                                    >
+                                      {featureImage && (
+                                        <img 
+                                          src={featureImage} 
+                                          alt={featureText}
+                                          className="w-4 h-4 object-contain"
+                                        />
+                                      )}
+                                      {featureText}
+                                    </Badge>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Brand Logo */}
+                      {(() => {
+                        const brandImage = (product.product_fields as any)?.brand_image
+                        if (brandImage) {
+                          return (
+                            <div className="mb-2">
+                              <img 
+                                src={brandImage} 
+                                alt="Brand Logo"
+                                className="h-8 object-contain"
+                              />
+                            </div>
+                          )
+                        } else {
+                          return (
+                            <div className="text-sm font-semibold text-gray-600 mb-2">
+                              {product.name.split(' ')[0].toUpperCase()}
+                            </div>
+                          )
+                        }
+                      })()}
+
+                      {/* Product Name */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <h3 className="text-2xl font-semibold text-gray-900">{product.name}</h3>
+                      </div>
+
+                      {/* Description */}
+                      {product.description && (
+                        <p className="text-base text-gray-700 mb-4">{product.description}</p>
+                      )}
+
+                      {/* Specifications Section */}
+                      {(() => {
+                        const specs = (product.product_fields as any)?.specs
+                        if (Array.isArray(specs) && specs.length > 0) {
+                          return (
+                            <div className="mb-4">
+                              <div className="space-y-1">
+                                {specs.map((spec: any, index: number) => (
+                                  <div key={index} className="flex items-center gap-2 text-base text-gray-700">
+                                    <Check className="w-5 h-5 text-green-500 flex-shrink-0 bg-gray-100 rounded-full p-1" strokeWidth={4} />
+                                    <span>{spec.items}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Product Specifications */}
+                      {(() => {
+                        const warranty = (product.product_fields as any)?.warranty
+                        const flow_rate = (product.product_fields as any)?.flow_rate
+                        const heating_output = (product.product_fields as any)?.heating_output
+                        const powerOptions = getPowerAndPriceOptions(product)
+                        const selectedPower = getSelectedPowerOption(product)
+                        
+                        const specs = []
+                        
+                        if (warranty) {
+                          specs.push({
+                            label: "Warranty",
+                            value: `${warranty} Years`,
+                            icon: ShieldCheck
+                          })
+                        }
+                        
+                        if (flow_rate) {
+                          specs.push({
+                            label: "Hot water flow rate",
+                            value: `${flow_rate} litres / min`,
+                            icon: Droplets
+                          })
+                        }
+                        
+                        if (heating_output) {
+                          specs.push({
+                            label: "Central heating output",
+                            value: `${heating_output} kW`,
+                            icon: Flame
+                          })
+                        }
+                        
+                        if (selectedPower) {
+                          specs.push({
+                            label: "Power",
+                            value: `${selectedPower.power} kW`,
+                            icon: Flame
+                          })
+                        }
+                        
+                        if (specs.length > 0) {
+                          return (
+                            <div className="mb-2 px-3 py-2 bg-gray-100 rounded-lg">
+                              {specs.map((spec, index) => (
+                                <div key={index} className="text-sm flex flex-wrap gap-1 items-center justify-between py-1.5 border-b border-gray-100 last:border-b-0">
+                                  <div className="flex items-center gap-2">
+                                    <spec.icon className="w-5 h-5 text-gray-400" />
+                                    <span className="text-gray-600">{spec.label}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-900">{spec.value}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Dimensions Section */}
+                      {(() => {
+                        const dimensions = (product.product_fields as any)?.dimensions
+                        if (dimensions && typeof dimensions === 'object') {
+                          return (
+                            <div className="mb-4 px-3 py-2 bg-gray-100 rounded-lg">
+                              <div className="flex items-center gap-2 text-sm justify-center">
+                                <Box className="w-5 h-5 text-gray-400" />
+                                <span className="text-gray-900">
+                                  W {dimensions.width || dimensions.widht}mm x D {dimensions.depth}mm x H {dimensions.height}mm
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Power Selection */}
+                      {(() => {
+                        const powerOptions = getPowerAndPriceOptions(product)
+                        if (powerOptions.length > 0) {
+                          const selectedPower = getSelectedPowerOption(product)
+                          return (
+                            <div className="mb-4">
+                              <div className="flex gap-2">
+                                {powerOptions.map((option) => {
+                                  const isSelected = selectedPower?.power === option.power
+                                  const selectedPrice = selectedPower ? selectedPower.price : powerOptions[0].price
+                                  const priceDifference = option.price - selectedPrice
+                                  return (
+                                    <Button
+                                      key={option.power}
+                                      onClick={() => selectPowerOption(product, option)}
+                                      variant={isSelected ? "default" : "outline"}
+                                      className="flex-1 px-3 py-2 rounded-lg text-sm font-medium"
+                                    >
+                                      <div className="text-center">
+                                        <div>{option.power}kW</div>
+                                        {!isSelected && priceDifference !== 0 && (
+                                          <div className={`text-xs ${priceDifference > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                            {priceDifference > 0 ? '+' : '-'}£{Math.abs(priceDifference)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </Button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Pricing Section */}
+                      {(() => {
+                        const powerOptions = getPowerAndPriceOptions(product)
+                        const currentPrice = powerOptions.length > 0 ? getCurrentPrice(product) : (typeof product.price === 'number' ? product.price : 0)
+                        const monthlyPayment = getMonthlyPayment(product) || (currentPrice / 12)
+                        
+                        if (currentPrice > 0) {
+                          return (
+                            <div className="mb-6 border border-gray-200 rounded-lg bg-gray-100">
+                              <div className="flex items-end justify-between p-4 bg-white">
+                                {/* Left Section - Fixed Price */}
+                                <div className="border-r border-gray-200 pr-4 w-1/2 flex flex-col items-center justify-center">
+                                  <p className="text-xs text-gray-600 mb-1">Fixed price (inc. VAT)</p>
+                                  <div className="flex items-end gap-2">
+                                    <span className="text-xl font-medium text-gray-900">£{currentPrice.toFixed(2)}</span>
+                                    <span className="text-xs text-red-500 line-through">£{(currentPrice + 250).toFixed(2)}</span>
+                                  </div>
+                                </div>
+                                
+                                {/* Right Section - Monthly Price */}
+                                <div className="text-left w-1/2 flex flex-col items-center justify-center">
+                                  <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xl font-medium text-gray-900">£{monthlyPayment.toFixed(0)}</span>
+                                    <button
+                                      onClick={() => openFinanceCalculator(product)}
+                                      className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                      title="Open Finance Calculator"
+                                    >
+                                      <ChevronDown size={16} className="text-gray-600" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              <span 
+                                onClick={() => openWhatsIncluded(product)}
+                                className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer"
+                              >
+                                What's included in my installation?
+                              </span>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Action Buttons */}
+                      <div className="space-y-3">
+                        {/* Primary Action Button */}
+                        <Button
+                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${isContinuing ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
+                          onClick={() => persistProductAndGo(product)}
+                          disabled={isContinuing}
+                          style={{ backgroundColor: brandColor }}
+                        >
+                          {isContinuing ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Loading...
+                            </>
+                          ) : (
+                            'Book and pick install date'
+                          )}
+                        </Button>
+
+                        {/* Survey Button */}
+                        <Button
+                          variant="outline"
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          onClick={() => persistProductAndGoToSurvey(product)}
+                          disabled={isContinuing}
+                        >
+                          {isContinuing ? 'Loading...' : 'or, book a call to discuss'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 </div>
               )
             })}

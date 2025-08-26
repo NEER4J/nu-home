@@ -37,7 +37,7 @@ export default function ImageGallery({ images, productName, className = '' }: Im
   return (
     <div className={`relative ${className}`}>
       {/* Main Image Display */}
-      <div className="relative h-64 bg-gray-100 rounded-lg overflow-hidden p-5">
+      <div className="relative h-72 bg-gray-100 rounded-lg overflow-hidden p-5 w-full">
         <img
           src={normalizedImages[currentIndex].image}
           alt={`${productName} - Image ${currentIndex + 1}`}
