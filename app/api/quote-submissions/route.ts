@@ -112,7 +112,18 @@ export async function POST(req: NextRequest) {
         assignment_date: assignedPartnerId ? new Date().toISOString() : null,
         status: 'new',
         user_agent: req.headers.get('user-agent') || null,
-        ip_address: req.headers.get('x-forwarded-for') || null
+        ip_address: req.headers.get('x-forwarded-for') || null,
+        // Include new address fields if available
+        ...(formData.address_line_1 && { address_line_1: formData.address_line_1 }),
+        ...(formData.address_line_2 && { address_line_2: formData.address_line_2 }),
+        ...(formData.street_name && { street_name: formData.street_name }),
+        ...(formData.street_number && { street_number: formData.street_number }),
+        ...(formData.building_name && { building_name: formData.building_name }),
+        ...(formData.sub_building && { sub_building: formData.sub_building }),
+        ...(formData.county && { county: formData.county }),
+        ...(formData.country && { country: formData.country }),
+        ...(formData.formatted_address && { formatted_address: formData.formatted_address }),
+        ...(formData.address_type && { address_type: formData.address_type })
       })
       .select()
       .single();

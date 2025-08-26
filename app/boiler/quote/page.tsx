@@ -47,6 +47,7 @@ export default function HeatingQuotePage({
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<FormValues>({});
+  const [selectedAddress, setSelectedAddress] = useState<any>(null);
   const [userInfo, setUserInfo] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partnerInfoFromDomain, setPartnerInfoFromDomain] = useState<PartnerProfile | null>(null);
@@ -210,6 +211,12 @@ export default function HeatingQuotePage({
     }));
   };
 
+  // Handle address selection from PostcodeStep
+  const handleAddressSelect = (address: any) => {
+    setSelectedAddress(address);
+    console.log('Address selected:', address);
+  };
+
   // Handle next step
   const handleNextStep = () => {
     setCurrentStep(prev => prev + 1);
@@ -263,7 +270,20 @@ export default function HeatingQuotePage({
         assigned_partner_id: partnerInfo?.user_id || partnerId || null,
         submission_date: new Date().toISOString(),
         status: 'new',
-        serviceCategoryName: 'boiler'
+        serviceCategoryName: 'boiler',
+        // Include selected address data if available
+        ...(selectedAddress && {
+          address_line_1: selectedAddress.address_line_1,
+          address_line_2: selectedAddress.address_line_2,
+          street_name: selectedAddress.street_name,
+          street_number: selectedAddress.street_number,
+          building_name: selectedAddress.building_name,
+          sub_building: selectedAddress.sub_building,
+          county: selectedAddress.county,
+          country: selectedAddress.country,
+          formatted_address: selectedAddress.formatted_address,
+          address_type: 'residential'
+        })
       };
       
       const apiUrl = new URL('/api/quote-submissions', window.location.origin);
@@ -359,6 +379,7 @@ export default function HeatingQuotePage({
             onNext={handleNextStep}
             onPrevious={handlePrevStep}
             companyColor={getDynamicColor()}
+            onAddressSelect={handleAddressSelect}
           />
         </div>
       );

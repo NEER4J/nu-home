@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { HelpCircle, MessageCircle, PhoneCall } from 'lucide-react'
 import { useOnClickOutside } from '@/hooks/use-click-outside'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
+import { PartnerCodeInjection } from '@/components/PartnerCodeInjection'
 
 export default function CategoryLayout({
   children,
@@ -15,6 +16,11 @@ export default function CategoryLayout({
 }) {
   const [showHelp, setShowHelp] = useState(false)
   const [partnerProfile, setPartnerProfile] = useState<PartnerProfile | null>(null)
+  const [partnerSettings, setPartnerSettings] = useState<{
+    header_code?: string;
+    body_code?: string;
+    footer_code?: string;
+  } | null>(null)
   const helpButtonRef = useRef<HTMLDivElement>(null!)
   const supabase = createClientComponentClient()
 
@@ -30,6 +36,21 @@ export default function CategoryLayout({
           const partner = await resolvePartnerByHost(supabase, hostname)
           if (partner) {
             setPartnerProfile(partner)
+            
+            // Fetch partner settings for code injection
+            const { data: profile, error } = await supabase
+              .from('UserProfiles')
+              .select('header_code, body_code, footer_code')
+              .eq('user_id', partner.user_id)
+              .single();
+            
+            if (!error && profile) {
+              setPartnerSettings({
+                header_code: profile.header_code || '',
+                body_code: profile.body_code || '',
+                footer_code: profile.footer_code || '',
+              });
+            }
           }
         }
       } catch (err) {
@@ -106,6 +127,15 @@ export default function CategoryLayout({
       <main className="pt-16">
         {children}
       </main>
+      
+      {/* Partner Code Injection */}
+      {partnerSettings && (
+        <PartnerCodeInjection
+          headerCode={partnerSettings.header_code}
+          bodyCode={partnerSettings.body_code}
+          footerCode={partnerSettings.footer_code}
+        />
+      )}
     </div>
   )
 } 

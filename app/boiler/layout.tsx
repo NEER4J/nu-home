@@ -1,5 +1,6 @@
 import { Inter } from 'next/font/google';
 import Header from '@/components/category-commons/header';
+import { PartnerCodeWrapper } from '@/components/PartnerCodeWrapper';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -19,6 +20,7 @@ export default function BoilerLayout({
       <main>
         {children}
       </main>
+      <PartnerCodeWrapper />
     </div>
   );
 }

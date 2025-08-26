@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import { FormQuestion } from '@/types/database.types';
 import { motion, AnimatePresence } from 'framer-motion';
 import QuestionsStep from './QuestionsStep';
-import PostcodeStep from './PostcodeStep';
+import PostcodeStep from '../category-commons/quote/PostcodeStep';
 import UserInfoForm from '../category-commons/quote/UserInfoForm';
 import ThankYouMessage from './ThankYouMessage';
 
@@ -52,6 +52,7 @@ export default function QuoteForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>({});
+  const [selectedAddress, setSelectedAddress] = useState<any>(null);
   const [userInfo, setUserInfo] = useState<any>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [submissionData, setSubmissionData] = useState<any>(null);
@@ -219,6 +220,7 @@ export default function QuoteForm({
           value={formValues.postcode || ''}
           onNext={handleNextStep}
           onPrevious={handlePrevStep}
+          onAddressSelect={handleAddressSelect}
         />
       );
     } else {
@@ -252,6 +254,12 @@ export default function QuoteForm({
       ...prev,
       [questionId]: value
     }));
+  };
+
+  // Handle address selection from PostcodeStep
+  const handleAddressSelect = (address: any) => {
+    setSelectedAddress(address);
+    console.log('Address selected:', address);
   };
   
   // Handle next step
@@ -312,7 +320,20 @@ export default function QuoteForm({
         assigned_partner_id: partnerInfo?.user_id || partnerId || null,
         submission_date: new Date().toISOString(),
         status: 'new',
-        serviceCategoryName: serviceCategorySlug
+        serviceCategoryName: serviceCategorySlug,
+        // Include selected address data if available
+        ...(selectedAddress && {
+          address_line_1: selectedAddress.address_line_1,
+          address_line_2: selectedAddress.address_line_2,
+          street_name: selectedAddress.street_name,
+          street_number: selectedAddress.street_number,
+          building_name: selectedAddress.building_name,
+          sub_building: selectedAddress.sub_building,
+          county: selectedAddress.county,
+          country: selectedAddress.country,
+          formatted_address: selectedAddress.formatted_address,
+          address_type: 'residential'
+        })
       };
       
       // Debug log to check what's being submitted

@@ -113,6 +113,9 @@ export default function PartnerSettingsPage() {
   const [kandaSettings, setKandaSettings] = useState<KandaSettings>(defaultKanda);
   const [companyColor, setCompanyColor] = useState('#3B82F6');
   const [otpEnabled, setOtpEnabled] = useState(false);
+  const [headerCode, setHeaderCode] = useState('');
+  const [bodyCode, setBodyCode] = useState('');
+  const [footerCode, setFooterCode] = useState('');
   
   // Category form states
   const [aprEntries, setAprEntries] = useState<APREntry[]>([{ months: 12, apr: 0 }]);
@@ -204,7 +207,7 @@ export default function PartnerSettingsPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from('UserProfiles')
-        .select('smtp_settings, twilio_settings, stripe_settings, kanda_settings, company_color, otp')
+        .select('smtp_settings, twilio_settings, stripe_settings, kanda_settings, company_color, otp, header_code, body_code, footer_code')
         .eq('user_id', user.id)
         .single();
 
@@ -252,6 +255,9 @@ export default function PartnerSettingsPage() {
         
         setCompanyColor(profile.company_color || '#3B82F6');
         setOtpEnabled(Boolean(profile.otp));
+        setHeaderCode(profile.header_code || '');
+        setBodyCode(profile.body_code || '');
+        setFooterCode(profile.footer_code || '');
       }
     } catch (error) {
       console.error('Unexpected error loading integrations:', error);
@@ -300,6 +306,9 @@ export default function PartnerSettingsPage() {
           kanda_settings: encrypted_kanda,
           company_color: companyColor,
           otp: otpEnabled,
+          header_code: headerCode,
+          body_code: bodyCode,
+          footer_code: footerCode,
         })
         .eq('user_id', user.id);
 
@@ -595,6 +604,72 @@ export default function PartnerSettingsPage() {
                   Require customers to verify their phone number via SMS before submitting quotes
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Header Code */}
+          <div className="bg-gray-50 p-4 rounded-lg border mb-6">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Header Code
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Add custom HTML, CSS, or JavaScript code that will be included in the &lt;head&gt; section of your customer-facing pages.
+              </p>
+              <textarea
+                value={headerCode}
+                onChange={(e) => setHeaderCode(e.target.value)}
+                placeholder="<!-- Add your header code here -->&#10;&lt;script&gt;&#10;  // Your JavaScript code&#10;&lt;/script&gt;&#10;&lt;style&gt;&#10;  /* Your CSS code */&#10;&lt;/style&gt;"
+                rows={6}
+                className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This code will be added to the &lt;head&gt; section of all your customer-facing pages.
+              </p>
+            </div>
+          </div>
+
+          {/* Body Code */}
+          <div className="bg-gray-50 p-4 rounded-lg border mb-6">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Body Code
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Add custom HTML, CSS, or JavaScript code that will be included in the &lt;body&gt; section of your customer-facing pages.
+              </p>
+              <textarea
+                value={bodyCode}
+                onChange={(e) => setBodyCode(e.target.value)}
+                placeholder="<!-- Add your body code here -->&#10;&lt;div&gt;&#10;  &lt;!-- Your HTML content --&gt;&#10;&lt;/div&gt;&#10;&lt;script&gt;&#10;  // Your JavaScript code&#10;&lt;/script&gt;"
+                rows={6}
+                className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This code will be added in the &lt;body&gt; section of all your customer-facing pages.
+              </p>
+            </div>
+          </div>
+
+          {/* Footer Code */}
+          <div className="bg-gray-50 p-4 rounded-lg border mb-6">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Footer Code
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Add custom HTML, CSS, or JavaScript code that will be included just before the closing &lt;/body&gt; tag of your customer-facing pages.
+              </p>
+              <textarea
+                value={footerCode}
+                onChange={(e) => setFooterCode(e.target.value)}
+                placeholder="<!-- Add your footer code here -->&#10;&lt;script&gt;&#10;  // Your JavaScript code&#10;&lt;/script&gt;&#10;&lt;div&gt;&#10;  &lt;!-- Your HTML content --&gt;&#10;&lt;/div&gt;"
+                rows={6}
+                className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This code will be added just before the closing &lt;/body&gt; tag of all your customer-facing pages.
+              </p>
             </div>
           </div>
 
