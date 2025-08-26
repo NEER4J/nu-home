@@ -9,10 +9,10 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     return (
       <div
         ref={ref}
-        className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}
+        className={`bg-white rounded-2xl border border-gray-200 ${className}`}
         {...props}
       />
-    );
+    );  
   }
 );
 Card.displayName = 'Card';
@@ -67,7 +67,7 @@ interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {}
 const CardContent = React.forwardRef<HTMLDivElement, CardContentProps>(
   ({ className = '', ...props }, ref) => {
     return (
-      <div ref={ref} className={`p-6 pt-0 ${className}`} {...props} />
+      <div ref={ref} className={` ${className}`} {...props} />
     );
   }
 );

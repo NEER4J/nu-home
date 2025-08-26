@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import ProductHeaderTile from '@/components/category-commons/product/ProductHeaderTile'
 import ProductFaqs from '@/components/category-commons/product/ProductFaqs'
+import UserInfoSection from '@/components/category-commons/product/UserInfoSection'
 import FinanceCalculator from '@/components/FinanceCalculator'
 import ImageGallery from '@/components/ImageGallery'
 import { resolvePartnerByHost } from '@/lib/partner'
@@ -1181,13 +1182,14 @@ function BoilerProductsContent() {
         defaultFirstName={submissionInfo?.first_name || null}
         defaultLastName={submissionInfo?.last_name || null}
         defaultEmail={submissionInfo?.email || null}
+        defaultPhone={submissionInfo?.phone || null}
         submissionId={submissionId}
         productsForEmail={productsForEmail}
         onRestart={handleRestart}
       />
 
       {/* Products Grid */}
-      <main className="max-w-[1500px] mx-auto px-6 py-8 pt-0">
+      <main className="max-w-[1500px] mx-auto px-6 py-0">
         {/* Layout Toggle Controls */}
         <div className="flex justify-end mb-6 hidden md:flex">
           <div className="flex rounded-lg border border-gray-200 bg-white overflow-hidden">
@@ -1230,7 +1232,7 @@ function BoilerProductsContent() {
             {displayProducts.map((product) => {
               const highlight = getProductHighlight(product)
               const cardClasses = highlight 
-                ? `bg-white rounded-2xl relative ${isHorizontalLayout ? 'border-0' : ''}` 
+                ? `bg-white rounded-2xl relative !mt-16 md:!mt-0 ${isHorizontalLayout ? 'border-0' : ''}` 
                 : `bg-white rounded-2xl border-2 border-gray-200 ${isHorizontalLayout ? '' : ''}`
               
               return (
@@ -1242,7 +1244,7 @@ function BoilerProductsContent() {
                   {/* Product Highlight Title for Vertical Layout */}
                   {highlight && !isHorizontalLayout && (
                     <div 
-                      className="absolute h-[calc(100%+2rem)] -top-8 text-white px-3 py-2 rounded-2xl text-sm font-medium shadow-md w-full text-center"
+                      className="absolute h-[calc(100%+2rem)] -top-8 text-white px-3 py-2 rounded-2xl text-sm font-medium  w-full text-center"
                       style={{ backgroundColor: brandColor }}
                     >
                       {highlight.text}
@@ -1252,7 +1254,7 @@ function BoilerProductsContent() {
                   {/* Product Highlight Title for Horizontal Layout */}
                   {highlight && isHorizontalLayout && (
                     <div 
-                      className="absolute h-[calc(100%+2.25rem)] -top-8 text-white px-3 py-2 rounded-2xl text-sm font-medium shadow-md w-full text-center"
+                      className="absolute h-[calc(100%+2.25rem)] -top-8 text-white px-3 py-2 rounded-2xl text-sm font-medium w-full text-center"
                       style={{ backgroundColor: brandColor }}
                     >
                       {highlight.text}
@@ -1887,8 +1889,6 @@ function BoilerProductsContent() {
 
 
 
-      {/* FAQs at bottom */}
-      <ProductFaqs faqs={partnerSettings?.faqs || null} brandColor={brandColor} />
 
       {/* Finance Calculator Modal */}
       {showFinanceCalculator && selectedProductForFinance && (
@@ -1897,6 +1897,7 @@ function BoilerProductsContent() {
           onClose={closeFinanceCalculator}
           productPrice={getCurrentPrice(selectedProductForFinance)}
           productName={selectedProductForFinance.name}
+          productImageUrl={selectedProductForFinance.image_url}
           aprSettings={partnerSettings?.apr_settings || null}
           brandColor={brandColor}
           selectedPlan={getSelectedPlan(selectedProductForFinance)}
@@ -1943,27 +1944,27 @@ function BoilerProductsContent() {
       {/* What's Included Modal */}
       {showWhatsIncluded && selectedProductForWhatsIncluded && (
         <Dialog open={showWhatsIncluded} onOpenChange={setShowWhatsIncluded}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-xl overflow-y-auto" variant="sidebar">
             <DialogHeader>
-              <DialogTitle>What's Included in Your Installation</DialogTitle>
+              <DialogTitle>What's included?</DialogTitle>
               <DialogDescription>
                 {selectedProductForWhatsIncluded.name}
               </DialogDescription>
             </DialogHeader>
-            <div className="p-6">
+            <div className="p-0">
               {/* What's Included Items */}
               {(() => {
                 const includedItems = (selectedProductForWhatsIncluded.product_fields as any)?.what_s_included
                 
                 if (Array.isArray(includedItems) && includedItems.length > 0) {
                   return (
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="flex flex-col gap-3 mt-2">
                       {includedItems.map((item: any, index: number) => {
                         const itemData = item.items || item
                         const { image, title, subtitle } = itemData
                         return (
-                          <Card key={index} className="p-4 bg-gray-50">
-                            <CardContent className="flex items-start gap-3 p-0">
+                          <Card key={index} className="p-4 !bg-gray-100 !border-none rounded-lg items-center">
+                            <CardContent className="flex items-start gap-3 p-0 justify-center items-center">
                               {image && (
                                 <img 
                                   src={image} 
@@ -1997,101 +1998,13 @@ function BoilerProductsContent() {
       )}
 
       {/* User Info Section at Bottom */}
-      {submissionInfo && (
-        <div className="bg-white border-t mt-10">
-          <div className="max-w-[1500px] mx-auto px-6 py-8">
-            <Card className="bg-gray-50">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900">Your Quote Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Name</p>
-                    <p className="text-gray-900">{submissionInfo.first_name} {submissionInfo.last_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Email</p>
-                    <p className="text-gray-900">{submissionInfo.email}</p>
-                  </div>
-                  {submissionInfo.phone && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Phone</p>
-                      <p className="text-gray-900">{submissionInfo.phone}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Postcode</p>
-                    <p className="text-gray-900">{submissionInfo.postcode}</p>
-                  </div>
-                  {submissionInfo.city && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">City</p>
-                      <p className="text-gray-900">{submissionInfo.city}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Submission Date</p>
-                    <p className="text-gray-900">
-                      {new Date(submissionInfo.submission_date).toLocaleDateString('en-GB', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Form Answers Summary */}
-                {submissionInfo.form_answers && submissionInfo.form_answers.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="text-md font-medium text-gray-900 mb-3">Your Requirements</h4>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {submissionInfo.form_answers.slice(0, 6).map((answer, index) => (
-                        <Card key={index} className="p-3">
-                          <CardContent className="p-0">
-                            <p className="text-xs font-medium text-gray-600 mb-1">{answer.question_text}</p>
-                            <p className="text-sm text-gray-900">
-                              {Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                    {submissionInfo.form_answers.length > 6 && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        +{submissionInfo.form_answers.length - 6} more requirements
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
+      <UserInfoSection submissionInfo={submissionInfo} partnerInfo={partnerInfo} onRestart={handleRestart} />
 
-      {/* Mobile Survey Button - Fixed Bottom Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50">
-        <button
-          className="w-full py-3 px-4 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
-          disabled={isContinuing}
-          onClick={() => {
-            // For mobile, we need to handle the case where no specific product is selected
-            // We'll just redirect to survey without storing product data
-            const surveyUrl = new URL('/boiler/survey', window.location.origin)
-            if (submissionId) {
-              surveyUrl.searchParams.set('submission', submissionId)
-            }
-            window.location.href = surveyUrl.toString()
-          }}
-        >
-          {isContinuing ? 'Loading...' : 'Get a Quote'}
-        </button>
-      </div>
+            {/* FAQs at bottom */}
+            <ProductFaqs faqs={partnerSettings?.faqs || null} />
 
-      {/* Bottom padding for mobile fixed button */}
-      <div className="lg:hidden h-20"></div>
+
+  
     </div>
   )
 }

@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { FilterIcon, RotateCcw, ChevronDown } from "lucide-react"
+import { FilterIcon, RotateCcw, ChevronDown, CheckIcon, CheckCircle, CheckCircle2 } from "lucide-react"
 
 interface ProductHeaderTileProps {
   count: number
@@ -37,6 +37,7 @@ interface ProductHeaderTileProps {
   defaultFirstName?: string | null
   defaultLastName?: string | null
   defaultEmail?: string | null
+  defaultPhone?: string | null
   submissionId?: string | null
   productsForEmail?: ProductSummary[]
   onRestart?: () => void
@@ -68,6 +69,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
     defaultFirstName = null,
     defaultLastName = null,
     defaultEmail = null,
+    defaultPhone = null,
     submissionId = null,
     productsForEmail = [],
     onRestart,
@@ -252,13 +254,14 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
 
       {showIncluded && (
         <Dialog open={showIncluded} onOpenChange={setShowIncluded}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-xl overflow-y-auto" variant="sidebar">
             <DialogHeader>
               <DialogTitle>What's included</DialogTitle>
+              <DialogDescription>The prices you see on screen are fixed, include VAT and won't change.</DialogDescription>
             </DialogHeader>
-            <CardContent className="p-6">
+            <CardContent className="">
               {Array.isArray(includedItems) && includedItems.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-3">
                   {includedItems.map((entry: any, idx: number) => {
                     const normalized = normalizeIncludedItem(entry)
                     if (!normalized) return (
@@ -266,14 +269,9 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                     )
                     const { image, title, subtitle } = normalized
                     return (
-                      <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded border">
-                        {image && (
-                          <img src={image} alt={title} className="h-12 w-12 rounded object-cover border" />
-                        )}
-                        <div>
-                          <div className="font-medium text-gray-900">{title}</div>
-                          {subtitle && <div className="text-gray-600 text-sm">{subtitle}</div>}
-                        </div>
+                      <div key={idx} className="flex items-center gap-3 px-4 py-2 bg-gray-100 rounded-lg">
+                        <CheckCircle2 className="w-4 h-4 bg-white rounded-full p-1 w-[10%] h-[10%] md:w-[6%] md:h-[6%]" style={{ color: brandColor }} />
+                        <div className="text-gray-700 md:text-base text-sm w-[90%]">{title}</div>
                       </div>
                     )
                   })}
@@ -292,6 +290,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
           defaultFirstName={defaultFirstName}
           defaultLastName={defaultLastName}
           defaultEmail={defaultEmail}
+          defaultPhone={defaultPhone}
           submissionId={submissionId}
           postcode={postcode || null}
           products={productsForEmail}
@@ -303,7 +302,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
       <Dialog open={showRestartConfirm} onOpenChange={setShowRestartConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-center">
+            <DialogTitle>
               Restart Quote Form?
             </DialogTitle>
             <DialogDescription>

@@ -768,6 +768,7 @@ export default function CheckoutLayout({
           onClose={() => setShowFinanceCalculator(false)}
           productPrice={orderTotal}
           productName={`${selectedProduct.name} + Add-ons`}
+          productImageUrl={selectedProduct.image_url}
           aprSettings={partnerSettings?.apr_settings || null}
           brandColor={companyColor || undefined}
           selectedPlan={currentCalculatorSettings?.selected_plan || selectedProduct?.calculator_settings?.selected_plan || undefined}
