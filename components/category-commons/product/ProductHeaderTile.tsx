@@ -104,7 +104,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto md:px-6 px-4 py-6 ">
+    <div className="max-w-[1500px] mx-auto md:px-6 px-4 py-6 ">
               <h2 className="md:text-3xl text-2xl font-semibold text-gray-900 md:mb-7 mb-4">{count} available installation packages</h2>
 
       <div className="flex gap-4 justify-between flex-wrap">

@@ -92,7 +92,7 @@ export default async function PartnerDashboard() {
   const customDomainVerified = profile?.domain_verified || false;
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-[1500px] mx-auto">
       {/* Account status bar */}
       <div className={`mb-6 p-4 rounded-lg ${profile?.status === 'active' ? 'bg-green-50' : profile?.status === 'pending' ? 'bg-yellow-50' : 'bg-red-50'}`}>
         <div className="flex items-center">

@@ -75,7 +75,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
   const addedProductIds = new Set(partnerProducts?.map(p => p.base_product_id) || []);
   
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-[1500px] mx-auto">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Admin Products</h1>

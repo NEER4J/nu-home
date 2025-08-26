@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Check, ShieldCheck, Droplets, Flame, Box, ChevronDown } from 'lucide-react'
 
 interface PartnerInfo {
   company_name: string
@@ -1168,7 +1169,7 @@ function BoilerProductsContent() {
       />
 
       {/* Products Grid */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-[1500px] mx-auto px-6 py-8">
         {displayProducts.length === 0 ? (
           <Card className="p-10 text-center text-gray-600">
             No products match your filters.
@@ -1176,9 +1177,9 @@ function BoilerProductsContent() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-3">
             {displayProducts.map((product) => (
-              <Card key={product.partner_product_id} className="overflow-hidden">
+              <div key={product.partner_product_id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 {/* Product Header */}
-                <CardContent className="relative p-6 pb-4">
+                <div className="relative p-0">
                   {/* Product Image Gallery */}
                   <ImageGallery
                     images={(() => {
@@ -1190,37 +1191,17 @@ function BoilerProductsContent() {
                       return product.image_url ? [{ image: product.image_url }] : []
                     })()}
                     productName={product.name}
-                    className="mb-4"
+                    className="bg-gray-100 p-2 pt-5"
                   />
 
-                  {/* Brand Logo */}
-                  <div className="text-sm font-semibold text-gray-600 mb-2">
-                    {product.name.split(' ')[0].toUpperCase()}
-                  </div>
+<div className="p-5">
 
-                  {/* Product Name */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-
-            
-
-                  {/* Description */}
-                  {product.description && (
-                    <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                      <p className="text-sm text-gray-700">{product.description}</p>
-                    </div>
-                  )}
-
-                  {/* Highlighted Features as Badges */}
-                  {(() => {
+    {/* Highlighted Features as Badges */}
+    {(() => {
                     const highlightedFeatures = (product.product_fields as any)?.highlighted_features
                     if (Array.isArray(highlightedFeatures) && highlightedFeatures.length > 0) {
                       return (
-                        <div className="mb-4">
+                        <div className="absolute top-0 left-0 p-5">
                           <div className="flex flex-wrap gap-2">
                             {highlightedFeatures.map((feature: any, index: number) => {
                               const featureText = typeof feature === 'string' ? feature : feature.name || JSON.stringify(feature)
@@ -1228,7 +1209,8 @@ function BoilerProductsContent() {
                                 <Badge
                                   key={index}
                                   variant="secondary"
-                                  className="bg-blue-100 text-blue-800 border border-blue-200"
+                                  className="text-white px-3 py-1"
+                                  style={{ backgroundColor: brandColor }}
                                 >
                                   {featureText}
                                 </Badge>
@@ -1241,19 +1223,39 @@ function BoilerProductsContent() {
                     return null
                   })()}
 
+                  {/* Brand Logo */}
+                  <div className="text-sm font-semibold text-gray-600 mb-2">
+                    {product.name.split(' ')[0].toUpperCase()}
+                  </div>
+
+                  {/* Product Name */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="text-2xl font-semibold text-gray-900">{product.name}</h3>
+                  </div>
+
+            
+                 
+
+                  {/* Description */}
+                  {product.description && (
+                                          <p className="text-base text-gray-700 mb-4">{product.description}</p>
+
+                  )}
+
+           
+
+                
+
                   {/* Specifications Section */}
                   {(() => {
                     const specs = (product.product_fields as any)?.specs
                     if (Array.isArray(specs) && specs.length > 0) {
                       return (
                         <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Specifications</h4>
                           <div className="space-y-1">
                             {specs.map((spec: any, index: number) => (
-                              <div key={index} className="flex items-center gap-2 text-xs text-gray-700">
-                                <svg className="w-3 h-3 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
+                              <div key={index} className="flex items-center gap-2 text-base text-gray-700">
+                                  <Check className="w-5 h-5 text-green-500 flex-shrink-0 bg-gray-100 rounded-full p-1" strokeWidth={4} />
                                 <span>{spec.items}</span>
                               </div>
                             ))}
@@ -1264,53 +1266,86 @@ function BoilerProductsContent() {
                     return null
                   })()}
 
-                  {/* Warranty Section */}
-                  {(() => {
-                    const warranty = (product.product_fields as any)?.warranty
-                    if (warranty) {
-                      return (
-                        <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Warranty</h4>
-                          <div className="flex items-center gap-2 text-xs text-gray-700">
-                            <svg className="w-3 h-3 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <span>{warranty} years warranty</span>
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  })()}
 
-                
+                        {/* Product Specifications */}
+                        {(() => {
+                          const warranty = (product.product_fields as any)?.warranty
+                          const flow_rate = (product.product_fields as any)?.flow_rate
+                          const heating_output = (product.product_fields as any)?.heating_output
+                          const powerOptions = getPowerAndPriceOptions(product)
+                          const selectedPower = getSelectedPowerOption(product)
+                          
+                          const specs = []
+                          
+                          if (warranty) {
+                            specs.push({
+                              label: "Warranty",
+                              value: `${warranty} Years`,
+                              icon: ShieldCheck
+                            })
+                          }
+                          
+                          if (flow_rate) {
+                            specs.push({
+                              label: "Hot water flow rate",
+                              value: `${flow_rate} litres / min`,
+                              icon: Droplets
+                            })
+                          }
+                          
+                          if (heating_output) {
+                            specs.push({
+                              label: "Central heating output",
+                              value: `${heating_output} kW`,
+                              icon: Flame
+                            })
+                          }
+                          
+                          if (selectedPower) {
+                            specs.push({
+                              label: "Power",
+                              value: `${selectedPower.power} kW`,
+                              icon: Flame
+                            })
+                          }
+                          
+                          if (specs.length > 0) {
+                            return (
+                              <div className="mb-2 px-3 py-2 bg-gray-100 rounded-lg">
+                                {specs.map((spec, index) => (
+                                  <div key={index} className="text-sm flex flex-wrap gap-1 items-center justify-between py-1.5 border-b border-gray-100 last:border-b-0">
+                                    <div className="flex items-center gap-2">
+                                      <spec.icon className="w-5 h-5 text-gray-400" />
+                                      <span className="text-gray-600">{spec.label}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-900">{spec.value}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          }
+                          return null
+                        })()}
 
-                  {/* Dimensions Section */}
-                  {(() => {
-                    const dimensions = (product.product_fields as any)?.dimensions
-                    if (dimensions && typeof dimensions === 'object') {
-                      return (
-                        <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Dimensions</h4>
-                          <div className="grid grid-cols-3 gap-2 text-xs">
-                            <div className="text-center p-2 bg-gray-50 rounded">
-                              <div className="text-gray-600">Depth</div>
-                              <div className="font-medium text-gray-900">{dimensions.depth}mm</div>
-                            </div>
-                            <div className="text-center p-2 bg-gray-50 rounded">
-                              <div className="text-gray-600">Width</div>
-                              <div className="font-medium text-gray-900">{dimensions.widht || dimensions.width}mm</div>
-                            </div>
-                            <div className="text-center p-2 bg-gray-50 rounded">
-                              <div className="text-gray-600">Height</div>
-                              <div className="font-medium text-gray-900">{dimensions.height}mm</div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  })()}
+                        {/* Dimensions Section - Outside specifications */}
+                        {(() => {
+                          const dimensions = (product.product_fields as any)?.dimensions
+                          if (dimensions && typeof dimensions === 'object') {
+                            return (
+                              <div className="mb-4 px-3 py-2 bg-gray-100 rounded-lg">
+                                <div className="flex items-center gap-2 text-sm justify-center">
+                                  <Box className="w-5 h-5 text-gray-400" />
+                                  <span className="text-gray-900">
+                                    W {dimensions.width || dimensions.widht}mm x D {dimensions.depth}mm x H {dimensions.height}mm
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          }
+                          return null
+                        })()}
 
       {/* Power Selection */}
       {(() => {
@@ -1349,71 +1384,48 @@ function BoilerProductsContent() {
                     return null
                   })()}
 
-                  {/* Pricing - Moved here right below power selection */}
+                  {/* Pricing Section */}
                   {(() => {
                     const powerOptions = getPowerAndPriceOptions(product)
-                    if (powerOptions.length > 0) {
-                      const currentPrice = getCurrentPrice(product)
+                    const currentPrice = powerOptions.length > 0 ? getCurrentPrice(product) : (typeof product.price === 'number' ? product.price : 0)
+                    const monthlyPayment = getMonthlyPayment(product) || (currentPrice / 12)
+                    
+                    if (currentPrice > 0) {
                       return (
-                        <div className="space-y-2 mb-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Fixed price (inc. VAT)</span>
-                            <span className="text-lg font-bold text-gray-900">
-                              £{currentPrice.toFixed(2)}
-                            </span>
+                        <div className="mb-6 border border-gray-200 rounded-lg bg-gray-100">
+                          <div className="flex items-end justify-between p-4 bg-white">
+                            {/* Left Section - Fixed Price */}
+                            <div className="border-r border-gray-200 pr-4 w-1/2 flex flex-col items-center justify-center">
+                              <p className="text-xs text-gray-600 mb-1">Fixed price (inc. VAT)</p>
+                              <div className="flex items-end gap-2">
+                                <span className="text-xl font-medium text-gray-900">£{currentPrice.toFixed(2)}</span>
+                                <span className="text-xs text-red-500 line-through">£{(currentPrice + 250).toFixed(2)}</span>
+                              </div>
+                            </div>
+                            
+                            {/* Right Section - Monthly Price */}
+                            <div className="text-left w-1/2 flex flex-col items-center justify-center">
+                              <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xl font-medium text-gray-900">£{monthlyPayment.toFixed(0)}</span>
+                                <button
+                                  onClick={() => openFinanceCalculator(product)}
+                                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                  title="Open Finance Calculator"
+                                >
+                                  <ChevronDown size={16} className="text-gray-600" />
+                                </button>
+                              </div>
+                            </div>
+
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">or, monthly from</span>
-                            <button
-                              onClick={() => openFinanceCalculator(product)}
-                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-                            >
-                              <span className="text-sm font-semibold">
-                                {(() => {
-                                  const monthlyPayment = getMonthlyPayment(product)
-                                  if (monthlyPayment) {
-                                    return `£${monthlyPayment.toFixed(2)}`
-                                  }
-                                  return `£${(currentPrice / 12).toFixed(2)}`
-                                })()}
-                              </span>
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    } else if (typeof product.price === 'number') {
-                      // Fallback for products without power options
-                      return (
-                        <div className="space-y-2 mb-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">Fixed price (inc. VAT)</span>
-                            <span className="text-lg font-bold text-gray-900">
-                              £{product.price.toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">or, monthly from</span>
-                            <button
-                              onClick={() => openFinanceCalculator(product)}
-                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-                            >
-                              <span className="text-sm font-semibold">
-                                {(() => {
-                                  const monthlyPayment = getMonthlyPayment(product)
-                                  if (monthlyPayment) {
-                                    return `£${monthlyPayment.toFixed(2)}`
-                                  }
-                                  return `£${(product.price / 12).toFixed(2)}`
-                                })()}
-                              </span>
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                          </div>
+                          <span 
+                          
+                            onClick={() => openWhatsIncluded(product)}
+                            className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer"
+                          >
+                            What's included in my installation?
+                          </span>
                         </div>
                       )
                     }
@@ -1422,13 +1434,7 @@ function BoilerProductsContent() {
 
                   {/* Action Links */}
                   <div className="space-y-3">
-                    <Button 
-                      variant="ghost"
-                      onClick={() => openWhatsIncluded(product)}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium p-0 h-auto"
-                    >
-                      What's included in my installation?
-                    </Button>
+                   
                     
                     {/* Primary Action Button */}
                     <Button
@@ -1461,8 +1467,9 @@ function BoilerProductsContent() {
                       {isContinuing ? 'Loading...' : 'or, book a call to discuss'}
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -1582,7 +1589,7 @@ function BoilerProductsContent() {
       {/* User Info Section at Bottom */}
       {submissionInfo && (
         <div className="bg-white border-t mt-10">
-          <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="max-w-[1500px] mx-auto px-6 py-8">
             <Card className="bg-gray-50">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold text-gray-900">Your Quote Details</CardTitle>

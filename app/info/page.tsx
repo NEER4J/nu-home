@@ -5,14 +5,14 @@ export default function InfoPage() {
     <div className="min-h-screen bg-white dark:bg-slate-900">
       {/* Navigation Bar */}
       <nav className="sticky top-0 z-40 w-full backdrop-blur border-b border-slate-900/10 dark:border-slate-50/[0.06] bg-white/75 dark:bg-slate-900/75">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-4">
             <span className="text-blue-600 dark:text-blue-400 font-semibold">NuHome Documentation</span>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Hero Section */}
         <div className="mb-16">
           <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">

@@ -36,7 +36,7 @@ export default function ProductFaqs({ faqs, brandColor = '#2563eb' }: ProductFaq
 
   return (
     <div className="bg-white border-t mt-10">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-[1500px] mx-auto px-6 py-8">
         <Card className="bg-gray-50">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">

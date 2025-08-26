@@ -35,7 +35,7 @@ export default async function AdminFormQuestionsPage({
     
     // Fallback UI in case of errors
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
           <div className="flex">
             <div className="flex-shrink-0">

@@ -272,7 +272,7 @@ export default function PartnerAddonsPage() {
     : addons.filter(addon => addon.ServiceCategories?.name === selectedCategory);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-[1500px] mx-auto px-6 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-gray-900">My Addons</h1>
         <div className="flex gap-2">
@@ -387,7 +387,7 @@ export default function PartnerAddonsPage() {
           {/* Bundle create/edit drawer/modal */}
           {bundleFormOpen && (
             <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-lg max-w-7xl w-full max-h-[92vh] overflow-hidden">
+              <div className="bg-white rounded-xl shadow-lg max-w-[1500px] w-full max-h-[92vh] overflow-hidden">
                 <div className="p-4 sm:p-6 border-b flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">Create Bundle</h2>
