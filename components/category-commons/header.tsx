@@ -1,20 +1,25 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronDown, Phone, Mail, MessageCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   partnerInfo?: PartnerProfile;
 }
 
 export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
-  const [isHelpDropdownOpen, setIsHelpDropdownOpen] = useState(false);
   const [partnerInfo, setPartnerInfo] = useState<PartnerProfile | null>(propPartnerInfo || null);
   const [loading, setLoading] = useState(!propPartnerInfo);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch partner info by host (custom domain preferred, fallback to subdomain) if not provided as prop
   useEffect(() => {
@@ -43,26 +48,10 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
     fetchPartnerByHost();
   }, [propPartnerInfo]);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsHelpDropdownOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   // Get dynamic color based on partner info
   const getDynamicColor = () => {
     return partnerInfo?.company_color || '#000000'; // Default to black if no company color
   };
-
-
 
   return (
     <header className="bg-white border-b border-gray-200 w-full z-50">
@@ -91,87 +80,84 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
           </div>
 
           {/* Help Button with Dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setIsHelpDropdownOpen(!isHelpDropdownOpen)}
-              className="inline-flex items-center px-4 py-2 text-white rounded-full text-sm font-medium hover:opacity-90 transition-colors"
-              style={{ backgroundColor: getDynamicColor() }}
-            >
-              Help
-              <ChevronDown 
-                className={`ml-2 h-4 w-4 transition-transform ${
-                  isHelpDropdownOpen ? 'rotate-180' : ''
-                }`} 
-              />
-            </button>
-
-            {/* Dropdown Menu */}
-            {isHelpDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                <div className="p-4">
-                  {/* Chat Option */}
-                  <div className="flex items-center space-x-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors mb-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <MessageCircle className="h-5 w-5 text-green-600" />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">Chat with us</p>
-                      <button className="text-sm text-gray-600 hover:text-gray-800 underline">
-                        Start chat
-                      </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="inline-flex items-center px-4 py-2 text-white rounded-full text-sm font-medium hover:opacity-90 transition-colors"
+                style={{ backgroundColor: getDynamicColor() }}
+              >
+                Help
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48 p-0 rounded-2xl" align="end">
+              <div className="p-2">
+                {/* Chat Option */}
+                <DropdownMenuItem className="!hidden flex items-center space-x-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors mb-4 p-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${getDynamicColor()}15` }}>
+                      <MessageCircle className="h-5 w-5" style={{ color: getDynamicColor() }} />
                     </div>
                   </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">Chat with us</p>
+                    <button className="text-sm text-gray-600 hover:text-gray-800 underline">
+                      Start chat
+                    </button>
+                  </div>
+                </DropdownMenuItem>
 
-                  {/* Call Option */}
-                  <div className="flex items-center space-x-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Phone className="h-5 w-5 text-blue-600" />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-700">We'll call you</p>
-                      <button className="text-sm text-gray-900 hover:text-gray-700 underline font-medium">
-                        Request callback
-                      </button>
+                {/* Call Option */}
+                <DropdownMenuItem className="!hidden flex items-center space-x-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors p-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${getDynamicColor()}15` }}>
+                      <Phone className="h-5 w-5" style={{ color: getDynamicColor() }} />
                     </div>
                   </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-700">We'll call you</p>
+                    <button className="text-sm text-gray-900 hover:text-gray-700 underline font-medium">
+                      Request callback
+                    </button>
+                  </div>
+                </DropdownMenuItem>
 
-                  {/* Dynamic Phone Number or Default */}
-                  <div className="border-t border-gray-100 pt-3 mt-3">
-                    <p className="text-xs text-gray-500 mb-1">
-                      {partnerInfo ? `Speak to ${partnerInfo.company_name}` : 'Speak to our team'}
-                    </p>
+                <DropdownMenuSeparator className="hidden" />
+
+                {/* Dynamic Phone Number or Default */}
+                <div className="px-3 py-2">
+                  <p className="text-xs text-gray-500 mb-1">
+                    {partnerInfo ? `Speak to ${partnerInfo.company_name}` : 'Speak to our team'}
+                  </p>
+                  <a
+                    href={`tel:${partnerInfo?.phone?.replace(/\s/g, '') || '03301131333'}`}
+                    className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                  >
+                    {partnerInfo?.phone || '0330 113 1333'}
+                  </a>
+                  <div className="flex items-center mt-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-xs text-gray-500">Lines are open</span>
+                  </div>
+                </div>
+
+                <DropdownMenuSeparator />
+
+                {/* Dynamic Email or Default */}
+                <div className="px-3 py-2">
+                  <div className="flex items-center space-x-2">
+                    <Mail className="h-4 w-4" style={{ color: getDynamicColor() }} />
                     <a
-                      href={`tel:${partnerInfo?.phone?.replace(/\s/g, '') || '03301131333'}`}
-                      className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                      href={`mailto:${partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : ''}`}
+                      className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
                     >
-                      {partnerInfo?.phone || '0330 113 1333'}
+                      {partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : ''}
                     </a>
-                    <div className="flex items-center mt-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                      <span className="text-xs text-gray-500">Lines are open</span>
-                    </div>
-                  </div>
-
-                  {/* Dynamic Email or Default */}
-                  <div className="border-t border-gray-100 pt-3 mt-3">
-                    <div className="flex items-center space-x-2">
-                      <Mail className="h-4 w-4 text-gray-400" />
-                      <a
-                        href={`mailto:${partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : ''}`}
-                        className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
-                      >
-                        {partnerInfo?.contact_person ? `info@${partnerInfo.subdomain}.com` : ''}
-                      </a>
-                    </div>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

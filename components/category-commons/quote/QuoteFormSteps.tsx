@@ -233,7 +233,7 @@ export default function QuoteFormSteps({
                     <motion.button
                       key={index}
                       onClick={() => handleOptionSelect(question.question_id, optionText)}
-                      className={`relative md:p-6 p-2 md:rounded-2xl rounded-full text-center group w-full h-auto sm:w-44 sm:h-44 flex md:flex-col flex-row items-center md:justify-center justify-start border-2 border-none ${
+                      className={`relative md:p-6 py-2 px-4 md:rounded-2xl rounded-full text-center group w-full h-auto sm:w-44 sm:h-44 flex md:flex-col flex-row items-center md:justify-center justify-start border-2 border-none gap-2 md:gap-0 ${
                         isSelected
                           ? 'text-white shadow-lg scale-105'
                           : 'bg-white text-black hover:shadow-md border border-gray-200'
@@ -275,7 +275,7 @@ export default function QuoteFormSteps({
                       )}
                       
                       {/* Option Text */}
-                      <span className="text-sm sm:text-base font-medium text-center leading-tight">{optionText}</span>
+                      <span className="text-base font-medium text-center leading-tight">{optionText}</span>
                       
                       {/* Additional Cost Badge */}
                       {hasAdditionalCost && (

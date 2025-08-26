@@ -11,6 +11,7 @@ import FinanceCalculator from '@/components/FinanceCalculator'
 import ImageGallery from '@/components/ImageGallery'
 import { resolvePartnerByHost } from '@/lib/partner'
 import { ProductsLoader } from '@/components/category-commons/Loader'
+import ProductLoadingSteps from '@/components/category-commons/product/ProductLoadingSteps'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -200,7 +201,8 @@ function BoilerProductsContent() {
       }
       
       const questionMap = questions?.reduce((acc, question) => {
-        acc[question.question_id] = question as FormQuestion;
+        const typedQuestion = question as { question_id: string } & FormQuestion;
+        acc[typedQuestion.question_id] = typedQuestion;
         return acc;
       }, {} as Record<string, FormQuestion>) || {};
       
@@ -369,7 +371,7 @@ function BoilerProductsContent() {
           .from('PartnerProducts')
           .select('*')
           .eq('partner_id', partnerInfo.user_id)
-          .eq('service_category_id', category.service_category_id)
+          .eq('service_category_id', category.service_category_id as string)
           .eq('is_active', true)
           .order('created_at', { ascending: false })
 
@@ -377,14 +379,14 @@ function BoilerProductsContent() {
           throw productsError
         }
 
-        setProducts((partnerProducts || []) as PartnerProduct[])
+        setProducts((partnerProducts || []) as unknown as PartnerProduct[])
 
         // Fetch Partner Settings for this partner + service category
         const { data: settings, error: settingsError } = await supabase
           .from('PartnerSettings')
           .select('*')
           .eq('partner_id', partnerInfo.user_id)
-          .eq('service_category_id', category.service_category_id)
+          .eq('service_category_id', category.service_category_id as string)
           .single()
 
         if (!settingsError && settings) {
@@ -434,7 +436,7 @@ function BoilerProductsContent() {
 
         if (partnerLead && !partnerLeadError) {
           console.log('Found submission in partner_leads:', partnerLead)
-          setSubmissionInfo(partnerLead as QuoteSubmission)
+          setSubmissionInfo(partnerLead as unknown as QuoteSubmission)
           return
         }
 
@@ -454,7 +456,7 @@ function BoilerProductsContent() {
 
         if (submission) {
           console.log('Found submission in QuoteSubmissions:', submission)
-          setSubmissionInfo(submission as QuoteSubmission)
+          setSubmissionInfo(submission as unknown as QuoteSubmission)
         } else {
           console.log('No submission found in either table')
         }
@@ -800,18 +802,25 @@ function BoilerProductsContent() {
       if (verifyError) {
         console.error('Database update successful but verification failed:', verifyError)
       } else {
+        const typedVerifyData = verifyData as {
+          progress_step: string;
+          last_seen_at: string;
+          cart_state: { product_id?: string };
+          product_info: { product_id?: string; name?: string; price?: number; selected_power?: any };
+          calculator_info: any;
+        };
         console.log('Database update successful - verification:', {
           submissionId,
           productName: product.name,
           productId: product.partner_product_id,
-          progressStep: verifyData.progress_step,
-          timestamp: verifyData.last_seen_at,
-          cartStateProductId: verifyData.cart_state?.product_id,
-          productInfoProductId: verifyData.product_info?.product_id,
-          productInfoName: verifyData.product_info?.name,
-          productInfoPrice: verifyData.product_info?.price,
-          productInfoSelectedPower: verifyData.product_info?.selected_power,
-          calculatorInfo: verifyData.calculator_info
+          progressStep: typedVerifyData.progress_step,
+          timestamp: typedVerifyData.last_seen_at,
+          cartStateProductId: typedVerifyData.cart_state?.product_id,
+          productInfoProductId: typedVerifyData.product_info?.product_id,
+          productInfoName: typedVerifyData.product_info?.name,
+          productInfoPrice: typedVerifyData.product_info?.price,
+          productInfoSelectedPower: typedVerifyData.product_info?.selected_power,
+          calculatorInfo: typedVerifyData.calculator_info
         })
       }
       
@@ -946,18 +955,25 @@ function BoilerProductsContent() {
       if (verifyError) {
         console.error('Database update successful but verification failed:', verifyError)
       } else {
+        const typedVerifyData = verifyData as {
+          progress_step: string;
+          last_seen_at: string;
+          cart_state: { product_id?: string };
+          product_info: { product_id?: string; name?: string; price?: number; selected_power?: any };
+          calculator_info: any;
+        };
         console.log('Database update successful for survey - verification:', {
           submissionId,
           productName: product.name,
           productId: product.partner_product_id,
-          progressStep: verifyData.progress_step,
-          timestamp: verifyData.last_seen_at,
-          cartStateProductId: verifyData.cart_state?.product_id,
-          productInfoProductId: verifyData.product_info?.product_id,
-          productInfoName: verifyData.product_info?.name,
-          productInfoPrice: verifyData.product_info?.price,
-          productInfoSelectedPower: verifyData.product_info?.selected_power,
-          calculatorInfo: verifyData.calculator_info
+          progressStep: typedVerifyData.progress_step,
+          timestamp: typedVerifyData.last_seen_at,
+          cartStateProductId: typedVerifyData.cart_state?.product_id,
+          productInfoProductId: typedVerifyData.product_info?.product_id,
+          productInfoName: typedVerifyData.product_info?.name,
+          productInfoPrice: typedVerifyData.product_info?.price,
+          productInfoSelectedPower: typedVerifyData.product_info?.selected_power,
+          calculatorInfo: typedVerifyData.calculator_info
         })
       }
       
@@ -1129,13 +1145,8 @@ function BoilerProductsContent() {
     )
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <ProductsLoader />
-      </div>
-    )
-  }
+  // Show loading overlay while loading
+  const showLoadingOverlay = loading
 
   if (error) {
     return (
@@ -1165,7 +1176,22 @@ function BoilerProductsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
+      {/* Loading Overlay */}
+      {showLoadingOverlay && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-lg z-50 flex items-center justify-center">
+          <ProductLoadingSteps 
+            brandColor={brandColor}
+            onShowQuotes={() => {
+              // This will be called when the loading animation completes
+              // The actual products will show automatically when loading is done
+            }}
+            isLoading={showLoadingOverlay}
+            submissionInfo={submissionInfo}
+          />
+        </div>
+      )}
+      
       <ProductHeaderTile
         count={displayProducts.length}
         postcode={submissionInfo?.postcode || null}
@@ -1998,7 +2024,7 @@ function BoilerProductsContent() {
       )}
 
       {/* User Info Section at Bottom */}
-      <UserInfoSection submissionInfo={submissionInfo} partnerInfo={partnerInfo} onRestart={handleRestart} />
+      <UserInfoSection submissionInfo={submissionInfo} partnerInfo={partnerInfo} onRestart={handleRestart} brandColor={brandColor} />
 
             {/* FAQs at bottom */}
             <ProductFaqs faqs={partnerSettings?.faqs || null} />
@@ -2016,5 +2042,4 @@ export default function BoilerProductsPage() {
     </Suspense>
   )
 }
-
 
