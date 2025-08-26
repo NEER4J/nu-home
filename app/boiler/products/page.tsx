@@ -982,6 +982,23 @@ function BoilerProductsContent() {
     return { image, title, subtitle }
   }
 
+  // Helper function to get product highlight information
+  const getProductHighlight = (product: PartnerProduct): { text: string; type: string } | null => {
+    const productHighlight = (product.product_fields as any)?.product_highlight
+    if (!productHighlight || typeof productHighlight !== 'object') return null
+    
+    // Check each highlight type and return the first one that's true
+    for (const [key, value] of Object.entries(productHighlight)) {
+      if (value === true) {
+        // Convert key to display text (e.g., "best_seller" -> "Best Seller")
+        const displayText = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+        return { text: displayText, type: key }
+      }
+    }
+    
+    return null
+  }
+
   // Helper function to render product field values
   const renderProductFieldValue = (key: string, value: any) => {
     if (key === 'specs' && Array.isArray(value)) {
@@ -1176,10 +1193,30 @@ function BoilerProductsContent() {
           </Card>
         ) : (
           <div className="grid gap-6 lg:grid-cols-3">
-            {displayProducts.map((product) => (
-              <div key={product.partner_product_id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            {displayProducts.map((product) => {
+              const highlight = getProductHighlight(product)
+              const cardClasses = highlight 
+                ? "bg-white rounded-2xl relative" 
+                : "bg-white rounded-2xl border-2 border-gray-200"
+              
+              return (
+                <div 
+                  key={product.partner_product_id} 
+                  className={cardClasses}
+                  style={highlight ? { borderColor: brandColor } : {}}
+                >
+                  {/* Product Highlight Title */}
+                  {highlight && (
+                    <div 
+                      className="absolute h-[calc(100%+2rem)] -top-8 text-white px-3 py-2 rounded-2xl text-sm font-medium shadow-md w-full text-center"
+                      style={{ backgroundColor: brandColor }}
+                    >
+                      {highlight.text}
+                    </div>
+                  )}
+                  
                 {/* Product Header */}
-                <div className="relative p-0">
+                <div className="relative p-0 bg-white rounded-2xl m-[3px] h-[calc(100%-6px)]">
                   {/* Product Image Gallery */}
                   <ImageGallery
                     images={(() => {
@@ -1191,13 +1228,13 @@ function BoilerProductsContent() {
                       return product.image_url ? [{ image: product.image_url }] : []
                     })()}
                     productName={product.name}
-                    className="bg-gray-100 p-2 pt-5"
+                    className="bg-gray-100 p-2 pt-5 rounded-2xl"
                   />
 
-<div className="p-5">
+            <div className="p-5">
 
-    {/* Highlighted Features as Badges */}
-    {(() => {
+                {/* Highlighted Features as Badges */}
+                {(() => {
                     const highlightedFeatures = (product.product_fields as any)?.highlighted_features
                     if (Array.isArray(highlightedFeatures) && highlightedFeatures.length > 0) {
                       return (
@@ -1205,13 +1242,24 @@ function BoilerProductsContent() {
                           <div className="flex flex-wrap gap-2">
                             {highlightedFeatures.map((feature: any, index: number) => {
                               const featureText = typeof feature === 'string' ? feature : feature.name || JSON.stringify(feature)
+                              const featureImage = feature.image
                               return (
                                 <Badge
                                   key={index}
                                   variant="secondary"
-                                  className="text-white px-3 py-1"
-                                  style={{ backgroundColor: brandColor }}
+                                  className="px-3 py-1 flex items-center gap-2"
+                                  style={{ 
+                                    backgroundColor: `${brandColor}20`, 
+                                    color: brandColor,
+                                  }}
                                 >
+                                  {featureImage && (
+                                    <img 
+                                      src={featureImage} 
+                                      alt={featureText}
+                                      className="w-4 h-4 object-contain"
+                                    />
+                                  )}
                                   {featureText}
                                 </Badge>
                               )
@@ -1224,9 +1272,26 @@ function BoilerProductsContent() {
                   })()}
 
                   {/* Brand Logo */}
-                  <div className="text-sm font-semibold text-gray-600 mb-2">
-                    {product.name.split(' ')[0].toUpperCase()}
-                  </div>
+                  {(() => {
+                    const brandImage = (product.product_fields as any)?.brand_image
+                    if (brandImage) {
+                      return (
+                        <div className="mb-2">
+                          <img 
+                            src={brandImage} 
+                            alt="Brand Logo"
+                            className="h-8 object-contain"
+                          />
+                        </div>
+                      )
+                    } else {
+                      return (
+                        <div className="text-sm font-semibold text-gray-600 mb-2">
+                          {product.name.split(' ')[0].toUpperCase()}
+                        </div>
+                      )
+                    }
+                  })()}
 
                   {/* Product Name */}
                   <div className="flex items-center gap-2 mb-3">
@@ -1469,8 +1534,9 @@ function BoilerProductsContent() {
                   </div>
                 </div>
                 </div>
-              </div>
-            ))}
+                </div>
+              )
+            })}
           </div>
         )}
       </main>
