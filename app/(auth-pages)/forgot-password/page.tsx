@@ -16,7 +16,7 @@ export default async function ForgotPassword(props: {
         <div className="bg-white rounded-xl p-8 border border-gray-100 " style={{ minWidth: "372px" }}>
           <form className="flex flex-col w-full">
             <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">Reset password</h1>
+              <h1 className="text-3xl font-semibold text-gray-800 mb-2">Reset password</h1>
               <p className="text-gray-500">
                 Enter your email to receive a password reset link. Already know your password?{" "}
                 <Link className="text-[#2565eb] font-medium hover:underline transition" href="/sign-in">

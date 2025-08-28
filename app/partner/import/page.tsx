@@ -369,7 +369,7 @@ export default function ImportPage() {
     <div className="container mx-auto py-6">
       <div className="bg-white rounded-lg shadow">
         <div className="p-6 border-b">
-          <h1 className="text-2xl font-bold">Import Products from WordPress</h1>
+          <h1 className="text-2xl font-semibold">Import Products from WordPress</h1>
           <p className="text-gray-600 mt-1">
             Import products from your WordPress site by providing the API URL and mapping the fields.
           </p>

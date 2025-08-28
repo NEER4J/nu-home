@@ -460,7 +460,7 @@ export default function CheckoutLayout({
                 <div className={`bg-white rounded-xl border p-4 ${selectedPaymentMethod === 'stripe' ? 'ring-2 ring-blue-500' : ''}`}>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">S</span>
+                      <span className="text-white text-xs font-semibold">S</span>
                     </div>
                     <h3 className="font-medium text-gray-900">Pay by Card</h3>
                     {paymentSettings.stripe_settings.enabled_environment === 'test' && (
@@ -532,7 +532,7 @@ export default function CheckoutLayout({
                 <div className={`bg-white rounded-xl border p-4 ${selectedPaymentMethod === 'kanda' ? 'ring-2 ring-purple-500' : ''}`}>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-5 h-5 bg-purple-600 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">K</span>
+                      <span className="text-white text-xs font-semibold">K</span>
                     </div>
                     <h3 className="font-medium text-gray-900">Finance Your Purchase</h3>
                   </div>
@@ -568,7 +568,7 @@ export default function CheckoutLayout({
                 <div className={`bg-white rounded-xl border p-4 ${selectedPaymentMethod === 'monthly' ? 'ring-2 ring-green-500' : ''}`}>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-5 h-5 bg-green-600 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">M</span>
+                      <span className="text-white text-xs font-semibold">M</span>
                     </div>
                     <h3 className="font-medium text-gray-900">Monthly Payment Plans</h3>
                   </div>
@@ -640,7 +640,7 @@ export default function CheckoutLayout({
                 <div className={`bg-white rounded-xl border p-4 ${selectedPaymentMethod === 'pay-later' ? 'ring-2 ring-orange-500' : ''}`}>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-5 h-5 bg-orange-600 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">P</span>
+                      <span className="text-white text-xs font-semibold">P</span>
                     </div>
                     <h3 className="font-medium text-gray-900">Pay After Installation</h3>
                   </div>

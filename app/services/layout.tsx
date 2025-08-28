@@ -69,7 +69,7 @@ export default function CategoryLayout({
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center">
-              <span className="text-blue-600 font-bold text-xl">
+              <span className="text-blue-600 font-semibold text-xl">
                 {partnerProfile?.company_name || 'Nu-Home'}
               </span>
             </Link>

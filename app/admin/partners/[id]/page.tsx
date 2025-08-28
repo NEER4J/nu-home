@@ -110,7 +110,7 @@ export default async function PartnerDetails({
               </span>
             </div>
             <div className="ml-4">
-              <h1 className="text-2xl font-bold text-gray-900">{partner.company_name}</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">{partner.company_name}</h1>
               <div className="flex items-center mt-1">
                 {statusStyles[partner.status as keyof typeof statusStyles].badge}
                 <span className="ml-2 text-sm text-gray-500">

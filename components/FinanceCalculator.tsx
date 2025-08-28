@@ -310,7 +310,7 @@ export default function FinanceCalculator({
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-gray-900 font-medium">Total payable:</span>
-                  <span className="text-xl font-bold text-gray-900">
+                  <span className="text-xl font-semibold text-gray-900">
                     £{selectedOptionWithDeposit.totalPayable.toFixed(2)}
                   </span>
                 </div>

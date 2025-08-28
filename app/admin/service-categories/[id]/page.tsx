@@ -42,7 +42,7 @@ export default async function EditCategoryPage({
     return (
       <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Edit Service Category</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Edit Service Category</h1>
           <div className="flex space-x-3">
             <Link
               href={`/services/${category.slug}`}

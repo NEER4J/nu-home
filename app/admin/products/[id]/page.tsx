@@ -43,7 +43,7 @@ export default async function EditProductPage({
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Edit Product: {product.name}</h1>
+        <h1 className="text-2xl font-semibold">Edit Product: {product.name}</h1>
       </div>
       
       <div className="bg-white rounded-lg shadow p-6">

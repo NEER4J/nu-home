@@ -82,7 +82,7 @@ export default function AddonsPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Available Addons</h1>
+      <h1 className="text-3xl font-semibold mb-8">Available Addons</h1>
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="mb-8">

@@ -61,7 +61,7 @@ export default async function CategoryAccessPage() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Category Access</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Category Access</h1>
         <p className="mt-1 text-sm text-gray-500">
           Manage your service categories and request access to new ones.
         </p>
@@ -77,15 +77,15 @@ export default async function CategoryAccessPage() {
 
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="bg-green-50 p-4 rounded-lg">
-            <div className="text-xl font-bold text-green-600">{approvedCategories.length}</div>
+            <div className="text-xl font-semibold text-green-600">{approvedCategories.length}</div>
             <div className="text-sm text-green-700">Approved</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg">
-            <div className="text-xl font-bold text-yellow-600">{pendingCategories.length}</div>
+            <div className="text-xl font-semibold text-yellow-600">{pendingCategories.length}</div>
             <div className="text-sm text-yellow-700">Pending</div>
           </div>
           <div className="bg-red-50 p-4 rounded-lg">
-            <div className="text-xl font-bold text-red-600">{rejectedCategories.length}</div>
+            <div className="text-xl font-semibold text-red-600">{rejectedCategories.length}</div>
             <div className="text-sm text-red-700">Rejected</div>
           </div>
         </div>

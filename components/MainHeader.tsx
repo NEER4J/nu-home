@@ -20,7 +20,7 @@ export default function MainHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
         <div className="px-4 sm:px-4 lg:px-4">
           <div className="flex justify-between h-16 items-center">
             <Link href="/" className="flex items-center">
-              <span className="text-blue-600 font-bold text-xl">Nu-Home</span>
+              <span className="text-blue-600 font-semibold text-xl">Nu-Home</span>
             </Link>
             
             {/* Sign in/out button */}

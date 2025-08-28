@@ -495,7 +495,7 @@ export default function PartnerSettingsPage() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+        <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
           <Settings className="h-6 w-6" />
           Partner Settings
         </h1>
@@ -734,7 +734,7 @@ export default function PartnerSettingsPage() {
           <div className="bg-gray-50 rounded-lg border p-4 mb-6">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
-                <span className="text-white text-xs font-bold">S</span>
+                <span className="text-white text-xs font-semibold">S</span>
               </div>
               <h3 className="font-medium text-gray-900">Stripe Payment Settings</h3>
             </div>
@@ -813,7 +813,7 @@ export default function PartnerSettingsPage() {
           <div className="bg-gray-50 rounded-lg border p-4 mb-6">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-5 h-5 bg-purple-600 rounded flex items-center justify-center">
-                <span className="text-white text-xs font-bold">K</span>
+                <span className="text-white text-xs font-semibold">K</span>
               </div>
               <h3 className="font-medium text-gray-900">Kanda Finance Settings</h3>
             </div>

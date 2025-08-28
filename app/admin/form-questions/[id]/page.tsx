@@ -52,7 +52,7 @@ export default async function EditQuestionPage({
   return (
     <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Edit Question</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Edit Question</h1>
         <p className="mt-2 text-sm text-gray-500">
           Update question details or conditions.
         </p>

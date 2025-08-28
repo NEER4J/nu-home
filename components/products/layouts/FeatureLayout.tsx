@@ -102,7 +102,7 @@ export default function FeatureLayout({ product, categorySlug, isPopular = false
             <div className="flex items-center justify-between mb-4">
               {product.price !== null ? (
                 <div>
-                  <span className="text-2xl font-bold text-gray-900">
+                  <span className="text-2xl font-semibold text-gray-900">
                     ${product.price.toLocaleString()}
                   </span>
                   {isPopular && (

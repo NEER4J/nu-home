@@ -32,7 +32,7 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
         <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
           <form className="flex flex-col w-full" action={signInAction}>
             <div className="mb-8 text-center">
-              <h1 className="text-3xl font-bold text-gray-800 mb-3">Welcome back</h1>
+              <h1 className="text-3xl font-semibold text-gray-800 mb-3">Welcome back</h1>
               <p className="text-gray-500 mb-3">
                 Sign in to your account to manage your business
               </p>

@@ -1217,7 +1217,7 @@ function BoilerProductsContent() {
       {/* Products Grid */}
       <main className="max-w-[1500px] mx-auto px-6 py-0">
         {/* Layout Toggle Controls */}
-        <div className="flex justify-end mb-6 hidden md:flex">
+        <div className="flex justify-end hidden md:flex">
           <div className="flex rounded-lg border border-gray-200 bg-white overflow-hidden">
             <button
               onClick={() => setIsHorizontalLayout(false)}
@@ -1254,12 +1254,12 @@ function BoilerProductsContent() {
             No products match your filters.
           </Card>
         ) : (
-          <div className={isHorizontalLayout ? "space-y-10" : "grid gap-10 lg:grid-cols-3"}>
+          <div className={isHorizontalLayout ? "space-y-8" : "grid gap-10 lg:grid-cols-3"}>
             {displayProducts.map((product) => {
               const highlight = getProductHighlight(product)
               const cardClasses = highlight 
-                ? `bg-white rounded-2xl relative !mt-16 md:!mt-0 ${isHorizontalLayout ? 'border-0' : ''}` 
-                : `bg-white rounded-2xl border-2 border-gray-200 ${isHorizontalLayout ? '' : ''}`
+                ? `bg-white rounded-2xl relative !mt-16 md:!mt-12 ${isHorizontalLayout ? 'border-0' : ''}` 
+                : `bg-white rounded-2xl border-2 border-gray-200 md:!mt-12 ${isHorizontalLayout ? '' : ''}`
               
               return (
                 <div 

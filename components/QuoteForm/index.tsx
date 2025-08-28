@@ -430,7 +430,7 @@ export default function QuoteForm({
               <div className="w-16 h-16 flex items-center justify-center mb-4">
                 <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Submitting Your Request...</h3>
+              <h3 className="text-2xl font-semibold text-gray-800 mb-2">Submitting Your Request...</h3>
               <p className="text-gray-600 mb-8 max-w-md">
                 Please wait while we process your information.
               </p>
@@ -472,7 +472,7 @@ export default function QuoteForm({
               <div className="w-16 h-16 flex items-center justify-center mb-4">
                 <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Request Submitted!</h3>
+              <h3 className="text-2xl font-semibold text-gray-800 mb-2">Request Submitted!</h3>
               <p className="text-gray-600 mb-4 max-w-md">
                 Redirecting you to our products page...
               </p>
@@ -525,7 +525,7 @@ export default function QuoteForm({
         <motion.h1 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-3xl font-bold text-gray-900 mt-2 capitalize"
+          className="text-3xl font-semibold text-gray-900 mt-2 capitalize"
         >
           {serviceCategorySlug.replace(/-/g, ' ')} Quote Form
         </motion.h1>

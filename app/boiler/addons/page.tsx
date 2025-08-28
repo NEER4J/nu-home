@@ -156,7 +156,7 @@ function BoilerAddonsPageContent() {
           .from('PartnerSettings')
           .select('apr_settings')
           .eq('partner_id', partnerUserId)
-          .eq('service_category_id', categoryData.service_category_id)
+          .eq('service_category_id', (categoryData as Category).service_category_id)
           .single()
 
         if (!settingsError && settingsData) {
@@ -234,7 +234,7 @@ function BoilerAddonsPageContent() {
             .select('partner_product_id, partner_id, name, price, image_url, service_category_id, product_fields')
             .eq('partner_product_id', resolvedProductId)
             .eq('partner_id', partnerUserId)
-            .eq('service_category_id', categoryData.service_category_id)
+            .eq('service_category_id', (categoryData as Category).service_category_id)
             .single()
 
           if (!productError && product) {
@@ -272,7 +272,7 @@ function BoilerAddonsPageContent() {
         const { data: addonsData, error: addonsError } = await supabase
           .from('Addons')
           .select('*')
-          .eq('service_category_id', categoryData.service_category_id)
+          .eq('service_category_id', (categoryData as Category).service_category_id)
           .eq('partner_id', partnerUserId)
 
         if (addonsError) {
@@ -280,14 +280,14 @@ function BoilerAddonsPageContent() {
           return
         }
 
-        setAddons((addonsData || []) as Addon[])
+        setAddons((addonsData || []) as unknown as Addon[])
 
         // 5) Fetch partner bundles for this category
         const { data: bundlesData, error: bundlesError } = await supabase
           .from('Bundles')
           .select('*, BundlesAddons(*, Addons(*))')
           .eq('partner_id', partnerUserId)
-          .eq('service_category_id', categoryData.service_category_id)
+          .eq('service_category_id', (categoryData as Category).service_category_id)
           .order('created_at', { ascending: false })
 
         if (!bundlesError && bundlesData) {
@@ -552,74 +552,96 @@ function BoilerAddonsPageContent() {
   console.log('Rendering AddonsLayout with calculatorSettings:', calculatorSettings)
   
   return (
-    <AddonsLayout
-      category={category as any}
-      addons={addons as any}
-      bundles={bundles as unknown as BundleLite[]}
-      selectedAddons={selectedAddons}
-      selectedBundles={selectedBundles}
-      selectedProduct={selectedProduct as any}
-      companyColor={companyColor}
-      partnerSettings={partnerSettings}
-      backHref={`/boiler/products${submissionId ? `?submission=${submissionId}` : ''}`}
-      backLabel="Back to Products"
-      showBack
-      onChangeAddonQuantity={handleQuantityChange as any}
-      onToggleBundle={(b) => handleAddBundle(b as unknown as Bundle)}
-      onChangeBundleQuantity={handleBundleQtyChange}
-      onCalculatorPlanChange={handleCalculatorPlanChange}
-      onCalculatorDepositChange={handleCalculatorDepositChange}
-      onCalculatorMonthlyPaymentUpdate={handleCalculatorMonthlyPaymentUpdate}
-      currentCalculatorSettings={calculatorSettings}
-      isLoading={isContinuing}
-      // Debug: Log what's being passed to AddonsLayout
-      // This will help us see if the calculator settings are being passed correctly
-      onContinue={async (selectedAddonsList, selectedBundlesList) => {
-        setIsContinuing(true)
-        // Persist cart and move with only submission in URL
-        try {
-          if (submissionId) {
-            await supabase
-              .from('partner_leads')
-              .update({
-                cart_state: {
-                  product_id: selectedProduct?.partner_product_id || null,
-                  addons: selectedAddonsList.map(a => ({ addon_id: a.addon_id, quantity: a.quantity })),
-                  bundles: selectedBundlesList.map(b => ({ bundle_id: b.bundle.bundle_id, quantity: b.quantity })),
-                },
-                product_info: selectedProduct ? {
-                  product_id: selectedProduct.partner_product_id,
-                  name: selectedProduct.name,
-                  price: selectedProduct.price,
-                  image_url: selectedProduct.image_url,
-                  selected_power: selectedProduct.selected_power,
-                } : null,
-                calculator_info: calculatorSettings || selectedProduct?.calculator_settings,
-                addon_info: selectedAddonsList.map(a => ({
-                  addon_id: a.addon_id,
-                  name: a.title,
-                  price: a.price,
-                  quantity: a.quantity
-                })),
-                bundle_info: selectedBundlesList.map(b => ({
-                  bundle_id: b.bundle.bundle_id,
-                  name: b.bundle.title,
-                  price: 0, // Bundles don't have direct price
-                  quantity: b.quantity
-                })),
-                progress_step: 'checkout',
-                last_seen_at: new Date().toISOString(),
-              })
-              .eq('submission_id', submissionId)
+    <div className="container mx-auto px-4 py-8">
+      {/* Back Link */}
+      <div className="mb-6">
+        <a href={`/boiler/products${submissionId ? `?submission=${submissionId}` : ''}`} className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors">
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Products
+        </a>
+      </div>
+
+      {/* Heading */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-gray-900 mb-2">
+          Choose controls for your {selectedProduct?.name || 'boiler'}
+        </h1>
+        <p className="text-gray-600">
+          We'll install your controls during your boiler installation & show you how to use them
+        </p>
+      </div>
+      
+      <AddonsLayout
+        category={category as any}
+        addons={addons as any}
+        bundles={bundles as unknown as BundleLite[]}
+        selectedAddons={selectedAddons}
+        selectedBundles={selectedBundles}
+        selectedProduct={selectedProduct as any}
+        companyColor={companyColor}
+        partnerSettings={partnerSettings}
+        backHref={`/boiler/products${submissionId ? `?submission=${submissionId}` : ''}`}
+        backLabel="Back to Products"
+        showBack={false}
+        onChangeAddonQuantity={handleQuantityChange as any}
+        onToggleBundle={(b) => handleAddBundle(b as unknown as Bundle)}
+        onChangeBundleQuantity={handleBundleQtyChange}
+        onCalculatorPlanChange={handleCalculatorPlanChange}
+        onCalculatorDepositChange={handleCalculatorDepositChange}
+        onCalculatorMonthlyPaymentUpdate={handleCalculatorMonthlyPaymentUpdate}
+        currentCalculatorSettings={calculatorSettings}
+        isLoading={isContinuing}
+        // Debug: Log what's being passed to AddonsLayout
+        // This will help us see if the calculator settings are being passed correctly
+        onContinue={async (selectedAddonsList, selectedBundlesList) => {
+          setIsContinuing(true)
+          // Persist cart and move with only submission in URL
+          try {
+            if (submissionId) {
+              await supabase
+                .from('partner_leads')
+                .update({
+                  cart_state: {
+                    product_id: selectedProduct?.partner_product_id || null,
+                    addons: selectedAddonsList.map(a => ({ addon_id: a.addon_id, quantity: a.quantity })),
+                    bundles: selectedBundlesList.map(b => ({ bundle_id: b.bundle.bundle_id, quantity: b.quantity })),
+                  },
+                  product_info: selectedProduct ? {
+                    product_id: selectedProduct.partner_product_id,
+                    name: selectedProduct.name,
+                    price: selectedProduct.price,
+                    image_url: selectedProduct.image_url,
+                    selected_power: selectedProduct.selected_power,
+                  } : null,
+                  calculator_info: calculatorSettings || selectedProduct?.calculator_settings,
+                  addon_info: selectedAddonsList.map(a => ({
+                    addon_id: a.addon_id,
+                    name: a.title,
+                    price: a.price,
+                    quantity: a.quantity
+                  })),
+                  bundle_info: selectedBundlesList.map(b => ({
+                    bundle_id: b.bundle.bundle_id,
+                    name: b.bundle.title,
+                    price: 0, // Bundles don't have direct price
+                    quantity: b.quantity
+                  })),
+                  progress_step: 'checkout',
+                  last_seen_at: new Date().toISOString(),
+                })
+                .eq('submission_id', submissionId)
+            }
+          } catch (e) {
+            console.warn('Failed to persist cart before checkout', e)
           }
-        } catch (e) {
-          console.warn('Failed to persist cart before checkout', e)
-        }
-        const url = new URL('/boiler/checkout', window.location.origin)
-                  if (submissionId) url.searchParams.set('submission', submissionId)
-                  window.location.href = url.toString()
-                }}
-    />
+          const url = new URL('/boiler/checkout', window.location.origin)
+                    if (submissionId) url.searchParams.set('submission', submissionId)
+                    window.location.href = url.toString()
+                  }}
+      />
+    </div>
   )
 }
 

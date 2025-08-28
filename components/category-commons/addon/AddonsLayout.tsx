@@ -243,7 +243,7 @@ export default function AddonsLayout({
   }, [monthlyPayment])
 
   return (
-    <div className="container mx-auto px-4 py-8 pb-32 lg:pb-8 lg:flex lg:gap-8">
+    <div className="container mx-auto pb-32 lg:flex lg:gap-8 p-0">
       <div className="flex-1">
         {showBack && (
           <div className="mb-6">
@@ -260,7 +260,6 @@ export default function AddonsLayout({
           <div className="mb-10">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Bundles</h2>
-              <span className={`text-sm ${classes.textColored}`}>Save with pre-selected add-ons</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {bundles.map((b) => {

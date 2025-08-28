@@ -274,7 +274,7 @@ export default function PartnerAddonsPage() {
   return (
     <div className="max-w-[1500px] mx-auto px-6 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">My Addons</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">My Addons</h1>
         <div className="flex gap-2">
           {activeTab === 'addons' && (
             <button 

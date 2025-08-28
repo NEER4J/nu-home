@@ -162,7 +162,7 @@ export default async function PartnerDashboard() {
           </div>
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-3xl font-bold text-gray-900">{productsCount || 0}</p>
+              <p className="text-3xl font-semibold text-gray-900">{productsCount || 0}</p>
               <p className="text-sm text-gray-500">Active products</p>
             </div>
             <Link 
@@ -183,7 +183,7 @@ export default async function PartnerDashboard() {
           </div>
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-3xl font-bold text-gray-900">{approvedCategories.length}</p>
+              <p className="text-3xl font-semibold text-gray-900">{approvedCategories.length}</p>
               <p className="text-sm text-gray-500">Approved categories</p>
             </div>
             <Link 
@@ -204,7 +204,7 @@ export default async function PartnerDashboard() {
           </div>
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-3xl font-bold text-gray-900">{leadsCount || 0}</p>
+              <p className="text-3xl font-semibold text-gray-900">{leadsCount || 0}</p>
               <p className="text-sm text-gray-500">Total leads</p>
             </div>
             <Link 

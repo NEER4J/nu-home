@@ -15,7 +15,7 @@ export default function InfoPage() {
       <main className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Hero Section */}
         <div className="mb-16">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">
+          <h1 className="text-4xl font-semibold text-slate-900 dark:text-white mb-4">
             NuHome Platform Documentation
           </h1>
           <p className="text-lg text-slate-600 dark:text-slate-400 max-w-3xl">
@@ -25,7 +25,7 @@ export default function InfoPage() {
 
         {/* Feature Overview Section */}
         <div className="mb-16">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-8">Core Features</h2>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-8">Core Features</h2>
           
           {/* Authentication */}
           <div className="mb-12">
@@ -176,7 +176,7 @@ export default function InfoPage() {
 
           {/* Workflow Section */}
           <div className="mb-16">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-8">Platform Workflows</h2>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-8">Platform Workflows</h2>
             <div className="space-y-8">
               {/* Customer Flow */}
               <div className="bg-gradient-to-r from-blue-50 to-white dark:from-slate-800/60 dark:to-slate-900 rounded-lg border border-blue-100 dark:border-slate-700 p-6">
@@ -266,7 +266,7 @@ export default function InfoPage() {
 
           {/* Routes Documentation */}
           <div className="mb-16">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-8">Platform Routes</h2>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-8">Platform Routes</h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Admin Routes */}
               <div>

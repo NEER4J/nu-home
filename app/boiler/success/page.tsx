@@ -147,7 +147,7 @@ function SuccessContent() {
           <div className="bg-green-100 rounded-full p-3 mx-auto mb-4 w-16 h-16 flex items-center justify-center">
             <CheckCircle className="w-10 h-10 text-green-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Order Confirmed!</h1>
+          <h1 className="text-3xl font-semibold text-gray-900 mb-2">Order Confirmed!</h1>
           <p className="text-lg text-gray-600">
             Thank you for your order. We've received your payment and will be in touch soon.
           </p>

@@ -25,7 +25,7 @@ export default async function PartnerSuspendedPage() {
           <AlertTriangle className="h-12 w-12 text-red-500" />
         </div>
         
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Account Suspended</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-4">Account Suspended</h1>
         
         <p className="text-lg text-gray-600 mb-6">
           Your partner account has been suspended.

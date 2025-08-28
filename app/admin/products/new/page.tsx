@@ -38,7 +38,7 @@ export default async function NewProductPage() {
       </div>
       
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Create New Product</h1>
+        <h1 className="text-2xl font-semibold">Create New Product</h1>
       </div>
       
       <ProductForm categories={categories as ServiceCategory[]} />

@@ -72,7 +72,7 @@ export default async function Signup(props: {
         <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
           <form className="flex flex-col w-full" action={signUpAction}>
             <div className="mb-8 text-center">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">Join Our Marketplace</h1>
+              <h1 className="text-3xl font-semibold text-gray-800 mb-2">Join Our Marketplace</h1>
               <p className="text-gray-500 max-w-md mx-auto">
                 Create an account to start growing your business and connect with new customers
               </p>
@@ -232,7 +232,7 @@ export default async function Signup(props: {
               
               <div>
                 <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                  <span className="inline-block w-6 h-6 rounded-full bg-blue-100 text-blue-600 mr-2 text-center text-sm font-bold">?</span>
+                  <span className="inline-block w-6 h-6 rounded-full bg-blue-100 text-blue-600 mr-2 text-center text-sm font-semibold">?</span>
                   Service Category
                 </h2>
                 <div className="space-y-4">

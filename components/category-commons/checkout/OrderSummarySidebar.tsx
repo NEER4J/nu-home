@@ -395,7 +395,7 @@ function MobileBottomBar({
         <div className="flex items-center gap-4"> 
         <button onClick={onOpenCart} className="flex items-center gap-2 bg-gray-200 px-3 py-2 rounded-full w-10 h-10 relative">
           <ShoppingCart size={18} className="text-gray-600" />
-          <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-semibold rounded-full w-4 h-4 flex items-center justify-center">
             {selectedAddons.length + selectedBundles.length}
           </span>
         </button>

@@ -564,7 +564,7 @@ export default function AddonsPage({
             >
               <ShoppingCart size={20} />
               <span>Cart</span>
-              <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center">
                 {itemsCount}
               </span>
             </button>
