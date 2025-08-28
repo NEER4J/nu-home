@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Upload, Camera, Phone, ChevronLeft, LucideIcon } from 'lucide-react'
+import { Upload, Camera, Phone, ChevronLeft, LucideIcon, Image } from 'lucide-react'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import { uploadMultipleEnquiryImages, saveEnquiryImageRecord } from '@/lib/image-upload'
 
@@ -24,7 +24,7 @@ export interface FormField {
 
 export interface EnquiryLayoutProps {
   // Partner info
-  companyColor?: string | null
+  companyColor?: string | null | undefined
   partnerPhone?: string | null
   
   // Customer details
@@ -73,7 +73,7 @@ export default function EnquiryLayout({
   onStepChange,
   isSubmitting = false
 }: EnquiryLayoutProps) {
-  const classes = useDynamicStyles(companyColor)
+  const classes = useDynamicStyles(companyColor || null)
   const [formData, setFormData] = useState<Record<string, any>>({})
   const [uploadedImages, setUploadedImages] = useState<Record<number, File[]>>({})
   const [imagePreviews, setImagePreviews] = useState<Record<number, string[]>>({})
@@ -165,8 +165,8 @@ export default function EnquiryLayout({
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-[calc(100vh-100px)]">
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
         <button 
           onClick={onBack}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
@@ -177,13 +177,11 @@ export default function EnquiryLayout({
 
         {/* Header Section - Only show on step 1 */}
         {currentStep === 1 && (
-          <div className="bg-white rounded-xl shadow-sm border p-6 mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-yellow-100 p-2 rounded-full">
-                <Camera className="w-6 h-6 text-yellow-600" />
-              </div>
+          <div className="mb-8">
+            <div className="mb-4">
+            
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">
+                <h1 className="text-xl md:text-4xl mb-2 font-semibold text-gray-900">
                   Thanks, {customerName}
                 </h1>
                 <p className="text-gray-600">
@@ -198,20 +196,20 @@ export default function EnquiryLayout({
           <>
             {/* Upload Images Section */}
             <div className={`${classes.button} rounded-xl p-6 mb-8 text-white`}>
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-4 items-center">
                 <div className="border-2 border-dashed border-white/30 rounded-lg p-4 flex-shrink-0">
-                  <div className="flex items-center justify-center w-16 h-16 bg-white/20 rounded-lg">
-                    <Camera className="w-8 h-8 text-white" />
+                  <div className="flex items-center justify-center w-24 h-24">
+                    <Image className="w-10 h-10 text-white" />
                   </div>
                 </div>
                 <div className="flex-1">
                   <h2 className="text-xl font-semibold mb-2">Next, upload your images</h2>
                   <p className="mb-4 opacity-90">
-                    To help with your enquiry, we'll need you to upload some pictures of your home and provide some quick bits of information. It'll only take 2 tics.
+                    To help with your enquiry, we'll need you to upload some pictures of your home and provide some quick bits of information.
                   </p>
                   <button 
                     onClick={() => onStepChange(2)}
-                    className={`bg-white ${classes.textColored} px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors`}
+                    className={`bg-white ${classes.textColored} px-6 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors`}
                   >
                     Continue to Upload & Form
                   </button>
@@ -220,7 +218,7 @@ export default function EnquiryLayout({
             </div>
 
             {/* Customer Details */}
-            <div className="bg-white rounded-xl shadow-sm border p-6 mb-8">
+            <div className="mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Your details</h3>
               <div className="grid gap-4">
                 <div className="flex justify-between">
@@ -249,26 +247,52 @@ export default function EnquiryLayout({
         )}
 
         {currentStep === 2 && (
-          <div className="bg-white rounded-xl shadow-sm border p-6">
-            <div className="grid lg:grid-cols-2 gap-8">
-              {/* Left Column - Image Upload Areas */}
-              <div className="space-y-6">
-                <div className="text-center">
-                  <p className="text-gray-600 mb-6">From the pictures, we'll have a better understanding of your setup, allowing us to order the correct materials and prevent delays on the day.</p>
-                </div>
+          <>
+            {/* Header Section for Step 2 */}
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+             
+                <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">
+                  Upload your images
+                </h1>
+              </div>
+            
 
-                {/* Image Upload Areas */}
-                <div className="space-y-4">
+              <div className="mt-4">
+                  <p className="text-sm">If you're stuck or need some help, give us a call <a href={`tel:${partnerPhone}`} className="text-blue-600 underline">{partnerPhone}</a></p>
+                </div>
+            </div>
+
+            <div className="">
+              <div className="grid lg:grid-cols-1 gap-8">
+                                {/* Left Column - Image Upload Areas */}
+                <div className="space-y-6 bg-white rounded-xl p-4 md:p-8">
+                  <div className="flex items-center gap-2"> 
+                  <h3 className="bg-slate-900 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium">1</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Upload your images</h3>
+                  </div>
+                <p className="text-gray-600">
+                From the pictures, we'll have a better understanding of your setup, allowing us to order the correct materials and prevent delays on the day.
+              </p>
+                  {/* Image Upload Areas */}
+                  <div className="space-y-4">
                   {imageUploadAreas.map((area, index) => {
                     const IconComponent = area.icon
                     const hasFiles = uploadedImages[index]?.length > 0
                     const uploading = isUploading[index]
                     
                     return (
-                      <div key={index} className={`border-2 border-dashed rounded-lg p-4 transition-colors cursor-pointer ${hasFiles ? 'border-gray-400 bg-gray-50' : 'border-gray-300 hover:border-gray-400'}`}>
+
+                      
+
+                      <div key={index} className={`transition-colors cursor-pointer ${hasFiles ? 'border-gray-400' : 'border-gray-300 hover:border-gray-400'}`}>
+                       
+                       
                         <input
                           type="file"
-                          ref={el => fileInputRefs.current[index] = el}
+                          ref={(el) => {
+                            fileInputRefs.current[index] = el
+                          }}
                           onChange={(e) => handleImageUpload(index, e.target.files)}
                           accept="image/*"
                           multiple
@@ -279,7 +303,7 @@ export default function EnquiryLayout({
                           className="flex items-center gap-3"
                           onClick={() => !uploading && fileInputRefs.current[index]?.click()}
                         >
-                          <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-gray-100 overflow-hidden relative">
+                          <div className="w-24 h-24 rounded-lg flex items-center justify-center overflow-hidden relative border-2 border-dashed p-2">
                             {uploading ? (
                               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-600"></div>
                             ) : hasFiles && imagePreviews[index]?.[0] ? (
@@ -306,7 +330,6 @@ export default function EnquiryLayout({
                               </p>
                             )}
                           </div>
-                          {!uploading && <Upload className="w-5 h-5 text-gray-400" />}
                         </div>
                       </div>
                     )
@@ -316,15 +339,14 @@ export default function EnquiryLayout({
 
               {/* Right Column - Form */}
               <div className="space-y-6">
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <p className="text-sm">If you're stuck or need some help, give us a call</p>
-                  <p className="font-medium flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    {partnerPhone || '0330 113 1333'}
-                  </p>
-                </div>
+              
 
-                <div className="space-y-4">
+                <div className="space-y-4 bg-white rounded-xl p-4 md:p-8">
+                <div className="flex items-center gap-2"> 
+                  <h3 className="bg-slate-900 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium">2</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Fill in your details</h3>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 md:gap-8 gap-4">
                   {formFields.map((field, index) => (
                     <div key={index}>
                       <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -364,11 +386,11 @@ export default function EnquiryLayout({
                       )}
                     </div>
                   ))}
-
+                  </div>
                   <button 
                     onClick={handleSubmit}
                     disabled={isSubmitting}
-                    className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50`}
+                    className={`w-full py-3 rounded-full mt-4 font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50`}
                   >
                     {isSubmitting ? (
                       <>
@@ -383,6 +405,7 @@ export default function EnquiryLayout({
               </div>
             </div>
           </div>
+        </>
         )}
       </div>
     </div>

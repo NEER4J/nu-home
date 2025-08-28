@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode, useEffect } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, Info } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Info, Calculator, Loader2 } from 'lucide-react'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
@@ -153,6 +153,7 @@ export default function CheckoutLayout({
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null)
   const [showFinanceCalculator, setShowFinanceCalculator] = useState(false)
+  const [loadingPaymentMethod, setLoadingPaymentMethod] = useState<string | null>(null)
   const [calculatorSettings, setCalculatorSettings] = useState<{
     selected_plan?: { months: number; apr: number } | null
     selected_deposit?: number
@@ -329,7 +330,7 @@ export default function CheckoutLayout({
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 grid lg:grid-cols-[1fr_380px] gap-8">
+    <div className="container mx-auto px-4 py-8 grid lg:grid-cols-[1fr_380px] gap-8 ">
       <div>
         {showBack && (
           <button 
@@ -344,18 +345,13 @@ export default function CheckoutLayout({
             {backLabel}
           </button>
         )}
-        <h1 className="text-2xl font-semibold text-gray-900 mb-4">{step === 1 ? 'Book your install' : 'Complete your order'}</h1>
-        {/* Stepper */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${step >= 1 ? 'bg-gray-900' : 'bg-gray-300'}`}>1</div>
-          <div className={`h-1 flex-1 ${step > 1 ? classes.progress : 'bg-gray-200'}`}></div>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${step >= 2 ? 'bg-gray-900' : 'bg-gray-300'}`}>2</div>
-        </div>
+        <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-5">{step === 1 ? 'Book your install' : 'Complete your order'}</h1>
+        
 
         {step === 1 && (
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-8 bg-transparent md:bg-white rounded-xl p-0 md:p-8 mb-20">
             {/* Calendar */}
-            <div className="bg-white rounded-xl border p-4">
+            <div className="bg-gray-100 rounded-xl p-4 md:p-6 md:bg-gray-100 bg-white">
               <div className="flex items-center justify-between">
                 <div className="text-lg font-medium">{cursor.toLocaleString('default', { month: 'long' })} {cursor.getFullYear()}</div>
                 <div className="flex items-center gap-2">
@@ -391,7 +387,7 @@ export default function CheckoutLayout({
             </div>
 
             {/* Details form */}
-            <div className="bg-white rounded-xl border p-4">
+            <div className="">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm text-gray-700 mb-1">First name *</label>
@@ -418,20 +414,11 @@ export default function CheckoutLayout({
                   <textarea value={details.notes} onChange={e => setDetails({ ...details, notes: e.target.value })} className={`w-full border rounded-md px-3 py-2 ${classes.inputFocus}`} rows={3} placeholder="e.g. My property has..." />
                 </div>
                 <div className="col-span-2 flex gap-3">
-                  <button 
-                    onClick={() => {
-                      const url = new URL(backHref, window.location.origin)
-                      if (submissionId) url.searchParams.set('submission', submissionId)
-                      window.location.href = url.toString()
-                    }} 
-                    className="flex-1 py-3 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    {backLabel}
-                  </button>
+                 
                   <button 
                     onClick={handleBookInstall} 
                     disabled={!selectedDate || !details.firstName || !details.lastName || !details.email || !details.phone || !details.postcode}
-                    className={`flex-1 py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50`}
+                    className={`flex-1 py-3 rounded-full font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50`}
                   >
                     Book install
                   </button>
@@ -443,7 +430,7 @@ export default function CheckoutLayout({
         )}
 
         {step === 2 && (
-          <div className="grid lg:grid-cols-2 gap-8">
+          <div className="grid lg:grid-cols-2 gap-8 bg-transparent md:bg-white rounded-xl p-0 md:p-8">
             {/* FAQ Section */}
             <div className="hidden lg:block">
               <CheckoutFAQ />
@@ -451,17 +438,26 @@ export default function CheckoutLayout({
             
             {/* Payment Section */}
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Complete your payment</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-700">Pay by card, or spread the cost with low monthly paymentss</h2>
               
               {/* Payment Options */}
               <div className="space-y-4">
               {/* Stripe Payment */}
               {paymentSettings?.is_stripe_enabled && paymentSettings?.stripe_settings && (
-                <div className={`bg-white rounded-xl border p-4 ${selectedPaymentMethod === 'stripe' ? 'ring-2 ring-blue-500' : ''}`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-semibold">S</span>
+                <div 
+                  className={`bg-white rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${selectedPaymentMethod === 'stripe' ? 'ring-2 ring-[#646ede] bg-[#646ede]/5' : 'hover:border-[#646ede]'}`}
+                  onClick={() => handlePaymentMethodSelect('stripe')}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod === 'stripe' ? 'bg-[#646ede] border-[#646ede]' : 'border-gray-300'}`}>
+                      {selectedPaymentMethod === 'stripe' && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </div>
+                    <div className="flex items-center justify-between flex-1">
+                      <div className="flex items-center gap-2">
                     <h3 className="font-medium text-gray-900">Pay by Card</h3>
                     {paymentSettings.stripe_settings.enabled_environment === 'test' && (
                       <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
@@ -469,126 +465,277 @@ export default function CheckoutLayout({
                       </span>
                     )}
                   </div>
+                      <div className="flex items-center">
+                        <Image 
+                          src="/stripe.png" 
+                          alt="Stripe" 
+                          width={120} 
+                          height={35} 
+                          className="h-6 w-auto"
+                        />
+                    </div>
+                    </div>
+                  </div>
                   
-                  {selectedPaymentMethod === 'stripe' ? (
-                    // Show Stripe form when selected
-                    (() => {
-                      const partnerStripePromise = loadStripe(
-                        paymentSettings.stripe_settings.enabled_environment === 'live' 
-                          ? paymentSettings.stripe_settings.STRIPE_PUBLISHABLE_KEY_LIVE
-                          : paymentSettings.stripe_settings.STRIPE_PUBLISHABLE_KEY_TEST
-                      )
-                      
-                      return (
-                        <Elements stripe={partnerStripePromise}>
-                          <StripePaymentForm
-                            amount={orderTotal}
-                            companyColor={companyColor}
-                            stripeSecretKey={
-                              paymentSettings.stripe_settings.enabled_environment === 'live' 
-                                ? paymentSettings.stripe_settings.STRIPE_SECRET_KEY_LIVE
-                                : paymentSettings.stripe_settings.STRIPE_SECRET_KEY_TEST
-                            }
-                            submissionId={submissionId || ''}
-                            onPaymentSuccess={async (paymentIntent) => {
-                              console.log('Payment successful:', paymentIntent)
-                              // Send checkout email
-                              await sendCheckoutEmail('stripe', {
-                                payment_details: {
-                                  payment_intent_id: paymentIntent.id,
-                                  amount: paymentIntent.amount,
-                                  payment_method: 'stripe'
-                                }
-                              })
-                              // Redirect to success page
-                              if (submissionId) {
-                                window.location.href = `/boiler/success?submission_id=${submissionId}`
-                              } else {
-                                window.location.href = '/boiler/success'
+                  {selectedPaymentMethod === 'stripe' && (
+                    <div className="space-y-4 mt-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                        <div className="flex items-start gap-2">
+                          <Info className="w-4 h-4 mt-0.5 text-blue-600" />
+                          <div className="text-sm text-blue-800">
+                            <p className="font-medium mb-1">Secure Card Payment</p>
+                            <p>Your payment is processed securely through Stripe. We accept all major credit and debit cards including Visa, Mastercard, and American Express.</p>
+                          </div>
+                    </div>
+                  </div>
+                  
+                                            {/* Show Stripe form when selected */}
+                      {(() => {
+                        const partnerStripePromise = loadStripe(
+                          paymentSettings.stripe_settings.enabled_environment === 'live' 
+                            ? paymentSettings.stripe_settings.STRIPE_PUBLISHABLE_KEY_LIVE
+                            : paymentSettings.stripe_settings.STRIPE_PUBLISHABLE_KEY_TEST
+                        )
+                        
+                        return (
+                          <Elements stripe={partnerStripePromise}>
+                            <StripePaymentForm
+                              amount={orderTotal}
+                              companyColor={companyColor}
+                              stripeSecretKey={
+                                paymentSettings.stripe_settings.enabled_environment === 'live' 
+                                  ? paymentSettings.stripe_settings.STRIPE_SECRET_KEY_LIVE
+                                  : paymentSettings.stripe_settings.STRIPE_SECRET_KEY_TEST
                               }
-                            }}
-                            onPaymentError={(error) => {
-                              console.error('Payment failed:', error)
-                              // Handle payment error
-                            }}
-                          />
-                        </Elements>
-                      )
-                    })()
-                  ) : (
-                    // Show selection button when not selected
-                    <button
-                      onClick={() => handlePaymentMethodSelect('stripe')}
-                      className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText}`}
-                    >
-                      Pay with Card
-                    </button>
+                              submissionId={submissionId || ''}
+                              onPaymentSuccess={async (paymentIntent) => {
+                                console.log('Payment successful:', paymentIntent)
+                                // Send checkout email
+                                await sendCheckoutEmail('stripe', {
+                                  payment_details: {
+                                    payment_intent_id: paymentIntent.id,
+                                    amount: paymentIntent.amount,
+                                    payment_method: 'stripe'
+                                  }
+                                })
+                                // Redirect to success page
+                                if (submissionId) {
+                                  window.location.href = `/boiler/success?submission_id=${submissionId}`
+                                } else {
+                                  window.location.href = '/boiler/success'
+                                }
+                              }}
+                              onPaymentError={(error) => {
+                                console.error('Payment failed:', error)
+                                // Handle payment error
+                              }}
+                            />
+                          </Elements>
+                        )
+                      })()}
+                    </div>
                   )}
                 </div>
               )}
 
               {/* Kanda Finance */}
               {paymentSettings?.is_kanda_enabled && paymentSettings?.kanda_settings && (
-                <div className={`bg-white rounded-xl border p-4 ${selectedPaymentMethod === 'kanda' ? 'ring-2 ring-purple-500' : ''}`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-5 h-5 bg-purple-600 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-semibold">K</span>
+                <div 
+                  className={`bg-white rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${selectedPaymentMethod === 'kanda' ? 'ring-2 ring-[#27e6c3]' : 'hover:border-[#27e6c3]'}`}
+                  onClick={() => handlePaymentMethodSelect('kanda')}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod === 'kanda' ? 'bg-[#27e6c3] border-[#27e6c3]' : 'border-gray-300'}`}>
+                      {selectedPaymentMethod === 'kanda' && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </div>
+                    <div className="flex items-center justify-between flex-1">
+                      <div className="flex items-center gap-2">
                     <h3 className="font-medium text-gray-900">Finance Your Purchase</h3>
                   </div>
+                      <div className="flex items-center">
+                        <Image 
+                          src="/kanda.png" 
+                          alt="Kanda" 
+                          width={80} 
+                          height={24} 
+                          className="h-6 w-auto"
+                        />
+                    </div>
+                    </div>
+                  </div>
                   
-                  {selectedPaymentMethod === 'kanda' ? (
-                    <KandaFinanceForm
-                      amount={orderTotal}
-                      companyColor={companyColor}
-                      kandaSettings={paymentSettings.kanda_settings}
-                      customerDetails={details}
-                      productDescription={generateProductDescription()}
-                      submissionId={submissionId}
-                      onApplicationSubmitted={async () => {
-                        // Payment status is already updated to 'processing' in the form
-                        // This callback is called after successful redirect
-                        console.log('Kanda application submitted successfully')
-                        handlePay()
-                      }}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => handlePaymentMethodSelect('kanda')}
-                      className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText}`}
-                    >
-                      Apply for Finance
-                    </button>
+                                    {selectedPaymentMethod === 'kanda' && (
+                    <div className="mt-4">
+                      <KandaFinanceForm
+                        amount={orderTotal}
+                        companyColor={companyColor}
+                        kandaSettings={paymentSettings.kanda_settings}
+                        customerDetails={details}
+                        productDescription={generateProductDescription()}
+                        submissionId={submissionId}
+                        onApplicationSubmitted={async () => {
+                          // Payment status is already updated to 'processing' in the form
+                          // This callback is called after successful redirect
+                          console.log('Kanda application submitted successfully')
+                          handlePay()
+                        }}
+                      />
+                    </div>
                   )}
                 </div>
               )}
 
               {/* Monthly Payment Plans */}
               {paymentSettings?.is_monthly_payment_enabled && (
-                <div className={`bg-white rounded-xl border p-4 ${selectedPaymentMethod === 'monthly' ? 'ring-2 ring-green-500' : ''}`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-5 h-5 bg-green-600 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-semibold">M</span>
+                <div 
+                  className={`bg-white rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${selectedPaymentMethod === 'monthly' ? 'ring-2 ring-green-500 bg-green-50' : 'hover:border-green-300'}`}
+                  onClick={() => handlePaymentMethodSelect('monthly')}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod === 'monthly' ? 'bg-green-600 border-green-600' : 'border-gray-300'}`}>
+                      {selectedPaymentMethod === 'monthly' && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </div>
-                    <h3 className="font-medium text-gray-900">Monthly Payment Plans</h3>
+                    <div className="flex items-center justify-between flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-gray-900">Monthly Payment</h3>
+                  </div>
+                      <div className="flex items-center">
+                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    </div>
                   </div>
                   
-                  {selectedPaymentMethod === 'monthly' ? (
-                    <div className="space-y-4">
+                  {selectedPaymentMethod === 'monthly' && (
+                    <div className="space-y-4 mt-4">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                        <div className="flex items-start gap-2">
+                          <Info className="w-4 h-4 mt-0.5 text-green-600" />
+                          <div className="text-sm text-green-800">
+                            <p className="font-medium mb-1">Flexible Monthly Payment Plans</p>
+                            <p>Spread the cost of your installation over manageable monthly payments. You can choose your preferred payment term and deposit amount to suit your budget.</p>
+                          </div>
+                    </div>
+                  </div>
+                  
+                      {(() => {
+                        // Use currentCalculatorSettings if available, otherwise fall back to calculatorSettings
+                        const currentSettings = currentCalculatorSettings || calculatorSettings
+                        
+                        if (!currentSettings?.selected_plan) {
+                          return (
+                            <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                              <div className="text-sm text-gray-700">
+                                <p className="font-medium mb-2">No Payment Plan Selected</p>
+                                <p className="text-gray-600">Click the calculator button to set up your monthly payment plan.</p>
+                              </div>
+                            </div>
+                          )
+                        }
+                        
+                        const { months, apr } = currentSettings.selected_plan
+                        const depositPercentage = currentSettings.selected_deposit || 0
+                        
+                        // Calculate monthly payment using the same formula as OrderSummarySidebar
+                        const calculateMonthlyPayment = (price: number, months: number, apr: number, depositPercentage: number): number => {
+                          if (depositPercentage > 0) {
+                            const depositAmount = (price * depositPercentage) / 100
+                            const loanAmount = price - depositAmount
+                            const monthlyRate = apr / 100 / 12
+                            return (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+                                   (Math.pow(1 + monthlyRate, months) - 1)
+                          } else {
+                            const monthlyRate = apr / 100 / 12
+                            return (price * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+                                   (Math.pow(1 + monthlyRate, months) - 1)
+                          }
+                        }
+                        
+                        const monthlyPayment = calculateMonthlyPayment(orderTotal, months, apr, depositPercentage)
+                        const depositAmount = (orderTotal * depositPercentage) / 100
+                        
+                        return (
+                          <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                            <div className="text-sm text-gray-700">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="font-medium">Your Payment Plan:</p>
+                                <button
+                                  onClick={() => setShowFinanceCalculator(true)}
+                                  className="text-xs text-green-600 hover:text-green-700 underline flex items-center gap-1"
+                                >
+                                  <Calculator size={12} />
+                                  Adjust
+                                </button>
+                              </div>
+                              <div className="space-y-1">
+                                <p>• Monthly payment: £{monthlyPayment.toFixed(2)}</p>
+                                <p>• Duration: {months} months</p>
+                                <p>• Deposit: £{depositAmount.toFixed(2)} ({depositPercentage}%)</p>
+                                <p>• APR: {apr}%</p>
+                                <p>• Total amount: £{orderTotal.toFixed(2)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                      
                       <p className="text-sm text-gray-600">
                         Pay in monthly installments with flexible payment terms.
                       </p>
-                      <button 
+                                            <button 
                         onClick={async () => {
+                          setLoadingPaymentMethod('monthly')
+                          
                           // Send checkout email first
                           await sendCheckoutEmail('monthly', {
-                            payment_plan: calculatorSettings ? {
-                              monthly_amount: calculatorSettings.selected_plan?.months ? (orderTotal / calculatorSettings.selected_plan.months) : null,
-                              duration_months: calculatorSettings.selected_plan?.months,
-                              deposit: calculatorSettings.selected_deposit || 0,
-                              total_amount: orderTotal,
-                              apr: calculatorSettings.selected_plan?.apr
-                            } : null
+                            payment_plan: (() => {
+                              // Use currentCalculatorSettings if available, otherwise fall back to calculatorSettings
+                              const currentSettings = currentCalculatorSettings || calculatorSettings
+                              
+                              if (!currentSettings?.selected_plan) {
+                                return null
+                              }
+                              
+                              const { months, apr } = currentSettings.selected_plan
+                              const depositPercentage = currentSettings.selected_deposit || 0
+                              
+                              // Calculate monthly payment using the same formula as OrderSummarySidebar
+                              const calculateMonthlyPayment = (price: number, months: number, apr: number, depositPercentage: number): number => {
+                                if (depositPercentage > 0) {
+                                  const depositAmount = (price * depositPercentage) / 100
+                                  const loanAmount = price - depositAmount
+                                  const monthlyRate = apr / 100 / 12
+                                  return (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+                                         (Math.pow(1 + monthlyRate, months) - 1)
+                                } else {
+                                  const monthlyRate = apr / 100 / 12
+                                  return (price * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+                                         (Math.pow(1 + monthlyRate, months) - 1)
+                                }
+                              }
+                              
+                              const monthlyPayment = calculateMonthlyPayment(orderTotal, months, apr, depositPercentage)
+                              const depositAmount = (orderTotal * depositPercentage) / 100
+                              
+                              return {
+                                monthly_amount: monthlyPayment,
+                                duration_months: months,
+                                deposit_amount: depositAmount,
+                                deposit_percentage: depositPercentage,
+                                total_amount: orderTotal,
+                                apr: apr,
+                                loan_amount: orderTotal - depositAmount
+                              }
+                            })()
                           })
                           
                           // Save payment completion for Monthly Plans
@@ -619,39 +766,80 @@ export default function CheckoutLayout({
                             window.location.href = '/boiler/success'
                           }
                         }} 
-                        className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText}`}
+                        disabled={loadingPaymentMethod === 'monthly'}
+                        className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                       >
-                        Set Up Monthly Payments
+                        {loadingPaymentMethod === 'monthly' ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Setting up payments...
+                          </>
+                        ) : (
+                          'Set Up Monthly Payments'
+                        )}
                       </button>
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => handlePaymentMethodSelect('monthly')}
-                      className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText}`}
-                    >
-                      Set Up Monthly Payments
-                    </button>
                   )}
                 </div>
               )}
 
               {/* Pay After Installation */}
               {paymentSettings?.is_pay_after_installation_enabled && (
-                <div className={`bg-white rounded-xl border p-4 ${selectedPaymentMethod === 'pay-later' ? 'ring-2 ring-orange-500' : ''}`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-5 h-5 bg-orange-600 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-semibold">P</span>
+                <div 
+                  className={`bg-white rounded-xl border p-4 cursor-pointer transition-all hover:shadow-md ${selectedPaymentMethod === 'pay-later' ? 'ring-2 ring-orange-500' : 'hover:border-orange-300'}`}
+                  onClick={() => handlePaymentMethodSelect('pay-later')}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod === 'pay-later' ? 'bg-orange-600 border-orange-600' : 'border-gray-300'}`}>
+                      {selectedPaymentMethod === 'pay-later' && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </div>
+                    <div className="flex items-center justify-between flex-1">
+                      <div className="flex items-center gap-2">
                     <h3 className="font-medium text-gray-900">Pay After Installation</h3>
                   </div>
+                      <div className="flex items-center">
+                        <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    </div>
+                  </div>
                   
-                  {selectedPaymentMethod === 'pay-later' ? (
-                    <div className="space-y-4">
+                  {selectedPaymentMethod === 'pay-later' && (
+                    <div className="space-y-4 mt-4">
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                        <div className="flex items-start gap-2">
+                          <Info className="w-4 h-4 mt-0.5 text-orange-600" />
+                          <div className="text-sm text-orange-800">
+                            <p className="font-medium mb-1">Pay After Installation</p>
+                            <p>Book your installation with confidence knowing you only pay after the work is completed and you're fully satisfied. No upfront payment required.</p>
+                          </div>
+                    </div>
+                  </div>
+                  
+                      <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                        <div className="text-sm text-gray-700">
+                          <p className="font-medium mb-2">How it works:</p>
+                          <div className="space-y-1">
+                            <p>• Book your installation date</p>
+                            <p>• Our team completes the work</p>
+                            <p>• You inspect and approve the installation</p>
+                            <p>• Pay the full amount of £{orderTotal.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
                       <p className="text-sm text-gray-600">
                         Pay for your service after it's completed and you're satisfied.
                       </p>
                       <button 
                         onClick={async () => {
+                          setLoadingPaymentMethod('pay-later')
+                          
                           // Send checkout email first
                           await sendCheckoutEmail('pay-later')
                           
@@ -683,18 +871,19 @@ export default function CheckoutLayout({
                             window.location.href = '/boiler/success'
                           }
                         }} 
-                        className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText}`}
+                        disabled={loadingPaymentMethod === 'pay-later'}
+                        className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                       >
-                        Book with Pay Later
+                        {loadingPaymentMethod === 'pay-later' ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Booking installation...
+                          </>
+                        ) : (
+                          'Book with Pay Later'
+                        )}
                       </button>
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => handlePaymentMethodSelect('pay-later')}
-                      className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText}`}
-                    >
-                      Book with Pay Later
-                    </button>
                   )}
                 </div>
               )}

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, Info, MessageCircle, Star } from 'lucide-react'
+import { Info, MessageCircle } from 'lucide-react'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
 interface FAQItem {
   question: string
@@ -44,20 +44,8 @@ const faqData: FAQItem[] = [
 ]
 
 export default function CheckoutFAQ() {
-  const [openItems, setOpenItems] = useState<Set<number>>(new Set())
-
-  const toggleItem = (index: number) => {
-    const newOpenItems = new Set(openItems)
-    if (newOpenItems.has(index)) {
-      newOpenItems.delete(index)
-    } else {
-      newOpenItems.add(index)
-    }
-    setOpenItems(newOpenItems)
-  }
-
   return (
-    <div className="bg-white rounded-xl border p-6">
+    <div className="bg-gray-100 rounded-xl p-6 hidden md:block">
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
         <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
@@ -67,35 +55,18 @@ export default function CheckoutFAQ() {
       </div>
 
       {/* FAQ Items */}
-      <div className="space-y-1">
+      <Accordion type="single" collapsible className="space-y-1">
         {faqData.map((item, index) => (
-          <div key={index} className="border-b border-gray-100 last:border-b-0">
-            <button
-              onClick={() => toggleItem(index)}
-              className="w-full flex items-center justify-between py-4 text-left hover:bg-gray-50 transition-colors"
-            >
-              <span className="text-sm font-medium text-gray-900 pr-4">
-                {item.question}
-              </span>
-              <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                {openItems.has(index) ? (
-                  <ChevronUp className="w-3 h-3 text-gray-600" />
-                ) : (
-                  <ChevronDown className="w-3 h-3 text-gray-600" />
-                )}
-              </div>
-            </button>
-            
-            {openItems.has(index) && (
-              <div className="pb-4 pr-4">
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  {item.answer}
-                </p>
-              </div>
-            )}
-          </div>
+          <AccordionItem key={index} value={`item-${index}`} className="border-b border-gray-100 last:border-b-0">
+            <AccordionTrigger className="text-sm text-left font-medium text-gray-900 transition-colors py-4 hover:no-underline">
+              {item.question}
+            </AccordionTrigger>
+            <AccordionContent className="text-sm text-gray-600 leading-relaxed pr-4">
+              {item.answer}
+            </AccordionContent>
+          </AccordionItem>
         ))}
-      </div>
+      </Accordion>
 
       {/* Ask a question link */}
       <div className="mt-6 pt-4 border-t border-gray-100">
@@ -104,8 +75,6 @@ export default function CheckoutFAQ() {
           Ask a question
         </button>
       </div>
-
-  
     </div>
   )
 }

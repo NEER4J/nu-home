@@ -232,16 +232,16 @@ export default function SurveyLayout({
             {backLabel}
           </button>
         )}
-        <h1 className="text-2xl font-semibold text-gray-900 mb-4">Tell us about your project</h1>
+        <h1 className="text-xl md:text-2xl font-semibold text-gray-900 mb-4">Tell us about your project</h1>
         
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid lg:grid-cols-2 gap-8 bg-transparent md:bg-white rounded-xl p-0 md:p-8 mb-20">
           {/* FAQ Section */}
           <div className="hidden lg:block">
             <CheckoutFAQ />
           </div>
           
           {/* Survey Form */}
-          <div className="bg-white rounded-xl border p-6">
+          <div className="">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-gray-700 mb-1">First name *</label>
@@ -300,20 +300,11 @@ export default function SurveyLayout({
               />
             </div>
             <div className="col-span-2 flex gap-3">
-              <button 
-                onClick={() => {
-                  const url = new URL(backHref, window.location.origin)
-                  if (submissionId) url.searchParams.set('submission', submissionId)
-                  window.location.href = url.toString()
-                }} 
-                className="flex-1 py-3 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                {backLabel}
-              </button>
+        
               <button 
                 onClick={handleSubmit} 
                 disabled={!details.firstName || !details.lastName || !details.email || !details.phone || !details.postcode || isSubmitting}
-                className={`flex-1 py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50`}
+                className={`flex-1 py-3 rounded-full font-medium flex items-center justify-center gap-2 ${classes.button} ${classes.buttonText} disabled:opacity-50`}
               >
                 {isSubmitting ? (
                   <>
