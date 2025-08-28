@@ -2,10 +2,11 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import Image from 'next/image'
-import { MinusCircle, PlusCircle, Info, ChevronRight, X, CheckCircle, Calculator } from 'lucide-react'
+import { MinusCircle, PlusCircle, Info, ChevronRight, X, CheckCircle, Calculator, Check } from 'lucide-react'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import FinanceCalculator from '@/components/FinanceCalculator'
 import OrderSummarySidebar from '@/components/category-commons/checkout/OrderSummarySidebar'
+import AddonTypeInfoPopup from './AddonTypeInfoPopup'
 
 export type BundleDiscountType = 'fixed' | 'percent'
 
@@ -13,6 +14,7 @@ export interface AddonTypeLite {
   id: string
   name: string
   allow_multiple_selection: boolean
+  info?: string // Add info field
 }
 
 export interface CategoryLite {
@@ -146,6 +148,19 @@ export default function AddonsLayout({
   const classes = useDynamicStyles(companyColor || null)
 
   const [showFinanceCalculator, setShowFinanceCalculator] = useState(false)
+  const [showAddonTypeInfo, setShowAddonTypeInfo] = useState(false)
+  const [selectedAddonType, setSelectedAddonType] = useState<AddonTypeLite | null>(null)
+  const [showAddonDescription, setShowAddonDescription] = useState(false)
+  const [selectedAddonDescription, setSelectedAddonDescription] = useState<{ name: string; info: string } | null>(null)
+  const [showBundleDescription, setShowBundleDescription] = useState(false)
+  const [selectedBundleDescription, setSelectedBundleDescription] = useState<{
+    title: string
+    description: string
+    items: any[]
+    discount: number
+    unitPrice: number
+    subtotal: number
+  } | null>(null)
 
   const addonsByType = useMemo(() => {
     return addons.reduce((acc, addon) => {
@@ -242,6 +257,18 @@ export default function AddonsLayout({
     console.log('Monthly payment changed:', monthlyPayment)
   }, [monthlyPayment])
 
+  // Handle info button click
+  const handleInfoClick = (addonType: AddonTypeLite) => {
+    setSelectedAddonType(addonType)
+    setShowAddonTypeInfo(true)
+  }
+
+  // Close info popup
+  const closeAddonTypeInfo = () => {
+    setShowAddonTypeInfo(false)
+    setSelectedAddonType(null)
+  }
+
   return (
     <div className="container mx-auto pb-32 lg:flex lg:gap-8 p-0">
       <div className="flex-1">
@@ -270,12 +297,35 @@ export default function AddonsLayout({
                 const discount = b.discount_type === 'percent' ? Math.min(subtotal * (dv / 100), subtotal) : Math.min(dv, subtotal)
                 const unitPrice = Math.max(0, subtotal - discount)
                 const selectedQty = selectedBundles[b.bundle_id] || 0
+                const hasDescription = b.description && b.description.trim().length > 0
+                
                 return (
                   <div key={b.bundle_id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                    <div className="bg-white h-48 sm:h-56 flex items-center justify-center">
-                      <div className="flex -space-x-6">
+                    <div className="p-5">
+                      <h3 className="text-lg font-semibold text-gray-900">{b.title}</h3>
+                      {hasDescription && (
+                        <button 
+                          className="text-sm text-gray-400 hover:text-gray-600 underline mt-1"
+                          onClick={() => {
+                            setSelectedBundleDescription({
+                              title: b.title,
+                              description: b.description || '',
+                              items: items,
+                              discount: discount,
+                              unitPrice: unitPrice,
+                              subtotal: subtotal
+                            })
+                            setShowBundleDescription(true)
+                          }}
+                        >
+                          More details
+                        </button>
+                      )}
+                    </div>
+                    <div className="bg-white flex items-center px-5">
+                      <div className="flex gap-2 flex-wrap justify-start">
                         {[0,1,2].map((n, idx) => (
-                          <div key={idx} className="w-36 h-24 sm:w-44 sm:h-28 rounded-xl bg-gray-50 border flex items-center justify-center">
+                          <div key={idx} className=" bg-gray-200 rounded-2xl p-2 w-[calc(100%/3-6px)]">
                             {images[idx] ? (
                               <img src={images[idx] as string} alt="Bundle" className="w-full h-full object-contain p-2" />
                             ) : null}
@@ -284,11 +334,10 @@ export default function AddonsLayout({
                       </div>
                     </div>
                     <div className="p-5">
-                      <h3 className="text-lg font-semibold text-gray-900">{b.title}</h3>
                       <ul className="mt-3 space-y-2">
                         {items.map((i) => (
                           <li key={i.bundle_addon_id} className="flex items-start gap-2 text-sm text-gray-800">
-                            <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />
+                            <Check className="w-4 h-4 text-green-600 mt-0.5" />
                             <span>
                               {i.Addons?.title || 'Addon'}
                               {i.quantity && i.quantity > 1 ? ` × ${i.quantity}` : ''}
@@ -332,72 +381,135 @@ export default function AddonsLayout({
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-medium text-gray-900">{type.name}</h2>
-                  <button className="text-gray-400 hover:text-gray-600">
+                  <button 
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
+                    onClick={() => handleInfoClick(type)}
+                    title={`Learn more about ${type.name}`}
+                  >
                     <Info size={18} />
                   </button>
                 </div>
-                {!type.allow_multiple_selection && (
-                  <div className={`text-sm px-3 py-1 rounded-full ${classes.badge}`}>Select one only</div>
-                )}
+               
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {typeAddons.map((addon) => {
                   const isSelected = (selectedAddons[addon.addon_id] || 0) > 0
                   const quantity = selectedAddons[addon.addon_id] || 0
                   const isInBundle = bundleIncludedAddonIds.has(addon.addon_id)
+                  const hasDescription = addon.description && addon.description.trim().length > 0
+                  
                   return (
-                    <div key={addon.addon_id} className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border ${isSelected ? 'border-blue-500' : 'border-gray-100'}`}>
-                      <div className="relative p-4 bg-white rounded-t-xl">
-                        <div className="relative h-48 w-full flex items-center justify-center bg-white">
-                          <Image src={getImageUrl(addon.image_link) || '/placeholder-image.jpg'} alt={addon.title} fill className="object-contain p-2" />
-                        </div>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        )}
-                        {addon.allow_multiple && (
-                          <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-white rounded-full shadow-sm border border-gray-100 p-1">
-                            <button onClick={() => onChangeAddonQuantity(addon, -1)} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 disabled:opacity-50" disabled={!quantity}>
-                              <MinusCircle size={18} />
-                            </button>
-                            <span className="w-6 text-center font-medium text-sm">{quantity}</span>
-                            <button onClick={() => onChangeAddonQuantity(addon, 1)} className="w-7 h-7 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700" disabled={addon.max_count ? quantity >= addon.max_count : false}>
-                              <PlusCircle size={18} />
-                            </button>
-                          </div>
+                    <div key={addon.addon_id} className="bg-white rounded-2xl border border-gray-100">
+                      {/* Header - Name */}
+                      <div className="p-5">
+                        <h3 className="text-lg font-medium text-gray-900 line-clamp-2">{addon.title}</h3>
+                        {hasDescription && (
+                          <button 
+                            className="text-sm text-gray-400 hover:text-gray-600 underline mt-1"
+                            onClick={() => {
+                              setSelectedAddonDescription({
+                                name: addon.title,
+                                info: addon.description || ''
+                              })
+                              setShowAddonDescription(true)
+                            }}
+                          >
+                            More details
+                          </button>
                         )}
                       </div>
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-lg font-medium text-gray-900">{addon.title}</h3>
-                          <p className="text-lg font-semibold text-gray-900">£{addon.price.toFixed(2)}</p>
+
+                      {/* Image Section */}
+                      <div className="relative px-4">
+                        <div className="relative h-40 w-full flex items-center justify-center bg-white">
+                          <Image src={getImageUrl(addon.image_link) || '/placeholder-image.jpg'} alt={addon.title} fill className="object-contain p-5" />
                         </div>
+                      
+                      </div>
+
+                      {/* Footer - Price and Button */}
+                      <div className="p-5">
                         {isInBundle && (
-                          <div className="mb-2">
+                          <div className="mb-3">
                             <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full ${classes.badge}`}>Included in bundle</span>
                           </div>
                         )}
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{addon.description}</p>
-                        {!addon.allow_multiple && (
-                          <button
-                            className={`w-full py-2.5 px-4 rounded-lg transition-colors ${isSelected ? `${classes.bgLight} ${classes.textColored}` : (isInBundle ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${classes.button} ${classes.buttonText}`)}`}
-                            onClick={() => {
-                              if (!isSelected && isInBundle) return
-                              onChangeAddonQuantity(addon, isSelected ? -1 : 1)
-                            }}
-                            disabled={!isSelected && isInBundle}
-                            title={!isSelected && isInBundle ? 'Included in selected bundle' : undefined}
-                          >
-                            {isSelected ? 'Added' : (isInBundle ? 'Included' : 'Add to Quote')}
-                          </button>
-                        )}
-                        {addon.max_count && <p className="text-xs text-gray-500 text-center mt-2">Maximum: {addon.max_count}</p>}
+                        
+                        <div className="flex items-center justify-between gap-2">
+                          {/* Price */}
+                          <div className="text-lg font-semibold text-gray-900">
+                            £{addon.price.toFixed(2)}
+                          </div>
+                          
+                          {/* Action Button */}
+                          <div>
+                            {!addon.allow_multiple ? (
+                              <button
+                                className={`px-4 py-2 rounded-full transition-colors ${isSelected ? `${classes.bgLight} ${classes.textColored}` : (isInBundle ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${classes.button} ${classes.buttonText}`)}`}
+                                onClick={() => {
+                                  if (!isSelected && isInBundle) return
+                                  onChangeAddonQuantity(addon, isSelected ? -1 : 1)
+                                }}
+                                disabled={!isSelected && isInBundle}
+                                title={!isSelected && isInBundle ? 'Included in selected bundle' : undefined}
+                              >
+                                {isSelected ? 'Added' : (isInBundle ? 'Included' : 'Add')}
+                              </button>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                {quantity > 0 ? (
+                                  <>
+                                    {/* Minus button - show for all quantities */}
+                                    <button
+                                      onClick={() => onChangeAddonQuantity(addon, -1)}
+                                      className="w-10 h-10 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-700 flex items-center justify-center transition-colors"
+                                      title="Remove one"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                      </svg>
+                                    </button>
+                                    
+                                    {/* Quantity display */}
+                                    <span className="text-base font-medium text-gray-900 min-w-[24px] text-center">
+                                      {quantity}
+                                    </span>
+                                    
+                                    {/* Plus button - show for all quantities */}
+                                    <button
+                                      onClick={() => onChangeAddonQuantity(addon, 1)}
+                                      className="w-10 h-10 rounded-full bg-gray-300 hover:bg-gray-400 text-gray-700 flex items-center justify-center transition-colors"
+                                      disabled={addon.max_count ? quantity >= addon.max_count : false}
+                                      title="Add one more"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    className={`px-4 py-2 rounded-full transition-colors ${isInBundle ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${classes.button} ${classes.buttonText}`}`}
+                                    onClick={() => {
+                                      if (isInBundle) return
+                                      onChangeAddonQuantity(addon, 1)
+                                    }}
+                                    disabled={isInBundle}
+                                    title={isInBundle ? 'Included in bundle' : 'Add to selection'}
+                                  >
+                                    Add
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
                         {addon.allow_multiple && isInBundle && (
                           <p className={`text-xs text-center mt-2 ${classes.textColored}`}>Included in bundle; you can add more.</p>
                         )}
+                        
+
                       </div>
                     </div>
                   )
@@ -477,6 +589,45 @@ export default function AddonsLayout({
           onMonthlyPaymentUpdate={onCalculatorMonthlyPaymentUpdate}
         />
       )}
+
+      {/* Addon Type Info Popup */}
+      <AddonTypeInfoPopup
+        isOpen={showAddonTypeInfo}
+        onClose={closeAddonTypeInfo}
+        addonType={selectedAddonType ? {
+          name: selectedAddonType.name,
+          info: selectedAddonType.info
+        } : null}
+      />
+
+      {/* Addon Description Popup */}
+      <AddonTypeInfoPopup
+        isOpen={showAddonDescription}
+        onClose={() => {
+          setShowAddonDescription(false)
+          setSelectedAddonDescription(null)
+        }}
+        addonType={selectedAddonDescription}
+      />
+      
+      {/* Bundle Description Popup */}
+      <AddonTypeInfoPopup
+        isOpen={showBundleDescription}
+        onClose={() => {
+          setShowBundleDescription(false)
+          setSelectedBundleDescription(null)
+        }}
+        addonType={selectedBundleDescription ? {
+          name: selectedBundleDescription.title,
+          info: selectedBundleDescription.description
+        } : null}
+        bundleItems={selectedBundleDescription?.items || null}
+        bundlePricing={selectedBundleDescription ? {
+          subtotal: selectedBundleDescription.subtotal,
+          discount: selectedBundleDescription.discount,
+          unitPrice: selectedBundleDescription.unitPrice
+        } : null}
+      />
     </div>
   )
 }

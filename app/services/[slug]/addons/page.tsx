@@ -376,9 +376,7 @@ export default function AddonsPage({
                   return (
                     <div
                       key={addon.addon_id}
-                      className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border ${
-                        isSelected ? 'border-blue-500' : 'border-gray-100'
-                      }`}
+                      className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100"
                     >
                       <div className="relative p-4 bg-white rounded-t-xl">
                         <div className="relative h-48 w-full flex items-center justify-center bg-white">
@@ -390,13 +388,7 @@ export default function AddonsPage({
                           />
                         </div>
                         
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        )}
+
                         
                         {addon.allow_multiple && (
                           <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-white rounded-full shadow-sm border border-gray-100 p-1">
@@ -574,7 +566,7 @@ export default function AddonsPage({
                 <p className="text-sm text-gray-500">Your order</p>
                 <p className="text-lg font-semibold">£{totalPrice.toFixed(2)}</p>
               </div>
-              <button className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 flex items-center gap-1">
+              <button className="bg-gray-800 text-white px-6 py-2.5 rounded-lg hover:bg-gray-900 flex items-center gap-1 transition-colors">
                 Continue <ChevronRight size={16} />
               </button>
             </div>

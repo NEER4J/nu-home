@@ -7,6 +7,7 @@ interface AddonType {
   id: string;
   name: string;
   allow_multiple_selection?: boolean;
+  info?: string; // New field for addon type information
 }
 
 interface AddonTypesManagerProps {
@@ -40,7 +41,8 @@ export default function AddonTypesManager({ categoryId }: AddonTypesManagerProps
           typesArray = data.addon_types.map((type: any, index: number) => ({
             id: type.id || `type-${index}`,
             name: type.name || type,
-            allow_multiple_selection: type.allow_multiple_selection || false
+            allow_multiple_selection: type.allow_multiple_selection || false,
+            info: type.info || '' // Include info field
           }));
         }
 
@@ -60,7 +62,8 @@ export default function AddonTypesManager({ categoryId }: AddonTypesManagerProps
     setAddonTypes([...addonTypes, { 
       id: `type-${Date.now()}`, 
       name: '',
-      allow_multiple_selection: false 
+      allow_multiple_selection: false,
+      info: '' // Initialize info field
     }]);
   };
 
@@ -82,6 +85,13 @@ export default function AddonTypesManager({ categoryId }: AddonTypesManagerProps
   const updateAddonTypeMultipleSelection = (index: number, allow: boolean) => {
     const updatedTypes = [...addonTypes];
     updatedTypes[index].allow_multiple_selection = allow;
+    setAddonTypes(updatedTypes);
+  };
+
+  // Update an addon type's info
+  const updateAddonTypeInfo = (index: number, info: string) => {
+    const updatedTypes = [...addonTypes];
+    updatedTypes[index].info = info;
     setAddonTypes(updatedTypes);
   };
 
@@ -174,39 +184,58 @@ export default function AddonTypesManager({ categoryId }: AddonTypesManagerProps
           </div>
         )}
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 space-y-6">
           {addonTypes.map((type, index) => (
-            <div key={type.id} className="flex items-center space-x-4">
-              <input
-                type="text"
-                value={type.name}
-                onChange={(e) => updateAddonTypeName(index, e.target.value)}
-                placeholder="Enter addon type"
-                className="flex-1 focus:ring-blue-500 focus:border-blue-500 block sm:text-sm border-gray-300 rounded-md"
-              />
-              
-              <div className="flex items-center space-x-2">
+            <div key={type.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
+              <div className="flex items-center space-x-4">
                 <input
-                  type="checkbox"
-                  id={`allow-multiple-${type.id}`}
-                  checked={type.allow_multiple_selection || false}
-                  onChange={(e) => updateAddonTypeMultipleSelection(index, e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  type="text"
+                  value={type.name}
+                  onChange={(e) => updateAddonTypeName(index, e.target.value)}
+                  placeholder="Enter addon type name"
+                  className="flex-1 focus:ring-blue-500 focus:border-blue-500 block sm:text-sm border-gray-300 rounded-md"
                 />
-                <label htmlFor={`allow-multiple-${type.id}`} className="text-sm text-gray-700">
-                  Allow multiple addons within this type
-                </label>
+                
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`allow-multiple-${type.id}`}
+                    checked={type.allow_multiple_selection || false}
+                    onChange={(e) => updateAddonTypeMultipleSelection(index, e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor={`allow-multiple-${type.id}`} className="text-sm text-gray-700">
+                    Allow multiple
+                  </label>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => removeAddonType(index)}
+                  className="inline-flex items-center p-1.5 border border-transparent rounded-full text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </button>
               </div>
               
-              <button
-                type="button"
-                onClick={() => removeAddonType(index)}
-                className="inline-flex items-center p-1.5 border border-transparent rounded-full text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </button>
+              <div>
+                <label htmlFor={`info-${type.id}`} className="block text-sm font-medium text-gray-700 mb-2">
+                  Information about this addon type
+                </label>
+                <textarea
+                  id={`info-${type.id}`}
+                  value={type.info || ''}
+                  onChange={(e) => updateAddonTypeInfo(index, e.target.value)}
+                  placeholder="Explain what this addon type is for and what customers should know about it..."
+                  rows={3}
+                  className="w-full focus:ring-blue-500 focus:border-blue-500 block sm:text-sm border-gray-300 rounded-md"
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  This information will be displayed to customers when they click the info button next to addon types.
+                </p>
+              </div>
             </div>
           ))}
 

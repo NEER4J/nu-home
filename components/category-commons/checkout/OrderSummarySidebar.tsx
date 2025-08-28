@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
-import { MinusCircle, PlusCircle, Info, ChevronRight, X, Calculator, ChevronDown, Loader2, ShoppingCart, CheckCircle } from 'lucide-react'
+  import { Minus, Plus, PlusCircle, MinusCircle, Info, ChevronRight, X, Calculator, ChevronDown, Loader2, ShoppingCart, CheckCircle } from 'lucide-react'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 
 export interface AddonLite {
@@ -139,7 +139,8 @@ function MobileCartPopup({
   showInstallationIncluded,
   isLoading,
   normalizeIncludedItem,
-  getImageUrl
+  getImageUrl,
+  companyColor
 }: {
   isOpen: boolean
   onClose: () => void
@@ -159,6 +160,7 @@ function MobileCartPopup({
   isLoading: boolean
   normalizeIncludedItem: (item: any) => { title: string; subtitle: string | null; imageUrl: string | null }
   getImageUrl: (url: string | null) => string | null
+  companyColor?: string | null
 }) {
   if (!isOpen) return null
 
@@ -196,7 +198,7 @@ function MobileCartPopup({
                         className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                         title="Open Finance Calculator"
                       >
-                        <ChevronDown size={16} className="text-gray-600" />
+                        <ChevronDown size={14} className="text-gray-600" />
                       </button>
                     )}
                   </div>
@@ -205,18 +207,19 @@ function MobileCartPopup({
              
               {showContinueButton && (
                 <button
-                  className={`mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                  className={`mt-3 w-full text-white px-6 py-3 rounded-full flex items-center justify-center gap-2 font-medium transition-colors ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                  style={{ backgroundColor: companyColor || '#3B82F6' }}
                   onClick={onContinue}
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader2 size={14} className="animate-spin" />
                       Loading...
                     </>
                   ) : (
                     <>
-                      {continueButtonText} <ChevronRight size={16} />
+                      {continueButtonText} <ChevronRight size={14} />
                     </>
                   )}
                 </button>
@@ -251,7 +254,12 @@ function MobileCartPopup({
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="h-10 w-10 flex items-center justify-center rounded-md bg-blue-100 text-blue-600 font-semibold text-sm">B</div>
-                          <h4 className="font-medium text-sm text-gray-900 truncate">{bundle.title}</h4>
+                          <div className="flex-grow min-w-0">
+                            <h4 className="font-medium text-sm text-gray-900 truncate">{bundle.title}</h4>
+                            {bundle.description && (
+                              <p className="text-xs text-gray-500 truncate mt-1">{bundle.description}</p>
+                            )}
+                          </div>
                         </div>
                         {onToggleBundle && (
                           <button onClick={() => onToggleBundle(bundle)} className="text-xs text-gray-600 underline shrink-0">Remove</button>
@@ -270,7 +278,7 @@ function MobileCartPopup({
                               </div>
                               <div className="flex-grow min-w-0">
                                 <p className="text-sm text-gray-900 truncate">{i.Addons?.title || 'Addon'}</p>
-                                <p className="text-xs text-gray-500">test</p>
+                                <p className="text-xs text-gray-500">Quantity: {i.quantity}</p>
                               </div>
                             </div>
                           ))}
@@ -296,23 +304,23 @@ function MobileCartPopup({
                         <h4 className="font-medium text-sm text-gray-900 truncate">{addon.title}</h4>
                         <p className="text-gray-600 text-xs">{addon.quantity} × £{addon.price.toFixed(2)}</p>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {addon.allow_multiple && onAddonQuantityChange ? (
-                          <>
-                            <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200">
-                              <MinusCircle size={14} />
+                                              <div className="flex items-center gap-1">
+                          {addon.allow_multiple && onAddonQuantityChange ? (
+                            <>
+                              <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors">
+                                <Minus size={14} />
+                              </button>
+                              <span className="w-8 text-center text-sm font-medium">{addon.quantity}</span>
+                              <button onClick={() => onAddonQuantityChange(addon, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors" disabled={addon.max_count ? addon.quantity >= addon.max_count : false}>
+                                <Plus size={14} />
+                              </button>
+                            </>
+                          ) : onAddonQuantityChange ? (
+                            <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors">
+                              <X size={14} />
                             </button>
-                            <span className="w-6 text-center text-sm">{addon.quantity}</span>
-                            <button onClick={() => onAddonQuantityChange(addon, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200" disabled={addon.max_count ? addon.quantity >= addon.max_count : false}>
-                              <PlusCircle size={14} />
-                            </button>
-                          </>
-                        ) : onAddonQuantityChange ? (
-                          <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-white border border-gray-200">
-                            <X size={14} />
-                          </button>
-                        ) : null}
-                      </div>
+                          ) : null}
+                        </div>
                     </div>
                   ))}
                 </div>
@@ -375,7 +383,8 @@ function MobileBottomBar({
   continueButtonText,
   showContinueButton,
   isLoading,
-  onOpenCart
+  onOpenCart,
+  companyColor
 }: {
   selectedProduct?: SelectedProductLite | null
   selectedAddons: (AddonLite & { quantity: number })[]
@@ -388,6 +397,7 @@ function MobileBottomBar({
   showContinueButton: boolean
   isLoading: boolean
   onOpenCart: () => void
+  companyColor?: string | null
 }) {
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-3 z-10">
@@ -405,7 +415,7 @@ function MobileBottomBar({
               <p className="text-base font-semibold text-gray-900">£{orderTotal.toFixed(2)}</p>
               {monthlyPayment && (
                 <>
-                  <p onClick={onOpenFinanceCalculator} className="text-sm font-normal text-green-600 border-b border-dashed border-green-600 flex items-center gap-1">or £{monthlyPayment.toFixed(0)}/mo <ChevronDown size={16} className="text-green-600" /></p>
+                  <p onClick={onOpenFinanceCalculator} className="text-sm font-normal text-green-600 border-b border-dashed border-green-600 flex items-center gap-1">or £{monthlyPayment.toFixed(0)}/mo <ChevronDown size={14} className="text-green-600" /></p>
                 </>
               )}
             </div>
@@ -418,7 +428,8 @@ function MobileBottomBar({
           
           {showContinueButton && (
             <button
-              className={`bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-1 text-sm font-medium transition-colors ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+              className={`text-white px-4 py-3 rounded-full flex items-center gap-1 text-sm font-medium transition-colors ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+              style={{ backgroundColor: companyColor || '#3B82F6' }}
               onClick={onContinue}
               disabled={isLoading}
             >
@@ -525,7 +536,7 @@ export default function OrderSummarySidebar({
                           className="p-1 text-lg font-medium text-gray-900:bg-gray-100 rounded transition-colors"
                           title="Open Finance Calculator"
                         >
-                          <ChevronDown size={16} className="text-gray-600" />
+                          <ChevronDown size={14} className="text-gray-600" />
                         </button>
                       )}
                     </div>
@@ -535,18 +546,19 @@ export default function OrderSummarySidebar({
 
               {showContinueButton && (
                 <button
-                  className={`w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                  className={`w-full text-white px-6 py-3 rounded-full flex items-center justify-center gap-2 font-medium transition-colors ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                  style={{ backgroundColor: companyColor || '#3B82F6' }}
                   onClick={onContinue}
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader2 size={14} className="animate-spin" />
                       Loading...
                     </>
                   ) : (
                     <>
-                      {continueButtonText} <ChevronRight size={16} />
+                      {continueButtonText} <ChevronRight size={14} />
                     </>
                   )}
                 </button>
@@ -574,7 +586,12 @@ export default function OrderSummarySidebar({
               {selectedBundles.map(({ bundle, quantity, unitPrice }) => (
                 <div key={bundle.bundle_id}>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-medium text-gray-900">{bundle.title}</h3>
+                    <div className="flex-grow min-w-0">
+                      <h3 className="text-lg font-medium text-gray-900">{bundle.title}</h3>
+                      {bundle.description && (
+                        <p className="text-sm text-gray-600 mt-1">{bundle.description}</p>
+                      )}
+                    </div>
                     {onToggleBundle && (
                       <button onClick={() => onToggleBundle(bundle)} className="text-sm text-gray-600 underline">Remove</button>
                     )}
@@ -591,7 +608,7 @@ export default function OrderSummarySidebar({
                         </div>
                         <div className="flex-grow min-w-0">
                           <h4 className="font-medium text-sm text-gray-900 truncate">{i.Addons?.title || 'Addon'}</h4>
-                          <p className="text-gray-600 text-xs">test</p>
+                          <p className="text-gray-600 text-xs">Quantity: {i.quantity}</p>
                         </div>
                       </div>
                     ))}
@@ -615,16 +632,16 @@ export default function OrderSummarySidebar({
                         <div className="flex items-center gap-1">
                           {addon.allow_multiple && onAddonQuantityChange ? (
                             <>
-                              <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 text-lg font-medium text-gray-900:text-gray-700 bg-white border border-gray-200">
-                                <MinusCircle size={14} />
+                              <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors">
+                                <Minus size={14} />
                               </button>
-                              <span className="w-6 text-center text-sm">{addon.quantity}</span>
-                              <button onClick={() => onAddonQuantityChange(addon, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 text-lg font-medium text-gray-900:text-gray-700 bg-white border border-gray-200" disabled={addon.max_count ? addon.quantity >= addon.max_count : false}>
-                                <PlusCircle size={14} />
+                              <span className="w-8 text-center text-sm font-medium">{addon.quantity}</span>
+                              <button onClick={() => onAddonQuantityChange(addon, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors" disabled={addon.max_count ? addon.quantity >= addon.max_count : false}>
+                                <Plus size={14} />
                               </button>
                             </>
                           ) : onAddonQuantityChange ? (
-                            <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 text-lg font-medium text-gray-900:text-gray-700 bg-white border border-gray-200">
+                            <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors">
                               <X size={14} />
                             </button>
                           ) : null}
@@ -698,6 +715,7 @@ export default function OrderSummarySidebar({
             showContinueButton={showContinueButton}
             isLoading={isLoading}
             onOpenCart={() => setShowCart(true)}
+            companyColor={companyColor}
           />
           
           <MobileCartPopup
@@ -719,6 +737,7 @@ export default function OrderSummarySidebar({
             isLoading={isLoading}
             normalizeIncludedItem={normalizeIncludedItem}
             getImageUrl={getImageUrl}
+            companyColor={companyColor}
           />
         </>
       )}

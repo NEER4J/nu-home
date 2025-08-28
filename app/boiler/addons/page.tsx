@@ -11,6 +11,7 @@ interface AddonType {
   id: string
   name: string
   allow_multiple_selection: boolean
+  info?: string
 }
 
 interface Addon {
@@ -28,7 +29,7 @@ interface Addon {
 interface Category {
   service_category_id: string
   name: string
-  addon_types: AddonType[]
+  addon_types: AddonType[] | any[]
 }
 
 interface PartnerProduct {
@@ -149,7 +150,17 @@ function BoilerAddonsPageContent() {
           setError('Boiler category not found')
           return
         }
-        setCategory(categoryData as Category)
+        // Ensure addon_types have the correct structure with info field
+        const processedCategory = {
+          ...categoryData,
+          addon_types: Array.isArray(categoryData.addon_types) ? categoryData.addon_types.map((type: any) => ({
+            id: type.id || type,
+            name: typeof type === 'string' ? type : type.name || type,
+            allow_multiple_selection: type.allow_multiple_selection || false,
+            info: type.info || ''
+          })) : []
+        }
+        setCategory(processedCategory as Category)
 
         // 3) Load partner settings for APR configurations
         const { data: settingsData, error: settingsError } = await supabase
@@ -565,7 +576,7 @@ function BoilerAddonsPageContent() {
 
       {/* Heading */}
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-gray-900 mb-2">
+        <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-2">
           Choose controls for your {selectedProduct?.name || 'boiler'}
         </h1>
         <p className="text-gray-600">
