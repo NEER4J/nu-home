@@ -56,13 +56,7 @@ function migrateSmtp(raw: any): NormalizedSmtp {
   }
 }
 
-function generateReferenceNumber(): string {
-  const timestamp = Date.now().toString().slice(-8)
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase()
-  return `BOILER-${timestamp}-${random}`
-}
-
-function createEmailTemplate(data: {
+function createCustomerEmailTemplate(data: {
   refNumber: string
   companyName?: string
   logoUrl?: string
@@ -71,8 +65,6 @@ function createEmailTemplate(data: {
   email: string
   phone?: string
   postcode?: string
-  addressInfo: string
-  quoteInfo: string
   companyColor?: string
 }) {
   const {
@@ -84,8 +76,6 @@ function createEmailTemplate(data: {
     email,
     phone,
     postcode,
-    addressInfo,
-    quoteInfo,
     companyColor = '#3b82f6'
   } = data
 
@@ -107,16 +97,22 @@ function createEmailTemplate(data: {
           <td align="center" style="padding: 20px 0;">
             <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
               
-              <!-- Header -->
+              <!-- Header with Logo and Reference Number -->
               <tr>
-                <td style="background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
-                  ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 60px; max-width: 200px; margin-bottom: 15px;">` : ''}
-                  <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">
-                    ${companyName || 'Boiler Quote Request'}
-                  </h1>
-                  <p style="color: white; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
-                    Reference: <strong>${refNumber}</strong>
-                  </p>
+                <td style="background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: left; vertical-align: middle;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px;">` : ''}
+                      </td>
+                      <td style="text-align: right; vertical-align: middle;">
+                        <div style="color: white; text-align: right;">
+                          <p style="margin: 0; font-size: 12px; opacity: 0.9;">Reference Number</p>
+                          <p style="margin: 0; font-size: 16px; font-weight: 600;">${refNumber}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
 
@@ -132,34 +128,34 @@ function createEmailTemplate(data: {
                     We have received your initial information and will verify your phone number next.
                   </p>
 
-                  <!-- Customer Details Table -->
-                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse;">
+                  <!-- Simple Information Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
                     <tr>
-                      <td style="background-color: ${backgroundColor}; padding: 15px; border: 1px solid ${borderColor}; border-radius: 8px 8px 0 0; font-weight: 600; color: #374151;">
-                        Customer Details
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Your Details
                       </td>
                     </tr>
                     <tr>
-                      <td style="border: 1px solid ${borderColor}; border-top: none;">
+                      <td style="padding: 0;">
                         <table width="100%" cellpadding="0" cellspacing="0">
                           <tr>
-                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 30%; font-weight: 600; color: #374151;">Name:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Name:</td>
                             <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${firstName} ${lastName}</td>
                           </tr>
                           <tr>
-                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 30%; font-weight: 600; color: #374151;">Email:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Email:</td>
                             <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${email}</td>
                           </tr>
                           ${phone ? `
                           <tr>
-                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 30%; font-weight: 600; color: #374151;">Phone:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Phone:</td>
                             <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${phone}</td>
                           </tr>
                           ` : ''}
                           ${postcode ? `
                           <tr>
-                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 30%; font-weight: 600; color: #374151;">Postcode:</td>
-                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${postcode}</td>
+                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Postcode:</td>
+                            <td style="padding: 12px 15px; color: #6b7280;">${postcode}</td>
                           </tr>
                           ` : ''}
                         </table>
@@ -167,11 +163,168 @@ function createEmailTemplate(data: {
                     </tr>
                   </table>
 
+                  <p style="margin: 30px 0 0 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                    We will be in touch shortly after phone verification to discuss your requirements in detail.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: ${backgroundColor}; padding: 30px; border-radius: 0 0 8px 8px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 20px;">
+                        <p style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600; color: #374151;">
+                          ${companyName || 'Boiler Quote Request'}
+                        </p>
+                        <p style="margin: 0; font-size: 14px; color: #6b7280;">
+                          Reference: <strong>${refNumber}</strong>
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align: center; border-top: 1px solid ${borderColor}; padding-top: 20px;">
+                        <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                          This is an automated email. Please do not reply to this message.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
+function createAdminEmailTemplate(data: {
+  refNumber: string
+  companyName?: string
+  logoUrl?: string
+  firstName?: string
+  lastName?: string
+  email: string
+  phone?: string
+  postcode?: string
+  addressInfo: string
+  quoteInfo: string
+  companyColor?: string
+  submissionDate: string
+}) {
+  const {
+    refNumber,
+    companyName,
+    logoUrl,
+    firstName,
+    lastName,
+    email,
+    phone,
+    postcode,
+    addressInfo,
+    quoteInfo,
+    companyColor = '#3b82f6',
+    submissionDate
+  } = data
+
+  const headerColor = companyColor
+  const borderColor = '#e5e7eb'
+  const backgroundColor = '#f9fafb'
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>New Boiler Quote Request - Admin</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+          <td align="center" style="padding: 20px 0;">
+            <table width="700" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: left; vertical-align: middle;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px;">` : ''}
+                      </td>
+                      <td style="text-align: right; vertical-align: middle;">
+                        <div style="color: white; text-align: right;">
+                          <p style="margin: 0; font-size: 12px; opacity: 0.9;">New Quote Request</p>
+                          <p style="margin: 0; font-size: 16px; font-weight: 600;">${refNumber}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Body -->
+              <tr>
+                <td style="padding: 40px 30px;">
+                  <h2 style="margin: 0 0 20px 0; font-size: 20px; color: #374151;">
+                    New Boiler Quote Request Received
+                  </h2>
+                  
+                  <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                    A new boiler quote request has been submitted${companyName ? ' for <strong>' + companyName + '</strong>' : ''}. 
+                    Please review the details below and contact the customer for phone verification.
+                  </p>
+
+                  <!-- Customer Details Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Customer Information
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Full Name:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${firstName} ${lastName}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Email:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${email}</td>
+                          </tr>
+                          ${phone ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Phone:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${phone}</td>
+                          </tr>
+                          ` : ''}
+                          ${postcode ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Postcode:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${postcode}</td>
+                          </tr>
+                          ` : ''}
+                          <tr>
+                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Submission Date:</td>
+                            <td style="padding: 12px 15px; color: #6b7280;">${submissionDate}</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+
                   ${addressInfo ? `
                   <!-- Property Details Table -->
-                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
                     <tr>
-                      <td style="background-color: ${backgroundColor}; padding: 15px; border: 1px solid ${borderColor}; border-radius: 8px 8px 0 0; font-weight: 600; color: #374151;">
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
                         Property Details
                       </td>
                     </tr>
@@ -184,37 +337,73 @@ function createEmailTemplate(data: {
                   ` : ''}
 
                   ${quoteInfo ? `
-                  <!-- Quote Information Table -->
-                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse;">
+                  <!-- Quote Information Section -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
                     <tr>
-                      <td style="background-color: ${backgroundColor}; padding: 15px; border: 1px solid ${borderColor}; border-radius: 8px 8px 0 0; font-weight: 600; color: #374151;">
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
                         Quote Information
                       </td>
                     </tr>
                     <tr>
-                      <td style="border: 1px solid ${borderColor}; border-top: none; padding: 15px; color: #6b7280; line-height: 1.6;">
-                        ${quoteInfo.replace(/\n/g, '<br>')}
+                      <td style="padding: 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          ${quoteInfo.split('\n').map((line, index) => {
+                            if (!line.trim()) return ''
+                            const parts = line.split(': ')
+                            if (parts.length >= 2) {
+                              const question = parts[0]
+                              const answer = parts.slice(1).join(': ')
+                              return `
+                            <tr>
+                              <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa; vertical-align: top;">${question}:</td>
+                              <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280; line-height: 1.6;">${answer}</td>
+                            </tr>
+                          `
+                            }
+                            return ''
+                          }).join('')}
+                        </table>
                       </td>
                     </tr>
                   </table>
                   ` : ''}
 
-                  <p style="margin: 30px 0 0 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                    We will be in touch shortly after phone verification to discuss your requirements in detail.
-                  </p>
+                  <div style="background-color: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 20px; margin-top: 30px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #0c4a6e;">
+                      Next Steps Required:
+                    </h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #0c4a6e;">
+                      <li style="margin-bottom: 5px;">Contact the customer at ${phone || email} for phone verification</li>
+                      <li style="margin-bottom: 5px;">Discuss their requirements in detail</li>
+                      <li style="margin-bottom: 5px;">Provide a detailed quote based on their needs</li>
+                      <li>Update the lead status in your system</li>
+                    </ul>
+                  </div>
                 </td>
               </tr>
 
               <!-- Footer -->
               <tr>
-                <td style="background-color: ${backgroundColor}; padding: 30px; border-radius: 0 0 8px 8px; text-align: center;">
-                  <p style="margin: 0 0 15px 0; font-size: 14px; color: #6b7280;">
-                    <strong>Reference Number:</strong> ${refNumber}
-                  </p>
-                  ${companyName ? `<p style="margin: 0 0 15px 0; font-size: 14px; color: #6b7280;"><strong>${companyName}</strong></p>` : ''}
-                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                    This is an automated email. Please do not reply to this message.
-                  </p>
+                <td style="background-color: ${backgroundColor}; padding: 30px; border-radius: 0 0 8px 8px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 20px;">
+                        <p style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600; color: #374151;">
+                          ${companyName || 'Boiler Quote System'}
+                        </p>
+                        <p style="margin: 0; font-size: 14px; color: #6b7280;">
+                          Reference: <strong>${refNumber}</strong>
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align: center; border-top: 1px solid ${borderColor}; padding-top: 20px;">
+                        <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                          This is an automated notification. Please respond to the customer directly.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
 
@@ -239,6 +428,7 @@ export async function POST(request: NextRequest) {
       quote_data,
       address_data,
       questions,
+      submission_id,
       subdomain: bodySubdomain 
     } = body || {}
 
@@ -258,6 +448,7 @@ export async function POST(request: NextRequest) {
     const companyName: string | undefined = partner.company_name || undefined
     const logoUrl: string | undefined = partner.logo_url || undefined
     const companyColor: string | undefined = partner.company_color || undefined
+    const adminEmail: string | undefined = partner.admin_mail || undefined
     
     if (!partner.smtp_settings) {
       return NextResponse.json({ error: 'SMTP settings not configured' }, { status: 400 })
@@ -280,29 +471,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'SMTP verification failed', details: verifyErr?.message || String(verifyErr) }, { status: 400 })
     }
 
-    const toAddress: string = email || smtp.SMTP_FROM
-    if (!toAddress) {
-      return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
-    }
-
-    const refNumber = generateReferenceNumber()
-    const subject = `Your boiler quote request${companyName ? ' - ' + companyName : ''} - ${refNumber}`
+    // Use submission_id as reference number, or generate one if not provided
+    const refNumber = submission_id || `BOILER-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+    const submissionDate = new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
     
     const formatQuoteData = (quoteData: Record<string, any>, questionsList: any[]) => {
-      if (!quoteData || !questionsList) return 'Quote details provided'
+      if (!quoteData || !questionsList) return ''
       
-      return Object.entries(quoteData)
-        .filter(([key, value]) => {
-          // Filter out non-question data like postcode, address, etc.
-          const question = questionsList.find((q: any) => q.question_id === key)
-          return question !== undefined && value !== null && value !== undefined && value !== ''
-        })
-        .map(([questionId, answer]) => {
-          const question = questionsList.find((q: any) => q.question_id === questionId)
+      const formattedAnswers: string[] = []
+      
+      Object.entries(quoteData).forEach(([questionId, answer]) => {
+        // Filter out non-question data like postcode, address, etc.
+        const question = questionsList.find((q: any) => q.question_id === questionId)
+        if (question !== undefined && answer !== null && answer !== undefined && answer !== '') {
           const questionText = question?.question_text || questionId
-          return `${questionText}: ${Array.isArray(answer) ? answer.join(', ') : answer}`
-        })
-        .join('\n')
+          const formattedAnswer = Array.isArray(answer) ? answer.join(', ') : String(answer)
+          formattedAnswers.push(`${questionText}: ${formattedAnswer}`)
+        }
+      })
+      
+      return formattedAnswers.join('\n')
     }
     
     const quoteInfo = formatQuoteData(quote_data, questions || [])
@@ -311,7 +505,9 @@ export async function POST(request: NextRequest) {
       .map(([key, value]) => `${key}: ${value}`)
       .join('\n') : ''
 
-    const html = createEmailTemplate({
+    // Send email to customer (simple version)
+    const customerSubject = `Your boiler quote request${companyName ? ' - ' + companyName : ''} - ${refNumber}`
+    const customerHtml = createCustomerEmailTemplate({
       refNumber,
       companyName,
       logoUrl,
@@ -320,12 +516,10 @@ export async function POST(request: NextRequest) {
       email,
       phone,
       postcode,
-      addressInfo,
-      quoteInfo,
       companyColor
     })
 
-    const text = `Hi ${first_name ? String(first_name) : 'there'},\n` +
+    const customerText = `Hi ${first_name ? String(first_name) : 'there'},\n` +
       `Thank you for requesting a boiler quote${companyName ? ' with ' + companyName : ''}.\n` +
       `Reference Number: ${refNumber}\n\n` +
       `We have received your initial information and will verify your phone number next.\n\n` +
@@ -334,8 +528,6 @@ export async function POST(request: NextRequest) {
       `Email: ${email}\n` +
       (phone ? `Phone: ${phone}\n` : '') +
       (postcode ? `Postcode: ${postcode}\n` : '') +
-      (addressInfo ? `\nProperty Details:\n${addressInfo}\n` : '') +
-      (quoteInfo ? `\nQuote Information:\n${quoteInfo}\n` : '') +
       `\nWe will be in touch shortly after phone verification.\n\n` +
       `Reference Number: ${refNumber}` +
       (companyName ? `\n${companyName}` : '') +
@@ -344,13 +536,64 @@ export async function POST(request: NextRequest) {
     try {
       await transporter.sendMail({
         from: smtp.SMTP_FROM || smtp.SMTP_USER,
-        to: toAddress,
-        subject,
-        text,
-        html,
+        to: email,
+        subject: customerSubject,
+        text: customerText,
+        html: customerHtml,
       })
     } catch (sendErr: any) {
-      return NextResponse.json({ error: 'SMTP send failed', details: sendErr?.message || String(sendErr) }, { status: 400 })
+      console.error('Failed to send customer email:', sendErr?.message || String(sendErr))
+    }
+
+    // Send detailed email to admin if admin email is configured
+    if (adminEmail) {
+      const adminSubject = `New Boiler Quote Request - ${refNumber}${companyName ? ' - ' + companyName : ''}`
+      const adminHtml = createAdminEmailTemplate({
+        refNumber,
+        companyName,
+        logoUrl,
+        firstName: first_name,
+        lastName: last_name,
+        email,
+        phone,
+        postcode,
+        addressInfo,
+        quoteInfo,
+        companyColor,
+        submissionDate
+      })
+
+      const adminText = `New Boiler Quote Request Received\n\n` +
+        `Reference: ${refNumber}\n` +
+        `Company: ${companyName || 'N/A'}\n` +
+        `Submission Date: ${submissionDate}\n\n` +
+        `Customer Details:\n` +
+        `Name: ${first_name} ${last_name}\n` +
+        `Email: ${email}\n` +
+        (phone ? `Phone: ${phone}\n` : '') +
+        (postcode ? `Postcode: ${postcode}\n` : '') +
+        (addressInfo ? `\nProperty Details:\n${addressInfo}\n` : '') +
+        (quoteInfo ? `\nQuote Information:\n${quoteInfo}\n` : '') +
+        `\nNext Steps:\n` +
+        `- Contact the customer for phone verification\n` +
+        `- Discuss requirements in detail\n` +
+        `- Provide detailed quote\n` +
+        `- Update lead status\n\n` +
+        `Reference: ${refNumber}` +
+        (companyName ? `\n${companyName}` : '') +
+        `\n\nThis is an automated notification. Please respond to the customer directly.`
+
+      try {
+        await transporter.sendMail({
+          from: smtp.SMTP_FROM || smtp.SMTP_USER,
+          to: adminEmail,
+          subject: adminSubject,
+          text: adminText,
+          html: adminHtml,
+        })
+      } catch (sendErr: any) {
+        console.error('Failed to send admin email:', sendErr?.message || String(sendErr))
+      }
     }
 
     return NextResponse.json({ success: true, refNumber })
