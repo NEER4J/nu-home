@@ -57,12 +57,17 @@ export default function ProductLoadingSteps({
     
     // Step 1: Dynamic based on form answers
     if (submissionInfo?.form_answers) {
-      const boilerTypeAnswer = submissionInfo.form_answers.find(
+      // Convert object to array if it's not already an array
+      const formAnswersArray = Array.isArray(submissionInfo.form_answers) 
+        ? submissionInfo.form_answers 
+        : Object.values(submissionInfo.form_answers)
+      
+      const boilerTypeAnswer = formAnswersArray.find(
         answer => answer.question_text.toLowerCase().includes('boiler type') || 
                  answer.question_text.toLowerCase().includes('type of boiler')
       )
       
-      const locationAnswer = submissionInfo.form_answers.find(
+      const locationAnswer = formAnswersArray.find(
         answer => answer.question_text.toLowerCase().includes('location') || 
                  answer.question_text.toLowerCase().includes('where') ||
                  answer.question_text.toLowerCase().includes('position')

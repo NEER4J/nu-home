@@ -94,6 +94,7 @@ function EnquirySuccessContent() {
 
         {/* Simple Message */}
         <p className="text-lg text-gray-600 mb-8">
+          
           Your enquiry has been successfully submitted. We'll be in touch with you shortly to discuss your requirements.
         </p>
 

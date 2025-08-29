@@ -236,7 +236,12 @@ function BoilerProductsContent() {
   const getTotalAnswersCost = (): number => {
     if (!submissionInfo?.form_answers) return 0;
     
-    return submissionInfo.form_answers.reduce((total, answer) => {
+    // Convert object to array if it's not already an array
+    const answersArray = Array.isArray(submissionInfo.form_answers) 
+      ? submissionInfo.form_answers 
+      : Object.values(submissionInfo.form_answers)
+    
+    return answersArray.reduce((total: number, answer: any) => {
       return total + getAnswerCost(answer.question_id, answer.answer);
     }, 0);
   };
@@ -565,20 +570,25 @@ function BoilerProductsContent() {
   // Derive prefill values from submission answers when they load
   useEffect(() => {
     const answers = submissionInfo?.form_answers
-    if (!answers || !Array.isArray(answers)) {
+    if (!answers) {
       setPrefillBathroom(null)
       setPrefillBedroom(null)
       setPrefillBoilerType(null)
       return
     }
 
+    // Convert object to array if it's not already an array
+    const answersArray = Array.isArray(answers) 
+      ? answers 
+      : Object.values(answers) as Array<{ question_id: string; question_text: string; answer: string | string[] }>
+
     const BATHROOM_Q = 'c9b962d4-baa5-419e-99bf-933216d531e7'
     const BEDROOM_Q = 'fc39112a-0d71-4766-845d-3fdec496d471'
     const BOILER_TYPE_Q = 'bbe071af-72d0-4ce4-85a7-83d5f3c82180'
 
-    const bathroomAns = answers.find((a: any) => a.question_id === BATHROOM_Q)?.answer
-    const bedroomAns = answers.find((a: any) => a.question_id === BEDROOM_Q)?.answer
-    const typeAns = answers.find((a: any) => a.question_id === BOILER_TYPE_Q)?.answer
+    const bathroomAns = answersArray.find((a) => a.question_id === BATHROOM_Q)?.answer
+    const bedroomAns = answersArray.find((a) => a.question_id === BEDROOM_Q)?.answer
+    const typeAns = answersArray.find((a) => a.question_id === BOILER_TYPE_Q)?.answer
 
     setPrefillBathroom(normalizeNumberToBucket(bathroomAns, 4))
     setPrefillBedroom(normalizeNumberToBucket(bedroomAns, 6))

@@ -101,7 +101,11 @@ export async function GET(request: Request) {
       }> = [];
 
       // Process each form answer
-      (lead as Lead).form_answers.forEach((answer: FormAnswer) => {
+      const formAnswersArray = Array.isArray((lead as Lead).form_answers) 
+        ? (lead as Lead).form_answers 
+        : Object.values((lead as Lead).form_answers)
+      
+      formAnswersArray.forEach((answer: FormAnswer) => {
         const questionLower = answer.question_text.toLowerCase();
         const answerLower = answer.answer.toLowerCase();
 
