@@ -343,8 +343,6 @@ export default function UserInfoForm({
   const handleUserSubmission = async () => {
     setIsSubmitting(true)
     try {
-      await sendInitialQuoteEmail()
-      
       if (otpEnabled) {
         setCurrentView('otp')
       } else {
@@ -353,37 +351,6 @@ export default function UserInfoForm({
     } catch (error) {
       console.error('Error during user submission:', error)
       setIsSubmitting(false)
-    }
-  }
-
-  const sendInitialQuoteEmail = async () => {
-    try {
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-      const subdomain = hostname || null
-
-      const res = await fetch('/api/email/boiler/quote-initial', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: userInfo.firstName,
-          last_name: userInfo.lastName,
-          email: userInfo.email,
-          phone: userInfo.fullPhoneNumber,
-          postcode: formValues.postcode,
-          quote_data: formValues,
-          address_data: formValues.address,
-          questions: questions,
-          submission_id: formValues.submission_id,
-          subdomain,
-        }),
-      })
-
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        console.warn('Failed to send initial quote email:', data?.error || 'Unknown error')
-      }
-    } catch (err: any) {
-      console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
     }
   }
 

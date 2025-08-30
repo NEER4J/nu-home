@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
-import { resolvePartnerByHostname } from '@/lib/partner'
+import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -56,6 +56,470 @@ function migrateSmtp(raw: any): NormalizedSmtp {
   }
 }
 
+function createCustomerEmailTemplate(data: {
+  companyName?: string
+  logoUrl?: string
+  firstName?: string
+  lastName?: string
+  email: string
+  phone?: string
+  postcode?: string
+  companyColor?: string
+  enquiryDetails?: string
+  category?: string
+  submissionId?: string
+  uploadedImages?: string[]
+  privacyPolicy?: string
+  termsConditions?: string
+  companyPhone?: string
+  companyEmail?: string
+  companyAddress?: string
+  companyWebsite?: string
+}) {
+  const {
+    companyName,
+    logoUrl,
+    firstName,
+    lastName,
+    email,
+    phone,
+    postcode,
+    companyColor = '#3b82f6',
+    enquiryDetails,
+    category,
+    submissionId,
+    uploadedImages,
+    privacyPolicy,
+    termsConditions,
+    companyPhone,
+    companyEmail,
+    companyAddress,
+    companyWebsite
+  } = data
+
+  const headerColor = companyColor
+  const borderColor = '#e5e7eb'
+  const backgroundColor = '#f9fafb'
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Enquiry Submitted Successfully</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+          <td align="center" style="padding: 20px 0;">
+            <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              
+              <!-- Header with Logo -->
+              <tr>
+                <td style="background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; vertical-align: middle;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px;">` : ''}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Body -->
+              <tr>
+                <td style="padding: 40px 30px;">
+                  <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #1f2937; font-size: 28px; font-weight: 600; margin: 0;">Enquiry Submitted!</h1>
+                    <p style="color: #6b7280; font-size: 16px; margin: 8px 0 0 0;">Thank you for your enquiry${companyName ? ' with ' + companyName : ''}</p>
+                  </div>
+
+                  <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center;">
+                    We've received your enquiry and our team will review it shortly. We'll be in touch within 24 hours to discuss your requirements.
+                  </p>
+
+                  <!-- Customer Details Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Your Details
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Name:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${firstName} ${lastName}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Email:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${email}</td>
+                          </tr>
+                          ${phone ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Phone:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${phone}</td>
+                          </tr>
+                          ` : ''}
+                          ${postcode ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Postcode:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${postcode}</td>
+                          </tr>
+                          ` : ''}
+                          ${category ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Category:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${category}</td>
+                          </tr>
+                          ` : ''}
+                          ${submissionId ? `
+                          <tr>
+                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Reference:</td>
+                            <td style="padding: 12px 15px; color: #6b7280;">${submissionId}</td>
+                          </tr>
+                          ` : ''}
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+
+                  ${enquiryDetails ? `
+                  <!-- Enquiry Details Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Your Enquiry
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 15px; color: #6b7280; line-height: 1.6;">
+                        ${enquiryDetails}
+                      </td>
+                    </tr>
+                  </table>
+                  ` : ''}
+
+                  ${uploadedImages && uploadedImages.length > 0 ? `
+                  <!-- Uploaded Images Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Uploaded Images
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 15px; color: #6b7280; line-height: 1.6;">
+                        <p style="margin: 0 0 10px 0;">You've uploaded ${uploadedImages.length} image(s) with your enquiry.</p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                          ${uploadedImages.map((url, index) => `
+                            <img src="${url}" alt="Uploaded image ${index + 1}" style="max-width: 150px; max-height: 150px; border-radius: 4px; border: 1px solid ${borderColor};">
+                          `).join('')}
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                  ` : ''}
+
+
+
+                  <p style="margin: 30px 0 0 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center;">
+                    Thank you for choosing ${companyName || 'our service'}! We look forward to helping you with your project.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: ${backgroundColor}; padding: 20px; border-radius: 0 0 8px 8px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px; margin-bottom: 10px;">` : ''}
+                        <p style="margin: 0; font-size: 14px; color: #6b7280;">
+                          ©2025 ${companyName || 'Company Name'}. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                    ${companyAddress ? `
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 1.4;">
+                          ${companyAddress}
+                        </p>
+                      </td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">
+                          ${companyName || 'Company Name'} is authorised and regulated by the Financial Conduct Authority. Finance options are provided by panel of lenders. Finance available subject to status. Terms and conditions apply.
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <div style="display: inline-block;">
+                          ${privacyPolicy ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Privacy Policy</a>` : ''}
+                          ${privacyPolicy && termsConditions ? `<span style="color: #9ca3af;">|</span>` : ''}
+                          ${termsConditions ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Terms & Conditions</a>` : ''}
+                        </div>
+                      </td>
+                    </tr>
+                    ${companyWebsite ? `
+                    <tr>
+                      <td style="text-align: center;">
+                        <a href="${companyWebsite}" style="color: ${headerColor}; text-decoration: none; font-size: 14px; font-weight: 600;">
+                          Visit our website
+                        </a>
+                      </td>
+                    </tr>
+                    ` : ''}
+                  </table>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
+function createAdminEmailTemplate(data: {
+  companyName?: string
+  logoUrl?: string
+  firstName?: string
+  lastName?: string
+  email: string
+  phone?: string
+  postcode?: string
+  companyColor?: string
+  enquiryDetails?: string
+  category?: string
+  submissionId?: string
+  uploadedImages?: string[]
+  privacyPolicy?: string
+  termsConditions?: string
+  companyAddress?: string
+  companyWebsite?: string
+}) {
+  const {
+    companyName,
+    logoUrl,
+    firstName,
+    lastName,
+    email,
+    phone,
+    postcode,
+    companyColor = '#3b82f6',
+    enquiryDetails,
+    category,
+    submissionId,
+    uploadedImages,
+    privacyPolicy,
+    termsConditions,
+    companyAddress,
+    companyWebsite
+  } = data
+
+  const headerColor = companyColor
+  const borderColor = '#e5e7eb'
+  const backgroundColor = '#f9fafb'
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>New Enquiry Submitted - Admin</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+          <td align="center" style="padding: 20px 0;">
+            <table width="700" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; vertical-align: middle;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px;">` : ''}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Body -->
+              <tr>
+                <td style="padding: 40px 30px;">
+                  <h2 style="margin: 0 0 20px 0; font-size: 20px; color: #374151;">
+                    New Enquiry Submitted
+                  </h2>
+                  
+                  <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                    A new enquiry has been submitted${companyName ? ' for <strong>' + companyName + '</strong>' : ''}. 
+                    Please review the details and contact the customer within 24 hours.
+                  </p>
+
+                  <!-- Customer Information Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Customer Information
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Full Name:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${firstName} ${lastName}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Email:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${email}</td>
+                          </tr>
+                          ${phone ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Phone:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${phone}</td>
+                          </tr>
+                          ` : ''}
+                          ${postcode ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Postcode:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${postcode}</td>
+                          </tr>
+                          ` : ''}
+                          ${category ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Category:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${category}</td>
+                          </tr>
+                          ` : ''}
+                          ${submissionId ? `
+                          <tr>
+                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Reference:</td>
+                            <td style="padding: 12px 15px; color: #6b7280;">${submissionId}</td>
+                          </tr>
+                          ` : ''}
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+
+                  ${enquiryDetails ? `
+                  <!-- Enquiry Details Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Enquiry Details
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 15px; color: #6b7280; line-height: 1.6;">
+                        ${enquiryDetails}
+                      </td>
+                    </tr>
+                  </table>
+                  ` : ''}
+
+                  ${uploadedImages && uploadedImages.length > 0 ? `
+                  <!-- Uploaded Images Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Uploaded Images (${uploadedImages.length})
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 15px; color: #6b7280; line-height: 1.6;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                          ${uploadedImages.map((url, index) => `
+                            <div style="text-align: center;">
+                              <img src="${url}" alt="Customer uploaded image ${index + 1}" style="max-width: 200px; max-height: 200px; border-radius: 4px; border: 1px solid ${borderColor};">
+                              <p style="margin: 5px 0 0 0; font-size: 12px; color: #9ca3af;">Image ${index + 1}</p>
+                            </div>
+                          `).join('')}
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                  ` : ''}
+
+
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: ${backgroundColor}; padding: 20px; border-radius: 0 0 8px 8px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px; margin-bottom: 10px;">` : ''}
+                        <p style="margin: 0; font-size: 14px; color: #6b7280;">
+                          ©2025 ${companyName || 'Company Name'}. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                    ${companyAddress ? `
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 1.4;">
+                          ${companyAddress}
+                        </p>
+                      </td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">
+                          ${companyName || 'Company Name'} is authorised and regulated by the Financial Conduct Authority. Finance options are provided by panel of lenders. Finance available subject to status. Terms and conditions apply.
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <div style="display: inline-block;">
+                          ${privacyPolicy ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Privacy Policy</a>` : ''}
+                          ${privacyPolicy && termsConditions ? `<span style="color: #9ca3af;">|</span>` : ''}
+                          ${termsConditions ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Terms & Conditions</a>` : ''}
+                        </div>
+                      </td>
+                    </tr>
+                    ${companyWebsite ? `
+                    <tr>
+                      <td style="text-align: center;">
+                        <a href="${companyWebsite}" style="color: ${headerColor}; text-decoration: none; font-size: 14px; font-weight: 600;">
+                          Visit our website
+                        </a>
+                      </td>
+                    </tr>
+                    ` : ''}
+                  </table>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
@@ -80,12 +544,22 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    const partner = await resolvePartnerByHostname(supabase, hostname)
+    const partner = await resolvePartnerByHost(supabase, hostname)
     if (!partner) {
       return NextResponse.json({ error: 'Partner not found for this domain' }, { status: 400 })
     }
 
     const companyName: string | undefined = partner.company_name || undefined
+    const logoUrl: string | undefined = partner.logo_url || undefined
+    const companyColor: string | undefined = partner.company_color || undefined
+    const adminEmail: string | undefined = partner.admin_mail || undefined
+    const privacyPolicy: string | undefined = partner.privacy_policy || undefined
+    const termsConditions: string | undefined = partner.terms_conditions || undefined
+    const companyPhone: string | undefined = partner.phone || undefined
+    const companyEmail: string | undefined = partner.admin_mail || undefined
+    const companyAddress: string | undefined = partner.address || undefined
+    const companyWebsite: string | undefined = partner.website_url || undefined
+
     if (!partner.smtp_settings) {
       return NextResponse.json({ error: 'SMTP settings not configured' }, { status: 400 })
     }
@@ -112,151 +586,112 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
 
-    const categoryName = category || 'boiler'
-    const subject = `Enquiry Complete - Your ${categoryName.charAt(0).toUpperCase() + categoryName.slice(1)} Installation${companyName ? ' with ' + companyName : ''}`
+    const customerSubject = `Enquiry Submitted Successfully${companyName ? ' - ' + companyName : ''}`
+    const adminSubject = `New Enquiry Submitted${companyName ? ' - ' + companyName : ''}`
 
-    const formatEnquiryDetails = (details: any) => {
-      if (!details || typeof details !== 'object') return 'No additional details provided'
-      
-      const formatted = []
-      Object.entries(details).forEach(([key, value]) => {
-        if (value) {
-          const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
-          formatted.push(`${formattedKey}: ${value}`)
-        }
+    const customerHtml = createCustomerEmailTemplate({
+      companyName,
+      logoUrl,
+      firstName: first_name,
+      lastName: last_name,
+      email,
+      phone,
+      postcode,
+      companyColor,
+      enquiryDetails: enquiry_details,
+      category,
+      submissionId: submission_id,
+      uploadedImages: uploaded_image_urls,
+      privacyPolicy,
+      termsConditions,
+      companyPhone,
+      companyEmail,
+      companyAddress,
+      companyWebsite
+    })
+
+    let adminHtml
+    if (adminEmail) {
+      adminHtml = createAdminEmailTemplate({
+        companyName,
+        logoUrl,
+        firstName: first_name,
+        lastName: last_name,
+        email,
+        phone,
+        postcode,
+        companyColor,
+        enquiryDetails: enquiry_details,
+        category,
+        submissionId: submission_id,
+        uploadedImages: uploaded_image_urls,
+        privacyPolicy,
+        termsConditions,
+        companyAddress,
+        companyWebsite
       })
-      return formatted.join('\n')
     }
 
-    const formatUploadedImages = (imageUrls: Record<number, string[]>) => {
-      if (!imageUrls || Object.keys(imageUrls).length === 0) {
-        return 'No images uploaded'
-      }
-
-      const imageAreaTitles = [
-        'Gas meter area',
-        'Front of property',
-        'Hot water tank', 
-        'Existing controls/thermostat',
-        'Existing pump/valves',
-        'Rear of property'
-      ]
-
-      const formatted = []
-      Object.entries(imageUrls).forEach(([areaIndex, urls]) => {
-        const areaTitle = imageAreaTitles[parseInt(areaIndex)] || `Area ${areaIndex}`
-        formatted.push(`${areaTitle}:`)
-        urls.forEach((url, index) => {
-          formatted.push(`  • Image ${index + 1}: ${url}`)
-        })
-      })
-      return formatted.join('\n')
-    }
-
-    const enquiryInfo = formatEnquiryDetails(enquiry_details)
-    const imagesInfo = formatUploadedImages(uploaded_image_urls || {})
-
-    const html = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-        <div style="background: #f8fafc; padding: 32px 24px; text-align: center;">
-          <div style="background: #10b981; width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
-            <span style="color: white; font-size: 24px; font-weight: bold;">📋</span>
-          </div>
-          <h1 style="color: #1f2937; font-size: 28px; font-weight: 600; margin: 0;">Enquiry Complete!</h1>
-          <p style="color: #6b7280; font-size: 16px; margin: 8px 0 0 0;">Your ${categoryName} installation enquiry has been submitted${companyName ? ' to ' + companyName : ''}</p>
-        </div>
-        
-        <div style="padding: 32px 24px;">
-          <div style="margin-bottom: 32px;">
-            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Your Details</h2>
-            <div style="background: #f9fafb; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-              <p style="margin: 0 0 8px 0;"><strong>Name:</strong> ${first_name} ${last_name}</p>
-              <p style="margin: 0 0 8px 0;"><strong>Email:</strong> ${email}</p>
-              ${phone ? `<p style="margin: 0 0 8px 0;"><strong>Phone:</strong> ${phone}</p>` : ''}
-              ${postcode ? `<p style="margin: 0;"><strong>Postcode:</strong> ${postcode}</p>` : ''}
-            </div>
-          </div>
-
-          <div style="margin-bottom: 32px;">
-            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Enquiry Details</h2>
-            <div style="background: #f9fafb; padding: 16px; border-radius: 8px;">
-              <pre style="font-family: inherit; margin: 0; white-space: pre-wrap; color: #374151;">${enquiryInfo}</pre>
-            </div>
-          </div>
-
-          <div style="margin-bottom: 32px;">
-            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Uploaded Images</h2>
-            <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
-              <pre style="font-family: inherit; margin: 0; white-space: pre-wrap; color: #374151;">${imagesInfo}</pre>
-            </div>
-          </div>
-
-          ${submission_id ? `
-          <div style="margin-bottom: 32px;">
-            <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px 0;">Reference Number</h2>
-            <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center;">
-              <p style="margin: 0; font-size: 18px; font-weight: 600; color: #1f2937;">${submission_id}</p>
-              <p style="margin: 8px 0 0 0; color: #6b7280; font-size: 14px;">Keep this reference number for your records</p>
-            </div>
-          </div>
-          ` : ''}
-
-          <div style="background: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
-            <h3 style="color: #92400e; margin: 0 0 8px 0; font-size: 16px; font-weight: 600;">What happens next?</h3>
-            <ul style="color: #92400e; margin: 0; padding-left: 20px;">
-              <li>We'll review your enquiry and uploaded images</li>
-              <li>Our technical team will assess your requirements</li>
-              <li>We'll contact you within 24-48 hours to discuss details</li>
-              <li>We'll arrange a site survey at your convenience</li>
-              <li>You'll receive a detailed quote and installation plan</li>
-              <li>We'll schedule your ${categoryName} installation</li>
-            </ul>
-          </div>
-        </div>
-        
-        <div style="background: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; margin: 0; font-size: 14px;">
-            Thank you for choosing ${companyName || 'our service'}! If you have any questions, please don't hesitate to contact us.
-          </p>
-        </div>
-      </div>
-    `
-
-    const text = `Enquiry Complete - Your ${categoryName.charAt(0).toUpperCase() + categoryName.slice(1)} Installation${companyName ? ' with ' + companyName : ''}\n\n` +
+    const customerText = `Enquiry Submitted Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
       `Hi ${first_name},\n\n` +
-      `Thank you for completing your ${categoryName} installation enquiry! We've received your details and uploaded images.\n\n` +
+      `Thank you for your enquiry. We've received your details and our team will review it shortly.\n\n` +
       `Your Details:\n` +
       `Name: ${first_name} ${last_name}\n` +
       `Email: ${email}\n` +
       (phone ? `Phone: ${phone}\n` : '') +
       (postcode ? `Postcode: ${postcode}\n` : '') +
-      `\nEnquiry Details:\n${enquiryInfo}\n\n` +
-      `Uploaded Images:\n${imagesInfo}\n\n` +
-      (submission_id ? `Reference Number: ${submission_id}\n\n` : '') +
+      (category ? `Category: ${category}\n` : '') +
+      (submission_id ? `Reference: ${submission_id}\n` : '') +
+      `\n${enquiry_details ? 'Your Enquiry:\n' + enquiry_details + '\n\n' : ''}` +
+      (uploaded_image_urls && uploaded_image_urls.length > 0 ? `You've uploaded ${uploaded_image_urls.length} image(s) with your enquiry.\n\n` : '') +
       `What happens next?\n` +
-      `• We'll review your enquiry and uploaded images\n` +
-      `• Our technical team will assess your requirements\n` +
-      `• We'll contact you within 24-48 hours to discuss details\n` +
-      `• We'll arrange a site survey at your convenience\n` +
-      `• You'll receive a detailed quote and installation plan\n` +
-      `• We'll schedule your ${categoryName} installation\n\n` +
+      `• Our team will review your enquiry within 24 hours\n` +
+      `• We'll contact you to discuss your requirements in detail\n` +
+      `• If needed, we'll arrange a site visit or survey\n` +
+      `• You'll receive a detailed quote for your project\n` +
+      `• Our experts will guide you through the next steps\n\n` +
       `Thank you for choosing ${companyName || 'our service'}!`
 
     try {
+      // Send customer email
       await transporter.sendMail({
         from: smtp.SMTP_FROM || smtp.SMTP_USER,
         to: toAddress,
-        subject,
-        text,
-        html,
+        subject: customerSubject,
+        text: customerText,
+        html: customerHtml,
       })
+
+      // Send admin email if admin email is configured
+      if (adminEmail && adminHtml) {
+        const adminText = `New Enquiry Submitted${companyName ? ' - ' + companyName : ''}\n\n` +
+          `A new enquiry has been submitted. Please review and contact the customer within 24 hours.\n\n` +
+          `Customer Information:\n` +
+          `Name: ${first_name} ${last_name}\n` +
+          `Email: ${email}\n` +
+          (phone ? `Phone: ${phone}\n` : '') +
+          (postcode ? `Postcode: ${postcode}\n` : '') +
+          (category ? `Category: ${category}\n` : '') +
+          (submission_id ? `Reference: ${submission_id}\n` : '') +
+          `\n${enquiry_details ? 'Enquiry Details:\n' + enquiry_details + '\n\n' : ''}` +
+          (uploaded_image_urls && uploaded_image_urls.length > 0 ? `Customer uploaded ${uploaded_image_urls.length} image(s) with the enquiry.\n\n` : '') +
+          `Action Required: Contact customer within 24 hours to discuss requirements and next steps.`
+
+        await transporter.sendMail({
+          from: smtp.SMTP_FROM || smtp.SMTP_USER,
+          to: adminEmail,
+          subject: adminSubject,
+          text: adminText,
+          html: adminHtml,
+        })
+      }
     } catch (sendErr: any) {
       return NextResponse.json({ error: 'SMTP send failed', details: sendErr?.message || String(sendErr) }, { status: 400 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('Enquiry submission email error:', error)
-    return NextResponse.json({ error: 'Failed to send enquiry submission email', details: error?.message || String(error) }, { status: 500 })
+    console.error('Enquiry submitted email error:', error)
+    return NextResponse.json({ error: 'Failed to send enquiry submitted email', details: error?.message || String(error) }, { status: 500 })
   }
 }

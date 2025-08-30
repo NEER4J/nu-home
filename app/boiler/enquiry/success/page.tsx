@@ -108,7 +108,7 @@ function EnquirySuccessContent() {
 
         {/* Return Home Button */}
         <button 
-          onClick={() => window.location.href = '/'} 
+          onClick={() => window.location.href = ''} 
           className="px-8 py-3 rounded-full text-white font-medium hover:opacity-90 transition-opacity"
           style={{ backgroundColor: companyColor || '#3B82F6' }}
         >

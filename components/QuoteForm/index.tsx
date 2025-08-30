@@ -369,6 +369,36 @@ export default function QuoteForm({
         throw new Error(result.error || 'Failed to submit quote request');
       }
       
+      // Send email with the correct submission_id
+      try {
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+        const subdomain = hostname || null
+
+        const emailRes = await fetch('/api/email/boiler/quote-initial', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            first_name: contactDetails.firstName,
+            last_name: contactDetails.lastName,
+            email: contactDetails.email,
+            phone: contactDetails.phone,
+            postcode: contactDetails.postcode,
+            quote_data: filteredAnswers,
+            address_data: selectedAddress,
+            questions: questions,
+            submission_id: result.data.submission_id,
+            subdomain,
+          }),
+        })
+
+        const emailData = await emailRes.json().catch(() => ({}))
+        if (!emailRes.ok) {
+          console.warn('Failed to send initial quote email:', emailData?.error || 'Unknown error')
+        }
+      } catch (err: any) {
+        console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
+      }
+      
       // Call onSubmitSuccess callback if provided
       if (onSubmitSuccess) {
         onSubmitSuccess(result.data);

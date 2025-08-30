@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHostname } from '@/lib/partner'
+import { getProcessedEmailTemplate, buildQuoteLink } from '@/lib/email-templates'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -66,6 +67,14 @@ function createCustomerEmailTemplate(data: {
   phone?: string
   postcode?: string
   companyColor?: string
+  privacyPolicy?: string
+  termsConditions?: string
+  companyPhone?: string
+  companyEmail?: string
+  companyAddress?: string
+  companyWebsite?: string
+  baseUrl?: string
+  submissionId?: string
 }) {
   const {
     refNumber,
@@ -76,7 +85,15 @@ function createCustomerEmailTemplate(data: {
     email,
     phone,
     postcode,
-    companyColor = '#3b82f6'
+    companyColor = '#3b82f6',
+    privacyPolicy,
+    termsConditions,
+    companyPhone,
+    companyEmail,
+    companyAddress,
+    companyWebsite,
+    baseUrl,
+    submissionId
   } = data
 
   const headerColor = companyColor
@@ -97,19 +114,13 @@ function createCustomerEmailTemplate(data: {
           <td align="center" style="padding: 20px 0;">
             <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
               
-              <!-- Header with Logo and Reference Number -->
+              <!-- Header with Logo -->
               <tr>
                 <td style="background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
-                      <td style="text-align: left; vertical-align: middle;">
+                      <td style="text-align: center; vertical-align: middle;">
                         ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px;">` : ''}
-                      </td>
-                      <td style="text-align: right; vertical-align: middle;">
-                        <div style="color: white; text-align: right;">
-                          <p style="margin: 0; font-size: 12px; opacity: 0.9;">Reference Number</p>
-                          <p style="margin: 0; font-size: 16px; font-weight: 600;">${refNumber}</p>
-                        </div>
                       </td>
                     </tr>
                   </table>
@@ -124,8 +135,39 @@ function createCustomerEmailTemplate(data: {
                   </p>
                   
                   <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                    Thank you for requesting a boiler quote${companyName ? ' with <strong>' + companyName + '</strong>' : ''}. 
-                    We have received your initial information and will verify your phone number next.
+                    Excellent decision on requesting your free boiler quote.
+                  </p>
+
+                  <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                    We know that when you need a boiler, finding a reliable company who you can trust can be a challenge, so our goal at ${companyName || 'our company'} is to make the process as simple and stress free as possible.
+                  </p>
+
+                  <p style="margin: 0 0 20px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                    Here are a few things you should know about us before you buy your new boiler:
+                  </p>
+
+                  <div style="margin-bottom: 30px;">
+                    <p style="margin: 0 0 15px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                      ✓ We are a local company and have built our reputation by going above and beyond for our customers. We take care of everything and even have incredible aftercare so you know you are always in safe hands.
+                    </p>
+                    <p style="margin: 0 0 15px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                      ✓ Every single job is audited before and after by our qualified team to make sure it meets our high standards.
+                    </p>
+                    <p style="margin: 0 0 15px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                      ✓ We offer a PRICE MATCH PROMISE. If you stumble across a better price, just reply to this email with your quote attached and we'll better it, or send you a £50 voucher if we can't.
+                    </p>
+                  </div>
+
+                  <p style="margin: 0 0 20px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                    Want to know more about why we are the best choice for your new boiler?
+                  </p>
+
+                  <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                    Check out our <strong>website</strong> and if you have any questions, simply reply to this email and we'll reply as soon as possible.
+                  </p>
+
+                  <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                    Or give us a call on <strong>${companyPhone || 'our phone number'}</strong>.
                   </p>
 
                   <!-- Simple Information Table -->
@@ -154,14 +196,45 @@ function createCustomerEmailTemplate(data: {
                           ` : ''}
                           ${postcode ? `
                           <tr>
-                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Postcode:</td>
-                            <td style="padding: 12px 15px; color: #6b7280;">${postcode}</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Postcode:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${postcode}</td>
                           </tr>
                           ` : ''}
+                          <tr>
+                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Reference:</td>
+                            <td style="padding: 12px 15px; color: #6b7280;">${refNumber}</td>
+                          </tr>
                         </table>
                       </td>
                     </tr>
                   </table>
+
+                  ${baseUrl && submissionId ? `
+                  <!-- View Quote Button -->
+                  <div style="text-align: center; margin-bottom: 30px;">
+                    <a href="${baseUrl}/boiler/products?submission=${submissionId}" style="display: inline-block; background-color: ${headerColor}; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; text-align: center; line-height: 1;">
+                      View Your Quote & Select Products
+                    </a>
+                  </div>
+                  ` : ''}
+
+                  <!-- Contact Information Section -->
+                  <div style="background-color: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #0c4a6e; text-align: center;">
+                      Have a question?
+                    </h3>
+                    <p style="margin: 0 0 15px 0; font-size: 16px; color: #0c4a6e; text-align: center; line-height: 1.6;">
+                      Contact us via Live Chat, give us a ring on <strong>${companyPhone || 'our phone number'}</strong>, or drop us an email at <strong>${companyEmail || 'our email'}</strong>.
+                    </p>
+                    <div style="text-align: center;">
+                      <a href="tel:${companyPhone || ''}" style="display: inline-block; background-color: white; color: ${headerColor}; border: 2px solid ${headerColor}; padding: 12px 24px; text-decoration: none; border-radius: 25px; margin: 0 10px; font-weight: 600;">
+                        📞 Call us
+                      </a>
+                      <a href="mailto:${companyEmail || ''}" style="display: inline-block; background-color: ${headerColor}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 25px; margin: 0 10px; font-weight: 600;">
+                        ✉️ Mail us
+                      </a>
+                    </div>
+                  </div>
 
                   <p style="margin: 30px 0 0 0; font-size: 16px; color: #374151; line-height: 1.6;">
                     We will be in touch shortly after phone verification to discuss your requirements in detail.
@@ -171,25 +244,50 @@ function createCustomerEmailTemplate(data: {
 
               <!-- Footer -->
               <tr>
-                <td style="background-color: ${backgroundColor}; padding: 30px; border-radius: 0 0 8px 8px;">
+                <td style="background-color: ${backgroundColor}; padding: 20px; border-radius: 0 0 8px 8px;">
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
-                      <td style="text-align: center; padding-bottom: 20px;">
-                        <p style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600; color: #374151;">
-                          ${companyName || 'Boiler Quote Request'}
-                        </p>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px; margin-bottom: 10px;">` : ''}
                         <p style="margin: 0; font-size: 14px; color: #6b7280;">
-                          Reference: <strong>${refNumber}</strong>
+                          ©2025 ${companyName || 'Company Name'}. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                    ${companyAddress ? `
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 1.4;">
+                          ${companyAddress}
+                        </p>
+                      </td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">
+                          ${companyName || 'Company Name'} is authorised and regulated by the Financial Conduct Authority. Finance options are provided by panel of lenders. Finance available subject to status. Terms and conditions apply.
                         </p>
                       </td>
                     </tr>
                     <tr>
-                      <td style="text-align: center; border-top: 1px solid ${borderColor}; padding-top: 20px;">
-                        <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                          This is an automated email. Please do not reply to this message.
-                        </p>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <div style="display: inline-block;">
+                          ${privacyPolicy ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Privacy Policy</a>` : ''}
+                          ${privacyPolicy && termsConditions ? `<span style="color: #9ca3af;">|</span>` : ''}
+                          ${termsConditions ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Terms & Conditions</a>` : ''}
+                        </div>
                       </td>
                     </tr>
+                    ${companyWebsite ? `
+                    <tr>
+                      <td style="text-align: center;">
+                        <a href="${companyWebsite}" style="color: ${headerColor}; text-decoration: none; font-size: 14px; font-weight: 600;">
+                          Visit our website
+                        </a>
+                      </td>
+                    </tr>
+                    ` : ''}
                   </table>
                 </td>
               </tr>
@@ -216,6 +314,10 @@ function createAdminEmailTemplate(data: {
   quoteInfo: string
   companyColor?: string
   submissionDate: string
+  privacyPolicy?: string
+  termsConditions?: string
+  companyAddress?: string
+  companyWebsite?: string
 }) {
   const {
     refNumber,
@@ -229,7 +331,11 @@ function createAdminEmailTemplate(data: {
     addressInfo,
     quoteInfo,
     companyColor = '#3b82f6',
-    submissionDate
+    submissionDate,
+    privacyPolicy,
+    termsConditions,
+    companyAddress,
+    companyWebsite
   } = data
 
   const headerColor = companyColor
@@ -255,14 +361,8 @@ function createAdminEmailTemplate(data: {
                 <td style="background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
-                      <td style="text-align: left; vertical-align: middle;">
+                      <td style="text-align: center; vertical-align: middle;">
                         ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px;">` : ''}
-                      </td>
-                      <td style="text-align: right; vertical-align: middle;">
-                        <div style="color: white; text-align: right;">
-                          <p style="margin: 0; font-size: 12px; opacity: 0.9;">New Quote Request</p>
-                          <p style="margin: 0; font-size: 16px; font-weight: 600;">${refNumber}</p>
-                        </div>
                       </td>
                     </tr>
                   </table>
@@ -312,8 +412,12 @@ function createAdminEmailTemplate(data: {
                           </tr>
                           ` : ''}
                           <tr>
-                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Submission Date:</td>
-                            <td style="padding: 12px 15px; color: #6b7280;">${submissionDate}</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Submission Date:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${submissionDate}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Reference:</td>
+                            <td style="padding: 12px 15px; color: #6b7280;">${refNumber}</td>
                           </tr>
                         </table>
                       </td>
@@ -367,42 +471,55 @@ function createAdminEmailTemplate(data: {
                     </tr>
                   </table>
                   ` : ''}
-
-                  <div style="background-color: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 20px; margin-top: 30px;">
-                    <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #0c4a6e;">
-                      Next Steps Required:
-                    </h3>
-                    <ul style="margin: 0; padding-left: 20px; color: #0c4a6e;">
-                      <li style="margin-bottom: 5px;">Contact the customer at ${phone || email} for phone verification</li>
-                      <li style="margin-bottom: 5px;">Discuss their requirements in detail</li>
-                      <li style="margin-bottom: 5px;">Provide a detailed quote based on their needs</li>
-                      <li>Update the lead status in your system</li>
-                    </ul>
-                  </div>
                 </td>
               </tr>
 
               <!-- Footer -->
               <tr>
-                <td style="background-color: ${backgroundColor}; padding: 30px; border-radius: 0 0 8px 8px;">
+                <td style="background-color: ${backgroundColor}; padding: 20px; border-radius: 0 0 8px 8px;">
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
-                      <td style="text-align: center; padding-bottom: 20px;">
-                        <p style="margin: 0 0 10px 0; font-size: 16px; font-weight: 600; color: #374151;">
-                          ${companyName || 'Boiler Quote System'}
-                        </p>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px; margin-bottom: 10px;">` : ''}
                         <p style="margin: 0; font-size: 14px; color: #6b7280;">
-                          Reference: <strong>${refNumber}</strong>
+                          ©2025 ${companyName || 'Company Name'}. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                    ${companyAddress ? `
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 1.4;">
+                          ${companyAddress}
+                        </p>
+                      </td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">
+                          ${companyName || 'Company Name'} is authorised and regulated by the Financial Conduct Authority. Finance options are provided by panel of lenders. Finance available subject to status. Terms and conditions apply.
                         </p>
                       </td>
                     </tr>
                     <tr>
-                      <td style="text-align: center; border-top: 1px solid ${borderColor}; padding-top: 20px;">
-                        <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                          This is an automated notification. Please respond to the customer directly.
-                        </p>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <div style="display: inline-block;">
+                          ${privacyPolicy ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Privacy Policy</a>` : ''}
+                          ${privacyPolicy && termsConditions ? `<span style="color: #9ca3af;">|</span>` : ''}
+                          ${termsConditions ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Terms & Conditions</a>` : ''}
+                        </div>
                       </td>
                     </tr>
+                    ${companyWebsite ? `
+                    <tr>
+                      <td style="text-align: center;">
+                        <a href="${companyWebsite}" style="color: ${headerColor}; text-decoration: none; font-size: 14px; font-weight: 600;">
+                          Visit our website
+                        </a>
+                      </td>
+                    </tr>
+                    ` : ''}
                   </table>
                 </td>
               </tr>
@@ -449,6 +566,12 @@ export async function POST(request: NextRequest) {
     const logoUrl: string | undefined = partner.logo_url || undefined
     const companyColor: string | undefined = partner.company_color || undefined
     const adminEmail: string | undefined = partner.admin_mail || undefined
+    const privacyPolicy: string | undefined = partner.privacy_policy || undefined
+    const termsConditions: string | undefined = partner.terms_conditions || undefined
+    const companyPhone: string | undefined = partner.phone || undefined
+    const companyEmail: string | undefined = partner.admin_mail || undefined
+    const companyAddress: string | undefined = partner.address || undefined
+    const companyWebsite: string | undefined = partner.website_url || undefined
     
     if (!partner.smtp_settings) {
       return NextResponse.json({ error: 'SMTP settings not configured' }, { status: 400 })
@@ -487,14 +610,14 @@ export async function POST(request: NextRequest) {
       const formattedAnswers: string[] = []
       
       Object.entries(quoteData).forEach(([questionId, answer]) => {
-        // Filter out non-question data like postcode, address, etc.
-        const question = questionsList.find((q: any) => q.question_id === questionId)
+          // Filter out non-question data like postcode, address, etc.
+          const question = questionsList.find((q: any) => q.question_id === questionId)
         if (question !== undefined && answer !== null && answer !== undefined && answer !== '') {
           const questionText = question?.question_text || questionId
           const formattedAnswer = Array.isArray(answer) ? answer.join(', ') : String(answer)
           formattedAnswers.push(`${questionText}: ${formattedAnswer}`)
         }
-      })
+        })
       
       return formattedAnswers.join('\n')
     }
@@ -505,33 +628,118 @@ export async function POST(request: NextRequest) {
       .map(([key, value]) => `${key}: ${value}`)
       .join('\n') : ''
 
-    // Send email to customer (simple version)
-    const customerSubject = `Your boiler quote request${companyName ? ' - ' + companyName : ''} - ${refNumber}`
-    const customerHtml = createCustomerEmailTemplate({
-      refNumber,
-      companyName,
-      logoUrl,
+    // Build base URL for the quote link
+    const baseUrl = partner.custom_domain && partner.domain_verified 
+      ? `https://${partner.custom_domain}`
+      : partner.subdomain 
+        ? `https://${partner.subdomain}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || 'yourdomain.com'}`
+        : null
+
+    const quoteLink = buildQuoteLink(
+      partner.custom_domain,
+      partner.domain_verified,
+      partner.subdomain,
+      submission_id,
+      'boiler'
+    )
+
+    // Get service category ID for boiler
+    const { data: boilerCategory } = await supabase
+      .from('ServiceCategories')
+      .select('service_category_id')
+      .eq('slug', 'boiler')
+      .single()
+
+    // Prepare template data
+    const templateData = {
       firstName: first_name,
       lastName: last_name,
       email,
       phone,
       postcode,
-      companyColor
-    })
+      companyName,
+      companyPhone,
+      companyEmail,
+      companyAddress,
+      companyWebsite,
+      logoUrl,
+      refNumber,
+      submissionId: submission_id,
+      quoteLink,
+      quoteInfo,
+      addressInfo,
+      submissionDate,
+      privacyPolicy,
+      termsConditions,
+      primaryColor: companyColor
+    }
 
-    const customerText = `Hi ${first_name ? String(first_name) : 'there'},\n` +
-      `Thank you for requesting a boiler quote${companyName ? ' with ' + companyName : ''}.\n` +
-      `Reference Number: ${refNumber}\n\n` +
-      `We have received your initial information and will verify your phone number next.\n\n` +
+    // Try to get custom customer template first
+    let customerSubject = `Your boiler quote request${companyName ? ' - ' + companyName : ''}`
+    let customerHtml = ''
+    let customerText = ''
+
+    if (boilerCategory) {
+      const customCustomerTemplate = await getProcessedEmailTemplate(
+        partner.user_id,
+        'boiler',
+        'quote-initial',
+        'customer',
+        templateData
+      )
+
+      if (customCustomerTemplate) {
+        customerSubject = customCustomerTemplate.subject
+        customerHtml = customCustomerTemplate.html
+        customerText = customCustomerTemplate.text
+      }
+    }
+
+    // Fallback to hardcoded template if no custom template
+    if (!customerHtml) {
+      customerHtml = createCustomerEmailTemplate({
+        refNumber,
+        companyName,
+        logoUrl,
+        firstName: first_name,
+        lastName: last_name,
+        email,
+        phone,
+        postcode,
+        companyColor,
+        privacyPolicy,
+        termsConditions,
+        companyPhone,
+        companyEmail,
+        companyAddress,
+        companyWebsite,
+        baseUrl: baseUrl || undefined,
+        submissionId: submission_id
+      })
+    }
+
+    // Fallback customerText only if no custom template
+    if (!customerText) {
+      customerText = `Hi ${first_name ? String(first_name) : 'there'},\n` +
+        `Excellent decision on requesting your free boiler quote.\n\n` +
+        `We know that when you need a boiler, finding a reliable company who you can trust can be a challenge, so our goal at ${companyName || 'our company'} is to make the process as simple and stress free as possible.\n\n` +
+        `Here are a few things you should know about us before you buy your new boiler:\n\n` +
+        `✓ We are a local company and have built our reputation by going above and beyond for our customers. We take care of everything and even have incredible aftercare so you know you are always in safe hands.\n` +
+        `✓ Every single job is audited before and after by our qualified team to make sure it meets our high standards.\n` +
+        `✓ We offer a PRICE MATCH PROMISE. If you stumble across a better price, just reply to this email with your quote attached and we'll better it, or send you a £50 voucher if we can't.\n\n` +
+        `Want to know more about why we are the best choice for your new boiler?\n\n` +
+        `Check out our website at ${companyWebsite || 'our website'} and if you have any questions, simply reply to this email and we'll reply as soon as possible.\n\n` +
+        `Or give us a call on ${companyPhone || 'our phone number'}.\n\n` +
       `Your Details:\n` +
       `Name: ${first_name} ${last_name}\n` +
       `Email: ${email}\n` +
       (phone ? `Phone: ${phone}\n` : '') +
       (postcode ? `Postcode: ${postcode}\n` : '') +
       `\nWe will be in touch shortly after phone verification.\n\n` +
-      `Reference Number: ${refNumber}` +
+        `Reference: ${refNumber}` +
       (companyName ? `\n${companyName}` : '') +
       `\n\nThis is an automated email. Please do not reply to this message.`
+    }
 
     try {
       await transporter.sendMail({
@@ -547,41 +755,66 @@ export async function POST(request: NextRequest) {
 
     // Send detailed email to admin if admin email is configured
     if (adminEmail) {
-      const adminSubject = `New Boiler Quote Request - ${refNumber}${companyName ? ' - ' + companyName : ''}`
-      const adminHtml = createAdminEmailTemplate({
-        refNumber,
-        companyName,
-        logoUrl,
-        firstName: first_name,
-        lastName: last_name,
-        email,
-        phone,
-        postcode,
-        addressInfo,
-        quoteInfo,
-        companyColor,
-        submissionDate
-      })
+      // Try to get custom admin template first
+      let adminSubject = `New Boiler Quote Request${companyName ? ' - ' + companyName : ''}`
+      let adminHtml = ''
+      let adminText = ''
 
-      const adminText = `New Boiler Quote Request Received\n\n` +
-        `Reference: ${refNumber}\n` +
-        `Company: ${companyName || 'N/A'}\n` +
-        `Submission Date: ${submissionDate}\n\n` +
-        `Customer Details:\n` +
-        `Name: ${first_name} ${last_name}\n` +
-        `Email: ${email}\n` +
-        (phone ? `Phone: ${phone}\n` : '') +
-        (postcode ? `Postcode: ${postcode}\n` : '') +
-        (addressInfo ? `\nProperty Details:\n${addressInfo}\n` : '') +
-        (quoteInfo ? `\nQuote Information:\n${quoteInfo}\n` : '') +
-        `\nNext Steps:\n` +
-        `- Contact the customer for phone verification\n` +
-        `- Discuss requirements in detail\n` +
-        `- Provide detailed quote\n` +
-        `- Update lead status\n\n` +
-        `Reference: ${refNumber}` +
-        (companyName ? `\n${companyName}` : '') +
-        `\n\nThis is an automated notification. Please respond to the customer directly.`
+      if (boilerCategory) {
+        const customAdminTemplate = await getProcessedEmailTemplate(
+          partner.user_id,
+          'boiler',
+          'quote-initial',
+          'admin',
+          templateData
+        )
+
+        if (customAdminTemplate) {
+          adminSubject = customAdminTemplate.subject
+          adminHtml = customAdminTemplate.html
+          adminText = customAdminTemplate.text
+        }
+      }
+
+      // Fallback to hardcoded template if no custom template
+      if (!adminHtml) {
+        adminHtml = createAdminEmailTemplate({
+          refNumber,
+          companyName,
+          logoUrl,
+          firstName: first_name,
+          lastName: last_name,
+          email,
+          phone,
+          postcode,
+          addressInfo,
+          quoteInfo,
+          companyColor,
+          submissionDate,
+          privacyPolicy,
+          termsConditions,
+          companyAddress,
+          companyWebsite
+        })
+      }
+
+      // Fallback adminText only if no custom template
+      if (!adminText) {
+        adminText = `New Boiler Quote Request Received\n\n` +
+          `Reference: ${refNumber}\n` +
+          `Company: ${companyName || 'N/A'}\n` +
+          `Submission Date: ${submissionDate}\n\n` +
+          `Customer Details:\n` +
+          `Name: ${first_name} ${last_name}\n` +
+          `Email: ${email}\n` +
+          (phone ? `Phone: ${phone}\n` : '') +
+          (postcode ? `Postcode: ${postcode}\n` : '') +
+          (addressInfo ? `\nProperty Details:\n${addressInfo}\n` : '') +
+          (quoteInfo ? `\nQuote Information:\n${quoteInfo}\n` : '') +
+          `\nReference: ${refNumber}` +
+          (companyName ? `\n${companyName}` : '') +
+          `\n\nThis is an automated notification. Please respond to the customer directly.`
+      }
 
       try {
         await transporter.sendMail({

@@ -94,7 +94,7 @@ export default async function PartnerDashboard() {
   return (
     <div className="max-w-[1500px] mx-auto">
       {/* Account status bar */}
-      <div className={`mb-6 p-4 rounded-lg ${profile?.status === 'active' ? 'bg-green-50' : profile?.status === 'pending' ? 'bg-yellow-50' : 'bg-red-50'}`}>
+      <div className={`mb-6 p-4 hidden rounded-lg ${profile?.status === 'active' ? 'bg-green-50' : profile?.status === 'pending' ? 'bg-yellow-50' : 'bg-red-50'}`}>
         <div className="flex items-center">
           {profile?.status === 'active' ? (
             <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
@@ -123,7 +123,7 @@ export default async function PartnerDashboard() {
 
       {/* Custom Domain Status */}
       {profile?.custom_domain && (
-        <div className={`mb-6 p-4 rounded-lg ${customDomainVerified ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+        <div className={`mb-6 p-4 rounded-lg hidden ${customDomainVerified ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Globe className={`h-5 w-5 mr-2 ${customDomainVerified ? 'text-green-500' : 'text-yellow-500'}`} />
@@ -365,34 +365,7 @@ export default async function PartnerDashboard() {
         {/* Right column */}
         <div className="space-y-6">
           {/* Profile card */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Profile Completion</h2>
-            
-            {/* Simple progress indicator */}
-            <div className="mb-4">
-              <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium text-gray-700">
-                  Complete your profile
-                </span>
-                <span className="text-sm font-medium text-gray-700">
-                  {profile ? '80%' : '0%'}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full"
-                  style={{ width: profile ? '80%' : '0%' }}
-                ></div>
-              </div>
-            </div>
-            
-            <Link 
-              href="/partner/settings" 
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Complete Profile
-            </Link>
-          </div>
+        
           
           {/* Notifications */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
-import { resolvePartnerByHostname } from '@/lib/partner'
+import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -56,6 +56,476 @@ function migrateSmtp(raw: any): NormalizedSmtp {
   }
 }
 
+function createCustomerEmailTemplate(data: {
+  companyName?: string
+  logoUrl?: string
+  firstName?: string
+  lastName?: string
+  email: string
+  phone?: string
+  postcode?: string
+  companyColor?: string
+  quoteInfo: string
+  addressInfo?: string
+  submissionId?: string
+  privacyPolicy?: string
+  termsConditions?: string
+  companyPhone?: string
+  companyEmail?: string
+  companyAddress?: string
+  companyWebsite?: string
+}) {
+  const {
+    companyName,
+    logoUrl,
+    firstName,
+    lastName,
+    email,
+    phone,
+    postcode,
+    companyColor = '#3b82f6',
+    quoteInfo,
+    addressInfo,
+    submissionId,
+    privacyPolicy,
+    termsConditions,
+    companyPhone,
+    companyEmail,
+    companyAddress,
+    companyWebsite
+  } = data
+
+  const headerColor = companyColor
+  const borderColor = '#e5e7eb'
+  const backgroundColor = '#f9fafb'
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Quote Verified Successfully</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+          <td align="center" style="padding: 20px 0;">
+            <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              
+              <!-- Header with Logo -->
+              <tr>
+                <td style="background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; vertical-align: middle;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px;">` : ''}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Body -->
+              <tr>
+                <td style="padding: 40px 30px;">
+                  <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #1f2937; font-size: 28px; font-weight: 600; margin: 0;">Quote Verified!</h1>
+                    <p style="color: #6b7280; font-size: 16px; margin: 8px 0 0 0;">Your phone verification is complete${companyName ? ' with ' + companyName : ''}</p>
+                  </div>
+
+                  <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center;">
+                    Great news! Your quote has been verified and you can now proceed to view your boiler options and pricing.
+                  </p>
+
+                  <!-- Customer Details Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Your Details
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Name:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${firstName} ${lastName}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Email:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${email}</td>
+                          </tr>
+                          ${phone ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Phone:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${phone}</td>
+                          </tr>
+                          ` : ''}
+                          ${postcode ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Postcode:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${postcode}</td>
+                          </tr>
+                          ` : ''}
+                          ${submissionId ? `
+                          <tr>
+                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Reference:</td>
+                            <td style="padding: 12px 15px; color: #6b7280;">${submissionId}</td>
+                          </tr>
+                          ` : ''}
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+
+                  ${addressInfo ? `
+                  <!-- Property Details Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Property Details
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 15px; color: #6b7280; line-height: 1.6;">
+                        ${addressInfo.replace(/\n/g, '<br>')}
+                      </td>
+                    </tr>
+                  </table>
+                  ` : ''}
+
+                  ${quoteInfo ? `
+                  <!-- Quote Information Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Quote Information
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          ${quoteInfo.split('\n').map((line, index) => {
+                            if (!line.trim()) return ''
+                            const parts = line.split(': ')
+                            if (parts.length >= 2) {
+                              const question = parts[0]
+                              const answer = parts.slice(1).join(': ')
+                              const isLastItem = index === quoteInfo.split('\n').filter(l => l.trim()).length - 1
+                              return `
+                            <tr>
+                              <td style="padding: 12px 15px; ${!isLastItem ? 'border-bottom: 1px solid ' + borderColor + ';' : ''} width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa; vertical-align: top;">${question}:</td>
+                              <td style="padding: 12px 15px; ${!isLastItem ? 'border-bottom: 1px solid ' + borderColor + ';' : ''} color: #6b7280; line-height: 1.6;">${answer}</td>
+                            </tr>
+                          `
+                            }
+                            return ''
+                          }).join('')}
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                  ` : ''}
+
+
+
+                  <p style="margin: 30px 0 0 0; font-size: 16px; color: #374151; line-height: 1.6; text-align: center;">
+                    Thank you for choosing ${companyName || 'our service'}! We're excited to help you with your new boiler.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: ${backgroundColor}; padding: 20px; border-radius: 0 0 8px 8px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px; margin-bottom: 10px;">` : ''}
+                        <p style="margin: 0; font-size: 14px; color: #6b7280;">
+                          ©2025 ${companyName || 'Company Name'}. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                    ${companyAddress ? `
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 1.4;">
+                          ${companyAddress}
+                        </p>
+                      </td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">
+                          ${companyName || 'Company Name'} is authorised and regulated by the Financial Conduct Authority. Finance options are provided by panel of lenders. Finance available subject to status. Terms and conditions apply.
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <div style="display: inline-block;">
+                          ${privacyPolicy ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Privacy Policy</a>` : ''}
+                          ${privacyPolicy && termsConditions ? `<span style="color: #9ca3af;">|</span>` : ''}
+                          ${termsConditions ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Terms & Conditions</a>` : ''}
+                        </div>
+                      </td>
+                    </tr>
+                    ${companyWebsite ? `
+                    <tr>
+                      <td style="text-align: center;">
+                        <a href="${companyWebsite}" style="color: ${headerColor}; text-decoration: none; font-size: 14px; font-weight: 600;">
+                          Visit our website
+                        </a>
+                      </td>
+                    </tr>
+                    ` : ''}
+                  </table>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
+function createAdminEmailTemplate(data: {
+  companyName?: string
+  logoUrl?: string
+  firstName?: string
+  lastName?: string
+  email: string
+  phone?: string
+  postcode?: string
+  companyColor?: string
+  quoteInfo: string
+  addressInfo?: string
+  submissionId?: string
+  privacyPolicy?: string
+  termsConditions?: string
+  companyAddress?: string
+  companyWebsite?: string
+}) {
+  const {
+    companyName,
+    logoUrl,
+    firstName,
+    lastName,
+    email,
+    phone,
+    postcode,
+    companyColor = '#3b82f6',
+    quoteInfo,
+    addressInfo,
+    submissionId,
+    privacyPolicy,
+    termsConditions,
+    companyAddress,
+    companyWebsite
+  } = data
+
+  const headerColor = companyColor
+  const borderColor = '#e5e7eb'
+  const backgroundColor = '#f9fafb'
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Quote Verified - Admin Notification</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
+        <tr>
+          <td align="center" style="padding: 20px 0;">
+            <table width="700" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; vertical-align: middle;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px;">` : ''}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Body -->
+              <tr>
+                <td style="padding: 40px 30px;">
+                  <h2 style="margin: 0 0 20px 0; font-size: 20px; color: #374151;">
+                    Quote Verified - Customer Ready to Proceed
+                  </h2>
+                  
+                  <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                    A customer has completed phone verification and is now ready to view boiler options${companyName ? ' for <strong>' + companyName + '</strong>' : ''}. 
+                    They can now proceed to the product selection and booking process.
+                  </p>
+
+                  <!-- Customer Information Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Customer Information
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Full Name:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${firstName} ${lastName}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Email:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${email}</td>
+                          </tr>
+                          ${phone ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Phone:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${phone}</td>
+                          </tr>
+                          ` : ''}
+                          ${postcode ? `
+                          <tr>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Postcode:</td>
+                            <td style="padding: 12px 15px; border-bottom: 1px solid ${borderColor}; color: #6b7280;">${postcode}</td>
+                          </tr>
+                          ` : ''}
+                          ${submissionId ? `
+                          <tr>
+                            <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Reference:</td>
+                            <td style="padding: 12px 15px; color: #6b7280;">${submissionId}</td>
+                          </tr>
+                          ` : ''}
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+
+                  ${addressInfo ? `
+                  <!-- Property Details Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Property Details
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 15px; color: #6b7280; line-height: 1.6;">
+                        ${addressInfo.replace(/\n/g, '<br>')}
+                      </td>
+                    </tr>
+                  </table>
+                  ` : ''}
+
+                  ${quoteInfo ? `
+                  <!-- Quote Information Table -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid ${borderColor}; border-radius: 8px; overflow: hidden;">
+                    <tr>
+                      <td style="background-color: ${backgroundColor}; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid ${borderColor};">
+                        Quote Information
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          ${quoteInfo.split('\n').map((line, index) => {
+                            if (!line.trim()) return ''
+                            const parts = line.split(': ')
+                            if (parts.length >= 2) {
+                              const question = parts[0]
+                              const answer = parts.slice(1).join(': ')
+                              const isLastItem = index === quoteInfo.split('\n').filter(l => l.trim()).length - 1
+                              return `
+                            <tr>
+                              <td style="padding: 12px 15px; ${!isLastItem ? 'border-bottom: 1px solid ' + borderColor + ';' : ''} width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa; vertical-align: top;">${question}:</td>
+                              <td style="padding: 12px 15px; ${!isLastItem ? 'border-bottom: 1px solid ' + borderColor + ';' : ''} color: #6b7280; line-height: 1.6;">${answer}</td>
+                            </tr>
+                          `
+                            }
+                            return ''
+                          }).join('')}
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                  ` : ''}
+
+
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: ${backgroundColor}; padding: 20px; border-radius: 0 0 8px 8px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        ${logoUrl ? `<img src="${logoUrl}" alt="${companyName || 'Company'}" style="max-height: 40px; max-width: 150px; margin-bottom: 10px;">` : ''}
+                        <p style="margin: 0; font-size: 14px; color: #6b7280;">
+                          ©2025 ${companyName || 'Company Name'}. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                    ${companyAddress ? `
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 1.4;">
+                          ${companyAddress}
+                        </p>
+                      </td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.4;">
+                          ${companyName || 'Company Name'} is authorised and regulated by the Financial Conduct Authority. Finance options are provided by panel of lenders. Finance available subject to status. Terms and conditions apply.
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align: center; padding-bottom: 15px;">
+                        <div style="display: inline-block;">
+                          ${privacyPolicy ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Privacy Policy</a>` : ''}
+                          ${privacyPolicy && termsConditions ? `<span style="color: #9ca3af;">|</span>` : ''}
+                          ${termsConditions ? `<a href="#" style="color: ${headerColor}; text-decoration: none; margin: 0 10px; font-size: 14px;">Terms & Conditions</a>` : ''}
+                        </div>
+                      </td>
+                    </tr>
+                    ${companyWebsite ? `
+                    <tr>
+                      <td style="text-align: center;">
+                        <a href="${companyWebsite}" style="color: ${headerColor}; text-decoration: none; font-size: 14px; font-weight: 600;">
+                          Visit our website
+                        </a>
+                      </td>
+                    </tr>
+                    ` : ''}
+                  </table>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
@@ -80,12 +550,22 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    const partner = await resolvePartnerByHostname(supabase, hostname)
+    const partner = await resolvePartnerByHost(supabase, hostname)
     if (!partner) {
       return NextResponse.json({ error: 'Partner not found for this domain' }, { status: 400 })
     }
 
     const companyName: string | undefined = partner.company_name || undefined
+    const logoUrl: string | undefined = partner.logo_url || undefined
+    const companyColor: string | undefined = partner.company_color || undefined
+    const adminEmail: string | undefined = partner.admin_mail || undefined
+    const privacyPolicy: string | undefined = partner.privacy_policy || undefined
+    const termsConditions: string | undefined = partner.terms_conditions || undefined
+    const companyPhone: string | undefined = partner.phone || undefined
+    const companyEmail: string | undefined = partner.admin_mail || undefined
+    const companyAddress: string | undefined = partner.address || undefined
+    const companyWebsite: string | undefined = partner.website_url || undefined
+
     if (!partner.smtp_settings) {
       return NextResponse.json({ error: 'SMTP settings not configured' }, { status: 400 })
     }
@@ -112,87 +592,134 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
 
-    const subject = `Your verified boiler quote${companyName ? ' - ' + companyName : ''}`
-    
-    const formatQuoteData = (quoteData: Record<string, any>, questionsList: any[]) => {
-      if (!quoteData || !questionsList) return 'Quote details provided'
+    const customerSubject = `Quote Verified Successfully${companyName ? ' - ' + companyName : ''}`
+    const adminSubject = `Quote Verified - Customer Ready${companyName ? ' - ' + companyName : ''}`
+
+    // Format quote data
+    const formatQuoteData = (data: any, questions: any[]) => {
+      if (!data || !questions) return ''
       
-      return Object.entries(quoteData)
-        .filter(([key, value]) => {
-          // Filter out non-question data like postcode, address, etc.
-          const question = questionsList.find((q: any) => q.question_id === key)
-          return question !== undefined && value !== null && value !== undefined && value !== ''
-        })
-        .map(([questionId, answer]) => {
-          const question = questionsList.find((q: any) => q.question_id === questionId)
-          const questionText = question?.question_text || questionId
-          return `${questionText}: ${Array.isArray(answer) ? answer.join(', ') : answer}`
-        })
-        .join('\n')
+      return Object.entries(data).map(([key, value]) => {
+        const question = questions.find(q => q.question_id === key)
+        const questionText = question?.question_text || key
+        return `${questionText}: ${value}`
+      }).join('\n')
     }
-    
-    const quoteInfo = formatQuoteData(quote_data, questions || [])
 
-    const addressInfo = address_data ? Object.entries(address_data)
-      .map(([key, value]) => `${key}: ${value}`)
-      .join('\n') : ''
+    // Format address data
+    const formatAddressData = (data: any) => {
+      if (!data) return ''
+      
+      const parts = []
+      if (data.formatted_address) parts.push(data.formatted_address)
+      if (data.address_type) parts.push(`Property Type: ${data.address_type}`)
+      
+      return parts.join('\n')
+    }
 
-    const html = `
-      <div>
-        <p>Hi ${first_name ? String(first_name) : ''},</p>
-        <p>Congratulations! Your phone number has been verified and your boiler quote request is now complete${companyName ? ' with <strong>' + companyName + '</strong>' : ''}.</p>
-        ${submission_id ? `<p><strong>Reference ID:</strong> ${submission_id}</p>` : ''}
-        
-        <div style="margin: 20px 0;">
-          <h3>Verified Contact Details:</h3>
-          <p><strong>Name:</strong> ${first_name} ${last_name}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Phone:</strong> ${phone} ✅ <span style="color: #22c55e;">Verified</span></p>
-          ${postcode ? `<p><strong>Postcode:</strong> ${postcode}</p>` : ''}
-        </div>
+    const quoteInfo = formatQuoteData(quote_data, questions)
+    const addressInfo = formatAddressData(address_data)
 
-        ${addressInfo ? `<div style="margin: 20px 0;"><h3>Property Details:</h3><pre style="background:#f9fafb;padding:12px;border:1px solid #e5e7eb;border-radius:8px;">${addressInfo}</pre></div>` : ''}
-        
-        ${quoteInfo ? `<div style="margin: 20px 0;"><h3>Quote Information:</h3><pre style="background:#f9fafb;padding:12px;border:1px solid #e5e7eb;border-radius:8px;">${quoteInfo}</pre></div>` : ''}
-        
-        <div style="background: #dcfce7; padding: 16px; border-radius: 8px; border-left: 4px solid #22c55e; margin: 20px 0;">
-          <p style="margin: 0; color: #15803d;"><strong>Next Steps:</strong></p>
-          <p style="margin: 8px 0 0 0; color: #15803d;">Our team will contact you within 24 hours to discuss your boiler requirements and provide a detailed quote.</p>
-        </div>
-        
-        <p>Thank you for choosing us for your boiler quote!</p>
-      </div>
-    `
+    const customerHtml = createCustomerEmailTemplate({
+      companyName,
+      logoUrl,
+      firstName: first_name,
+      lastName: last_name,
+      email,
+      phone,
+      postcode,
+      companyColor,
+      quoteInfo,
+      addressInfo,
+      submissionId: submission_id,
+      privacyPolicy,
+      termsConditions,
+      companyPhone,
+      companyEmail,
+      companyAddress,
+      companyWebsite
+    })
 
-    const text = `Hi ${first_name ? String(first_name) : ''},\n` +
-      `Congratulations! Your phone number has been verified and your boiler quote request is now complete${companyName ? ' with ' + companyName : ''}.\n` +
-      (submission_id ? `Reference ID: ${submission_id}\n` : '') +
-      `\nVerified Contact Details:\n` +
+    let adminHtml
+    if (adminEmail) {
+      adminHtml = createAdminEmailTemplate({
+        companyName,
+        logoUrl,
+        firstName: first_name,
+        lastName: last_name,
+        email,
+        phone,
+        postcode,
+        companyColor,
+        quoteInfo,
+        addressInfo,
+        submissionId: submission_id,
+        privacyPolicy,
+        termsConditions,
+        companyAddress,
+        companyWebsite
+      })
+    }
+
+    const customerText = `Quote Verified Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
+      `Hi ${first_name},\n\n` +
+      `Great news! Your quote has been verified and you can now proceed to view your boiler options and pricing.\n\n` +
+      `Your Details:\n` +
       `Name: ${first_name} ${last_name}\n` +
       `Email: ${email}\n` +
-      `Phone: ${phone} ✅ Verified\n` +
+      (phone ? `Phone: ${phone}\n` : '') +
       (postcode ? `Postcode: ${postcode}\n` : '') +
-      (addressInfo ? `\nProperty Details:\n${addressInfo}\n` : '') +
-      (quoteInfo ? `\nQuote Information:\n${quoteInfo}\n` : '') +
-      `\nNext Steps:\n` +
-      `Our team will contact you within 24 hours to discuss your boiler requirements and provide a detailed quote.\n\n` +
-      `Thank you for choosing us for your boiler quote!`
+      (submission_id ? `Reference: ${submission_id}\n` : '') +
+      `\n${addressInfo ? 'Property Details:\n' + addressInfo + '\n\n' : ''}` +
+      `${quoteInfo ? 'Quote Information:\n' + quoteInfo + '\n\n' : ''}` +
+      `What happens next?\n` +
+      `• Browse our range of boiler options and pricing\n` +
+      `• Select the perfect boiler for your home\n` +
+      `• Choose your preferred installation date\n` +
+      `• Complete your booking with secure payment\n` +
+      `• Our certified engineers will handle the installation\n` +
+      `• Enjoy your new efficient heating system\n\n` +
+      `Thank you for choosing ${companyName || 'our service'}!`
 
     try {
+      // Send customer email
       await transporter.sendMail({
         from: smtp.SMTP_FROM || smtp.SMTP_USER,
         to: toAddress,
-        subject,
-        text,
-        html,
+        subject: customerSubject,
+        text: customerText,
+        html: customerHtml,
       })
+
+      // Send admin email if admin email is configured
+      if (adminEmail && adminHtml) {
+        const adminText = `Quote Verified - Customer Ready${companyName ? ' - ' + companyName : ''}\n\n` +
+          `A customer has completed phone verification and is ready to proceed with booking.\n\n` +
+          `Customer Information:\n` +
+          `Name: ${first_name} ${last_name}\n` +
+          `Email: ${email}\n` +
+          (phone ? `Phone: ${phone}\n` : '') +
+          (postcode ? `Postcode: ${postcode}\n` : '') +
+          (submission_id ? `Reference: ${submission_id}\n` : '') +
+          `\n${addressInfo ? 'Property Details:\n' + addressInfo + '\n\n' : ''}` +
+          `${quoteInfo ? 'Quote Information:\n' + quoteInfo + '\n\n' : ''}` +
+          `Status: Customer phone verification completed successfully. Ready to view products and proceed with booking.`
+
+        await transporter.sendMail({
+          from: smtp.SMTP_FROM || smtp.SMTP_USER,
+          to: adminEmail,
+          subject: adminSubject,
+          text: adminText,
+          html: adminHtml,
+        })
+      }
     } catch (sendErr: any) {
       return NextResponse.json({ error: 'SMTP send failed', details: sendErr?.message || String(sendErr) }, { status: 400 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error('Verified quote email error:', error)
-    return NextResponse.json({ error: 'Failed to send verified quote email', details: error?.message || String(error) }, { status: 500 })
+    console.error('Quote verified email error:', error)
+    return NextResponse.json({ error: 'Failed to send quote verified email', details: error?.message || String(error) }, { status: 500 })
   }
 }
