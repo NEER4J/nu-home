@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
-  import { Minus, Plus, PlusCircle, MinusCircle, Info, ChevronRight, X, Calculator, ChevronDown, Loader2, ShoppingCart, CheckCircle } from 'lucide-react'
+import { Minus, Plus, PlusCircle, MinusCircle, Info, ChevronRight, X, Calculator, ChevronDown, Loader2, ShoppingCart, CheckCircle } from 'lucide-react'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export interface AddonLite {
   addon_id: string
@@ -162,24 +163,18 @@ function MobileCartPopup({
   getImageUrl: (url: string | null) => string | null
   companyColor?: string | null
 }) {
-  if (!isOpen) return null
-
   return (
-    <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
-      <div className="bg-white rounded-t-xl w-full max-h-[95vh] overflow-hidden relative">
-
-<div className="flex items-center justify-between p-4 pb-0">
-<button className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-4 py-2 rounded-lg">save quote</button>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X size={18} />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent variant="bottom" className="lg:hidden p-0 max-h-[95vh] overflow-hidden">
+        <div className="flex items-center justify-between p-4 pb-0">
+          <h3 className="text-base text-gray-600">Your order summary</h3>
+          </div>
 
         <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
           <div className="space-y-6 p-4">
 
-  {/* Pricing Section */}
-  <div className="border rounded-lg p-4">
+            {/* Pricing Section */}
+            <div className="border rounded-lg p-4">
               <div className="flex items-end justify-between">
                 <div>
                   <p className="text-xs text-gray-500">Fixed price (inc. VAT)</p>
@@ -191,7 +186,7 @@ function MobileCartPopup({
                 <div className="text-right">
                   <p className="text-xs text-gray-500">or, monthly from</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-xl font-medium text-green-600">£{monthlyPayment?.toFixed(0) || '0'}</p>
+                    <p className="text-xl font-medium text-green-800">£{monthlyPayment?.toFixed(0) || '0'}</p>
                     {selectedProduct && onOpenFinanceCalculator && (
                       <button
                         onClick={onOpenFinanceCalculator}
@@ -304,23 +299,23 @@ function MobileCartPopup({
                         <h4 className="font-medium text-sm text-gray-900 truncate">{addon.title}</h4>
                         <p className="text-gray-600 text-xs">{addon.quantity} × £{addon.price.toFixed(2)}</p>
                       </div>
-                                              <div className="flex items-center gap-1">
-                          {addon.allow_multiple && onAddonQuantityChange ? (
-                            <>
-                              <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors">
-                                <Minus size={14} />
-                              </button>
-                              <span className="w-8 text-center text-sm font-medium">{addon.quantity}</span>
-                              <button onClick={() => onAddonQuantityChange(addon, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors" disabled={addon.max_count ? addon.quantity >= addon.max_count : false}>
-                                <Plus size={14} />
-                              </button>
-                            </>
-                          ) : onAddonQuantityChange ? (
+                      <div className="flex items-center gap-1">
+                        {addon.allow_multiple && onAddonQuantityChange ? (
+                          <>
                             <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors">
-                              <X size={14} />
+                              <Minus size={14} />
                             </button>
-                          ) : null}
-                        </div>
+                            <span className="w-8 text-center text-sm font-medium">{addon.quantity}</span>
+                            <button onClick={() => onAddonQuantityChange(addon, 1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors" disabled={addon.max_count ? addon.quantity >= addon.max_count : false}>
+                              <Plus size={14} />
+                            </button>
+                          </>
+                        ) : onAddonQuantityChange ? (
+                          <button onClick={() => onAddonQuantityChange(addon, -1)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-300 hover:bg-gray-400 transition-colors">
+                            <X size={14} />
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -363,11 +358,10 @@ function MobileCartPopup({
               </div>
             )}
             
-          
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -415,7 +409,7 @@ function MobileBottomBar({
               <p className="text-base font-semibold text-gray-900">£{orderTotal.toFixed(2)}</p>
               {monthlyPayment && (
                 <>
-                  <p onClick={onOpenFinanceCalculator} className="text-sm font-normal text-green-600 border-b border-dashed border-green-600 flex items-center gap-1">or £{monthlyPayment.toFixed(0)}/mo <ChevronDown size={14} className="text-green-600" /></p>
+                  <p onClick={onOpenFinanceCalculator} className="text-sm font-normal text-green-800 border-b border-dashed border-green-600 flex items-center gap-1">or £{monthlyPayment.toFixed(0)}/mo <ChevronDown size={14} className="text-green-800" /></p>
                 </>
               )}
             </div>
@@ -528,15 +522,13 @@ export default function OrderSummarySidebar({
                 {monthlyPayment && (
                   <div className="text-left">
                     <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl font-medium text-gray-900">£{monthlyPayment.toFixed(2)}</span>
+                    <div className="flex items-center gap-2 cursor-pointer border-b border-dashed border-green-600 text-green-800" onClick={onOpenFinanceCalculator}>
+                      <span className="text-xl font-medium">£{monthlyPayment.toFixed(2)}</span>
                       {selectedProduct && onOpenFinanceCalculator && (
                         <button
                           onClick={onOpenFinanceCalculator}
-                          className="p-1 text-lg font-medium text-gray-900:bg-gray-100 rounded transition-colors"
-                          title="Open Finance Calculator"
-                        >
-                          <ChevronDown size={14} className="text-gray-600" />
+                          className="p-1 text-lg font-medium  rounded transition-colors">
+                          <ChevronDown size={14} />
                         </button>
                       )}
                     </div>

@@ -438,7 +438,7 @@ export default function CheckoutLayout({
             
             {/* Payment Section */}
             <div className="space-y-4">
-              <h2 className="text-lg md:text-xl font-semibold text-gray-700">Pay by card, or spread the cost with low monthly paymentss</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-700">Pay by card, or spread the cost with low monthly payments</h2>
               
               {/* Payment Options */}
               <div className="space-y-4">

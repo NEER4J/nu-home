@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { service_category_id, apr_settings, otp_enabled, company_color, included_items, faqs } = body;
+    const { service_category_id, apr_settings, otp_enabled, company_color, included_items, faqs, admin_email } = body;
 
     if (!service_category_id) {
       return NextResponse.json({ error: 'Service category ID is required' }, { status: 400 });
@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
         is_kanda_enabled: body.is_kanda_enabled || false,
         is_monthly_payment_enabled: body.is_monthly_payment_enabled || false,
         is_pay_after_installation_enabled: body.is_pay_after_installation_enabled || false,
+        admin_email: admin_email || null,
         updated_at: new Date().toISOString()
       })
       .select()
@@ -142,7 +143,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { service_category_id, apr_settings, otp_enabled, company_color, included_items, faqs } = body;
+    const { service_category_id, apr_settings, otp_enabled, company_color, included_items, faqs, admin_email } = body;
 
     if (!service_category_id) {
       return NextResponse.json({ error: 'Service category ID is required' }, { status: 400 });
@@ -173,6 +174,7 @@ export async function PUT(request: NextRequest) {
         is_kanda_enabled: body.is_kanda_enabled || false,
         is_monthly_payment_enabled: body.is_monthly_payment_enabled || false,
         is_pay_after_installation_enabled: body.is_pay_after_installation_enabled || false,
+        admin_email: admin_email || null,
         updated_at: new Date().toISOString()
       })
       .eq('partner_id', user.id)

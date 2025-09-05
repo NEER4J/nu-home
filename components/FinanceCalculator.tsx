@@ -158,8 +158,8 @@ export default function FinanceCalculator({
                   </div>
                 )}
                 <div>
-                  <h3 className="font-medium text-gray-900">{productName}</h3>
-                  <span className="text-xl font-semibold text-gray-900">£{productPrice.toFixed(2)}</span>
+                  <h3 className="font-medium text-gray-900 md:text-base text-sm">{productName}</h3>
+                  <span className="font-semibold text-gray-900 md:text-xl text-base">£{productPrice.toFixed(2)}</span>
                 </div>
               </div>
               
@@ -205,16 +205,16 @@ export default function FinanceCalculator({
                           )}
                         </div>
                         <div className="text-left">
-                          <span className="font-semibold text-gray-900 text-base">
+                          <span className="font-semibold text-gray-900 md:text-base text-sm">
                             £{option.monthlyPayment.toFixed(2)}
                           </span>
-                          <span className="text-gray-600 text-sm ml-1">
+                          <span className="text-gray-600 md:text-base text-xs ml-1">
                             for {option.months} months
                           </span>
                         </div>
                       </div>
                       <span 
-                        className="px-3 py-1 rounded-full text-sm font-medium"
+                        className="px-3 py-1 rounded-full md:text-sm text-xs font-medium"
                         style={{
                           backgroundColor: `${brandColor}15`,
                           color: brandColor
@@ -232,7 +232,7 @@ export default function FinanceCalculator({
           {/* Deposit Selector */}
           <div>
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Choose deposit:</h3>
+              <h3 className="font-semibold text-gray-900 md:text-lg text-sm">Choose deposit:</h3>
               <p className="text-sm text-gray-600">Selected: <span className="font-semibold text-gray-900">{depositPercentage}%</span></p>
             </div>
             <div className="space-y-3">
@@ -267,50 +267,50 @@ export default function FinanceCalculator({
             <div className="p-0 !mt-2">
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Monthly payment:</span>
-                  <span className="font-medium text-gray-700">
+                  <span className="text-gray-600 md:text-base text-xs">Monthly payment:</span>
+                  <span className="font-medium text-gray-700 md:text-base text-xs">
                     £{selectedOptionWithDeposit.monthlyPayment.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Deposit:</span>
-                  <span className="font-medium text-gray-700">
+                  <span className="text-gray-600 md:text-base text-xs">Deposit:</span>
+                  <span className="font-medium text-gray-700 md:text-base text-xs">
                     £{depositAmount.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Payment term:</span>
-                  <span className="font-medium text-gray-700">
+                  <span className="text-gray-600 md:text-base text-xs">Payment term:</span>
+                  <span className="font-medium text-gray-700 md:text-base text-xs">
                     {selectedOptionWithDeposit.months} months
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">APR Representative:</span>
-                  <span className="font-medium text-gray-700">
+                  <span className="text-gray-600 md:text-base text-xs">APR Representative:</span>
+                  <span className="font-medium text-gray-700 md:text-base text-xs">
                     {selectedOptionWithDeposit.apr}% APR
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Annual Interest Rate (Fixed):</span>
-                  <span className="font-medium text-gray-700">
+                  <span className="text-gray-600 md:text-base text-xs">Annual Interest Rate (Fixed):</span>
+                  <span className="font-medium text-gray-700 md:text-base text-xs">
                     {(selectedOptionWithDeposit.apr * 0.514).toFixed(2)}% APR
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Loan amount:</span>
-                  <span className="font-medium text-gray-700">
+                  <span className="text-gray-600 md:text-base text-xs">Loan amount:</span>
+                  <span className="font-medium text-gray-700 md:text-base text-xs">
                     £{loanAmount.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Interest payable:</span>
-                  <span className="font-medium text-gray-700">
+                  <span className="text-gray-600 md:text-base text-xs">Interest payable:</span>
+                  <span className="font-medium text-gray-700 md:text-base text-xs">
                     £{selectedOptionWithDeposit.totalInterest.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
-                  <span className="text-gray-900 font-medium">Total payable:</span>
-                  <span className="text-xl font-semibold text-gray-900">
+                  <span className="text-gray-900 font-medium md:text-sm text-xs">Total payable:</span>
+                  <span className="text-xl font-semibold text-gray-900 md:text-sm text-xs">
                     £{selectedOptionWithDeposit.totalPayable.toFixed(2)}
                   </span>
                 </div>
@@ -319,14 +319,14 @@ export default function FinanceCalculator({
           )}
 
           {/* Disclaimer */}
-          <div className="text-xs text-gray-500 text-left">
+          <div className="md:text-base text-xs text-gray-500 text-left">
             Representative example. Application subject to affordability, age and status, minimum spend applies.
           </div>
         </div>
 
         <DialogFooter className="flex gap-3">
           <button
-            className="flex-1 py-3 px-4 text-white font-semibold rounded-full hover:opacity-90 transition-colors"
+            className="flex-1 py-3 px-4 text-white font-semibold rounded-full hover:opacity-90 transition-colors md:text-sm text-xs"
             style={{ backgroundColor: brandColor }}
             onClick={onClose}
           >

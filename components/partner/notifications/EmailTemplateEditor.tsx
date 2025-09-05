@@ -21,16 +21,19 @@ import Editor from '@monaco-editor/react'
 
 interface EmailTemplate {
   template_id: string
+  category: string
+  service_category_id: string
+  email_type: string
+  recipient_type: 'customer' | 'admin'
   subject_template: string
   html_template: string
   text_template?: string
   dynamic_fields: any[]
-  styling: {
-    primaryColor: string
-    fontFamily: string
-    headerBgColor: string
-    footerBgColor: string
-  }
+  styling: any
+  is_active: boolean
+  is_default: boolean
+  name?: string
+  description?: string
 }
 
 interface TemplateField {
@@ -139,8 +142,8 @@ export default function EmailTemplateEditor({
     })
 
     // Apply styling
-    if (localTemplate.styling) {
-      const { primaryColor, fontFamily, headerBgColor, footerBgColor } = localTemplate.styling
+    if (localTemplate.styling && typeof localTemplate.styling === 'object') {
+      const { primaryColor, fontFamily, headerBgColor, footerBgColor } = localTemplate.styling as any
       processedHtml = processedHtml.replace(/{{primaryColor}}/g, primaryColor || '#3b82f6')
       processedHtml = processedHtml.replace(/{{fontFamily}}/g, fontFamily || 'Arial, sans-serif')
       processedHtml = processedHtml.replace(/{{headerBgColor}}/g, headerBgColor || primaryColor || '#3b82f6')
@@ -181,22 +184,15 @@ export default function EmailTemplateEditor({
 
     setSendingTest(true)
     try {
-      // Process template with sample data
-      const sampleData = templateFields.reduce((acc, field) => {
-        if (field.sample_value) {
-          acc[field.field_name] = field.sample_value
-        }
-        return acc
-      }, {} as Record<string, any>)
+      // Use the same data as preview (real company info + sample customer data)
+      const testData = { ...previewData }
 
-      sampleData.currentYear = new Date().getFullYear()
-
-      // Apply sample data to template
+      // Apply test data to template
       let processedHtml = localTemplate.html_template
       let processedSubject = localTemplate.subject_template
       let processedText = localTemplate.text_template || ''
 
-      Object.entries(sampleData).forEach(([key, value]) => {
+      Object.entries(testData).forEach(([key, value]) => {
         const regex = new RegExp(`{{${key}}}`, 'g')
         processedHtml = processedHtml.replace(regex, String(value || ''))
         processedSubject = processedSubject.replace(regex, String(value || ''))
@@ -204,13 +200,17 @@ export default function EmailTemplateEditor({
       })
 
       // Apply styling
-      if (localTemplate.styling) {
-        const { primaryColor, fontFamily, headerBgColor, footerBgColor } = localTemplate.styling
+      if (localTemplate.styling && typeof localTemplate.styling === 'object') {
+        const { primaryColor, fontFamily, headerBgColor, footerBgColor } = localTemplate.styling as any
         processedHtml = processedHtml.replace(/{{primaryColor}}/g, primaryColor || '#3b82f6')
         processedHtml = processedHtml.replace(/{{fontFamily}}/g, fontFamily || 'Arial, sans-serif')
         processedHtml = processedHtml.replace(/{{headerBgColor}}/g, headerBgColor || primaryColor || '#3b82f6')
         processedHtml = processedHtml.replace(/{{footerBgColor}}/g, footerBgColor || '#f9fafb')
       }
+
+      // Pass the full hostname as subdomain (same as working email endpoints)
+      const hostname = window.location.hostname
+      const subdomain = hostname || null
 
       const response = await fetch('/api/email/test', {
         method: 'POST',
@@ -221,7 +221,8 @@ export default function EmailTemplateEditor({
           to: testEmail,
           subject: processedSubject,
           html: processedHtml,
-          text: processedText
+          text: processedText,
+          subdomain: subdomain
         })
       })
 

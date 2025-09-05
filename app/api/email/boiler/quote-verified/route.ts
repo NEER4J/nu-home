@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
+import { getProcessedEmailTemplate, buildQuoteLink } from '@/lib/email-templates'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -558,11 +559,9 @@ export async function POST(request: NextRequest) {
     const companyName: string | undefined = partner.company_name || undefined
     const logoUrl: string | undefined = partner.logo_url || undefined
     const companyColor: string | undefined = partner.company_color || undefined
-    const adminEmail: string | undefined = partner.admin_mail || undefined
     const privacyPolicy: string | undefined = partner.privacy_policy || undefined
     const termsConditions: string | undefined = partner.terms_conditions || undefined
     const companyPhone: string | undefined = partner.phone || undefined
-    const companyEmail: string | undefined = partner.admin_mail || undefined
     const companyAddress: string | undefined = partner.address || undefined
     const companyWebsite: string | undefined = partner.website_url || undefined
 
@@ -587,13 +586,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'SMTP verification failed', details: verifyErr?.message || String(verifyErr) }, { status: 400 })
     }
 
+    // Get service category ID for boiler
+    const { data: boilerCategory } = await supabase
+      .from('ServiceCategories')
+      .select('service_category_id')
+      .eq('slug', 'boiler')
+      .single()
+
+    // Get category-specific admin email from PartnerSettings
+    let adminEmail: string | undefined = undefined
+    if (boilerCategory) {
+      const { data: partnerSettings } = await supabase
+        .from('PartnerSettings')
+        .select('admin_email')
+        .eq('partner_id', partner.user_id)
+        .eq('service_category_id', boilerCategory.service_category_id)
+        .single()
+
+      adminEmail = partnerSettings?.admin_email || undefined
+    }
+
+    const companyEmail: string | undefined = adminEmail || undefined
+
     const toAddress: string = email || smtp.SMTP_FROM
     if (!toAddress) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
 
-    const customerSubject = `Quote Verified Successfully${companyName ? ' - ' + companyName : ''}`
-    const adminSubject = `Quote Verified - Customer Ready${companyName ? ' - ' + companyName : ''}`
+    // Build base URL for the quote link
+    const baseUrl = partner.custom_domain && partner.domain_verified 
+      ? `https://${partner.custom_domain}`
+      : partner.subdomain 
+        ? `https://${partner.subdomain}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || 'yourdomain.com'}`
+        : null
+
+    const quoteLink = buildQuoteLink(
+      partner.custom_domain || null,
+      partner.domain_verified || null,
+      partner.subdomain || null,
+      submission_id,
+      'boiler'
+    )
 
     // Format quote data
     const formatQuoteData = (data: any, questions: any[]) => {
@@ -619,29 +652,128 @@ export async function POST(request: NextRequest) {
 
     const quoteInfo = formatQuoteData(quote_data, questions)
     const addressInfo = formatAddressData(address_data)
+    const submissionDate = new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
 
-    const customerHtml = createCustomerEmailTemplate({
-      companyName,
-      logoUrl,
+    // Prepare template data
+    const templateData = {
       firstName: first_name,
       lastName: last_name,
       email,
       phone,
       postcode,
-      companyColor,
-      quoteInfo,
-      addressInfo,
-      submissionId: submission_id,
-      privacyPolicy,
-      termsConditions,
+      companyName,
       companyPhone,
       companyEmail,
       companyAddress,
-      companyWebsite
-    })
+      companyWebsite,
+      logoUrl,
+      refNumber: submission_id || `BOILER-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      submissionId: submission_id,
+      quoteLink: quoteLink || undefined,
+      quoteInfo,
+      addressInfo,
+      submissionDate,
+      privacyPolicy,
+      termsConditions,
+      primaryColor: companyColor
+    }
 
-    let adminHtml
-    if (adminEmail) {
+    // Try to get custom customer template first
+    let customerSubject = `Quote Verified Successfully${companyName ? ' - ' + companyName : ''}`
+    let customerHtml = ''
+    let customerText = ''
+
+    if (boilerCategory) {
+      const customCustomerTemplate = await getProcessedEmailTemplate(
+        partner.user_id,
+        'boiler',
+        'quote-verified',
+        'customer',
+        templateData
+      )
+
+      if (customCustomerTemplate) {
+        customerSubject = customCustomerTemplate.subject
+        customerHtml = customCustomerTemplate.html
+        customerText = customCustomerTemplate.text
+      }
+    }
+
+    // Fallback to hardcoded template if no custom template
+    if (!customerHtml) {
+      customerHtml = createCustomerEmailTemplate({
+        companyName,
+        logoUrl,
+        firstName: first_name,
+        lastName: last_name,
+        email,
+        phone,
+        postcode,
+        companyColor,
+        quoteInfo,
+        addressInfo,
+        submissionId: submission_id,
+        privacyPolicy,
+        termsConditions,
+        companyPhone,
+        companyEmail,
+        companyAddress,
+        companyWebsite
+      })
+    }
+
+    // Fallback customerText only if no custom template
+    if (!customerText) {
+      customerText = `Quote Verified Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
+        `Hi ${first_name},\n\n` +
+        `Great news! Your quote has been verified and you can now proceed to view your boiler options and pricing.\n\n` +
+        `Your Details:\n` +
+        `Name: ${first_name} ${last_name}\n` +
+        `Email: ${email}\n` +
+        (phone ? `Phone: ${phone}\n` : '') +
+        (postcode ? `Postcode: ${postcode}\n` : '') +
+        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        `\n${addressInfo ? 'Property Details:\n' + addressInfo + '\n\n' : ''}` +
+        `${quoteInfo ? 'Quote Information:\n' + quoteInfo + '\n\n' : ''}` +
+        `What happens next?\n` +
+        `• Browse our range of boiler options and pricing\n` +
+        `• Select the perfect boiler for your home\n` +
+        `• Choose your preferred installation date\n` +
+        `• Complete your booking with secure payment\n` +
+        `• Our certified engineers will handle the installation\n` +
+        `• Enjoy your new efficient heating system\n\n` +
+        `Thank you for choosing ${companyName || 'our service'}!`
+    }
+
+    // Try to get custom admin template first
+    let adminSubject = `Quote Verified - Customer Ready${companyName ? ' - ' + companyName : ''}`
+    let adminHtml = ''
+    let adminText = ''
+
+    if (adminEmail && boilerCategory) {
+      const customAdminTemplate = await getProcessedEmailTemplate(
+        partner.user_id,
+        'boiler',
+        'quote-verified',
+        'admin',
+        templateData
+      )
+
+      if (customAdminTemplate) {
+        adminSubject = customAdminTemplate.subject
+        adminHtml = customAdminTemplate.html
+        adminText = customAdminTemplate.text
+      }
+    }
+
+    // Fallback to hardcoded template if no custom template
+    if (!adminHtml && adminEmail) {
       adminHtml = createAdminEmailTemplate({
         companyName,
         logoUrl,
@@ -661,25 +793,19 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const customerText = `Quote Verified Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
-      `Hi ${first_name},\n\n` +
-      `Great news! Your quote has been verified and you can now proceed to view your boiler options and pricing.\n\n` +
-      `Your Details:\n` +
-      `Name: ${first_name} ${last_name}\n` +
-      `Email: ${email}\n` +
-      (phone ? `Phone: ${phone}\n` : '') +
-      (postcode ? `Postcode: ${postcode}\n` : '') +
-      (submission_id ? `Reference: ${submission_id}\n` : '') +
-      `\n${addressInfo ? 'Property Details:\n' + addressInfo + '\n\n' : ''}` +
-      `${quoteInfo ? 'Quote Information:\n' + quoteInfo + '\n\n' : ''}` +
-      `What happens next?\n` +
-      `• Browse our range of boiler options and pricing\n` +
-      `• Select the perfect boiler for your home\n` +
-      `• Choose your preferred installation date\n` +
-      `• Complete your booking with secure payment\n` +
-      `• Our certified engineers will handle the installation\n` +
-      `• Enjoy your new efficient heating system\n\n` +
-      `Thank you for choosing ${companyName || 'our service'}!`
+    // Fallback adminText only if no custom template
+    if (!adminText && adminEmail) {
+      adminText = `Quote Verified - Customer Ready${companyName ? ' - ' + companyName : ''}\n\n` +
+        `Customer Details:\n` +
+        `Name: ${first_name} ${last_name}\n` +
+        `Email: ${email}\n` +
+        (phone ? `Phone: ${phone}\n` : '') +
+        (postcode ? `Postcode: ${postcode}\n` : '') +
+        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        (addressInfo ? `\nProperty Details:\n${addressInfo}\n` : '') +
+        (quoteInfo ? `\nQuote Information:\n${quoteInfo}\n` : '') +
+        `\nThe customer is now ready to proceed with their boiler selection and booking.`
+    }
 
     try {
       // Send customer email
@@ -693,18 +819,6 @@ export async function POST(request: NextRequest) {
 
       // Send admin email if admin email is configured
       if (adminEmail && adminHtml) {
-        const adminText = `Quote Verified - Customer Ready${companyName ? ' - ' + companyName : ''}\n\n` +
-          `A customer has completed phone verification and is ready to proceed with booking.\n\n` +
-          `Customer Information:\n` +
-          `Name: ${first_name} ${last_name}\n` +
-          `Email: ${email}\n` +
-          (phone ? `Phone: ${phone}\n` : '') +
-          (postcode ? `Postcode: ${postcode}\n` : '') +
-          (submission_id ? `Reference: ${submission_id}\n` : '') +
-          `\n${addressInfo ? 'Property Details:\n' + addressInfo + '\n\n' : ''}` +
-          `${quoteInfo ? 'Quote Information:\n' + quoteInfo + '\n\n' : ''}` +
-          `Status: Customer phone verification completed successfully. Ready to view products and proceed with booking.`
-
         await transporter.sendMail({
           from: smtp.SMTP_FROM || smtp.SMTP_USER,
           to: adminEmail,

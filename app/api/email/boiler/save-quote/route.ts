@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
+import { getProcessedEmailTemplate, buildQuoteLink } from '@/lib/email-templates'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -461,11 +462,9 @@ export async function POST(request: NextRequest) {
     const companyName: string | undefined = partner.company_name || undefined
     const logoUrl: string | undefined = partner.logo_url || undefined
     const companyColor: string | undefined = partner.company_color || undefined
-    const adminEmail: string | undefined = partner.admin_mail || undefined
     const privacyPolicy: string | undefined = partner.privacy_policy || undefined
     const termsConditions: string | undefined = partner.terms_conditions || undefined
     const companyPhone: string | undefined = partner.phone || undefined
-    const companyEmail: string | undefined = partner.admin_mail || undefined
     const companyAddress: string | undefined = partner.address || undefined
     const companyWebsite: string | undefined = partner.website_url || undefined
 
@@ -490,13 +489,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'SMTP verification failed', details: verifyErr?.message || String(verifyErr) }, { status: 400 })
     }
 
+    // Get service category ID for boiler
+    const { data: boilerCategory } = await supabase
+      .from('ServiceCategories')
+      .select('service_category_id')
+      .eq('slug', 'boiler')
+      .single()
+
+    // Get category-specific admin email from PartnerSettings
+    let adminEmail: string | undefined = undefined
+    if (boilerCategory) {
+      const { data: partnerSettings } = await supabase
+        .from('PartnerSettings')
+        .select('admin_email')
+        .eq('partner_id', partner.user_id)
+        .eq('service_category_id', boilerCategory.service_category_id)
+        .single()
+
+      adminEmail = partnerSettings?.admin_email || undefined
+    }
+
+    const companyEmail: string | undefined = adminEmail || undefined
+
     const toAddress: string = email || smtp.SMTP_FROM
     if (!toAddress) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
 
-    const customerSubject = `Quote Saved Successfully${companyName ? ' - ' + companyName : ''}`
-    const adminSubject = `Customer Saved Quote - Follow Up${companyName ? ' - ' + companyName : ''}`
+    // Build base URL for the quote link
+    const baseUrl = partner.custom_domain && partner.domain_verified 
+      ? `https://${partner.custom_domain}`
+      : partner.subdomain 
+        ? `https://${partner.subdomain}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || 'yourdomain.com'}`
+        : null
+
+    const quoteLink = buildQuoteLink(
+      partner.custom_domain || null,
+      partner.domain_verified || null,
+      partner.subdomain || null,
+      submission_id,
+      'boiler'
+    )
 
     // Format products information
     const formatProducts = (productsData: any) => {
@@ -519,27 +552,124 @@ export async function POST(request: NextRequest) {
     }
 
     const productsInfo = formatProducts(products)
+    const submissionDate = new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
 
-    const customerHtml = createCustomerEmailTemplate({
-      companyName,
-      logoUrl,
+    // Prepare template data
+    const templateData = {
       firstName: first_name,
       lastName: last_name,
       email,
+      phone: undefined, // Not available in save-quote
       postcode,
-      companyColor,
-      productsInfo,
-      submissionId: submission_id,
-      privacyPolicy,
-      termsConditions,
+      companyName,
       companyPhone,
       companyEmail,
       companyAddress,
-      companyWebsite
-    })
+      companyWebsite,
+      logoUrl,
+      refNumber: submission_id || `BOILER-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      submissionId: submission_id,
+      quoteLink: quoteLink || undefined,
+      quoteInfo: productsInfo,
+      addressInfo: undefined, // Not available in save-quote
+      submissionDate,
+      privacyPolicy,
+      termsConditions,
+      primaryColor: companyColor
+    }
 
-    let adminHtml
-    if (adminEmail) {
+    // Try to get custom customer template first
+    let customerSubject = `Quote Saved Successfully${companyName ? ' - ' + companyName : ''}`
+    let customerHtml = ''
+    let customerText = ''
+
+    if (boilerCategory) {
+      const customCustomerTemplate = await getProcessedEmailTemplate(
+        partner.user_id,
+        'boiler',
+        'save-quote',
+        'customer',
+        templateData
+      )
+
+      if (customCustomerTemplate) {
+        customerSubject = customCustomerTemplate.subject
+        customerHtml = customCustomerTemplate.html
+        customerText = customCustomerTemplate.text
+      }
+    }
+
+    // Fallback to hardcoded template if no custom template
+    if (!customerHtml) {
+      customerHtml = createCustomerEmailTemplate({
+        companyName,
+        logoUrl,
+        firstName: first_name,
+        lastName: last_name,
+        email,
+        postcode,
+        companyColor,
+        productsInfo,
+        submissionId: submission_id,
+        privacyPolicy,
+        termsConditions,
+        companyPhone,
+        companyEmail,
+        companyAddress,
+        companyWebsite
+      })
+    }
+
+    // Fallback customerText only if no custom template
+    if (!customerText) {
+      customerText = `Quote Saved Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
+        `Hi ${first_name},\n\n` +
+        `Your boiler quote has been successfully saved. You can return anytime to complete your booking or make changes.\n\n` +
+        `Your Details:\n` +
+        `Name: ${first_name} ${last_name}\n` +
+        `Email: ${email}\n` +
+        (postcode ? `Postcode: ${postcode}\n` : '') +
+        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        `\n${productsInfo ? 'Saved Products & Options:\n' + productsInfo + '\n\n' : ''}` +
+        `Your Quote Benefits:\n` +
+        `• Quote saved for 30 days - no pressure to decide now\n` +
+        `• Prices locked in at current rates\n` +
+        `• Easy to return and complete your booking\n` +
+        `• Modify your selection anytime before booking\n` +
+        `• Professional installation included\n` +
+        `• Full warranty and aftercare support\n\n` +
+        `Thank you for choosing ${companyName || 'our service'}! We're here whenever you're ready to proceed.`
+    }
+
+    // Try to get custom admin template first
+    let adminSubject = `Customer Saved Quote - Follow Up${companyName ? ' - ' + companyName : ''}`
+    let adminHtml = ''
+    let adminText = ''
+
+    if (adminEmail && boilerCategory) {
+      const customAdminTemplate = await getProcessedEmailTemplate(
+        partner.user_id,
+        'boiler',
+        'save-quote',
+        'admin',
+        templateData
+      )
+
+      if (customAdminTemplate) {
+        adminSubject = customAdminTemplate.subject
+        adminHtml = customAdminTemplate.html
+        adminText = customAdminTemplate.text
+      }
+    }
+
+    // Fallback to hardcoded template if no custom template
+    if (!adminHtml && adminEmail) {
       adminHtml = createAdminEmailTemplate({
         companyName,
         logoUrl,
@@ -557,23 +687,18 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const customerText = `Quote Saved Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
-      `Hi ${first_name},\n\n` +
-      `Your boiler quote has been successfully saved. You can return anytime to complete your booking or make changes.\n\n` +
-      `Your Details:\n` +
-      `Name: ${first_name} ${last_name}\n` +
-      `Email: ${email}\n` +
-      (postcode ? `Postcode: ${postcode}\n` : '') +
-      (submission_id ? `Reference: ${submission_id}\n` : '') +
-      `\n${productsInfo ? 'Saved Products & Options:\n' + productsInfo + '\n\n' : ''}` +
-      `Your Quote Benefits:\n` +
-      `• Quote saved for 30 days - no pressure to decide now\n` +
-      `• Prices locked in at current rates\n` +
-      `• Easy to return and complete your booking\n` +
-      `• Modify your selection anytime before booking\n` +
-      `• Professional installation included\n` +
-      `• Full warranty and aftercare support\n\n` +
-      `Thank you for choosing ${companyName || 'our service'}! We're here whenever you're ready to proceed.`
+    // Fallback adminText only if no custom template
+    if (!adminText && adminEmail) {
+      adminText = `Customer Saved Quote - Follow Up${companyName ? ' - ' + companyName : ''}\n\n` +
+        `A customer has saved their boiler quote - great follow-up opportunity!\n\n` +
+        `Customer Information:\n` +
+        `Name: ${first_name} ${last_name}\n` +
+        `Email: ${email}\n` +
+        (postcode ? `Postcode: ${postcode}\n` : '') +
+        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        (productsInfo ? `\nSaved Products & Options:\n${productsInfo}\n` : '') +
+        `\nThis is a great opportunity to follow up and help them complete their booking.`
+    }
 
     try {
       // Send customer email
@@ -587,17 +712,6 @@ export async function POST(request: NextRequest) {
 
       // Send admin email if admin email is configured
       if (adminEmail && adminHtml) {
-        const adminText = `Customer Saved Quote - Follow Up${companyName ? ' - ' + companyName : ''}\n\n` +
-          `A customer has saved their boiler quote - great follow-up opportunity!\n\n` +
-          `Customer Information:\n` +
-          `Name: ${first_name} ${last_name}\n` +
-          `Email: ${email}\n` +
-          (postcode ? `Postcode: ${postcode}\n` : '') +
-          (submission_id ? `Reference: ${submission_id}\n` : '') +
-          `\n${productsInfo ? 'Saved Products & Options:\n' + productsInfo + '\n\n' : ''}` +
-          `Action Required: Contact customer within 24-48 hours to help convert the quote into a booking. ` +
-          `High conversion opportunity - customer has shown strong interest by saving their quote.`
-
         await transporter.sendMail({
           from: smtp.SMTP_FROM || smtp.SMTP_USER,
           to: adminEmail,

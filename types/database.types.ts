@@ -37,8 +37,33 @@ export interface UserProfile {
   otp?: boolean | null;
   smtp_settings?: any;
   twilio_settings?: any;
+  stripe_settings?: any;
+  kanda_settings?: any;
+  header_code?: string | null;
+  footer_code?: string | null;
+  body_code?: string | null;
+  privacy_policy?: string | null;
+  terms_conditions?: string | null;
+  admin_mail?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PartnerSettings {
+  setting_id: string;
+  partner_id: string;
+  service_category_id: string;
+  apr_settings: any;
+  otp_enabled?: boolean;
+  included_items: any[];
+  faqs: any[];
+  created_at: string;
+  updated_at: string;
+  is_stripe_enabled: boolean;
+  is_kanda_enabled: boolean;
+  is_monthly_payment_enabled: boolean;
+  is_pay_after_installation_enabled: boolean;
+  admin_email?: string | null;
 }
 
 export interface ServiceCategory {

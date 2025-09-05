@@ -565,11 +565,9 @@ export async function POST(request: NextRequest) {
     const companyName: string | undefined = partner.company_name || undefined
     const logoUrl: string | undefined = partner.logo_url || undefined
     const companyColor: string | undefined = partner.company_color || undefined
-    const adminEmail: string | undefined = partner.admin_mail || undefined
     const privacyPolicy: string | undefined = partner.privacy_policy || undefined
     const termsConditions: string | undefined = partner.terms_conditions || undefined
     const companyPhone: string | undefined = partner.phone || undefined
-    const companyEmail: string | undefined = partner.admin_mail || undefined
     const companyAddress: string | undefined = partner.address || undefined
     const companyWebsite: string | undefined = partner.website_url || undefined
     
@@ -636,9 +634,9 @@ export async function POST(request: NextRequest) {
         : null
 
     const quoteLink = buildQuoteLink(
-      partner.custom_domain,
-      partner.domain_verified,
-      partner.subdomain,
+      partner.custom_domain || null,
+      partner.domain_verified || null,
+      partner.subdomain || null,
       submission_id,
       'boiler'
     )
@@ -649,6 +647,21 @@ export async function POST(request: NextRequest) {
       .select('service_category_id')
       .eq('slug', 'boiler')
       .single()
+
+    // Get category-specific admin email from PartnerSettings
+    let adminEmail: string | undefined = undefined
+    if (boilerCategory) {
+      const { data: partnerSettings } = await supabase
+        .from('PartnerSettings')
+        .select('admin_email')
+        .eq('partner_id', partner.user_id)
+        .eq('service_category_id', boilerCategory.service_category_id)
+        .single()
+
+      adminEmail = partnerSettings?.admin_email || undefined
+    }
+
+    const companyEmail: string | undefined = adminEmail || undefined
 
     // Prepare template data
     const templateData = {
@@ -665,7 +678,7 @@ export async function POST(request: NextRequest) {
       logoUrl,
       refNumber,
       submissionId: submission_id,
-      quoteLink,
+      quoteLink: quoteLink || undefined,
       quoteInfo,
       addressInfo,
       submissionDate,

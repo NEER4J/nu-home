@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
-import { resolvePartnerByHost } from '@/lib/partner'
+import { resolvePartnerByHostname } from '@/lib/partner'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -15,10 +15,17 @@ type NormalizedSmtp = {
   SMTP_FROM: string
 }
 
-function parseHostname(request: NextRequest): string | null {
+function parseHostname(request: NextRequest, bodySubdomain?: string | null): string | null {
+  try {
+    const url = new URL(request.url)
+    const urlParamSubdomain = url.searchParams.get('subdomain')
+    if (urlParamSubdomain) return urlParamSubdomain
+  } catch {}
+  if (bodySubdomain) return bodySubdomain
   const host = request.headers.get('host') || ''
   const hostname = host.split(':')[0]
-  if (!hostname || hostname === 'localhost') return null
+  // Return hostname even for localhost (for development)
+  if (!hostname) return null
   return hostname
 }
 
@@ -60,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { to, subject, html, text } = body
+    const { to, subject, html, text, subdomain } = body
 
     if (!to || !subject || !html) {
       return NextResponse.json(
@@ -70,12 +77,38 @@ export async function POST(request: NextRequest) {
     }
 
     // Get partner profile and SMTP settings
-    const hostname = parseHostname(request)
+    const hostname = parseHostname(request, subdomain)
+    console.log('Test email - Request host:', request.headers.get('host'))
+    console.log('Test email - Request URL:', request.url)
+    console.log('Test email - Body subdomain:', subdomain)
+    console.log('Test email - Parsed hostname:', hostname)
+    
     if (!hostname) {
       return NextResponse.json({ error: 'Invalid hostname' }, { status: 400 })
     }
 
-    const partner = await resolvePartnerByHost(supabase, hostname)
+    let partner = await resolvePartnerByHostname(supabase, hostname)
+    console.log('Test email - Partner found by hostname:', partner ? partner.company_name : 'null')
+    
+    // If no partner found by hostname and we're in localhost (development), 
+    // try to get partner by authenticated user
+    if (!partner && (hostname === 'localhost' || hostname.includes('localhost'))) {
+      console.log('Test email - No partner found by hostname, trying to get by user ID')
+      const { data: userPartner, error: userError } = await supabase
+        .from('UserProfiles')
+        .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified, admin_mail, privacy_policy, terms_conditions, address')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single()
+      
+      if (!userError && userPartner) {
+        partner = userPartner
+        console.log('Test email - Partner found by user ID:', partner.company_name)
+      } else {
+        console.log('Test email - No partner found by user ID, error:', userError)
+      }
+    }
+    
     if (!partner) {
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 })
     }

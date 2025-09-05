@@ -16,7 +16,6 @@ export type PartnerProfile = {
   twilio_settings?: any
   custom_domain?: string | null
   domain_verified?: boolean | null
-  admin_mail?: string | null
   privacy_policy?: string | null
   terms_conditions?: string | null
   address?: string | null
@@ -46,7 +45,7 @@ export async function resolvePartnerByHost(
     console.log('Trying custom domain match for:', hostname)
     const { data, error } = await supabase
       .from('UserProfiles')
-      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified, admin_mail, privacy_policy, terms_conditions, address')
+      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified, privacy_policy, terms_conditions, address')
       .eq('status', 'active')
       .eq('custom_domain', hostname)
       .or('domain_verified.eq.true,domain_verified.is.null') // Allow both verified and unverified for now
@@ -73,7 +72,7 @@ export async function resolvePartnerByHost(
     console.log('Trying subdomain match for:', firstLabel)
     const { data, error } = await supabase
       .from('UserProfiles')
-      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified, admin_mail, privacy_policy, terms_conditions, address')
+      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified, privacy_policy, terms_conditions, address')
       .eq('subdomain', firstLabel)
       .eq('status', 'active')
       .single()
