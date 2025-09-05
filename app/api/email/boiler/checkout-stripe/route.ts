@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
+import { getProcessedEmailTemplate } from '@/lib/email-templates'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -548,11 +549,9 @@ export async function POST(request: NextRequest) {
     const companyName: string | undefined = partner.company_name || undefined
     const logoUrl: string | undefined = partner.logo_url || undefined
     const companyColor: string | undefined = partner.company_color || undefined
-    const adminEmail: string | undefined = partner.admin_mail || undefined
     const privacyPolicy: string | undefined = partner.privacy_policy || undefined
     const termsConditions: string | undefined = partner.terms_conditions || undefined
     const companyPhone: string | undefined = partner.phone || undefined
-    const companyEmail: string | undefined = partner.admin_mail || undefined
     const companyAddress: string | undefined = partner.address || undefined
     const companyWebsite: string | undefined = partner.website_url || undefined
 
@@ -577,14 +576,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'SMTP verification failed', details: verifyErr?.message || String(verifyErr) }, { status: 400 })
     }
 
+    // Get service category ID for boiler
+    const { data: boilerCategory } = await supabase
+      .from('ServiceCategories')
+      .select('service_category_id')
+      .eq('slug', 'boiler')
+      .single()
+
+    // Get category-specific admin email from PartnerSettings
+    let adminEmail: string | undefined = undefined
+    if (boilerCategory) {
+      const { data: partnerSettings } = await supabase
+        .from('PartnerSettings')
+        .select('admin_email')
+        .eq('partner_id', partner.user_id)
+        .eq('service_category_id', boilerCategory.service_category_id)
+        .single()
+
+      adminEmail = partnerSettings?.admin_email || undefined
+    }
+
+    const companyEmail: string | undefined = adminEmail || undefined
+
     const toAddress: string = email || smtp.SMTP_FROM
     if (!toAddress) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
 
-    const customerSubject = `Payment Confirmed - Your Boiler Installation${companyName ? ' with ' + companyName : ''}`
-    const adminSubject = `Payment Confirmed - Installation Booking${companyName ? ' - ' + companyName : ''}`
-    
     const formatOrderDetails = (orderData: any) => {
       if (!orderData) return 'Order details not available'
       
@@ -633,30 +651,50 @@ export async function POST(request: NextRequest) {
     const paymentInfo = formatPaymentDetails(payment_details)
     const installationInfo = installation_date ? `Scheduled installation date: ${new Date(installation_date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : undefined
 
-    const customerHtml = createCustomerEmailTemplate({
-      companyName,
-      logoUrl,
+    // Prepare template data
+    const templateData = {
       firstName: first_name,
       lastName: last_name,
       email,
       phone,
       postcode,
-      companyColor,
+      companyName,
+      logoUrl,
+      companyPhone,
+      companyEmail,
+      companyAddress,
+      companyWebsite,
+      primaryColor: companyColor,
       orderDetails,
       paymentInfo,
       installationInfo,
       submissionId: submission_id,
       privacyPolicy,
-      termsConditions,
-      companyPhone,
-      companyEmail,
-      companyAddress,
-      companyWebsite
-    })
+      termsConditions
+    }
 
-    let adminHtml
-    if (adminEmail) {
-      adminHtml = createAdminEmailTemplate({
+    // Try to get custom templates
+    let customerSubject = `Payment Confirmed - Your Boiler Installation${companyName ? ' with ' + companyName : ''}`
+    let customerHtml = ''
+    let customerText = ''
+
+    const customCustomerTemplate = await getProcessedEmailTemplate(
+      partner.user_id,
+      'boiler',
+      'checkout-stripe',
+      'customer',
+      templateData
+    )
+
+    if (customCustomerTemplate) {
+      customerSubject = customCustomerTemplate.subject
+      customerHtml = customCustomerTemplate.html
+      customerText = customCustomerTemplate.text
+    }
+
+    // Fallback to hardcoded template if no custom template
+    if (!customerHtml) {
+      customerHtml = createCustomerEmailTemplate({
         companyName,
         logoUrl,
         firstName: first_name,
@@ -671,31 +709,94 @@ export async function POST(request: NextRequest) {
         submissionId: submission_id,
         privacyPolicy,
         termsConditions,
+        companyPhone,
+        companyEmail,
         companyAddress,
         companyWebsite
       })
     }
 
-    const customerText = `Payment Confirmed - Your Boiler Installation${companyName ? ' with ' + companyName : ''}\n\n` +
-      `Hi ${first_name},\n\n` +
-      `Great news! Your payment has been confirmed and your boiler installation is now booked.\n\n` +
-      `Customer Details:\n` +
-      `Name: ${first_name} ${last_name}\n` +
-      `Email: ${email}\n` +
-      (phone ? `Phone: ${phone}\n` : '') +
-      (postcode ? `Postcode: ${postcode}\n` : '') +
-      `\n${installationInfo ? installationInfo + '\n\n' : ''}` +
-      `Order Summary:\n${orderDetails}\n\n` +
-      `Payment Information:\n${paymentInfo}\n\n` +
-      (submission_id ? `Booking Reference: ${submission_id}\n\n` : '') +
-      `What happens next?\n` +
-      `• We'll send you a confirmation SMS\n` +
-      `• Our team will contact you 24-48 hours before installation\n` +
-      `• Our certified engineers will arrive on your scheduled date\n` +
-      `• Installation will be completed with full inspection\n` +
-      `• Full warranty and aftercare support provided\n` +
-      `• You'll receive warranty documentation upon completion\n\n` +
-      `Thank you for choosing ${companyName || 'our service'}!`
+    // Fallback customerText only if no custom template
+    if (!customerText) {
+      customerText = `Payment Confirmed - Your Boiler Installation${companyName ? ' with ' + companyName : ''}\n\n` +
+        `Hi ${first_name},\n\n` +
+        `Great news! Your payment has been processed successfully and your boiler installation is now confirmed.\n\n` +
+        `Customer Details:\n` +
+        `Name: ${first_name} ${last_name}\n` +
+        `Email: ${email}\n` +
+        (phone ? `Phone: ${phone}\n` : '') +
+        (postcode ? `Postcode: ${postcode}\n` : '') +
+        `\n${installationInfo ? installationInfo + '\n\n' : ''}` +
+        `Order Summary:\n${orderDetails}\n\n` +
+        `Payment Information:\n${paymentInfo}\n\n` +
+        (submission_id ? `Booking Reference: ${submission_id}\n\n` : '') +
+        `What happens next?\n` +
+        `• You'll receive a confirmation SMS shortly\n` +
+        `• Our team will contact you 24-48 hours before installation\n` +
+        `• Our certified engineers will arrive on your scheduled date\n` +
+        `• Installation will be completed with full warranty\n` +
+        `• You'll receive all documentation and certificates\n\n` +
+        `Thank you for choosing ${companyName || 'our service'}!`
+    }
+
+    let adminSubject = `Payment Confirmed - Installation Booking${companyName ? ' - ' + companyName : ''}`
+    let adminHtml = ''
+    let adminText = ''
+
+    if (adminEmail) {
+      const customAdminTemplate = await getProcessedEmailTemplate(
+        partner.user_id,
+        'boiler',
+        'checkout-stripe',
+        'admin',
+        templateData
+      )
+
+      if (customAdminTemplate) {
+        adminSubject = customAdminTemplate.subject
+        adminHtml = customAdminTemplate.html
+        adminText = customAdminTemplate.text
+      }
+
+      // Fallback to hardcoded template if no custom template
+      if (!adminHtml) {
+        adminHtml = createAdminEmailTemplate({
+          companyName,
+          logoUrl,
+          firstName: first_name,
+          lastName: last_name,
+          email,
+          phone,
+          postcode,
+          companyColor,
+          orderDetails,
+          paymentInfo,
+          installationInfo,
+          submissionId: submission_id,
+          privacyPolicy,
+          termsConditions,
+          companyAddress,
+          companyWebsite
+        })
+      }
+
+      // Fallback adminText only if no custom template
+      if (!adminText) {
+        adminText = `Payment Confirmed - Installation Booking${companyName ? ' - ' + companyName : ''}\n\n` +
+          `A customer has successfully paid and booked boiler installation.\n\n` +
+          `Customer Information:\n` +
+          `Name: ${first_name} ${last_name}\n` +
+          `Email: ${email}\n` +
+          (phone ? `Phone: ${phone}\n` : '') +
+          (postcode ? `Postcode: ${postcode}\n` : '') +
+          (submission_id ? `Reference: ${submission_id}\n` : '') +
+          `\n${installationInfo ? installationInfo + '\n\n' : ''}` +
+          `Order Details:\n${orderDetails}\n\n` +
+          `Payment Information:\n${paymentInfo}\n\n` +
+          `Action Required: Schedule installation and prepare for customer contact.`
+      }
+    }
+
 
     try {
       // Send customer email
@@ -709,18 +810,6 @@ export async function POST(request: NextRequest) {
 
       // Send admin email if admin email is configured
       if (adminEmail && adminHtml) {
-        const adminText = `Payment Confirmed - Installation Booking${companyName ? ' - ' + companyName : ''}\n\n` +
-          `A customer has completed payment and booked an installation.\n\n` +
-          `Customer Information:\n` +
-          `Name: ${first_name} ${last_name}\n` +
-          `Email: ${email}\n` +
-          (phone ? `Phone: ${phone}\n` : '') +
-          (postcode ? `Postcode: ${postcode}\n` : '') +
-          (submission_id ? `Reference: ${submission_id}\n` : '') +
-          `\n${installationInfo ? installationInfo + '\n\n' : ''}` +
-          `Order Details:\n${orderDetails}\n\n` +
-          `Payment Information:\n${paymentInfo}\n\n` +
-          `Payment has been successfully processed. Installation can be scheduled.`
 
         await transporter.sendMail({
           from: smtp.SMTP_FROM || smtp.SMTP_USER,

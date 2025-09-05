@@ -46,7 +46,6 @@ export async function resolvePartnerByHost(
     const { data, error } = await supabase
       .from('UserProfiles')
       .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified, privacy_policy, terms_conditions, address')
-      .eq('status', 'active')
       .eq('custom_domain', hostname)
       .or('domain_verified.eq.true,domain_verified.is.null') // Allow both verified and unverified for now
       .single()
@@ -74,7 +73,6 @@ export async function resolvePartnerByHost(
       .from('UserProfiles')
       .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified, privacy_policy, terms_conditions, address')
       .eq('subdomain', firstLabel)
-      .eq('status', 'active')
       .single()
 
     if (!error && data) {

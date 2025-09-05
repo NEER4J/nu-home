@@ -24,7 +24,37 @@ import {
   getDefaultAdminSaveQuoteTemplate,
   getDefaultAdminSaveQuoteTextTemplate
 } from '@/lib/email-templates/save-quote'
-import { getDefaultDynamicFields } from '@/lib/email-templates/shared'
+import {
+  getDefaultCustomerCheckoutMonthlyTemplate,
+  getDefaultCustomerCheckoutMonthlyTextTemplate,
+  getDefaultAdminCheckoutMonthlyTemplate,
+  getDefaultAdminCheckoutMonthlyTextTemplate
+} from '@/lib/email-templates/checkout-monthly'
+import {
+  getDefaultCustomerCheckoutPayLaterTemplate,
+  getDefaultCustomerCheckoutPayLaterTextTemplate,
+  getDefaultAdminCheckoutPayLaterTemplate,
+  getDefaultAdminCheckoutPayLaterTextTemplate
+} from '@/lib/email-templates/checkout-pay-later'
+import {
+  getDefaultCustomerCheckoutStripeTemplate,
+  getDefaultCustomerCheckoutStripeTextTemplate,
+  getDefaultAdminCheckoutStripeTemplate,
+  getDefaultAdminCheckoutStripeTextTemplate
+} from '@/lib/email-templates/checkout-stripe'
+import {
+  getDefaultCustomerEnquirySubmittedTemplate,
+  getDefaultCustomerEnquirySubmittedTextTemplate,
+  getDefaultAdminEnquirySubmittedTemplate,
+  getDefaultAdminEnquirySubmittedTextTemplate
+} from '@/lib/email-templates/enquiry-submitted'
+import {
+  getDefaultCustomerSurveySubmittedTemplate,
+  getDefaultCustomerSurveySubmittedTextTemplate,
+  getDefaultAdminSurveySubmittedTemplate,
+  getDefaultAdminSurveySubmittedTextTemplate
+} from '@/lib/email-templates/survey-submitted'
+import { getDefaultDynamicFields, getDefaultTemplateFields, TemplateField } from '@/lib/email-templates/shared'
 
 // Helper function to get templates based on category and email type
 const getTemplatesByType = (categorySlug: string, emailType: string, recipientType: 'customer' | 'admin', templateType: 'html' | 'text') => {
@@ -47,6 +77,36 @@ const getTemplatesByType = (categorySlug: string, emailType: string, recipientTy
         return templateType === 'html' ? getDefaultCustomerSaveQuoteTemplate() : getDefaultCustomerSaveQuoteTextTemplate()
       } else {
         return templateType === 'html' ? getDefaultAdminSaveQuoteTemplate() : getDefaultAdminSaveQuoteTextTemplate()
+      }
+    } else if (emailType === 'checkout-monthly') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerCheckoutMonthlyTemplate() : getDefaultCustomerCheckoutMonthlyTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminCheckoutMonthlyTemplate() : getDefaultAdminCheckoutMonthlyTextTemplate()
+      }
+    } else if (emailType === 'checkout-pay-later') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerCheckoutPayLaterTemplate() : getDefaultCustomerCheckoutPayLaterTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminCheckoutPayLaterTemplate() : getDefaultAdminCheckoutPayLaterTextTemplate()
+      }
+    } else if (emailType === 'checkout-stripe') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerCheckoutStripeTemplate() : getDefaultCustomerCheckoutStripeTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminCheckoutStripeTemplate() : getDefaultAdminCheckoutStripeTextTemplate()
+      }
+    } else if (emailType === 'enquiry-submitted') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerEnquirySubmittedTemplate() : getDefaultCustomerEnquirySubmittedTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminEnquirySubmittedTemplate() : getDefaultAdminEnquirySubmittedTextTemplate()
+      }
+    } else if (emailType === 'survey-submitted') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerSurveySubmittedTemplate() : getDefaultCustomerSurveySubmittedTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminSurveySubmittedTemplate() : getDefaultAdminSurveySubmittedTextTemplate()
       }
     }
   }
@@ -91,16 +151,7 @@ interface ServiceCategory {
   is_active: boolean
 }
 
-interface TemplateField {
-  field_id: string
-  field_name: string
-  field_type: string
-  display_name: string
-  description?: string
-  is_required: boolean
-  is_system: boolean
-  sample_value?: string
-}
+// TemplateField interface is now imported from shared.ts
 
 // Email types organized by category slug
 const EMAIL_TYPES_BY_CATEGORY = {
@@ -119,6 +170,31 @@ const EMAIL_TYPES_BY_CATEGORY = {
       id: 'save-quote',
       name: 'Save Quote',
       description: 'Sent when a customer saves their quote for later',
+    },
+    {
+      id: 'checkout-monthly',
+      name: 'Monthly Payment Plan Confirmed',
+      description: 'Sent when a customer confirms a monthly payment plan',
+    },
+    {
+      id: 'checkout-pay-later',
+      name: 'Pay After Installation Booked',
+      description: 'Sent when a customer books installation with pay-after-completion',
+    },
+    {
+      id: 'checkout-stripe',
+      name: 'Payment Confirmed',
+      description: 'Sent when a customer completes payment via Stripe',
+    },
+    {
+      id: 'enquiry-submitted',
+      name: 'Enquiry Submitted',
+      description: 'Sent when a customer submits a general enquiry',
+    },
+    {
+      id: 'survey-submitted',
+      name: 'Survey Submitted',
+      description: 'Sent when a customer completes a survey',
     },
   ],
   aircon: [
@@ -148,7 +224,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
-  const [templateFields, setTemplateFields] = useState<TemplateField[]>([])
+  const [templateFields, setTemplateFields] = useState<TemplateField[]>(getDefaultTemplateFields())
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
 
   const [activeTab, setActiveTab] = useState('customer')
@@ -189,7 +265,6 @@ export default function NotificationsPage() {
       }
       
       loadTemplates()
-      loadTemplateFields()
       loadAdminEmail()
     }
   }, [selectedCategoryId, selectedEmailType, categories])
@@ -345,37 +420,7 @@ export default function NotificationsPage() {
     }
   }
 
-  const loadTemplateFields = async () => {
-    if (!selectedCategoryId) return
-    
-    try {
-      // Try to load fields by service_category_id first
-      let { data, error } = await supabase
-        .from('template_fields')
-        .select('*')
-        .eq('service_category_id', selectedCategoryId)
-        .order('display_name')
-
-      // If that fails, try the old category-based approach
-      if (error || !data || data.length === 0) {
-        console.log('Trying fallback category approach for template fields')
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('template_fields')
-          .select('*')
-          .eq('category', 'boiler') // fallback to boiler for now
-          .order('display_name')
-
-        if (fallbackError) throw fallbackError
-        data = fallbackData
-      }
-
-      setTemplateFields(data || [])
-    } catch (error) {
-      console.error('Error loading template fields:', error)
-      // Set empty array so the page doesn't get stuck
-      setTemplateFields([])
-    }
-  }
+  // Template fields are now hardcoded and loaded from shared.ts
 
   const loadAdminEmail = async () => {
     if (!selectedCategoryId) return
@@ -401,9 +446,6 @@ export default function NotificationsPage() {
 
   const createDefaultTemplates = async (partnerId: string, categoryId: string, emailType: string) => {
     try {
-      // First, ensure template fields exist for this category
-      await createDefaultTemplateFields(categoryId)
-
       // Get category slug for template selection
       const categorySlug = categories.find(c => c.service_category_id === categoryId)?.slug || ''
 
@@ -431,6 +473,11 @@ export default function NotificationsPage() {
           'quote-initial': { customer: 'Customer Quote Confirmation', admin: 'Admin Quote Notification' },
           'quote-verified': { customer: 'Customer Quote Verified', admin: 'Admin Quote Verified Notification' },
           'save-quote': { customer: 'Customer Save Quote', admin: 'Admin Save Quote Notification' },
+          'checkout-monthly': { customer: 'Customer Monthly Payment Plan', admin: 'Admin Monthly Payment Plan Notification' },
+          'checkout-pay-later': { customer: 'Customer Pay After Installation', admin: 'Admin Pay After Installation Notification' },
+          'checkout-stripe': { customer: 'Customer Payment Confirmed', admin: 'Admin Payment Confirmed Notification' },
+          'enquiry-submitted': { customer: 'Customer Enquiry Confirmation', admin: 'Admin Enquiry Notification' },
+          'survey-submitted': { customer: 'Customer Survey Confirmation', admin: 'Admin Survey Notification' },
           'aircon-quote-initial': { customer: 'AC Quote Confirmation', admin: 'Admin AC Quote Notification' },
           'aircon-installation-scheduled': { customer: 'AC Installation Scheduled', admin: 'Admin AC Installation Notification' },
           'aircon-maintenance-reminder': { customer: 'AC Maintenance Reminder', admin: 'Admin AC Maintenance Notification' },
@@ -443,6 +490,11 @@ export default function NotificationsPage() {
           'quote-initial': { customer: 'Email sent to customers after they submit a quote request', admin: 'Notification sent to admin when a new quote is submitted' },
           'quote-verified': { customer: 'Email sent to customers after phone verification is completed', admin: 'Notification sent to admin when customer completes phone verification' },
           'save-quote': { customer: 'Email sent when customer saves quote for later', admin: 'Notification sent to admin when customer saves quote' },
+          'checkout-monthly': { customer: 'Email sent when customer confirms monthly payment plan', admin: 'Notification sent to admin when monthly payment plan is confirmed' },
+          'checkout-pay-later': { customer: 'Email sent when customer books pay-after-installation', admin: 'Notification sent to admin when pay-after-installation is booked' },
+          'checkout-stripe': { customer: 'Email sent when customer completes payment via Stripe', admin: 'Notification sent to admin when payment is completed' },
+          'enquiry-submitted': { customer: 'Email sent when customer submits a general enquiry', admin: 'Notification sent to admin when enquiry is submitted' },
+          'survey-submitted': { customer: 'Email sent when customer completes a survey', admin: 'Notification sent to admin when survey is submitted' },
           'aircon-quote-initial': { customer: 'Email sent to customers after AC quote request', admin: 'Notification sent to admin when new AC quote is submitted' },
           'aircon-installation-scheduled': { customer: 'Email sent when AC installation is scheduled', admin: 'Notification sent to admin about scheduled AC installation' },
           'aircon-maintenance-reminder': { customer: 'Reminder sent to customers about AC maintenance', admin: 'Notification to admin about maintenance reminders sent' },
@@ -455,6 +507,11 @@ export default function NotificationsPage() {
           'quote-initial': { customer: 'Your quote request - {{companyName}}', admin: 'New Quote Request - {{companyName}}' },
           'quote-verified': { customer: 'Quote Verified Successfully - {{companyName}}', admin: 'Quote Verified - Customer Ready - {{companyName}}' },
           'save-quote': { customer: 'Quote Saved Successfully - {{companyName}}', admin: 'Customer Saved Quote - Follow Up - {{companyName}}' },
+          'checkout-monthly': { customer: 'Monthly Payment Plan Confirmed - {{companyName}}', admin: 'New Monthly Payment Plan Booking - {{companyName}}' },
+          'checkout-pay-later': { customer: 'Installation Booked - Pay After Completion - {{companyName}}', admin: 'New Pay After Installation Booking - {{companyName}}' },
+          'checkout-stripe': { customer: 'Payment Confirmed - Your Boiler Installation - {{companyName}}', admin: 'Payment Confirmed - Installation Booking - {{companyName}}' },
+          'enquiry-submitted': { customer: 'Enquiry Submitted Successfully - {{companyName}}', admin: 'New Enquiry Submitted - {{companyName}}' },
+          'survey-submitted': { customer: 'Survey Submitted Successfully - {{companyName}}', admin: 'New Survey Response Received - {{companyName}}' },
           'aircon-quote-initial': { customer: 'Your AC Quote Request - {{companyName}}', admin: 'New AC Quote Request - {{companyName}}' },
           'aircon-installation-scheduled': { customer: 'AC Installation Scheduled - {{companyName}}', admin: 'AC Installation Scheduled - {{companyName}}' },
           'aircon-maintenance-reminder': { customer: 'AC Maintenance Reminder - {{companyName}}', admin: 'AC Maintenance Reminder Sent - {{companyName}}' },
@@ -520,62 +577,7 @@ export default function NotificationsPage() {
     }
   }
 
-  const createDefaultTemplateFields = async (categoryId: string) => {
-    try {
-      // Get category slug for proper field creation
-      const categorySlug = categories.find(c => c.service_category_id === categoryId)?.slug || 'boiler'
-      
-      // Check if fields already exist for this category
-      const { data: existingFields } = await supabase
-        .from('template_fields')
-        .select('field_id')
-        .eq('service_category_id', categoryId)
-        .limit(1)
-
-      if (existingFields && existingFields.length > 0) {
-        return // Fields already exist
-      }
-
-      const defaultFields = [
-        // Customer fields
-        { service_category_id: categoryId, category: categorySlug, field_name: 'firstName', field_type: 'text', display_name: 'First Name', description: 'Customer first name', is_required: true, is_system: true, sample_value: 'John' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'lastName', field_type: 'text', display_name: 'Last Name', description: 'Customer last name', is_required: true, is_system: true, sample_value: 'Doe' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'email', field_type: 'text', display_name: 'Email', description: 'Customer email address', is_required: true, is_system: true, sample_value: 'john.doe@example.com' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'phone', field_type: 'text', display_name: 'Phone', description: 'Customer phone number', is_required: false, is_system: true, sample_value: '07123456789' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'postcode', field_type: 'text', display_name: 'Postcode', description: 'Customer postcode', is_required: true, is_system: true, sample_value: 'SW1A 1AA' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'refNumber', field_type: 'text', display_name: 'Reference Number', description: 'Quote reference number', is_required: true, is_system: true, sample_value: 'REF-2024-001' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'submissionId', field_type: 'text', display_name: 'Submission ID', description: 'Unique submission identifier', is_required: true, is_system: true, sample_value: '896cd588-20e5-45c2-8c30-2622958bfca2' },
-
-        // Company fields
-        { service_category_id: categoryId, category: categorySlug, field_name: 'companyName', field_type: 'text', display_name: 'Company Name', description: 'Partner company name', is_required: true, is_system: true, sample_value: categorySlug === 'aircon' ? 'ABC Air Conditioning Ltd' : 'ABC Boilers Ltd' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'companyPhone', field_type: 'text', display_name: 'Company Phone', description: 'Company contact phone', is_required: false, is_system: true, sample_value: '0800 123 4567' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'companyEmail', field_type: 'text', display_name: 'Company Email', description: 'Company contact email', is_required: false, is_system: true, sample_value: categorySlug === 'aircon' ? 'info@abcaircon.com' : 'info@abcboilers.com' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'companyAddress', field_type: 'text', display_name: 'Company Address', description: 'Company full address', is_required: false, is_system: true, sample_value: '123 Business St, London' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'companyWebsite', field_type: 'text', display_name: 'Company Website', description: 'Company website URL', is_required: false, is_system: true, sample_value: categorySlug === 'aircon' ? 'https://www.abcaircon.com' : 'https://www.abcboilers.com' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'logoUrl', field_type: 'text', display_name: 'Logo URL', description: 'Company logo image URL', is_required: false, is_system: true, sample_value: 'https://example.com/logo.png' },
-
-        // Quote fields
-        { service_category_id: categoryId, category: categorySlug, field_name: 'quoteInfo', field_type: 'table', display_name: 'Quote Information', description: 'Detailed quote information', is_required: false, is_system: true, sample_value: categorySlug === 'aircon' ? 'AC Type: Split System\nProperty Type: Semi-detached' : 'Boiler Type: Combi\nProperty Type: Semi-detached' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'addressInfo', field_type: 'table', display_name: 'Address Information', description: 'Property address details', is_required: false, is_system: true, sample_value: 'Line 1: 123 Main St\nCity: London' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'submissionDate', field_type: 'date', display_name: 'Submission Date', description: 'Date of quote submission', is_required: true, is_system: true, sample_value: '2024-01-15' },
-
-        // Links
-        { service_category_id: categoryId, category: categorySlug, field_name: 'quoteLink', field_type: 'text', display_name: 'Quote Link', description: 'Link to view full quote', is_required: false, is_system: true, sample_value: 'https://example.com/quote/123' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'privacyPolicy', field_type: 'text', display_name: 'Privacy Policy', description: 'Privacy policy text or link', is_required: false, is_system: true, sample_value: 'Privacy Policy' },
-        { service_category_id: categoryId, category: categorySlug, field_name: 'termsConditions', field_type: 'text', display_name: 'Terms & Conditions', description: 'Terms and conditions text or link', is_required: false, is_system: true, sample_value: 'Terms & Conditions' }
-      ]
-
-      const { error } = await supabase
-        .from('template_fields')
-        .insert(defaultFields)
-
-      if (error) {
-        console.error('Error creating template fields:', error)
-      }
-    } catch (error) {
-      console.error('Error in createDefaultTemplateFields:', error)
-    }
-  }
+  // Template fields are now hardcoded in shared.ts - no database dependency needed
 
   const handleSaveTemplate = async (updatedTemplate: EmailTemplate) => {
     setSaving(true)
@@ -624,6 +626,11 @@ export default function NotificationsPage() {
             'quote-initial': { customer: 'Your boiler quote request - {{companyName}}', admin: 'New Boiler Quote Request - {{companyName}}' },
             'quote-verified': { customer: 'Boiler Quote Verified - {{companyName}}', admin: 'Boiler Quote Verified - {{companyName}}' },
             'save-quote': { customer: 'Boiler Quote Saved - {{companyName}}', admin: 'Boiler Quote Saved - {{companyName}}' },
+            'checkout-monthly': { customer: 'Monthly Payment Plan Confirmed - {{companyName}}', admin: 'New Monthly Payment Plan Booking - {{companyName}}' },
+            'checkout-pay-later': { customer: 'Installation Booked - Pay After Completion - {{companyName}}', admin: 'New Pay After Installation Booking - {{companyName}}' },
+            'checkout-stripe': { customer: 'Payment Confirmed - Your Boiler Installation - {{companyName}}', admin: 'Payment Confirmed - Installation Booking - {{companyName}}' },
+            'enquiry-submitted': { customer: 'Enquiry Submitted Successfully - {{companyName}}', admin: 'New Enquiry Submitted - {{companyName}}' },
+            'survey-submitted': { customer: 'Survey Submitted Successfully - {{companyName}}', admin: 'New Survey Response Received - {{companyName}}' },
           },
           aircon: {
             'aircon-quote-initial': { customer: 'Your AC quote request - {{companyName}}', admin: 'New AC Quote Request - {{companyName}}' },

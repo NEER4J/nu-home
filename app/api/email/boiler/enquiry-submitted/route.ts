@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
+import { getProcessedEmailTemplate } from '@/lib/email-templates'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -552,11 +553,9 @@ export async function POST(request: NextRequest) {
     const companyName: string | undefined = partner.company_name || undefined
     const logoUrl: string | undefined = partner.logo_url || undefined
     const companyColor: string | undefined = partner.company_color || undefined
-    const adminEmail: string | undefined = partner.admin_mail || undefined
     const privacyPolicy: string | undefined = partner.privacy_policy || undefined
     const termsConditions: string | undefined = partner.terms_conditions || undefined
     const companyPhone: string | undefined = partner.phone || undefined
-    const companyEmail: string | undefined = partner.admin_mail || undefined
     const companyAddress: string | undefined = partner.address || undefined
     const companyWebsite: string | undefined = partner.website_url || undefined
 
@@ -581,38 +580,77 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'SMTP verification failed', details: verifyErr?.message || String(verifyErr) }, { status: 400 })
     }
 
+    // Get service category ID for boiler
+    const { data: boilerCategory } = await supabase
+      .from('ServiceCategories')
+      .select('service_category_id')
+      .eq('slug', 'boiler')
+      .single()
+
+    // Get category-specific admin email from PartnerSettings
+    let adminEmail: string | undefined = undefined
+    if (boilerCategory) {
+      const { data: partnerSettings } = await supabase
+        .from('PartnerSettings')
+        .select('admin_email')
+        .eq('partner_id', partner.user_id)
+        .eq('service_category_id', boilerCategory.service_category_id)
+        .single()
+
+      adminEmail = partnerSettings?.admin_email || undefined
+    }
+
+    const companyEmail: string | undefined = adminEmail || undefined
+
     const toAddress: string = email || smtp.SMTP_FROM
     if (!toAddress) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
 
-    const customerSubject = `Enquiry Submitted Successfully${companyName ? ' - ' + companyName : ''}`
-    const adminSubject = `New Enquiry Submitted${companyName ? ' - ' + companyName : ''}`
-
-    const customerHtml = createCustomerEmailTemplate({
-      companyName,
-      logoUrl,
+    // Prepare template data
+    const templateData = {
       firstName: first_name,
       lastName: last_name,
       email,
       phone,
       postcode,
-      companyColor,
+      companyName,
+      logoUrl,
+      companyPhone,
+      companyEmail,
+      companyAddress,
+      companyWebsite,
+      primaryColor: companyColor,
       enquiryDetails: enquiry_details,
       category,
       submissionId: submission_id,
       uploadedImages: uploaded_image_urls,
       privacyPolicy,
-      termsConditions,
-      companyPhone,
-      companyEmail,
-      companyAddress,
-      companyWebsite
-    })
+      termsConditions
+    }
 
-    let adminHtml
-    if (adminEmail) {
-      adminHtml = createAdminEmailTemplate({
+    // Try to get custom templates
+    let customerSubject = `Enquiry Submitted Successfully${companyName ? ' - ' + companyName : ''}`
+    let customerHtml = ''
+    let customerText = ''
+
+    const customCustomerTemplate = await getProcessedEmailTemplate(
+      partner.user_id,
+      'boiler',
+      'enquiry-submitted',
+      'customer',
+      templateData
+    )
+
+    if (customCustomerTemplate) {
+      customerSubject = customCustomerTemplate.subject
+      customerHtml = customCustomerTemplate.html
+      customerText = customCustomerTemplate.text
+    }
+
+    // Fallback to hardcoded template if no custom template
+    if (!customerHtml) {
+      customerHtml = createCustomerEmailTemplate({
         companyName,
         logoUrl,
         firstName: first_name,
@@ -627,30 +665,94 @@ export async function POST(request: NextRequest) {
         uploadedImages: uploaded_image_urls,
         privacyPolicy,
         termsConditions,
+        companyPhone,
+        companyEmail,
         companyAddress,
         companyWebsite
       })
     }
 
-    const customerText = `Enquiry Submitted Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
-      `Hi ${first_name},\n\n` +
-      `Thank you for your enquiry. We've received your details and our team will review it shortly.\n\n` +
-      `Your Details:\n` +
-      `Name: ${first_name} ${last_name}\n` +
-      `Email: ${email}\n` +
-      (phone ? `Phone: ${phone}\n` : '') +
-      (postcode ? `Postcode: ${postcode}\n` : '') +
-      (category ? `Category: ${category}\n` : '') +
-      (submission_id ? `Reference: ${submission_id}\n` : '') +
-      `\n${enquiry_details ? 'Your Enquiry:\n' + enquiry_details + '\n\n' : ''}` +
-      (uploaded_image_urls && uploaded_image_urls.length > 0 ? `You've uploaded ${uploaded_image_urls.length} image(s) with your enquiry.\n\n` : '') +
-      `What happens next?\n` +
-      `• Our team will review your enquiry within 24 hours\n` +
-      `• We'll contact you to discuss your requirements in detail\n` +
-      `• If needed, we'll arrange a site visit or survey\n` +
-      `• You'll receive a detailed quote for your project\n` +
-      `• Our experts will guide you through the next steps\n\n` +
-      `Thank you for choosing ${companyName || 'our service'}!`
+    // Fallback customerText only if no custom template
+    if (!customerText) {
+      customerText = `Enquiry Submitted Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
+        `Hi ${first_name},\n\n` +
+        `Thank you for your enquiry. We've received your details and our team will review it shortly.\n\n` +
+        `Your Details:\n` +
+        `Name: ${first_name} ${last_name}\n` +
+        `Email: ${email}\n` +
+        (phone ? `Phone: ${phone}\n` : '') +
+        (postcode ? `Postcode: ${postcode}\n` : '') +
+        (category ? `Category: ${category}\n` : '') +
+        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        `\n${enquiry_details ? 'Your Enquiry:\n' + enquiry_details + '\n\n' : ''}` +
+        (uploaded_image_urls && uploaded_image_urls.length > 0 ? `You've uploaded ${uploaded_image_urls.length} image(s) with your enquiry.\n\n` : '') +
+        `What happens next?\n` +
+        `• Our team will review your enquiry within 24 hours\n` +
+        `• We'll contact you to discuss your requirements in detail\n` +
+        `• If needed, we'll arrange a site visit or survey\n` +
+        `• You'll receive a detailed quote for your project\n` +
+        `• Our experts will guide you through the next steps\n\n` +
+        `Thank you for choosing ${companyName || 'our service'}!`
+    }
+
+    let adminSubject = `New Enquiry Submitted${companyName ? ' - ' + companyName : ''}`
+    let adminHtml = ''
+    let adminText = ''
+
+    if (adminEmail) {
+      const customAdminTemplate = await getProcessedEmailTemplate(
+        partner.user_id,
+        'boiler',
+        'enquiry-submitted',
+        'admin',
+        templateData
+      )
+
+      if (customAdminTemplate) {
+        adminSubject = customAdminTemplate.subject
+        adminHtml = customAdminTemplate.html
+        adminText = customAdminTemplate.text
+      }
+
+      // Fallback to hardcoded template if no custom template
+      if (!adminHtml) {
+        adminHtml = createAdminEmailTemplate({
+          companyName,
+          logoUrl,
+          firstName: first_name,
+          lastName: last_name,
+          email,
+          phone,
+          postcode,
+          companyColor,
+          enquiryDetails: enquiry_details,
+          category,
+          submissionId: submission_id,
+          uploadedImages: uploaded_image_urls,
+          privacyPolicy,
+          termsConditions,
+          companyAddress,
+          companyWebsite
+        })
+      }
+
+      // Fallback adminText only if no custom template
+      if (!adminText) {
+        adminText = `New Enquiry Submitted${companyName ? ' - ' + companyName : ''}\n\n` +
+          `A new enquiry has been submitted. Please review and contact the customer within 24 hours.\n\n` +
+          `Customer Information:\n` +
+          `Name: ${first_name} ${last_name}\n` +
+          `Email: ${email}\n` +
+          (phone ? `Phone: ${phone}\n` : '') +
+          (postcode ? `Postcode: ${postcode}\n` : '') +
+          (category ? `Category: ${category}\n` : '') +
+          (submission_id ? `Reference: ${submission_id}\n` : '') +
+          `\n${enquiry_details ? 'Enquiry Details:\n' + enquiry_details + '\n\n' : ''}` +
+          (uploaded_image_urls && uploaded_image_urls.length > 0 ? `Customer uploaded ${uploaded_image_urls.length} image(s) with the enquiry.\n\n` : '') +
+          `Action Required: Contact customer within 24 hours to discuss requirements and next steps.`
+      }
+    }
+
 
     try {
       // Send customer email
@@ -664,18 +766,6 @@ export async function POST(request: NextRequest) {
 
       // Send admin email if admin email is configured
       if (adminEmail && adminHtml) {
-        const adminText = `New Enquiry Submitted${companyName ? ' - ' + companyName : ''}\n\n` +
-          `A new enquiry has been submitted. Please review and contact the customer within 24 hours.\n\n` +
-          `Customer Information:\n` +
-          `Name: ${first_name} ${last_name}\n` +
-          `Email: ${email}\n` +
-          (phone ? `Phone: ${phone}\n` : '') +
-          (postcode ? `Postcode: ${postcode}\n` : '') +
-          (category ? `Category: ${category}\n` : '') +
-          (submission_id ? `Reference: ${submission_id}\n` : '') +
-          `\n${enquiry_details ? 'Enquiry Details:\n' + enquiry_details + '\n\n' : ''}` +
-          (uploaded_image_urls && uploaded_image_urls.length > 0 ? `Customer uploaded ${uploaded_image_urls.length} image(s) with the enquiry.\n\n` : '') +
-          `Action Required: Contact customer within 24 hours to discuss requirements and next steps.`
 
         await transporter.sendMail({
           from: smtp.SMTP_FROM || smtp.SMTP_USER,

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
-import { resolvePartnerByHostname } from '@/lib/partner'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -15,19 +14,6 @@ type NormalizedSmtp = {
   SMTP_FROM: string
 }
 
-function parseHostname(request: NextRequest, bodySubdomain?: string | null): string | null {
-  try {
-    const url = new URL(request.url)
-    const urlParamSubdomain = url.searchParams.get('subdomain')
-    if (urlParamSubdomain) return urlParamSubdomain
-  } catch {}
-  if (bodySubdomain) return bodySubdomain
-  const host = request.headers.get('host') || ''
-  const hostname = host.split(':')[0]
-  // Return hostname even for localhost (for development)
-  if (!hostname) return null
-  return hostname
-}
 
 function migrateSmtp(raw: any): NormalizedSmtp {
   const merged: any = {
@@ -59,59 +45,68 @@ function migrateSmtp(raw: any): NormalizedSmtp {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('=== TEST EMAIL DEBUG START ===')
+    
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    console.log('Test email - Supabase client created')
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('Test email - Auth result:', { 
+      user: user ? { id: user.id, email: user.email } : null, 
+      authError 
+    })
     
     if (!user) {
+      console.log('Test email - No authenticated user found')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
-    const { to, subject, html, text, subdomain } = body
+    const { to, subject, html, text } = body
+    console.log('Test email - Request body:', { to, subject: subject?.substring(0, 50) + '...', htmlLength: html?.length, textLength: text?.length })
 
     if (!to || !subject || !html) {
+      console.log('Test email - Missing required fields:', { to: !!to, subject: !!subject, html: !!html })
       return NextResponse.json(
         { error: 'Missing required fields: to, subject, html' },
         { status: 400 }
       )
     }
 
-    // Get partner profile and SMTP settings
-    const hostname = parseHostname(request, subdomain)
-    console.log('Test email - Request host:', request.headers.get('host'))
-    console.log('Test email - Request URL:', request.url)
-    console.log('Test email - Body subdomain:', subdomain)
-    console.log('Test email - Parsed hostname:', hostname)
+    // Get partner profile directly using authenticated user ID
+    console.log('Test email - Querying UserProfiles for user ID:', user.id)
     
-    if (!hostname) {
-      return NextResponse.json({ error: 'Invalid hostname' }, { status: 400 })
-    }
-
-    let partner = await resolvePartnerByHostname(supabase, hostname)
-    console.log('Test email - Partner found by hostname:', partner ? partner.company_name : 'null')
+    const { data: partner, error: partnerError } = await supabase
+      .from('UserProfiles')
+      .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified, privacy_policy, terms_conditions, address, status')
+      .eq('user_id', user.id)
+      .single()
     
-    // If no partner found by hostname and we're in localhost (development), 
-    // try to get partner by authenticated user
-    if (!partner && (hostname === 'localhost' || hostname.includes('localhost'))) {
-      console.log('Test email - No partner found by hostname, trying to get by user ID')
-      const { data: userPartner, error: userError } = await supabase
-        .from('UserProfiles')
-        .select('company_name, contact_person, postcode, subdomain, business_description, website_url, logo_url, user_id, phone, company_color, otp, smtp_settings, twilio_settings, custom_domain, domain_verified, admin_mail, privacy_policy, terms_conditions, address')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
-      
-      if (!userError && userPartner) {
-        partner = userPartner
-        console.log('Test email - Partner found by user ID:', partner.company_name)
-      } else {
-        console.log('Test email - No partner found by user ID, error:', userError)
-      }
+    console.log('Test email - UserProfiles query result:', { 
+      partner: partner ? { 
+        company_name: partner.company_name, 
+        user_id: partner.user_id, 
+        status: partner.status,
+        has_smtp: !!partner.smtp_settings 
+      } : null, 
+      partnerError 
+    })
+    
+    if (partnerError) {
+      console.log('Test email - Database error details:', partnerError)
+      return NextResponse.json({ 
+        error: 'Database error', 
+        details: partnerError.message,
+        code: partnerError.code 
+      }, { status: 500 })
     }
     
     if (!partner) {
+      console.log('Test email - No partner profile found for user ID:', user.id)
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 })
     }
+    
+    console.log('Test email - Partner found successfully:', partner.company_name, 'status:', partner.status)
 
     if (!partner.smtp_settings) {
       return NextResponse.json(
@@ -148,13 +143,20 @@ export async function POST(request: NextRequest) {
       html,
     })
 
+    console.log('Test email - Email sent successfully to:', to)
+    console.log('=== TEST EMAIL DEBUG END ===')
+    
     return NextResponse.json({ 
       success: true, 
       message: `Test email sent successfully to ${to}` 
     })
 
   } catch (error: any) {
+    console.error('=== TEST EMAIL ERROR ===')
     console.error('Test email error:', error)
+    console.error('Error stack:', error?.stack)
+    console.error('=== TEST EMAIL ERROR END ===')
+    
     return NextResponse.json(
       { 
         error: 'Failed to send test email', 

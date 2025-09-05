@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
+import { getProcessedEmailTemplate } from '@/lib/email-templates'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -486,11 +487,9 @@ export async function POST(request: NextRequest) {
     const companyName: string | undefined = partner.company_name || undefined
     const logoUrl: string | undefined = partner.logo_url || undefined
     const companyColor: string | undefined = partner.company_color || undefined
-    const adminEmail: string | undefined = partner.admin_mail || undefined
     const privacyPolicy: string | undefined = partner.privacy_policy || undefined
     const termsConditions: string | undefined = partner.terms_conditions || undefined
     const companyPhone: string | undefined = partner.phone || undefined
-    const companyEmail: string | undefined = partner.admin_mail || undefined
     const companyAddress: string | undefined = partner.address || undefined
     const companyWebsite: string | undefined = partner.website_url || undefined
 
@@ -515,36 +514,75 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'SMTP verification failed', details: verifyErr?.message || String(verifyErr) }, { status: 400 })
     }
 
+    // Get service category ID for boiler
+    const { data: boilerCategory } = await supabase
+      .from('ServiceCategories')
+      .select('service_category_id')
+      .eq('slug', 'boiler')
+      .single()
+
+    // Get category-specific admin email from PartnerSettings
+    let adminEmail: string | undefined = undefined
+    if (boilerCategory) {
+      const { data: partnerSettings } = await supabase
+        .from('PartnerSettings')
+        .select('admin_email')
+        .eq('partner_id', partner.user_id)
+        .eq('service_category_id', boilerCategory.service_category_id)
+        .single()
+
+      adminEmail = partnerSettings?.admin_email || undefined
+    }
+
+    const companyEmail: string | undefined = adminEmail || undefined
+
     const toAddress: string = email || smtp.SMTP_FROM
     if (!toAddress) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
 
-    const customerSubject = `Survey Submitted Successfully${companyName ? ' - ' + companyName : ''}`
-    const adminSubject = `New Survey Response Received${companyName ? ' - ' + companyName : ''}`
-
-    const customerHtml = createCustomerEmailTemplate({
-      companyName,
-      logoUrl,
+    // Prepare template data
+    const templateData = {
       firstName: first_name,
       lastName: last_name,
       email,
       phone,
       postcode,
-      companyColor,
-      notes,
-      submissionId: submission_id,
-      privacyPolicy,
-      termsConditions,
+      companyName,
+      logoUrl,
       companyPhone,
       companyEmail,
       companyAddress,
-      companyWebsite
-    })
+      companyWebsite,
+      primaryColor: companyColor,
+      notes,
+      submissionId: submission_id,
+      privacyPolicy,
+      termsConditions
+    }
 
-    let adminHtml
-    if (adminEmail) {
-      adminHtml = createAdminEmailTemplate({
+    // Try to get custom templates
+    let customerSubject = `Survey Submitted Successfully${companyName ? ' - ' + companyName : ''}`
+    let customerHtml = ''
+    let customerText = ''
+
+    const customCustomerTemplate = await getProcessedEmailTemplate(
+      partner.user_id,
+      'boiler',
+      'survey-submitted',
+      'customer',
+      templateData
+    )
+
+    if (customCustomerTemplate) {
+      customerSubject = customCustomerTemplate.subject
+      customerHtml = customCustomerTemplate.html
+      customerText = customCustomerTemplate.text
+    }
+
+    // Fallback to hardcoded template if no custom template
+    if (!customerHtml) {
+      customerHtml = createCustomerEmailTemplate({
         companyName,
         logoUrl,
         firstName: first_name,
@@ -557,28 +595,89 @@ export async function POST(request: NextRequest) {
         submissionId: submission_id,
         privacyPolicy,
         termsConditions,
+        companyPhone,
+        companyEmail,
         companyAddress,
         companyWebsite
       })
     }
 
-    const customerText = `Survey Submitted Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
-      `Hi ${first_name},\n\n` +
-      `Thank you for completing our survey. Your feedback is incredibly valuable to us.\n\n` +
-      `Your Details:\n` +
-      `Name: ${first_name} ${last_name}\n` +
-      `Email: ${email}\n` +
-      (phone ? `Phone: ${phone}\n` : '') +
-      (postcode ? `Postcode: ${postcode}\n` : '') +
-      (submission_id ? `Reference: ${submission_id}\n` : '') +
-      `\n${notes ? 'Your Feedback:\n' + notes + '\n\n' : ''}` +
-      `Your feedback helps us:\n` +
-      `• Improve our products and services\n` +
-      `• Better understand customer needs\n` +
-      `• Enhance the overall customer experience\n` +
-      `• Train our team to serve you better\n` +
-      `• Develop new features and offerings\n\n` +
-      `Thank you for choosing ${companyName || 'our service'} and for taking the time to share your valuable feedback!`
+    // Fallback customerText only if no custom template
+    if (!customerText) {
+      customerText = `Survey Submitted Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
+        `Hi ${first_name},\n\n` +
+        `Thank you for completing our survey. Your feedback is incredibly valuable to us.\n\n` +
+        `Your Details:\n` +
+        `Name: ${first_name} ${last_name}\n` +
+        `Email: ${email}\n` +
+        (phone ? `Phone: ${phone}\n` : '') +
+        (postcode ? `Postcode: ${postcode}\n` : '') +
+        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        `\n${notes ? 'Your Feedback:\n' + notes + '\n\n' : ''}` +
+        `Your feedback helps us:\n` +
+        `• Improve our products and services\n` +
+        `• Better understand customer needs\n` +
+        `• Enhance the overall customer experience\n` +
+        `• Train our team to serve you better\n` +
+        `• Develop new features and offerings\n\n` +
+        `Thank you for choosing ${companyName || 'our service'} and for taking the time to share your valuable feedback!`
+    }
+
+    let adminSubject = `New Survey Response Received${companyName ? ' - ' + companyName : ''}`
+    let adminHtml = ''
+    let adminText = ''
+
+    if (adminEmail) {
+      const customAdminTemplate = await getProcessedEmailTemplate(
+        partner.user_id,
+        'boiler',
+        'survey-submitted',
+        'admin',
+        templateData
+      )
+
+      if (customAdminTemplate) {
+        adminSubject = customAdminTemplate.subject
+        adminHtml = customAdminTemplate.html
+        adminText = customAdminTemplate.text
+      }
+
+      // Fallback to hardcoded template if no custom template
+      if (!adminHtml) {
+        adminHtml = createAdminEmailTemplate({
+          companyName,
+          logoUrl,
+          firstName: first_name,
+          lastName: last_name,
+          email,
+          phone,
+          postcode,
+          companyColor,
+          notes,
+          submissionId: submission_id,
+          privacyPolicy,
+          termsConditions,
+          companyAddress,
+          companyWebsite
+        })
+      }
+
+      // Fallback adminText only if no custom template
+      if (!adminText) {
+        adminText = `New Survey Response Received${companyName ? ' - ' + companyName : ''}\n\n` +
+          `A customer has completed a survey. Please review their feedback.\n\n` +
+          `Customer Information:\n` +
+          `Name: ${first_name} ${last_name}\n` +
+          `Email: ${email}\n` +
+          (phone ? `Phone: ${phone}\n` : '') +
+          (postcode ? `Postcode: ${postcode}\n` : '') +
+          (submission_id ? `Reference: ${submission_id}\n` : '') +
+          `\n${notes ? 'Survey Response / Feedback:\n' + notes + '\n\n' : ''}` +
+          `Action Required: Review the customer's feedback and take appropriate action if needed. ` +
+          `Use this feedback to improve services and customer experience.`
+      }
+    }
+
 
     try {
       // Send customer email
@@ -592,17 +691,6 @@ export async function POST(request: NextRequest) {
 
       // Send admin email if admin email is configured
       if (adminEmail && adminHtml) {
-        const adminText = `New Survey Response Received${companyName ? ' - ' + companyName : ''}\n\n` +
-          `A customer has completed a survey. Please review their feedback.\n\n` +
-          `Customer Information:\n` +
-          `Name: ${first_name} ${last_name}\n` +
-          `Email: ${email}\n` +
-          (phone ? `Phone: ${phone}\n` : '') +
-          (postcode ? `Postcode: ${postcode}\n` : '') +
-          (submission_id ? `Reference: ${submission_id}\n` : '') +
-          `\n${notes ? 'Survey Response / Feedback:\n' + notes + '\n\n' : ''}` +
-          `Action Required: Review the customer's feedback and take appropriate action if needed. ` +
-          `Use this feedback to improve services and customer experience.`
 
         await transporter.sendMail({
           from: smtp.SMTP_FROM || smtp.SMTP_USER,

@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner'
 import { createClient } from '@/utils/supabase/client'
 import Editor from '@monaco-editor/react'
+import { TemplateField, getTemplateFieldsByEmailType, TemplateFieldCategory } from '@/lib/email-templates/shared'
 
 interface EmailTemplate {
   template_id: string
@@ -36,16 +37,7 @@ interface EmailTemplate {
   description?: string
 }
 
-interface TemplateField {
-  field_id: string
-  field_name: string
-  field_type: string
-  display_name: string
-  description?: string
-  is_required: boolean
-  is_system: boolean
-  sample_value?: string
-}
+// TemplateField interface is now imported from shared.ts
 
 interface EmailTemplateEditorProps {
   template: EmailTemplate
@@ -241,16 +233,8 @@ export default function EmailTemplateEditor({
     }
   }
 
-  const groupedFields = templateFields.reduce((acc, field) => {
-    const category = field.field_name.startsWith('company') ? 'Company' :
-                    field.field_name.startsWith('quote') || field.field_name.startsWith('ref') || field.field_name.startsWith('submission') ? 'Quote' :
-                    field.field_name.includes('Link') || field.field_name.includes('Policy') ? 'Links' :
-                    'Customer'
-    
-    if (!acc[category]) acc[category] = []
-    acc[category].push(field)
-    return acc
-  }, {} as Record<string, TemplateField[]>)
+  // Get categorized fields based on email type
+  const categorizedFields = getTemplateFieldsByEmailType(template.email_type)
 
   return (
     <div className="grid grid-cols-12 gap-6">
@@ -439,44 +423,60 @@ export default function EmailTemplateEditor({
                   </div>
                 </div>
 
-                {/* All Dynamic Fields */}
+                {/* Categorized Dynamic Fields */}
                 <div>
-                  <h3 className="font-semibold mb-3">All Available Fields</h3>
-                  <div className="space-y-1">
-                    {templateFields.map((field) => (
-                      <div
-                        key={field.field_id}
-                        className="p-2 border rounded hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => copyFieldTag(field.field_name)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-1 mb-1">
-                              <span className="font-medium text-sm truncate">
-                                {field.display_name}
-                              </span>
-                              {field.is_required && (
-                                <Badge variant="secondary" className="text-xs px-1">
-                                  *
-                                </Badge>
-                              )}
+                  <h3 className="font-semibold mb-3">Available Fields</h3>
+                  <div className="space-y-4">
+                    {categorizedFields.map((category, categoryIndex) => (
+                      <div key={categoryIndex}>
+                        <h4 className="font-medium text-sm text-gray-700 mb-2 flex items-center">
+                          {category.name}
+                          <span className="ml-2 text-xs text-gray-500">({category.fields.length})</span>
+                        </h4>
+                        <p className="text-xs text-gray-500 mb-2">{category.description}</p>
+                        <div className="space-y-1">
+                          {category.fields.map((field, fieldIndex) => (
+                            <div
+                              key={`${field.field_name}-${fieldIndex}`}
+                              className="p-2 border rounded hover:bg-gray-50 transition-colors cursor-pointer"
+                              onClick={() => copyFieldTag(field.field_name)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-1 mb-1">
+                                    <span className="font-medium text-sm truncate">
+                                      {field.display_name}
+                                    </span>
+                                    {field.is_required && (
+                                      <Badge variant="secondary" className="text-xs px-1">
+                                        *
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <code className="text-xs text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
+                                    {`{{${field.field_name}}}`}
+                                  </code>
+                                  {field.description && (
+                                    <p className="text-xs text-gray-500 mt-1 truncate">
+                                      {field.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    copyFieldTag(field.field_name)
+                                  }}
+                                  title="Copy field tag"
+                                  className="h-6 w-6 p-0 shrink-0"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
-                            <code className="text-xs text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
-                              {`{{${field.field_name}}}`}
-                            </code>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              copyFieldTag(field.field_name)
-                            }}
-                            title="Copy field tag"
-                            className="h-6 w-6 p-0 shrink-0"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </Button>
+                          ))}
                         </div>
                       </div>
                     ))}
