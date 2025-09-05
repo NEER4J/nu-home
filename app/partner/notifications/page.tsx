@@ -2,13 +2,68 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Loader2, Mail, Edit, Eye, Save, RotateCcw } from 'lucide-react'
 import EmailTemplateEditor from '@/components/partner/notifications/EmailTemplateEditor'
 import { toast } from 'sonner'
+import {
+  getDefaultCustomerTemplate,
+  getDefaultCustomerTextTemplate,
+  getDefaultAdminTemplate,
+  getDefaultAdminTextTemplate
+} from '@/lib/email-templates/quote-initial'
+import {
+  getDefaultCustomerVerifiedTemplate,
+  getDefaultCustomerVerifiedTextTemplate,
+  getDefaultAdminVerifiedTemplate,
+  getDefaultAdminVerifiedTextTemplate
+} from '@/lib/email-templates/quote-verified'
+import {
+  getDefaultCustomerSaveQuoteTemplate,
+  getDefaultCustomerSaveQuoteTextTemplate,
+  getDefaultAdminSaveQuoteTemplate,
+  getDefaultAdminSaveQuoteTextTemplate
+} from '@/lib/email-templates/save-quote'
+import { getDefaultDynamicFields } from '@/lib/email-templates/shared'
+
+// Helper function to get templates based on category and email type
+const getTemplatesByType = (categorySlug: string, emailType: string, recipientType: 'customer' | 'admin', templateType: 'html' | 'text') => {
+  // For boiler category, use existing templates
+  if (categorySlug === 'boiler') {
+    if (emailType === 'quote-initial') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerTemplate() : getDefaultCustomerTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminTemplate() : getDefaultAdminTextTemplate()
+      }
+    } else if (emailType === 'quote-verified') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerVerifiedTemplate() : getDefaultCustomerVerifiedTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminVerifiedTemplate() : getDefaultAdminVerifiedTextTemplate()
+      }
+    } else if (emailType === 'save-quote') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerSaveQuoteTemplate() : getDefaultCustomerSaveQuoteTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminSaveQuoteTemplate() : getDefaultAdminSaveQuoteTextTemplate()
+      }
+    }
+  }
+  
+  // For other categories, return placeholder templates for now
+  // TODO: Create category-specific template files
+  if (categorySlug === 'aircon') {
+    const placeholderHtml = `<h1>Placeholder ${recipientType} template for ${emailType}</h1><p>This template needs to be implemented for ${categorySlug} category.</p>`
+    const placeholderText = `Placeholder ${recipientType} template for ${emailType}. This template needs to be implemented for ${categorySlug} category.`
+    return templateType === 'html' ? placeholderHtml : placeholderText
+  }
+  
+  // Default fallback
+  const fallbackHtml = `<h1>Default ${recipientType} template</h1><p>Template for ${emailType} in ${categorySlug} category.</p>`
+  const fallbackText = `Default ${recipientType} template for ${emailType} in ${categorySlug} category.`
+  return templateType === 'html' ? fallbackHtml : fallbackText
+}
 
 interface EmailTemplate {
   template_id: string
@@ -47,26 +102,46 @@ interface TemplateField {
   sample_value?: string
 }
 
-const EMAIL_TYPES = [
-  {
-    id: 'quote-initial',
-    name: 'Initial Quote Request',
-    description: 'Sent when a customer submits a quote request',
-    category: 'boiler',
-  },
-  {
-    id: 'quote-verified',
-    name: 'Quote Verified',
-    description: 'Sent when a customer completes phone verification',
-    category: 'boiler',
-  },
-  {
-    id: 'save-quote',
-    name: 'Save Quote',
-    description: 'Sent when a customer saves their quote for later',
-    category: 'boiler',
-  },
-]
+// Email types organized by category slug
+const EMAIL_TYPES_BY_CATEGORY = {
+  boiler: [
+    {
+      id: 'quote-initial',
+      name: 'Initial Quote Request',
+      description: 'Sent when a customer submits a quote request',
+    },
+    {
+      id: 'quote-verified',
+      name: 'Quote Verified',
+      description: 'Sent when a customer completes phone verification',
+    },
+    {
+      id: 'save-quote',
+      name: 'Save Quote',
+      description: 'Sent when a customer saves their quote for later',
+    },
+  ],
+  aircon: [
+    {
+      id: 'aircon-quote-initial',
+      name: 'Initial AC Quote Request',
+      description: 'Sent when a customer submits an air conditioning quote request',
+    },
+    {
+      id: 'aircon-installation-scheduled',
+      name: 'Installation Scheduled',
+      description: 'Sent when AC installation appointment is scheduled',
+    },
+    {
+      id: 'aircon-maintenance-reminder',
+      name: 'Maintenance Reminder',
+      description: 'Sent to remind customers about AC maintenance',
+    },
+  ],
+  // TODO: Add email types for other categories as they're implemented
+  // solar: [],
+  // 'heat-pump': [],
+}
 
 
 export default function NotificationsPage() {
@@ -84,17 +159,40 @@ export default function NotificationsPage() {
   
   const supabase = createClient()
 
+  // Get email types for the selected category
+  const getEmailTypesForCategory = (categorySlug: string) => {
+    return EMAIL_TYPES_BY_CATEGORY[categorySlug as keyof typeof EMAIL_TYPES_BY_CATEGORY] || []
+  }
+
+  const availableEmailTypes = selectedCategoryId 
+    ? getEmailTypesForCategory(categories.find(c => c.service_category_id === selectedCategoryId)?.slug || '')
+    : []
+
   useEffect(() => {
     loadCategories()
   }, [])
 
   useEffect(() => {
     if (selectedCategoryId) {
+      const categorySlug = categories.find(c => c.service_category_id === selectedCategoryId)?.slug || ''
+      const categoryEmailTypes = getEmailTypesForCategory(categorySlug)
+      
+      // Reset email type if current selection isn't available for this category
+      if (categoryEmailTypes.length === 0) {
+        setSelectedEmailType('')
+        setTemplates([])
+        setSelectedTemplate(null)
+        setLoading(false)
+        return
+      } else if (!categoryEmailTypes.find(type => type.id === selectedEmailType)) {
+        setSelectedEmailType(categoryEmailTypes[0].id)
+      }
+      
       loadTemplates()
       loadTemplateFields()
       loadAdminEmail()
     }
-  }, [selectedCategoryId, selectedEmailType])
+  }, [selectedCategoryId, selectedEmailType, categories])
 
   const loadCategories = async () => {
     try {
@@ -306,6 +404,9 @@ export default function NotificationsPage() {
       // First, ensure template fields exist for this category
       await createDefaultTemplateFields(categoryId)
 
+      // Get category slug for template selection
+      const categorySlug = categories.find(c => c.service_category_id === categoryId)?.slug || ''
+
       // Get partner profile for company details
       const { data: profile } = await supabase
         .from('UserProfiles')
@@ -324,32 +425,55 @@ export default function NotificationsPage() {
       // Use category-specific admin email if available
       const adminEmail = partnerSettings?.admin_email
 
+      // Generate template names and descriptions based on email type
+      const getTemplateName = (recipientType: 'customer' | 'admin', emailType: string) => {
+        const typeMap: Record<string, { customer: string; admin: string }> = {
+          'quote-initial': { customer: 'Customer Quote Confirmation', admin: 'Admin Quote Notification' },
+          'quote-verified': { customer: 'Customer Quote Verified', admin: 'Admin Quote Verified Notification' },
+          'save-quote': { customer: 'Customer Save Quote', admin: 'Admin Save Quote Notification' },
+          'aircon-quote-initial': { customer: 'AC Quote Confirmation', admin: 'Admin AC Quote Notification' },
+          'aircon-installation-scheduled': { customer: 'AC Installation Scheduled', admin: 'Admin AC Installation Notification' },
+          'aircon-maintenance-reminder': { customer: 'AC Maintenance Reminder', admin: 'Admin AC Maintenance Notification' },
+        }
+        return typeMap[emailType]?.[recipientType] || `${recipientType} ${emailType}`
+      }
+
+      const getTemplateDescription = (recipientType: 'customer' | 'admin', emailType: string) => {
+        const descMap: Record<string, { customer: string; admin: string }> = {
+          'quote-initial': { customer: 'Email sent to customers after they submit a quote request', admin: 'Notification sent to admin when a new quote is submitted' },
+          'quote-verified': { customer: 'Email sent to customers after phone verification is completed', admin: 'Notification sent to admin when customer completes phone verification' },
+          'save-quote': { customer: 'Email sent when customer saves quote for later', admin: 'Notification sent to admin when customer saves quote' },
+          'aircon-quote-initial': { customer: 'Email sent to customers after AC quote request', admin: 'Notification sent to admin when new AC quote is submitted' },
+          'aircon-installation-scheduled': { customer: 'Email sent when AC installation is scheduled', admin: 'Notification sent to admin about scheduled AC installation' },
+          'aircon-maintenance-reminder': { customer: 'Reminder sent to customers about AC maintenance', admin: 'Notification to admin about maintenance reminders sent' },
+        }
+        return descMap[emailType]?.[recipientType] || `${recipientType} template for ${emailType}`
+      }
+
+      const getSubjectTemplate = (recipientType: 'customer' | 'admin', emailType: string) => {
+        const subjectMap: Record<string, { customer: string; admin: string }> = {
+          'quote-initial': { customer: 'Your quote request - {{companyName}}', admin: 'New Quote Request - {{companyName}}' },
+          'quote-verified': { customer: 'Quote Verified Successfully - {{companyName}}', admin: 'Quote Verified - Customer Ready - {{companyName}}' },
+          'save-quote': { customer: 'Quote Saved Successfully - {{companyName}}', admin: 'Customer Saved Quote - Follow Up - {{companyName}}' },
+          'aircon-quote-initial': { customer: 'Your AC Quote Request - {{companyName}}', admin: 'New AC Quote Request - {{companyName}}' },
+          'aircon-installation-scheduled': { customer: 'AC Installation Scheduled - {{companyName}}', admin: 'AC Installation Scheduled - {{companyName}}' },
+          'aircon-maintenance-reminder': { customer: 'AC Maintenance Reminder - {{companyName}}', admin: 'AC Maintenance Reminder Sent - {{companyName}}' },
+        }
+        return subjectMap[emailType]?.[recipientType] || `${emailType} - {{companyName}}`
+      }
+
       const defaultTemplates = [
         {
           partner_id: partnerId,
           service_category_id: categoryId,
-          category: 'boiler', // Keep for backward compatibility
+          category: categorySlug, // Use actual category slug
           email_type: emailType,
           recipient_type: 'customer',
-          name: emailType === 'quote-initial' ? 'Customer Quote Confirmation' : 'Customer Quote Verified',
-          description: emailType === 'quote-initial' 
-            ? 'Email sent to customers after they submit a quote request'
-            : 'Email sent to customers after phone verification is completed',
-          subject_template: emailType === 'quote-initial' 
-            ? 'Your quote request - {{companyName}}'
-            : emailType === 'quote-verified'
-            ? 'Quote Verified Successfully - {{companyName}}'
-            : 'Quote Saved Successfully - {{companyName}}',
-          html_template: emailType === 'quote-initial' 
-            ? getDefaultCustomerTemplate()
-            : emailType === 'quote-verified'
-            ? getDefaultCustomerVerifiedTemplate()
-            : getDefaultCustomerSaveQuoteTemplate(),
-          text_template: emailType === 'quote-initial'
-            ? getDefaultCustomerTextTemplate()
-            : emailType === 'quote-verified'
-            ? getDefaultCustomerVerifiedTextTemplate()
-            : getDefaultCustomerSaveQuoteTextTemplate(),
+          name: getTemplateName('customer', emailType),
+          description: getTemplateDescription('customer', emailType),
+          subject_template: getSubjectTemplate('customer', emailType),
+          html_template: getTemplatesByType(categorySlug, emailType, 'customer', 'html'),
+          text_template: getTemplatesByType(categorySlug, emailType, 'customer', 'text'),
           dynamic_fields: getDefaultDynamicFields(),
           styling: {
             primaryColor: profile?.company_color || '#3b82f6',
@@ -363,28 +487,14 @@ export default function NotificationsPage() {
         {
           partner_id: partnerId,
           service_category_id: categoryId,
-          category: 'boiler', // Keep for backward compatibility
+          category: categorySlug, // Use actual category slug
           email_type: emailType,
           recipient_type: 'admin',
-          name: emailType === 'quote-initial' ? 'Admin Quote Notification' : 'Admin Quote Verified Notification',
-          description: emailType === 'quote-initial'
-            ? 'Notification sent to admin when a new quote is submitted'
-            : 'Notification sent to admin when customer completes phone verification',
-          subject_template: emailType === 'quote-initial'
-            ? 'New Quote Request - {{companyName}}'
-            : emailType === 'quote-verified'
-            ? 'Quote Verified - Customer Ready - {{companyName}}'
-            : 'Customer Saved Quote - Follow Up - {{companyName}}',
-          html_template: emailType === 'quote-initial'
-            ? getDefaultAdminTemplate()
-            : emailType === 'quote-verified'
-            ? getDefaultAdminVerifiedTemplate()
-            : getDefaultAdminSaveQuoteTemplate(),
-          text_template: emailType === 'quote-initial'
-            ? getDefaultAdminTextTemplate()
-            : emailType === 'quote-verified'
-            ? getDefaultAdminVerifiedTextTemplate()
-            : getDefaultAdminSaveQuoteTextTemplate(),
+          name: getTemplateName('admin', emailType),
+          description: getTemplateDescription('admin', emailType),
+          subject_template: getSubjectTemplate('admin', emailType),
+          html_template: getTemplatesByType(categorySlug, emailType, 'admin', 'html'),
+          text_template: getTemplatesByType(categorySlug, emailType, 'admin', 'text'),
           dynamic_fields: getDefaultDynamicFields(),
           styling: {
             primaryColor: profile?.company_color || '#3b82f6',
@@ -412,6 +522,9 @@ export default function NotificationsPage() {
 
   const createDefaultTemplateFields = async (categoryId: string) => {
     try {
+      // Get category slug for proper field creation
+      const categorySlug = categories.find(c => c.service_category_id === categoryId)?.slug || 'boiler'
+      
       // Check if fields already exist for this category
       const { data: existingFields } = await supabase
         .from('template_fields')
@@ -425,31 +538,31 @@ export default function NotificationsPage() {
 
       const defaultFields = [
         // Customer fields
-        { service_category_id: categoryId, category: 'boiler', field_name: 'firstName', field_type: 'text', display_name: 'First Name', description: 'Customer first name', is_required: true, is_system: true, sample_value: 'John' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'lastName', field_type: 'text', display_name: 'Last Name', description: 'Customer last name', is_required: true, is_system: true, sample_value: 'Doe' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'email', field_type: 'text', display_name: 'Email', description: 'Customer email address', is_required: true, is_system: true, sample_value: 'john.doe@example.com' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'phone', field_type: 'text', display_name: 'Phone', description: 'Customer phone number', is_required: false, is_system: true, sample_value: '07123456789' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'postcode', field_type: 'text', display_name: 'Postcode', description: 'Customer postcode', is_required: true, is_system: true, sample_value: 'SW1A 1AA' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'refNumber', field_type: 'text', display_name: 'Reference Number', description: 'Quote reference number', is_required: true, is_system: true, sample_value: 'REF-2024-001' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'submissionId', field_type: 'text', display_name: 'Submission ID', description: 'Unique submission identifier', is_required: true, is_system: true, sample_value: '896cd588-20e5-45c2-8c30-2622958bfca2' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'firstName', field_type: 'text', display_name: 'First Name', description: 'Customer first name', is_required: true, is_system: true, sample_value: 'John' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'lastName', field_type: 'text', display_name: 'Last Name', description: 'Customer last name', is_required: true, is_system: true, sample_value: 'Doe' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'email', field_type: 'text', display_name: 'Email', description: 'Customer email address', is_required: true, is_system: true, sample_value: 'john.doe@example.com' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'phone', field_type: 'text', display_name: 'Phone', description: 'Customer phone number', is_required: false, is_system: true, sample_value: '07123456789' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'postcode', field_type: 'text', display_name: 'Postcode', description: 'Customer postcode', is_required: true, is_system: true, sample_value: 'SW1A 1AA' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'refNumber', field_type: 'text', display_name: 'Reference Number', description: 'Quote reference number', is_required: true, is_system: true, sample_value: 'REF-2024-001' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'submissionId', field_type: 'text', display_name: 'Submission ID', description: 'Unique submission identifier', is_required: true, is_system: true, sample_value: '896cd588-20e5-45c2-8c30-2622958bfca2' },
 
         // Company fields
-        { service_category_id: categoryId, category: 'boiler', field_name: 'companyName', field_type: 'text', display_name: 'Company Name', description: 'Partner company name', is_required: true, is_system: true, sample_value: 'ABC Boilers Ltd' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'companyPhone', field_type: 'text', display_name: 'Company Phone', description: 'Company contact phone', is_required: false, is_system: true, sample_value: '0800 123 4567' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'companyEmail', field_type: 'text', display_name: 'Company Email', description: 'Company contact email', is_required: false, is_system: true, sample_value: 'info@abcboilers.com' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'companyAddress', field_type: 'text', display_name: 'Company Address', description: 'Company full address', is_required: false, is_system: true, sample_value: '123 Business St, London' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'companyWebsite', field_type: 'text', display_name: 'Company Website', description: 'Company website URL', is_required: false, is_system: true, sample_value: 'https://www.abcboilers.com' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'logoUrl', field_type: 'text', display_name: 'Logo URL', description: 'Company logo image URL', is_required: false, is_system: true, sample_value: 'https://example.com/logo.png' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'companyName', field_type: 'text', display_name: 'Company Name', description: 'Partner company name', is_required: true, is_system: true, sample_value: categorySlug === 'aircon' ? 'ABC Air Conditioning Ltd' : 'ABC Boilers Ltd' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'companyPhone', field_type: 'text', display_name: 'Company Phone', description: 'Company contact phone', is_required: false, is_system: true, sample_value: '0800 123 4567' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'companyEmail', field_type: 'text', display_name: 'Company Email', description: 'Company contact email', is_required: false, is_system: true, sample_value: categorySlug === 'aircon' ? 'info@abcaircon.com' : 'info@abcboilers.com' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'companyAddress', field_type: 'text', display_name: 'Company Address', description: 'Company full address', is_required: false, is_system: true, sample_value: '123 Business St, London' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'companyWebsite', field_type: 'text', display_name: 'Company Website', description: 'Company website URL', is_required: false, is_system: true, sample_value: categorySlug === 'aircon' ? 'https://www.abcaircon.com' : 'https://www.abcboilers.com' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'logoUrl', field_type: 'text', display_name: 'Logo URL', description: 'Company logo image URL', is_required: false, is_system: true, sample_value: 'https://example.com/logo.png' },
 
         // Quote fields
-        { service_category_id: categoryId, category: 'boiler', field_name: 'quoteInfo', field_type: 'table', display_name: 'Quote Information', description: 'Detailed quote information', is_required: false, is_system: true, sample_value: 'Boiler Type: Combi\nProperty Type: Semi-detached' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'addressInfo', field_type: 'table', display_name: 'Address Information', description: 'Property address details', is_required: false, is_system: true, sample_value: 'Line 1: 123 Main St\nCity: London' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'submissionDate', field_type: 'date', display_name: 'Submission Date', description: 'Date of quote submission', is_required: true, is_system: true, sample_value: '2024-01-15' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'quoteInfo', field_type: 'table', display_name: 'Quote Information', description: 'Detailed quote information', is_required: false, is_system: true, sample_value: categorySlug === 'aircon' ? 'AC Type: Split System\nProperty Type: Semi-detached' : 'Boiler Type: Combi\nProperty Type: Semi-detached' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'addressInfo', field_type: 'table', display_name: 'Address Information', description: 'Property address details', is_required: false, is_system: true, sample_value: 'Line 1: 123 Main St\nCity: London' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'submissionDate', field_type: 'date', display_name: 'Submission Date', description: 'Date of quote submission', is_required: true, is_system: true, sample_value: '2024-01-15' },
 
         // Links
-        { service_category_id: categoryId, category: 'boiler', field_name: 'quoteLink', field_type: 'text', display_name: 'Quote Link', description: 'Link to view full quote', is_required: false, is_system: true, sample_value: 'https://example.com/quote/123' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'privacyPolicy', field_type: 'text', display_name: 'Privacy Policy', description: 'Privacy policy text or link', is_required: false, is_system: true, sample_value: 'Privacy Policy' },
-        { service_category_id: categoryId, category: 'boiler', field_name: 'termsConditions', field_type: 'text', display_name: 'Terms & Conditions', description: 'Terms and conditions text or link', is_required: false, is_system: true, sample_value: 'Terms & Conditions' }
+        { service_category_id: categoryId, category: categorySlug, field_name: 'quoteLink', field_type: 'text', display_name: 'Quote Link', description: 'Link to view full quote', is_required: false, is_system: true, sample_value: 'https://example.com/quote/123' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'privacyPolicy', field_type: 'text', display_name: 'Privacy Policy', description: 'Privacy policy text or link', is_required: false, is_system: true, sample_value: 'Privacy Policy' },
+        { service_category_id: categoryId, category: categorySlug, field_name: 'termsConditions', field_type: 'text', display_name: 'Terms & Conditions', description: 'Terms and conditions text or link', is_required: false, is_system: true, sample_value: 'Terms & Conditions' }
       ]
 
       const { error } = await supabase
@@ -498,21 +611,34 @@ export default function NotificationsPage() {
 
     setSaving(true)
     try {
-      const defaultHtml = selectedTemplate.recipient_type === 'customer' 
-        ? getDefaultCustomerTemplate() 
-        : getDefaultAdminTemplate()
+      // Get category slug for template selection
+      const categorySlug = categories.find(c => c.service_category_id === selectedCategoryId)?.slug || ''
       
-      const defaultText = selectedTemplate.recipient_type === 'customer'
-        ? getDefaultCustomerTextTemplate()
-        : getDefaultAdminTextTemplate()
+      const defaultHtml = getTemplatesByType(categorySlug, selectedEmailType, selectedTemplate.recipient_type, 'html')
+      const defaultText = getTemplatesByType(categorySlug, selectedEmailType, selectedTemplate.recipient_type, 'text')
+      
+      // Generate appropriate subject template based on category and email type
+      const getResetSubjectTemplate = (recipientType: 'customer' | 'admin', categorySlug: string, emailType: string) => {
+        const subjectMap: Record<string, Record<string, { customer: string; admin: string }>> = {
+          boiler: {
+            'quote-initial': { customer: 'Your boiler quote request - {{companyName}}', admin: 'New Boiler Quote Request - {{companyName}}' },
+            'quote-verified': { customer: 'Boiler Quote Verified - {{companyName}}', admin: 'Boiler Quote Verified - {{companyName}}' },
+            'save-quote': { customer: 'Boiler Quote Saved - {{companyName}}', admin: 'Boiler Quote Saved - {{companyName}}' },
+          },
+          aircon: {
+            'aircon-quote-initial': { customer: 'Your AC quote request - {{companyName}}', admin: 'New AC Quote Request - {{companyName}}' },
+            'aircon-installation-scheduled': { customer: 'AC Installation Scheduled - {{companyName}}', admin: 'AC Installation Scheduled - {{companyName}}' },
+            'aircon-maintenance-reminder': { customer: 'AC Maintenance Reminder - {{companyName}}', admin: 'AC Maintenance Reminder - {{companyName}}' },
+          }
+        }
+        return subjectMap[categorySlug]?.[emailType]?.[recipientType] || `${emailType} - {{companyName}}`
+      }
 
       await handleSaveTemplate({
         ...selectedTemplate,
         html_template: defaultHtml,
         text_template: defaultText,
-        subject_template: selectedTemplate.recipient_type === 'customer'
-          ? 'Your boiler quote request - {{companyName}}'
-          : 'New Boiler Quote Request - {{companyName}}'
+        subject_template: getResetSubjectTemplate(selectedTemplate.recipient_type, categorySlug, selectedEmailType)
       })
     } finally {
       setSaving(false)
@@ -584,79 +710,95 @@ export default function NotificationsPage() {
       {/* Email Type Selection */}
       {selectedCategoryId && (
         <div className="mb-6 border-b border-gray-200">
-          <nav className="flex space-x-8" aria-label="Email Types">
-            {EMAIL_TYPES.map((emailType) => (
-              <button
-                key={emailType.id}
-                onClick={() => {
-                  setSelectedEmailType(emailType.id)
-                  setSelectedTemplate(null)
-                }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  selectedEmailType === emailType.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {emailType.name}
-              </button>
-            ))}
-          </nav>
+          {availableEmailTypes.length > 0 ? (
+            <nav className="flex space-x-8" aria-label="Email Types">
+              {availableEmailTypes.map((emailType) => (
+                <button
+                  key={emailType.id}
+                  onClick={() => {
+                    setSelectedEmailType(emailType.id)
+                    setSelectedTemplate(null)
+                  }}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    selectedEmailType === emailType.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {emailType.name}
+                </button>
+              ))}
+            </nav>
+          ) : (
+            <div className="py-8 text-center">
+              <div className="bg-gray-50 rounded-lg p-6">
+                <Mail className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-4 text-lg font-medium text-gray-900">No Email Types Available</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Email templates are not yet available for the {categories.find(c => c.service_category_id === selectedCategoryId)?.name || 'selected'} category.
+                  <br />
+                  Email notifications are currently only supported for Boiler services.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Email Template Section */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <Mail className="h-5 w-5 text-gray-400" />
-            <div>
-              <h2 className="text-lg font-medium text-gray-900">
-                {EMAIL_TYPES.find(et => et.id === selectedEmailType)?.name || 'Email Templates'}
-              </h2>
-              <p className="text-sm text-gray-500">
-                {EMAIL_TYPES.find(et => et.id === selectedEmailType)?.description || 'Customize your email templates for different notifications'}
-              </p>
-              {adminEmail && (
-                <p className="text-xs text-blue-600 mt-1">
-                  Admin notifications will be sent to: {adminEmail}
+      {availableEmailTypes.length > 0 && selectedEmailType && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <Mail className="h-5 w-5 text-gray-400" />
+              <div>
+                <h2 className="text-lg font-medium text-gray-900">
+                  {availableEmailTypes.find(et => et.id === selectedEmailType)?.name || 'Email Templates'}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {availableEmailTypes.find(et => et.id === selectedEmailType)?.description || 'Customize your email templates for different notifications'}
                 </p>
-              )}
-              {!adminEmail && (
-                <p className="text-xs text-amber-600 mt-1">
-                  No admin email configured. Configure in Settings → General Settings → Admin Email Settings
-                </p>
-              )}
+                {adminEmail && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Admin notifications will be sent to: {adminEmail}
+                  </p>
+                )}
+                {!adminEmail && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    No admin email configured. Configure in Settings → General Settings → Admin Email Settings
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetTemplate}
+                disabled={saving}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset to Default
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => selectedTemplate && handleSaveTemplate(selectedTemplate)}
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save Changes
+              </Button>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetTemplate}
-              disabled={saving}
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset to Default
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => selectedTemplate && handleSaveTemplate(selectedTemplate)}
-              disabled={saving}
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Save Changes
-            </Button>
-          </div>
         </div>
-      </div>
+      )}
 
       {/* Customer/Admin Email Tabs */}
-      {selectedCategoryId && (
+      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
         <div className="mb-6 border-b border-gray-200">
           <nav className="flex space-x-8" aria-label="Email Types">
             <button
@@ -690,7 +832,7 @@ export default function NotificationsPage() {
       )}
 
       {/* Template Content */}
-      {selectedTemplate && (
+      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && (
         <EmailTemplateEditor
           template={selectedTemplate}
           templateFields={templateFields}
@@ -701,763 +843,3 @@ export default function NotificationsPage() {
   )
 }
 
-// Default template functions
-function getDefaultDynamicFields() {
-  return [
-    'firstName', 'lastName', 'email', 'phone', 'postcode',
-    'companyName', 'companyPhone', 'companyEmail', 'companyAddress', 'companyWebsite',
-    'refNumber', 'submissionId', 'quoteLink', 'submissionDate'
-  ]
-}
-
-function getDefaultCustomerTemplate() {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quote Request</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, {{primaryColor}}, {{primaryColor}}dd); padding: 25px 30px; border-radius: 8px 8px 0 0; text-align: center;">
-              <img src="{{logoUrl}}" alt="{{companyName}}" style="max-height: 40px; max-width: 150px;">
-            </td>
-          </tr>
-          
-          <!-- Body -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <h1 style="color: #1f2937; font-size: 24px; margin: 0 0 20px 0;">Hi {{firstName}},</h1>
-              
-              <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                Thank you for requesting a quote. We've received your information and will be in touch shortly.
-              </p>
-              
-              <!-- Details Table -->
-              <table width="100%" cellpadding="12" cellspacing="0" style="border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold; width: 35%;">Reference:</td>
-                  <td>{{refNumber}}</td>
-                </tr>
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold;">Name:</td>
-                  <td>{{firstName}} {{lastName}}</td>
-                </tr>
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold;">Email:</td>
-                  <td>{{email}}</td>
-                </tr>
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold;">Phone:</td>
-                  <td>{{phone}}</td>
-                </tr>
-              </table>
-              
-              <!-- CTA Button -->
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="{{quoteLink}}" style="display: inline-block; background-color: {{primaryColor}}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                  View Your Quote
-                </a>
-              </div>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f9fafb; padding: 20px; text-align: center; border-radius: 0 0 8px 8px;">
-              <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                © {{currentYear}} {{companyName}}. All rights reserved.
-              </p>
-              <p style="margin: 10px 0 0 0;">
-                <a href="{{companyWebsite}}" style="color: {{primaryColor}}; text-decoration: none;">Visit our website</a>
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
-}
-
-function getDefaultCustomerTextTemplate() {
-  return `Hi {{firstName}},
-
-Thank you for requesting a quote. We've received your information and will be in touch shortly.
-
-Your Details:
-Reference: {{refNumber}}
-Name: {{firstName}} {{lastName}}
-Email: {{email}}
-Phone: {{phone}}
-
-View your quote: {{quoteLink}}
-
-Best regards,
-{{companyName}}
-
-© {{currentYear}} {{companyName}}. All rights reserved.
-Visit our website: {{companyWebsite}}`
-}
-
-function getDefaultAdminTemplate() {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>New Quote Request</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, {{primaryColor}}, {{primaryColor}}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
-              <h2 style="color: white; margin: 0; text-align: center;">New Quote Request</h2>
-            </td>
-          </tr>
-          
-          <!-- Body -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <h3 style="color: #1f2937; margin: 0 0 20px 0;">Customer Information</h3>
-              
-              <!-- Customer Details -->
-              <table width="100%" cellpadding="10" cellspacing="0" style="border: 1px solid #e5e7eb; border-radius: 8px;">
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold; width: 35%;">Reference:</td>
-                  <td>{{refNumber}}</td>
-                </tr>
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold;">Name:</td>
-                  <td>{{firstName}} {{lastName}}</td>
-                </tr>
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold;">Email:</td>
-                  <td>{{email}}</td>
-                </tr>
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold;">Phone:</td>
-                  <td>{{phone}}</td>
-                </tr>
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold;">Postcode:</td>
-                  <td>{{postcode}}</td>
-                </tr>
-                <tr>
-                  <td style="background-color: #f9fafb; font-weight: bold;">Submission Date:</td>
-                  <td>{{submissionDate}}</td>
-                </tr>
-              </table>
-              
-              <h3 style="color: #1f2937; margin: 30px 0 20px 0;">Quote Details</h3>
-              <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px;">
-                {{quoteInfo}}
-              </div>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f9fafb; padding: 20px; text-align: center; border-radius: 0 0 8px 8px;">
-              <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                This is an automated notification from {{companyName}}
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
-}
-
-function getDefaultAdminTextTemplate() {
-  return `New Quote Request
-
-Customer Information:
-Reference: {{refNumber}}
-Name: {{firstName}} {{lastName}}
-Email: {{email}}
-Phone: {{phone}}
-Postcode: {{postcode}}
-Submission Date: {{submissionDate}}
-
-Quote Details:
-{{quoteInfo}}
-
-This is an automated notification from {{companyName}}`
-}
-
-function getDefaultCustomerVerifiedTemplate() {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quote Verified</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, {{primaryColor}}, {{primaryColor}}dd); padding: 25px 30px; border-radius: 8px 8px 0 0; text-align: center;">
-              <img src="{{logoUrl}}" alt="{{companyName}}" style="max-height: 40px; max-width: 150px;">
-            </td>
-          </tr>
-          
-          <!-- Body -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <h1 style="color: #1f2937; font-size: 24px; margin: 0 0 20px 0;">Great news, {{firstName}}!</h1>
-              
-              <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                Your quote has been verified and you can now proceed to view your boiler options and pricing.
-              </p>
-              
-              <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-                What happens next?
-              </p>
-              
-              <div style="margin-bottom: 30px;">
-                <p style="margin: 0 0 15px 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                  ✓ Browse our range of boiler options and pricing
-                </p>
-                <p style="margin: 0 0 15px 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                  ✓ Select the perfect boiler for your home
-                </p>
-                <p style="margin: 0 0 15px 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                  ✓ Choose your preferred installation date
-                </p>
-                <p style="margin: 0 0 15px 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                  ✓ Complete your booking with secure payment
-                </p>
-                <p style="margin: 0 0 15px 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                  ✓ Our certified engineers will handle the installation
-                </p>
-                <p style="margin: 0 0 15px 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                  ✓ Enjoy your new efficient heating system
-                </p>
-              </div>
-              
-              <!-- CTA Button -->
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="{{quoteLink}}" style="display: inline-block; background-color: {{primaryColor}}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                  View Your Boiler Options
-                </a>
-              </div>
-              
-              <p style="margin: 30px 0 0 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                Thank you for choosing {{companyName}}!
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f9fafb; padding: 20px; text-align: center; border-radius: 0 0 8px 8px;">
-              <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                © {{currentYear}} {{companyName}}. All rights reserved.
-              </p>
-              <p style="margin: 10px 0 0 0;">
-                <a href="{{companyWebsite}}" style="color: {{primaryColor}}; text-decoration: none;">Visit our website</a>
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
-}
-
-function getDefaultCustomerVerifiedTextTemplate() {
-  return `Great news, {{firstName}}!
-
-Your quote has been verified and you can now proceed to view your boiler options and pricing.
-
-What happens next?
-✓ Browse our range of boiler options and pricing
-✓ Select the perfect boiler for your home
-✓ Choose your preferred installation date
-✓ Complete your booking with secure payment
-✓ Our certified engineers will handle the installation
-✓ Enjoy your new efficient heating system
-
-View your boiler options: {{quoteLink}}
-
-Thank you for choosing {{companyName}}!
-
-© {{currentYear}} {{companyName}}. All rights reserved.
-Visit our website: {{companyWebsite}}`
-}
-
-function getDefaultAdminVerifiedTemplate() {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quote Verified - Customer Ready</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <table width="700" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, {{primaryColor}}, {{primaryColor}}dd); padding: 25px 30px; border-radius: 8px 8px 0 0;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="text-align: center; vertical-align: middle;">
-                    <img src="{{logoUrl}}" alt="{{companyName}}" style="max-height: 40px; max-width: 150px;">
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Body -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <h2 style="margin: 0 0 20px 0; font-size: 20px; color: #374151;">
-                Quote Verified - Customer Ready
-              </h2>
-              
-              <p style="margin: 0 0 30px 0; font-size: 16px; color: #374151; line-height: 1.6;">
-                A customer has completed phone verification and is ready to proceed with booking.
-              </p>
-
-              <!-- Customer Details Table -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-                <tr>
-                  <td style="background-color: #f9fafb; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">
-                    Customer Information
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 0;">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Full Name:</td>
-                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{firstName}} {{lastName}}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Email:</td>
-                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{email}}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Phone:</td>
-                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{phone}}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Postcode:</td>
-                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{postcode}}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Reference:</td>
-                        <td style="padding: 12px 15px; color: #6b7280;">{{refNumber}}</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              <div style="background-color: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
-                <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #0c4a6e; text-align: center;">
-                  Status: Ready to Proceed
-                </h3>
-                <p style="margin: 0; font-size: 16px; color: #0c4a6e; text-align: center; line-height: 1.6;">
-                  Customer phone verification completed successfully. Ready to view products and proceed with booking.
-                </p>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="text-align: center; padding-bottom: 15px;">
-                    <img src="{{logoUrl}}" alt="{{companyName}}" style="max-height: 40px; max-width: 150px; margin-bottom: 10px;">
-                    <p style="margin: 0; font-size: 14px; color: #6b7280;">
-                      ©2025 {{companyName}}. All rights reserved.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
-}
-
-function getDefaultAdminVerifiedTextTemplate() {
-  return `Quote Verified - Customer Ready
-
-Customer Information:
-Name: {{firstName}} {{lastName}}
-Email: {{email}}
-Phone: {{phone}}
-Postcode: {{postcode}}
-Reference: {{refNumber}}
-
-Status: Customer phone verification completed successfully. Ready to view products and proceed with booking.
-
-This is an automated notification from {{companyName}}`
-}
-
-function getDefaultCustomerSaveQuoteTemplate() {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quote Saved Successfully</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb;">
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background-color: {{primaryColor}}; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-              {{#if logoUrl}}
-                <img src="{{logoUrl}}" alt="{{companyName}}" style="max-height: 60px; max-width: 200px; margin-bottom: 15px;">
-              {{/if}}
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">
-                Quote Saved Successfully!
-              </h1>
-            </td>
-          </tr>
-
-          <!-- Main Content -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 24px;">
-                Hi {{firstName}},
-              </h2>
-              
-              <p style="margin: 0 0 20px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                Great news! Your boiler quote has been successfully saved. You can return anytime to complete your booking or make changes to your selection.
-              </p>
-
-              <!-- Quote Details -->
-              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 6px; margin: 20px 0;">
-                <h3 style="margin: 0 0 15px 0; color: #1f2937; font-size: 18px;">Your Quote Details</h3>
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                  <tr>
-                    <td style="padding: 5px 0; color: #4b5563; font-size: 14px;"><strong>Name:</strong> {{firstName}} {{lastName}}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 5px 0; color: #4b5563; font-size: 14px;"><strong>Email:</strong> {{email}}</td>
-                  </tr>
-                  {{#if postcode}}
-                  <tr>
-                    <td style="padding: 5px 0; color: #4b5563; font-size: 14px;"><strong>Postcode:</strong> {{postcode}}</td>
-                  </tr>
-                  {{/if}}
-                  {{#if refNumber}}
-                  <tr>
-                    <td style="padding: 5px 0; color: #4b5563; font-size: 14px;"><strong>Reference:</strong> {{refNumber}}</td>
-                  </tr>
-                  {{/if}}
-                </table>
-              </div>
-
-              {{#if quoteInfo}}
-              <!-- Products Information -->
-              <div style="background-color: #fef3c7; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-                <h3 style="margin: 0 0 15px 0; color: #92400e; font-size: 18px;">Saved Products & Options</h3>
-                <div style="color: #92400e; font-size: 14px; line-height: 1.6; white-space: pre-line;">{{quoteInfo}}</div>
-              </div>
-              {{/if}}
-
-              <!-- Benefits Section -->
-              <div style="background-color: #ecfdf5; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #10b981;">
-                <h3 style="margin: 0 0 15px 0; color: #065f46; font-size: 18px;">Your Quote Benefits</h3>
-                <ul style="margin: 0; padding-left: 20px; color: #065f46; font-size: 14px; line-height: 1.6;">
-                  <li>Quote saved for 30 days - no pressure to decide now</li>
-                  <li>Prices locked in at current rates</li>
-                  <li>Easy to return and complete your booking</li>
-                  <li>Modify your selection anytime before booking</li>
-                  <li>Professional installation included</li>
-                  <li>Full warranty and aftercare support</li>
-                </ul>
-              </div>
-
-              <!-- Call to Action -->
-              {{#if quoteLink}}
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="{{quoteLink}}" style="display: inline-block; background-color: {{primaryColor}}; color: #ffffff; text-decoration: none; padding: 15px 30px; border-radius: 6px; font-weight: bold; font-size: 16px;">
-                  View & Complete Your Quote
-                </a>
-              </div>
-              {{/if}}
-
-              <p style="margin: 20px 0 0 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                Thank you for choosing {{companyName}}! We're here whenever you're ready to proceed with your boiler installation.
-              </p>
-
-              <p style="margin: 20px 0 0 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                If you have any questions or need assistance, please don't hesitate to contact us.
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-radius: 0 0 8px 8px;">
-              {{#if companyPhone}}
-              <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
-                Phone: {{companyPhone}}
-              </p>
-              {{/if}}
-              {{#if companyEmail}}
-              <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
-                Email: {{companyEmail}}
-              </p>
-              {{/if}}
-              {{#if companyAddress}}
-              <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
-                {{companyAddress}}
-              </p>
-              {{/if}}
-              {{#if companyWebsite}}
-              <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
-                Website: {{companyWebsite}}
-              </p>
-              {{/if}}
-              <p style="margin: 0; font-size: 14px; color: #6b7280;">
-                ©2025 {{companyName}}. All rights reserved.
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
-}
-
-function getDefaultCustomerSaveQuoteTextTemplate() {
-  return `Quote Saved Successfully - {{companyName}}
-
-Hi {{firstName}},
-
-Great news! Your boiler quote has been successfully saved. You can return anytime to complete your booking or make changes to your selection.
-
-Your Quote Details:
-Name: {{firstName}} {{lastName}}
-Email: {{email}}
-{{#if postcode}}Postcode: {{postcode}}{{/if}}
-{{#if refNumber}}Reference: {{refNumber}}{{/if}}
-
-{{#if quoteInfo}}Saved Products & Options:
-{{quoteInfo}}
-
-{{/if}}Your Quote Benefits:
-• Quote saved for 30 days - no pressure to decide now
-• Prices locked in at current rates
-• Easy to return and complete your booking
-• Modify your selection anytime before booking
-• Professional installation included
-• Full warranty and aftercare support
-
-{{#if quoteLink}}View & Complete Your Quote: {{quoteLink}}
-
-{{/if}}Thank you for choosing {{companyName}}! We're here whenever you're ready to proceed with your boiler installation.
-
-If you have any questions or need assistance, please don't hesitate to contact us.
-
-{{#if companyPhone}}Phone: {{companyPhone}}{{/if}}
-{{#if companyEmail}}Email: {{companyEmail}}{{/if}}
-{{#if companyAddress}}{{companyAddress}}{{/if}}
-{{#if companyWebsite}}Website: {{companyWebsite}}{{/if}}
-
-©2025 {{companyName}}. All rights reserved.`
-}
-
-function getDefaultAdminSaveQuoteTemplate() {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Customer Saved Quote - Follow Up</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb;">
-    <tr>
-      <td align="center" style="padding: 20px 0;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background-color: #f59e0b; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-              {{#if logoUrl}}
-                <img src="{{logoUrl}}" alt="{{companyName}}" style="max-height: 60px; max-width: 200px; margin-bottom: 15px;">
-              {{/if}}
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">
-                Customer Saved Quote - Follow Up
-              </h1>
-            </td>
-          </tr>
-
-          <!-- Main Content -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 24px;">
-                Great Follow-Up Opportunity!
-              </h2>
-              
-              <p style="margin: 0 0 20px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                A customer has saved their boiler quote - this is a great opportunity to follow up and help them complete their booking.
-              </p>
-
-              <!-- Customer Information -->
-              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 6px; margin: 20px 0;">
-                <h3 style="margin: 0 0 15px 0; color: #1f2937; font-size: 18px;">Customer Information</h3>
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                  <tr>
-                    <td style="padding: 5px 0; color: #4b5563; font-size: 14px;"><strong>Name:</strong> {{firstName}} {{lastName}}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 5px 0; color: #4b5563; font-size: 14px;"><strong>Email:</strong> {{email}}</td>
-                  </tr>
-                  {{#if postcode}}
-                  <tr>
-                    <td style="padding: 5px 0; color: #4b5563; font-size: 14px;"><strong>Postcode:</strong> {{postcode}}</td>
-                  </tr>
-                  {{/if}}
-                  {{#if refNumber}}
-                  <tr>
-                    <td style="padding: 5px 0; color: #4b5563; font-size: 14px;"><strong>Reference:</strong> {{refNumber}}</td>
-                  </tr>
-                  {{/if}}
-                  <tr>
-                    <td style="padding: 5px 0; color: #4b5563; font-size: 14px;"><strong>Date Saved:</strong> {{submissionDate}}</td>
-                  </tr>
-                </table>
-              </div>
-
-              {{#if quoteInfo}}
-              <!-- Products Information -->
-              <div style="background-color: #fef3c7; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-                <h3 style="margin: 0 0 15px 0; color: #92400e; font-size: 18px;">Saved Products & Options</h3>
-                <div style="color: #92400e; font-size: 14px; line-height: 1.6; white-space: pre-line;">{{quoteInfo}}</div>
-              </div>
-              {{/if}}
-
-              <!-- Action Required -->
-              <div style="background-color: #fef2f2; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #ef4444;">
-                <h3 style="margin: 0 0 15px 0; color: #991b1b; font-size: 18px;">Action Required</h3>
-                <p style="margin: 0; color: #991b1b; font-size: 14px; line-height: 1.6;">
-                  <strong>Contact customer within 24-48 hours</strong> to help convert the quote into a booking. 
-                  This is a high conversion opportunity - the customer has shown strong interest by saving their quote.
-                </p>
-              </div>
-
-              <!-- Follow-up Tips -->
-              <div style="background-color: #ecfdf5; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #10b981;">
-                <h3 style="margin: 0 0 15px 0; color: #065f46; font-size: 18px;">Follow-up Tips</h3>
-                <ul style="margin: 0; padding-left: 20px; color: #065f46; font-size: 14px; line-height: 1.6;">
-                  <li>Call or email to answer any questions they may have</li>
-                  <li>Offer to schedule a convenient installation date</li>
-                  <li>Highlight any current promotions or incentives</li>
-                  <li>Provide additional information about your services</li>
-                  <li>Offer a free consultation or site visit</li>
-                </ul>
-              </div>
-
-              {{#if quoteLink}}
-              <!-- Quote Link -->
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="{{quoteLink}}" style="display: inline-block; background-color: {{primaryColor}}; color: #ffffff; text-decoration: none; padding: 15px 30px; border-radius: 6px; font-weight: bold; font-size: 16px;">
-                  View Customer Quote
-                </a>
-              </div>
-              {{/if}}
-
-              <p style="margin: 20px 0 0 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                This is an automated notification from {{companyName}}.
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-radius: 0 0 8px 8px;">
-              <p style="margin: 0; font-size: 14px; color: #6b7280;">
-                ©2025 {{companyName}}. All rights reserved.
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`
-}
-
-function getDefaultAdminSaveQuoteTextTemplate() {
-  return `Customer Saved Quote - Follow Up - {{companyName}}
-
-Great Follow-Up Opportunity!
-
-A customer has saved their boiler quote - this is a great opportunity to follow up and help them complete their booking.
-
-Customer Information:
-Name: {{firstName}} {{lastName}}
-Email: {{email}}
-{{#if postcode}}Postcode: {{postcode}}{{/if}}
-{{#if refNumber}}Reference: {{refNumber}}{{/if}}
-Date Saved: {{submissionDate}}
-
-{{#if quoteInfo}}Saved Products & Options:
-{{quoteInfo}}
-
-{{/if}}Action Required:
-Contact customer within 24-48 hours to help convert the quote into a booking. This is a high conversion opportunity - the customer has shown strong interest by saving their quote.
-
-Follow-up Tips:
-• Call or email to answer any questions they may have
-• Offer to schedule a convenient installation date
-• Highlight any current promotions or incentives
-• Provide additional information about your services
-• Offer a free consultation or site visit
-
-{{#if quoteLink}}View Customer Quote: {{quoteLink}}
-
-{{/if}}This is an automated notification from {{companyName}}.
-
-©2025 {{companyName}}. All rights reserved.`
-}
