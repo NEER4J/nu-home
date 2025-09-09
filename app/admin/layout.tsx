@@ -65,16 +65,6 @@ export default async function RootLayout({
                   </li>
                   <li>
                     <Link 
-                      href="/admin/quote-submissions" 
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
-                      id="nav-submissions"
-                    >
-                      <FileText className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
-                      Submissions
-                    </Link>
-                  </li>
-                  <li>
-                    <Link 
                       href="/admin/service-categories" 
                       className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
                       id="nav-categories"
@@ -85,12 +75,32 @@ export default async function RootLayout({
                   </li>
                   <li>
                     <Link 
+                      href="/admin/category-requests" 
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+                      id="nav-category-requests"
+                    >
+                      <ClipboardList className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                      Category Requests
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
                       href="/admin/products" 
                       className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
                       id="nav-products"
                     >
                       <Layers className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
                       Products
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
+                      href="/admin/partners" 
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+                      id="nav-partners"
+                    >
+                      <User className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                      Partners
                     </Link>
                   </li>
                 </ul>

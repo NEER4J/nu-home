@@ -19,7 +19,7 @@ export async function PATCH(
     const body = await request.json();
     const { products_list_layout } = body;
     
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     // Update the category's layout setting
     const { data, error } = await supabase

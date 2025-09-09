@@ -9,9 +9,9 @@ export const metadata = {
 
 export default function NewCategoryPage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Add New Service Category</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Add New Service Category</h1>
         <Link
           href="/admin/service-categories"
           className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"

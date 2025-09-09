@@ -1,0 +1,169 @@
+create table public."CategoryAttributes" (
+    attribute_id uuid not null default extensions.uuid_generate_v4 (),
+    service_category_id uuid not null,
+    name character varying(255) not null,
+    key character varying(255) not null,
+    type character varying(50) not null,
+    options jsonb null,
+    unit character varying(50) null,
+    is_required boolean not null default false,
+    display_order integer not null,
+    created_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    constraint categoryattributes_pkey primary key (attribute_id),
+    constraint categoryattributes_category_key_key unique (service_category_id, key),
+    constraint categoryattributes_service_category_id_fkey foreign KEY (service_category_id) references "ServiceCategories" (service_category_id) on delete CASCADE
+  ) TABLESPACE pg_default;
+  
+  create table public."CategoryFields" (
+    field_id uuid not null default extensions.uuid_generate_v4 (),
+    service_category_id uuid not null,
+    name character varying(255) not null,
+    key character varying(255) not null,
+    field_type character varying(50) not null,
+    is_required boolean not null default false,
+    display_order integer not null,
+    options jsonb null,
+    created_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    display_format character varying(50) not null default 'default'::character varying,
+    is_multi boolean not null default false,
+    constraint categoryfields_pkey primary key (field_id),
+    constraint categoryfields_category_key_key unique (service_category_id, key),
+    constraint categoryfields_service_category_id_fkey foreign KEY (service_category_id) references "ServiceCategories" (service_category_id) on delete CASCADE
+  ) TABLESPACE pg_default;
+  
+  create trigger update_category_fields_timestamp BEFORE
+  update on "CategoryFields" for EACH row
+  execute FUNCTION update_timestamp ();
+  
+  
+  create table public."FormQuestions" (
+    question_id uuid not null default extensions.uuid_generate_v4 (),
+    service_category_id uuid not null,
+    question_text text not null,
+    step_number integer not null,
+    display_order_in_step integer not null,
+    is_multiple_choice boolean null default false,
+    answer_options jsonb null,
+    has_helper_video boolean null default false,
+    helper_video_url text null,
+    is_required boolean null default true,
+    conditional_display jsonb null,
+    status character varying(50) null default 'active'::character varying,
+    created_by uuid null,
+    created_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    is_deleted boolean null default false,
+    allow_multiple_selections boolean null,
+    answer_images text null,
+    position_x double precision null,
+    position_y double precision null,
+    constraint FormQuestions_pkey primary key (question_id),
+    constraint FormQuestions_service_category_id_fkey foreign KEY (service_category_id) references "ServiceCategories" (service_category_id) on delete CASCADE
+  ) TABLESPACE pg_default;
+  
+  create index IF not exists idx_form_questions_service_category on public."FormQuestions" using btree (service_category_id) TABLESPACE pg_default;
+  
+  create index IF not exists idx_form_questions_status on public."FormQuestions" using btree (status) TABLESPACE pg_default;
+  
+  create trigger update_form_questions_timestamp BEFORE
+  update on "FormQuestions" for EACH row
+  execute FUNCTION update_timestamp ();
+  
+  
+  
+  
+  create table public."Products" (
+    product_id uuid not null default extensions.uuid_generate_v4 (),
+    service_category_id uuid not null,
+    name character varying(255) not null,
+    slug character varying(255) not null,
+    description text not null,
+    price numeric(10, 2) null,
+    image_url text null,
+    specifications jsonb not null default '{}'::jsonb,
+    is_featured boolean not null default false,
+    is_active boolean not null default true,
+    created_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    field_values jsonb not null default '{}'::jsonb,
+    product_fields jsonb not null default '{}'::jsonb,
+    constraint products_pkey primary key (product_id),
+    constraint products_slug_key unique (slug),
+    constraint products_service_category_id_fkey foreign KEY (service_category_id) references "ServiceCategories" (service_category_id) on delete CASCADE
+  ) TABLESPACE pg_default;
+  
+  create index IF not exists idx_products_service_category on public."Products" using btree (service_category_id) TABLESPACE pg_default;
+  
+  create index IF not exists idx_products_is_active on public."Products" using btree (is_active) TABLESPACE pg_default;
+  
+  create index IF not exists idx_products_is_featured on public."Products" using btree (is_featured) TABLESPACE pg_default;
+  
+  create trigger update_products_timestamp BEFORE
+  update on "Products" for EACH row
+  execute FUNCTION update_timestamp ();
+  
+  
+  
+  
+  create table public."QuoteSubmissions" (
+    submission_id uuid not null default extensions.uuid_generate_v4 (),
+    service_category_id uuid not null,
+    first_name character varying(255) not null,
+    last_name character varying(255) not null,
+    email character varying(255) not null,
+    phone character varying(50) null,
+    city character varying(255) null,
+    postcode character varying(20) not null,
+    submission_date timestamp with time zone null default CURRENT_TIMESTAMP,
+    ip_address character varying(50) null,
+    user_agent text null,
+    referral_source character varying(255) null,
+    status character varying(50) null default 'new'::character varying,
+    form_answers jsonb not null,
+    notes text null,
+    created_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    constraint QuoteSubmissions_pkey primary key (submission_id),
+    constraint QuoteSubmissions_service_category_id_fkey foreign KEY (service_category_id) references "ServiceCategories" (service_category_id)
+  ) TABLESPACE pg_default;
+  
+  create index IF not exists idx_quote_submissions_service_category on public."QuoteSubmissions" using btree (service_category_id) TABLESPACE pg_default;
+  
+  create index IF not exists idx_quote_submissions_status on public."QuoteSubmissions" using btree (status) TABLESPACE pg_default;
+  
+  create index IF not exists idx_quote_submissions_email on public."QuoteSubmissions" using btree (email) TABLESPACE pg_default;
+  
+  create index IF not exists idx_quote_submissions_postcode on public."QuoteSubmissions" using btree (postcode) TABLESPACE pg_default;
+  
+  create trigger update_quote_submissions_timestamp BEFORE
+  update on "QuoteSubmissions" for EACH row
+  execute FUNCTION update_timestamp ();
+  
+  
+  
+  
+  
+  
+  create table public."ServiceCategories" (
+    service_category_id uuid not null default extensions.uuid_generate_v4 (),
+    name character varying(255) not null,
+    slug character varying(255) not null,
+    description text null,
+    icon_url text null,
+    is_active boolean null default true,
+    created_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
+    form_style text null,
+    show_thank_you boolean null default true,
+    redirect_to_products boolean null default false,
+    fields_layout character varying(50) not null default 'default'::character varying,
+    products_list_layout character varying(50) not null default 'default'::character varying,
+    constraint ServiceCategories_pkey primary key (service_category_id),
+    constraint ServiceCategories_slug_key unique (slug)
+  ) TABLESPACE pg_default;
+  
+  create trigger update_service_categories_timestamp BEFORE
+  update on "ServiceCategories" for EACH row
+  execute FUNCTION update_timestamp ();

@@ -65,7 +65,7 @@ export default function ThankYouMessage({
               </svg>
             </div>
             
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">
               Thank You, {firstName}!
             </h2>
             

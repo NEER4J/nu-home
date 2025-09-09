@@ -1,100 +1,84 @@
 // components/products/layouts/CardLayout.tsx
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { Product } from '@/types/product.types';
+import Image from 'next/image';
+import { Product, Partner } from '@/types/product.types';
 
-type CardLayoutProps = {
+interface CardLayoutProps {
   product: Product;
   categorySlug: string;
-};
+  partner?: Partner;
+}
 
-export default function CardLayout({ product, categorySlug }: CardLayoutProps) {
-  // Extract common custom fields
-  const warranty = product.product_fields?.warranty || '25';
-  const apr = product.product_fields?.apr || '12.9%';
-  const monthlyPrice = product.product_fields?.monthly_price || '130.12';
-  const brandLogo = product.product_fields?.brand_logo;
-  
+export default function CardLayout({ product, categorySlug, partner }: CardLayoutProps) {
   return (
-    <div className="bg-white rounded-lg overflow-hidden shadow-md">
-      {/* Color badge */}
-      <div className="flex items-center px-2 py-1 gap-2">
-        <div className="w-4 h-4 rounded-full bg-gray-400" />
-        <span className="text-xs">{warranty} year {apr} APR</span>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+      {/* Product Image */}
+      <div className="relative h-56 w-full">
+        {product.image_url ? (
+          <Image
+            src={product.image_url}
+            alt={product.name}
+            fill
+            className="object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-gray-100 flex items-center justify-center">
+            <span className="text-gray-400">No image</span>
+          </div>
+        )}
+        
+        {/* Partner Logo - Small overlay on the image */}
+        {product.Partner?.logo_url && (
+          <div className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-sm">
+            <Image
+              src={product.Partner.logo_url}
+              alt={product.Partner.company_name}
+              width={24}
+              height={24}
+              className="rounded-full"
+            />
+          </div>
+        )}
       </div>
       
-      {/* Product image */}
-      <div className="bg-blue-50 p-6 flex justify-center">
-        <div className="relative h-64 w-64">
-          {product.image_url ? (
-            <Image 
-              src={product.image_url} 
-              alt={product.name} 
-              fill 
-              className="object-contain" 
-            />
-          ) : (
-            <div className="h-full w-full bg-gray-100 flex items-center justify-center">
-              <span className="text-gray-400">No image</span>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className="p-6">
-        {/* Brand logo */}
-        <div className="h-12 mb-4">
-          {brandLogo ? (
-            <Image 
-              src={brandLogo} 
-              alt="Brand" 
-              width={100} 
-              height={40} 
-              className="object-contain" 
-            />
-          ) : (
-            <div className="h-12 w-32 bg-gray-100 rounded" />
-          )}
-        </div>
+      {/* Product Details */}
+      <div className="p-4">
+        <h3 className="text-xl font-medium text-gray-900 mb-1">
+          {product.name}
+        </h3>
         
-        {/* Product name */}
-        <h3 className="text-xl font-bold mb-1">{product.name}</h3>
-        <p className="text-sm text-gray-600">Up to {warranty} year {apr} APR</p>
-        
-        {/* Description */}
-        <div className="my-4 text-sm text-gray-700">
-          <p>{product.description}</p>
-        </div>
-        
-        {/* Pricing */}
-        <div className="mt-4 flex justify-between items-center border-t pt-4">
-          <div>
-            <p className="text-xs text-gray-500">Price estimate</p>
-            <p className="text-xl font-bold">
-              £{product.price ? product.price.toFixed(2) : '7896'}
-            </p>
+        {/* Partner Name */}
+        {product.Partner && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm text-gray-600">
+              by {product.Partner.company_name}
+            </span>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500">or, monthly from</p>
-            <p className="text-xl">£{monthlyPrice}</p>
-          </div>
-        </div>
+        )}
         
-        {/* What's included link */}
-        <div className="text-center my-2">
-          <button className="text-sm text-blue-600 hover:underline">
-            What's Included
-          </button>
-        </div>
+        <p className="text-sm text-gray-500 mb-4 line-clamp-3">
+          {product.description}
+        </p>
         
-        {/* CTA Button */}
-        <Link
-          href={`/services/${categorySlug}/products/${product.slug}`}
-          className="block w-full mt-4 p-3 bg-teal-700 text-white text-center rounded hover:bg-teal-800"
-        >
-          Book Your Free Survey
-        </Link>
+        {/* Price and Action */}
+        <div className="flex items-center justify-between mt-auto">
+          {product.price !== null ? (
+            <span className="text-lg font-semibold text-gray-900">
+              ${product.price.toLocaleString()}
+            </span>
+          ) : (
+            <span className="text-sm text-gray-500 italic">
+              Price on request
+            </span>
+          )}
+          <Link
+            href={`/services/${categorySlug}/products/${product.slug}`}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            View Details
+          </Link>
+        </div>
       </div>
     </div>
   );

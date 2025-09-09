@@ -161,7 +161,7 @@ export default function QuestionsStep({
         transition={{ duration: 0.2 }}
         className="mb-8"
       >
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+        <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">
           {currentQuestion?.question_text}
           {currentQuestion?.is_required && <span className="text-red-500 ml-1">*</span>}
         </h2>

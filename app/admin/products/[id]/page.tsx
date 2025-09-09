@@ -1,9 +1,9 @@
 // app/admin/products/[id]/page.tsx
 import { notFound } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/products';
-import { ProductForm } from '@/components/admin/ProductForm';
-import { ServiceCategory } from '@/types/database.types';
+import { ProductForm } from '@/components/shared/ProductForm';
 import { Product } from '@/types/product.types';
+import { ServiceCategory } from '@/types/database.types';
 
 // Force dynamic rendering to avoid prerendering issues
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,7 @@ export default async function EditProductPage({
   const resolvedParams = await params;
   const productId = resolvedParams.id;
   
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   
   // Get the product
   const { data: product, error: productError } = await supabase
@@ -43,14 +43,15 @@ export default async function EditProductPage({
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Edit Product: {product.name}</h1>
+        <h1 className="text-2xl font-semibold">Edit Product: {product.name}</h1>
       </div>
       
       <div className="bg-white rounded-lg shadow p-6">
         <ProductForm 
           product={product as Product} 
           categories={categories as ServiceCategory[]} 
-          isEditing={true} 
+          isEditing={true}
+          isPartner={false}
         />
       </div>
     </div>

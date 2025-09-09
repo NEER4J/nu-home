@@ -198,7 +198,7 @@ export default function QuoteForm({
   if (success) {
     return (
       <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
-        <h3 className="text-2xl font-bold text-green-700 mb-4">Quote Request Submitted!</h3>
+        <h3 className="text-2xl font-semibold text-green-700 mb-4">Quote Request Submitted!</h3>
         <p className="mb-4">Thank you for your submission. Our team will contact you shortly.</p>
         <button 
           onClick={() => window.location.href = `/services/${serviceCategorySlug}`}

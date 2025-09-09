@@ -1,6 +1,6 @@
 'use client';
 
-import { CategoryField } from '@/types/product.types';
+import { CategoryField } from '@/types/product.types'; 
  
 type FieldListProps = {
   fields: CategoryField[];

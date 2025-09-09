@@ -1,16 +1,35 @@
-'use client';
+"use client";
 
-import { Loader2 } from 'lucide-react';
+import React from 'react';
 
 interface LoadingSpinnerProps {
-  size?: number;
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
 
-export default function LoadingSpinner({ size = 24, className = '' }: LoadingSpinnerProps) {
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
+  size = 'md',
+  className = ''
+}) => {
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-6 h-6',
+    lg: 'w-8 h-8'
+  };
+
   return (
-    <div className={`flex justify-center items-center ${className}`}>
-      <Loader2 className="animate-spin text-blue-600" size={size} />
+    <div className={`flex items-center justify-center ${className}`}>
+      <div
+        className={`${sizeClasses[size]} border-2 border-gray-200 rounded-full animate-spin`}
+        style={{
+          borderTopColor: 'currentColor',
+          borderRightColor: 'transparent',
+          borderBottomColor: 'transparent',
+          borderLeftColor: 'transparent'
+        }}
+      />
     </div>
   );
-}
+};
+
+export default LoadingSpinner; 

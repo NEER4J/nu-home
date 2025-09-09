@@ -15,7 +15,7 @@ export default async function AdminProductsPage({
   // Resolve the searchParams Promise
   const resolvedSearchParams = await searchParams;
   
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   
   // Get all service categories
   const { data: categories, error: categoriesError } = await supabase

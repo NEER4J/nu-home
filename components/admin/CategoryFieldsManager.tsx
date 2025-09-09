@@ -182,7 +182,7 @@ export default function CategoryFieldsManager({ categoryId }: CategoryFieldsMana
 
   return (
 
-    <div> <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden mb-6">
+    <div> <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden mb-6 hidden">
     <div className="p-6 border-b border-gray-100">
         <h3 className="text-lg font-medium text-gray-800">Product Layout Settings</h3>
     </div>
@@ -233,7 +233,7 @@ export default function CategoryFieldsManager({ categoryId }: CategoryFieldsMana
             <div className="text-xs text-gray-500">Feature Preview</div>
             </div>
         </div>
-        </div>
+        </div> 
     </div>
     </div>
 

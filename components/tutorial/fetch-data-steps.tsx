@@ -52,7 +52,7 @@ export default function FetchDataSteps() {
           Head over to the{" "}
           <a
             href="https://supabase.com/dashboard/project/_/editor"
-            className="font-bold hover:underline text-foreground/80"
+            className="font-semibold hover:underline text-foreground/80"
             target="_blank"
             rel="noreferrer"
           >
@@ -63,7 +63,7 @@ export default function FetchDataSteps() {
           following into the{" "}
           <a
             href="https://supabase.com/dashboard/project/_/sql/new"
-            className="font-bold hover:underline text-foreground/80"
+            className="font-semibold hover:underline text-foreground/80"
             target="_blank"
             rel="noreferrer"
           >

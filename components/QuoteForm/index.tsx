@@ -5,8 +5,8 @@ import { createClient } from '@/utils/supabase/client';
 import { FormQuestion } from '@/types/database.types';
 import { motion, AnimatePresence } from 'framer-motion';
 import QuestionsStep from './QuestionsStep';
-import PostcodeStep from './PostcodeStep';
-import ContactDetailsStep from './ContactDetailsStep';
+import PostcodeStep from '../category-commons/quote/PostcodeStep';
+import UserInfoForm from '../category-commons/quote/UserInfoForm';
 import ThankYouMessage from './ThankYouMessage';
 
 interface QuoteFormProps {
@@ -16,6 +16,18 @@ interface QuoteFormProps {
   // New props for flexible redirect behavior
   redirectToProducts?: boolean;
   showThankYouMessage?: boolean;
+  partnerId?: string;
+  // Add debug partner info
+  partnerInfo?: {
+    company_name: string;
+    contact_person: string;
+    postcode: string;
+    subdomain: string;
+    business_description?: string;
+    website_url?: string;
+    logo_url?: string;
+    user_id: string;
+  };
 }
 
 // Define a type for the form values
@@ -29,7 +41,9 @@ export default function QuoteForm({
   serviceCategorySlug,
   onSubmitSuccess,
   redirectToProducts = false, // Default to not redirecting
-  showThankYouMessage = true // Default to showing thank you message
+  showThankYouMessage = true, // Default to showing thank you message
+  partnerId,
+  partnerInfo
 }: QuoteFormProps) {
   const [questions, setQuestions] = useState<FormQuestion[]>([]);
   const [activeQuestions, setActiveQuestions] = useState<FormQuestion[]>([]);
@@ -38,6 +52,8 @@ export default function QuoteForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>({});
+  const [selectedAddress, setSelectedAddress] = useState<any>(null);
+  const [userInfo, setUserInfo] = useState<any>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [submissionData, setSubmissionData] = useState<any>(null);
   
@@ -204,15 +220,18 @@ export default function QuoteForm({
           value={formValues.postcode || ''}
           onNext={handleNextStep}
           onPrevious={handlePrevStep}
+          onAddressSelect={handleAddressSelect}
         />
       );
     } else {
       // This is the contact details step
       return (
-        <ContactDetailsStep
+        <UserInfoForm
+          initialUserInfo={userInfo}
           formValues={formValues}
+          onUserInfoChange={setUserInfo}
           onSubmit={handleSubmit}
-          onPrevious={handlePrevStep}
+          questions={questions}
         />
       );
     }
@@ -236,6 +255,12 @@ export default function QuoteForm({
       [questionId]: value
     }));
   };
+
+  // Handle address selection from PostcodeStep
+  const handleAddressSelect = (address: any) => {
+    setSelectedAddress(address);
+    console.log('Address selected:', address);
+  };
   
   // Handle next step
   const handleNextStep = () => {
@@ -252,9 +277,9 @@ export default function QuoteForm({
   // Handle form submission
   const handleSubmit = async (contactDetails: any) => {
     try {
+      setIsRedirecting(true);
       setError(null);
-      setIsRedirecting(true); // Set redirecting state
-      
+
       // Filter out non-question data from formValues
       const filteredAnswers = Object.entries(formValues).reduce((acc: Record<string, any>, [key, value]) => {
         // Skip special keys and empty values
@@ -284,19 +309,53 @@ export default function QuoteForm({
       
       // Combine complete form data
       const formData = {
-        serviceCategory: serviceCategoryId,
-        serviceCategoryName: serviceCategorySlug, // Include the service name for better identification
-        ...contactDetails,
-        postcode: formValues.postcode,
-        answers: filteredAnswers,
-        questionMetadata: questionMetadata
+        service_category_id: serviceCategoryId,
+        first_name: contactDetails.firstName,
+        last_name: contactDetails.lastName,
+        email: contactDetails.email,
+        phone: contactDetails.phone || null,
+        city: contactDetails.city || null,
+        postcode: contactDetails.postcode,
+        form_answers: filteredAnswers,
+        assigned_partner_id: partnerInfo?.user_id || partnerId || null,
+        submission_date: new Date().toISOString(),
+        status: 'new',
+        serviceCategoryName: serviceCategorySlug,
+        // Include selected address data if available
+        ...(selectedAddress && {
+          address_line_1: selectedAddress.address_line_1,
+          address_line_2: selectedAddress.address_line_2,
+          street_name: selectedAddress.street_name,
+          street_number: selectedAddress.street_number,
+          building_name: selectedAddress.building_name,
+          sub_building: selectedAddress.sub_building,
+          county: selectedAddress.county,
+          country: selectedAddress.country,
+          formatted_address: selectedAddress.formatted_address,
+          address_type: 'residential'
+        })
       };
       
       // Debug log to check what's being submitted
       console.log('Submitting form data:', formData);
       
-      // Submit to API
-      const response = await fetch('/api/quote-submissions', {
+      // Submit to API with partner ID if available
+      const apiUrl = new URL('/api/quote-submissions', window.location.origin);
+      
+      // Add partner ID from props if available
+      const effectivePartnerId = partnerInfo?.user_id || partnerId;
+      if (effectivePartnerId) {
+        apiUrl.searchParams.append('partner_id', effectivePartnerId);
+      }
+      
+      // Add subdomain parameter if present in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const subdomain = urlParams.get('subdomain');
+      if (subdomain) {
+        apiUrl.searchParams.append('subdomain', subdomain);
+      }
+      
+      const response = await fetch(apiUrl.toString(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -310,34 +369,63 @@ export default function QuoteForm({
         throw new Error(result.error || 'Failed to submit quote request');
       }
       
+      // Send email with the correct submission_id
+      try {
+        const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+        const subdomain = hostname || null
+
+        const emailRes = await fetch('/api/email/boiler/quote-initial', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            first_name: contactDetails.firstName,
+            last_name: contactDetails.lastName,
+            email: contactDetails.email,
+            phone: contactDetails.phone,
+            postcode: contactDetails.postcode,
+            quote_data: filteredAnswers,
+            address_data: selectedAddress,
+            questions: questions,
+            submission_id: result.data.submission_id,
+            subdomain,
+          }),
+        })
+
+        const emailData = await emailRes.json().catch(() => ({}))
+        if (!emailRes.ok) {
+          console.warn('Failed to send initial quote email:', emailData?.error || 'Unknown error')
+        }
+      } catch (err: any) {
+        console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
+      }
+      
       // Call onSubmitSuccess callback if provided
       if (onSubmitSuccess) {
         onSubmitSuccess(result.data);
       }
-      
-      // Store submission data for the thank you page
-      const submissionId = result.data.submission_id;
-      setSubmissionData({
-        ...result.data,
-        serviceCategoryName: serviceCategorySlug,
-        firstName: contactDetails.firstName,
-        email: contactDetails.email,
-        postcode: formValues.postcode
-      });
       
       // Set success state to show thank you message
       setSuccess(true);
       setIsRedirecting(false);
       
       // If redirect to products is enabled, do it immediately
-      if (redirectToProducts && !showThankYouMessage) {
-        window.location.href = `/services/${serviceCategorySlug}/products?submission=${submissionId}`;
+      if (redirectToProducts) {
+        onSubmitSuccess?.(result.data);
+      } else if (showThankYouMessage) {
+        // Store submission data for the thank you page
+        setSubmissionData({
+          ...result.data,
+          serviceCategoryName: serviceCategorySlug,
+          firstName: contactDetails.firstName,
+          email: contactDetails.email,
+          postcode: contactDetails.postcode
+        });
       }
       
     } catch (error: any) {
       setError(error.message || 'An unexpected error occurred');
       console.error('Error submitting form:', error);
-      setIsRedirecting(false); // Reset redirecting state on error
+      setIsRedirecting(false);
     }
   };
   
@@ -372,7 +460,7 @@ export default function QuoteForm({
               <div className="w-16 h-16 flex items-center justify-center mb-4">
                 <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Submitting Your Request...</h3>
+              <h3 className="text-2xl font-semibold text-gray-800 mb-2">Submitting Your Request...</h3>
               <p className="text-gray-600 mb-8 max-w-md">
                 Please wait while we process your information.
               </p>
@@ -414,7 +502,7 @@ export default function QuoteForm({
               <div className="w-16 h-16 flex items-center justify-center mb-4">
                 <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Request Submitted!</h3>
+              <h3 className="text-2xl font-semibold text-gray-800 mb-2">Request Submitted!</h3>
               <p className="text-gray-600 mb-4 max-w-md">
                 Redirecting you to our products page...
               </p>
@@ -427,6 +515,31 @@ export default function QuoteForm({
   
   return (
     <div className="w-full max-w-4xl mx-auto">
+      {/* Debug Partner Info Section */}
+      {partnerInfo && (
+        <div className="mb-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Partner Information (Debug)</h3>
+          <div className="space-y-2 text-sm">
+            <p><span className="font-medium">Company:</span> {partnerInfo.company_name}</p>
+            <p><span className="font-medium">Contact:</span> {partnerInfo.contact_person}</p>
+            <p><span className="font-medium">Postcode:</span> {partnerInfo.postcode}</p>
+            <p><span className="font-medium">Subdomain:</span> {partnerInfo.subdomain}</p>
+            {partnerInfo.business_description && (
+              <p><span className="font-medium">Description:</span> {partnerInfo.business_description}</p>
+            )}
+            {partnerInfo.website_url && (
+              <p><span className="font-medium">Website:</span> <a href={partnerInfo.website_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{partnerInfo.website_url}</a></p>
+            )}
+            {partnerInfo.logo_url && (
+              <div className="mt-2">
+                <span className="font-medium">Logo:</span>
+                <img src={partnerInfo.logo_url} alt="Partner Logo" className="mt-1 h-12 object-contain" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Back button and service name */}
       <div className="mb-8">
         <motion.a 
@@ -442,7 +555,7 @@ export default function QuoteForm({
         <motion.h1 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-3xl font-bold text-gray-900 mt-2 capitalize"
+          className="text-3xl font-semibold text-gray-900 mt-2 capitalize"
         >
           {serviceCategorySlug.replace(/-/g, ' ')} Quote Form
         </motion.h1>

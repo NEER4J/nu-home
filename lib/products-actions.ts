@@ -13,20 +13,10 @@ export async function createProduct(formData: FormData) {
     description: formData.get('description') as string,
     price: formData.get('price') ? parseFloat(formData.get('price') as string) : undefined,
     image_url: formData.get('image_url') as string || undefined,
-    specifications: {},
     product_fields: {}, // Initialize empty product fields
     is_featured: formData.get('is_featured') === 'on',
     is_active: formData.get('is_active') === 'on',
   };
-  
-  // Extract specifications from form data
-  // Assuming specification fields are prefixed with 'spec_'
-  Array.from(formData.entries()).forEach(([key, value]) => {
-    if (key.startsWith('spec_')) {
-      const specKey = key.replace('spec_', '');
-      product.specifications[specKey] = value;
-    }
-  });
   
   // Parse the product_fields JSON
   const productFieldsJson = formData.get('product_fields');
@@ -39,7 +29,7 @@ export async function createProduct(formData: FormData) {
   }
   
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     const { data, error } = await supabase
       .from('Products')
@@ -62,17 +52,6 @@ export async function createProduct(formData: FormData) {
 }
 
 export async function updateProduct(productId: string, formData: FormData) {
-  // Initialize specifications as an empty object to avoid undefined errors
-  const specifications: Record<string, any> = {};
-  
-  // Extract specifications from form data first
-  Array.from(formData.entries()).forEach(([key, value]) => {
-    if (key.startsWith('spec_')) {
-      const specKey = key.replace('spec_', '');
-      specifications[specKey] = value;
-    }
-  });
-  
   // Initialize product fields
   let product_fields = {};
   
@@ -93,14 +72,13 @@ export async function updateProduct(productId: string, formData: FormData) {
     description: formData.get('description') as string,
     price: formData.get('price') ? parseFloat(formData.get('price') as string) : undefined,
     image_url: formData.get('image_url') as string || undefined,
-    specifications, // Use the pre-populated specifications object
     product_fields, // Include the dynamic fields
     is_featured: formData.get('is_featured') === 'on',
     is_active: formData.get('is_active') === 'on',
   };
   
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     const { data, error } = await supabase
       .from('Products')
@@ -125,7 +103,7 @@ export async function updateProduct(productId: string, formData: FormData) {
 
 export async function deleteProduct(productId: string) {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     
     const { error } = await supabase
       .from('Products')

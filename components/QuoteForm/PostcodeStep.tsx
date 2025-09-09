@@ -89,7 +89,7 @@ export default function PostcodeStep({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.2 }}
-            className="text-2xl font-bold text-gray-800 mb-2"
+            className="text-2xl font-semibold text-gray-800 mb-2"
           >
             What is your postcode?
           </motion.h2>

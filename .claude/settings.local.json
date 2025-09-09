@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run lint)",
+      "Bash(npm run:*)",
+      "Read(/f:\\Projects\\nu-home\\components\\ui/**)",
+      "Read(/f:\\Projects\\nu-home\\components\\category-commons\\product/**)",
+      "mcp__ide__getDiagnostics",
+      "Read(/f:\\Projects\\nu-home/**)",
+      "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)",
+      "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)",
+      "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)"
+    ],
+    "deny": []
+  }
+}

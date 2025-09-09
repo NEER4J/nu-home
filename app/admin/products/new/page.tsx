@@ -1,19 +1,21 @@
 // app/admin/products/new/page.tsx
 import { createServerSupabaseClient } from '@/lib/products';
-import { ProductForm } from '@/components/admin/ProductForm';
+import { ProductForm } from '@/components/shared/ProductForm';
 import { ServiceCategory } from '@/types/database.types';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 
 // Force dynamic rendering to avoid prerendering issues
 export const dynamic = 'force-dynamic';
 
 export default async function NewProductPage() {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   
   // Get active service categories
   const { data: categories, error } = await supabase
     .from('ServiceCategories')
-    .select('service_category_id, name, slug')
+    .select('*')
     .eq('is_active', true)
     .order('name');
   
@@ -27,14 +29,19 @@ export default async function NewProductPage() {
   }
   
   return (
-    <div className="container mx-auto p-6">
+    <div className="max-w-5xl mx-auto pb-12">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Add New Product</h1>
+        <Link href="/admin/products" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Back to Products
+        </Link>
       </div>
       
-      <div className="bg-white rounded-lg shadow p-6">
-        <ProductForm categories={categories as ServiceCategory[]} />
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">Create New Product</h1>
       </div>
+      
+      <ProductForm categories={categories as ServiceCategory[]} />
     </div>
   );
 }

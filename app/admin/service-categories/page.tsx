@@ -140,14 +140,6 @@ export default async function ServiceCategoriesPage() {
                       >
                         Edit
                       </Link>
-                      <Link
-                        href={`/services/${category.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-5 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
-                      >
-                        View Live
-                      </Link>
                     </div>
                   </div>
                 </li>
@@ -166,7 +158,7 @@ export default async function ServiceCategoriesPage() {
     
     // Fallback UI in case of errors
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
           <div className="flex">
             <div className="flex-shrink-0">

@@ -1,0 +1,1235 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { Search, MapPin, ChevronDown } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+
+interface Address {
+  address_line_1: string
+  address_line_2?: string
+  street_name?: string
+  street_number?: string
+  building_name?: string
+  sub_building?: string
+  town_or_city: string
+  county?: string
+  postcode: string
+  formatted_address: string
+  country?: string
+}
+
+interface PostcodeStepProps {
+  value: string;
+  onValueChange: (postcode: string) => void;
+  onNext: () => void;
+  onPrevious: () => void;
+  companyColor?: string;
+  submissionId?: string;
+  onAddressSelect?: (address: Address) => void;
+}
+
+export default function PostcodeStep({
+  value,
+  onValueChange,
+  onNext,
+  onPrevious,
+  companyColor = '#2563eb',
+  submissionId,
+  onAddressSelect
+}: PostcodeStepProps) {
+  const [postcode, setPostcode] = useState(value)
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [suggestions, setSuggestions] = useState<{postcode: string, address: string}[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1)
+  const [showManualEntry, setShowManualEntry] = useState(false)
+  const [manualAddress, setManualAddress] = useState({
+    address_line_1: '',
+    address_line_2: '',
+    street_name: '',
+    street_number: '',
+    building_name: '',
+    sub_building: '',
+    town_or_city: '',
+    county: '',
+    postcode: '',
+    country: 'United Kingdom'
+  })
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const suggestionRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut",
+        staggerChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const dropdownVariants = {
+    hidden: { opacity: 0, y: -10, scale: 0.95 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.15,
+        ease: "easeOut"
+      }
+    },
+    exit: {
+      opacity: 0,
+      y: -10,
+      scale: 0.95,
+      transition: {
+        duration: 0.1,
+        ease: "easeIn"
+      }
+    }
+  };
+
+  const addressItemVariants = {
+    hidden: { opacity: 0, x: -10 },
+    visible: { 
+      opacity: 1, 
+      x: 0,
+      transition: {
+        duration: 0.15,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  // Search postcode suggestions
+  const searchSuggestions = async (partial: string) => {
+    if (!partial.trim() || partial.trim().length < 2) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      setHighlightedSuggestionIndex(-1)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/places/suggestions?partial=${encodeURIComponent(partial)}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
+      if (!data.suggestions || data.suggestions.length === 0) {
+        setSuggestions([])
+        setShowSuggestions(false)
+        setHighlightedSuggestionIndex(-1)
+        return
+      }
+      
+      // Clear address dropdown when showing suggestions
+      setAddresses([])
+      setShowDropdown(false)
+      setHighlightedIndex(-1)
+      
+      setSuggestions(data.suggestions)
+      setShowSuggestions(true)
+      setHighlightedSuggestionIndex(-1)
+      // Reset refs array for new suggestions
+      suggestionRefs.current = new Array(data.suggestions.length).fill(null)
+    } catch (err) {
+      console.error('Postcode suggestions error:', err)
+      setSuggestions([])
+      setShowSuggestions(false)
+      setHighlightedSuggestionIndex(-1)
+    }
+  }
+
+  // Search addresses using Webuild API
+  const searchAddresses = async (postcode: string, isLiveSearch = false) => {
+    if (!postcode.trim() || postcode.trim().length < 3) {
+      setAddresses([])
+      setShowDropdown(false)
+      setHighlightedIndex(-1)
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    
+    try {
+      const response = await fetch(`/api/places?postcode=${encodeURIComponent(postcode)}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
+      if (!data.addresses || data.addresses.length === 0) {
+        if (!isLiveSearch) {
+          setError('No addresses found for this postcode. Please check and try again.')
+        }
+        setAddresses([])
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+        return
+      }
+      
+      // Clear suggestions when showing addresses
+      setSuggestions([])
+      setShowSuggestions(false)
+      setHighlightedSuggestionIndex(-1)
+      
+      setAddresses(data.addresses)
+      setShowDropdown(true)
+      setHighlightedIndex(-1)
+      // Reset refs array for new addresses
+      itemRefs.current = new Array(data.addresses.length).fill(null)
+    } catch (err) {
+      console.error('Address search error:', err)
+      if (!isLiveSearch) {
+        setError('Failed to search addresses. Please try again.')
+      }
+      setAddresses([])
+      setShowDropdown(false)
+      setHighlightedIndex(-1)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSuggestionSelect = (suggestion: {postcode: string, address: string}) => {
+    setPostcode(suggestion.postcode)
+    setShowSuggestions(false)
+    setHighlightedSuggestionIndex(-1)
+    setSuggestions([])
+    // Trigger address search with the selected postcode
+    searchAddresses(suggestion.postcode)
+  }
+
+  // Save address data to database
+  const saveAddressToDatabase = async (address: Address) => {
+    if (!submissionId) {
+      console.warn('No submission ID provided, skipping database save')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/partner-leads/update-address', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          submissionId,
+          addressData: address,
+          progressStep: 'enquiry'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      
+      if (result.success) {
+        console.log('Address saved to database successfully:', result.data)
+      } else {
+        console.error('Failed to save address to database:', result.error)
+      }
+    } catch (error) {
+      console.error('Error saving address to database:', error)
+    }
+  }
+
+  const handleAddressSelect = async (address: Address) => {
+    setSelectedAddress(address)
+    setShowDropdown(false)
+    setHighlightedIndex(-1)
+    setShowSuggestions(false)
+    setHighlightedSuggestionIndex(-1)
+    setSuggestions([])
+    setPostcode(address.postcode)
+    onValueChange(address.postcode)
+    
+    // Call the parent component's address selection handler
+    if (onAddressSelect) {
+      onAddressSelect(address)
+    }
+    
+    // Save address data to database if submissionId is available
+    if (submissionId) {
+      await saveAddressToDatabase(address)
+    }
+  }
+
+  // Handle manual address submission
+  const handleManualAddressSubmit = async () => {
+    const { address_line_1, street_name, town_or_city, postcode } = manualAddress
+    
+    // Basic validation
+    if (!address_line_1.trim() || !street_name.trim() || !town_or_city.trim() || !postcode.trim()) {
+      setError('Please fill in all required fields (Address Line 1, Street Name, Town/City, and Postcode)')
+      return
+    }
+
+    // Create formatted address object
+    const formattedAddress: Address = {
+      address_line_1: manualAddress.address_line_1.trim(),
+      address_line_2: manualAddress.address_line_2.trim() || undefined,
+      street_name: manualAddress.street_name.trim() || undefined,
+      street_number: manualAddress.street_number.trim() || undefined,
+      building_name: manualAddress.building_name.trim() || undefined,
+      sub_building: manualAddress.sub_building.trim() || undefined,
+      town_or_city: manualAddress.town_or_city.trim(),
+      county: manualAddress.county.trim() || undefined,
+      postcode: manualAddress.postcode.trim().toUpperCase(),
+      country: manualAddress.country,
+      formatted_address: `${manualAddress.address_line_1}${manualAddress.address_line_2 ? ', ' + manualAddress.address_line_2 : ''}, ${manualAddress.town_or_city}${manualAddress.county ? ', ' + manualAddress.county : ''}, ${manualAddress.postcode}, ${manualAddress.country}`
+    }
+
+    setSelectedAddress(formattedAddress)
+    onValueChange(formattedAddress.postcode)
+    setError('')
+    
+    // Call the parent component's address selection handler
+    if (onAddressSelect) {
+      onAddressSelect(formattedAddress)
+    }
+    
+    // Save address data to database if submissionId is available
+    if (submissionId) {
+      await saveAddressToDatabase(formattedAddress)
+    }
+  }
+
+  // Handle manual address input changes
+  const handleManualInputChange = (field: string, value: string) => {
+    setManualAddress(prev => ({
+      ...prev,
+      [field]: value
+    }))
+    setError('')
+  }
+
+  // Scroll highlighted item into view
+  const scrollToHighlightedItem = (index: number) => {
+    if (itemRefs.current[index]) {
+      itemRefs.current[index]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    }
+  }
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle suggestions dropdown
+    if (showSuggestions && suggestions.length > 0) {
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault()
+          setHighlightedSuggestionIndex(prev => {
+            const newIndex = prev < suggestions.length - 1 ? prev + 1 : 0
+            return newIndex
+          })
+          return
+        case 'ArrowUp':
+          e.preventDefault()
+          setHighlightedSuggestionIndex(prev => {
+            const newIndex = prev > 0 ? prev - 1 : suggestions.length - 1
+            return newIndex
+          })
+          return
+        case 'Enter':
+          e.preventDefault()
+          if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestions.length) {
+            handleSuggestionSelect(suggestions[highlightedSuggestionIndex])
+          }
+          return
+        case 'Escape':
+          setShowSuggestions(false)
+          setHighlightedSuggestionIndex(-1)
+          setSuggestions([])
+          inputRef.current?.blur()
+          return
+      }
+    }
+
+    // Handle addresses dropdown
+    if (showDropdown && addresses.length > 0) {
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault()
+          setHighlightedIndex(prev => {
+            const newIndex = prev < addresses.length - 1 ? prev + 1 : 0
+            setTimeout(() => scrollToHighlightedItem(newIndex), 0)
+            return newIndex
+          })
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          setHighlightedIndex(prev => {
+            const newIndex = prev > 0 ? prev - 1 : addresses.length - 1
+            setTimeout(() => scrollToHighlightedItem(newIndex), 0)
+            return newIndex
+          })
+          break
+        case 'Enter':
+          e.preventDefault()
+          if (highlightedIndex >= 0 && highlightedIndex < addresses.length) {
+            handleAddressSelect(addresses[highlightedIndex])
+          }
+          break
+        case 'Escape':
+          setShowDropdown(false)
+          setHighlightedIndex(-1)
+          inputRef.current?.blur()
+          break
+      }
+      return
+    }
+
+    // Handle Enter key for search
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (postcode.trim().length >= 3) {
+        searchAddresses(postcode.trim())
+      }
+    }
+  }
+
+  const formatPostcode = (value: string) => {
+    // Basic UK postcode formatting
+    const cleaned = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+    if (cleaned.length <= 4) return cleaned
+    return `${cleaned.slice(0, -3)} ${cleaned.slice(-3)}`
+  }
+
+  const handlePostcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPostcode(e.target.value)
+    setPostcode(formatted)
+    setError('')
+    setSelectedAddress(null)
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
+    }
+    
+    // Set new timeout for live search
+    const newTimeout = setTimeout(() => {
+      const cleanPostcode = formatted.replace(/\s+/g, '').toUpperCase()
+      
+      if (cleanPostcode.length >= 2 && cleanPostcode.length < 7) {
+        // Show suggestions for partial postcodes
+        searchSuggestions(cleanPostcode)
+      } else if (cleanPostcode.length >= 7) {
+        // Search for addresses when postcode is complete
+        searchAddresses(formatted.trim(), true)
+      } else {
+        // Clear both dropdowns when input is too short
+        setAddresses([])
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+        setSuggestions([])
+        setShowSuggestions(false)
+        setHighlightedSuggestionIndex(-1)
+      }
+    }, 300) // 300ms delay for live search
+    
+    setSearchTimeout(newTimeout)
+  }
+
+  // Handle search button click
+  const handleSearchClick = () => {
+    if (postcode.trim().length >= 3) {
+      searchAddresses(postcode.trim())
+    }
+  }
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+      }
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false)
+        setHighlightedSuggestionIndex(-1)
+        setSuggestions([])
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      // Cleanup timeout on unmount
+      if (searchTimeout) {
+        clearTimeout(searchTimeout)
+      }
+    }
+  }, [searchTimeout])
+
+  // Update state when initial values change
+  useEffect(() => {
+    if (value !== postcode && value !== undefined && value !== '') {
+      setPostcode(value)
+    }
+  }, [value])
+
+  return (
+    <motion.div 
+      className="space-y-6"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      {/* Postcode Search */}
+      {!showManualEntry && (
+        <motion.div 
+          className="space-y-4"
+          variants={itemVariants}
+        >
+                    <h2 className="text-xl sm:text-3xl font-semibold text-gray-800 mb-2 text-center">What's your Postcode?</h2>
+
+          <div className="relative">
+
+
+            <motion.input
+              ref={inputRef}
+              type="text"
+              value={postcode}
+              onChange={handlePostcodeChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Start typing your postcode (e.g. SW1A 1AA)"
+              className="w-full p-4 px-6 pr-12 bg-white text-gray-900 text-lg border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{
+                '--tw-ring-color': companyColor,
+              } as React.CSSProperties}
+              onFocus={(e) => {
+                e.target.style.borderColor = companyColor;
+                e.target.style.boxShadow = `0 0 0 2px ${companyColor}40`;
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#d1d5db';
+                e.target.style.boxShadow = 'none';
+              }}
+              maxLength={8}
+              autoComplete="postal-code"
+              whileFocus={{ scale: 1.02 }}
+              transition={{ duration: 0.1 }}
+            />
+                         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2">
+               {loading ? (
+                 <motion.div 
+                   className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 1 }}
+                   transition={{ duration: 0.2 }}
+                 />
+               ) : (
+                 <motion.button
+                   type="button"
+                   onClick={handleSearchClick}
+                   className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                   whileHover={{ scale: 1.1 }}
+                   whileTap={{ scale: 0.9 }}
+                   transition={{ duration: 0.1 }}
+                 >
+                   <Search size={20} className="text-gray-400 hover:text-gray-600" />
+                 </motion.button>
+               )}
+             </div>
+          </div>
+          
+                     {/* Postcode Suggestions Dropdown */}
+           <div className="relative" ref={suggestionsRef}>
+             <AnimatePresence>
+               {showSuggestions && suggestions.length > 0 && !showDropdown && (
+                 <motion.div
+                   variants={dropdownVariants}
+                   initial="hidden"
+                   animate="visible"
+                   exit="exit"
+                   className="absolute top-0 left-0 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                 >
+                   <div className="p-2">
+                     <motion.p 
+                       className="text-sm text-gray-600 px-3 py-2 border-b"
+                       variants={addressItemVariants}
+                     >
+                       Postcode suggestions (use ↑↓ arrow keys and Enter):
+                     </motion.p>
+                     <div>
+                       {suggestions.map((suggestion, index) => (
+                         <motion.button
+                           key={index}
+                           ref={(el) => { suggestionRefs.current[index] = el }}
+                           onClick={() => handleSuggestionSelect(suggestion)}
+                           className={`w-full text-left p-3 rounded-md flex items-start space-x-3 transition-colors ${
+                             index === highlightedSuggestionIndex 
+                               ? 'border-l-4' 
+                               : 'hover:bg-gray-50'
+                           }`}
+                           style={index === highlightedSuggestionIndex ? {
+                             backgroundColor: companyColor ? `${companyColor}10` : '#dbeafe',
+                             borderLeftColor: companyColor || '#3b82f6'
+                           } : {}}
+                           variants={addressItemVariants}
+                           whileHover={{ scale: 1.01 }}
+                           whileTap={{ scale: 0.99 }}
+                           transition={{ duration: 0.05 }}
+                         >
+                           <MapPin size={16} className={`mt-1 flex-shrink-0 ${
+                             index === highlightedSuggestionIndex ? '' : 'text-gray-400'
+                           }`} style={index === highlightedSuggestionIndex ? { color: companyColor || '#3b82f6' } : {}} />
+                           <div className="flex-1 min-w-0">
+                             <div className="flex items-center space-x-2 mb-1">
+                               <p className="font-medium text-gray-900">{suggestion.postcode}</p>
+                             </div>
+                             <p className="text-sm text-gray-600">{suggestion.address}</p>
+                           </div>
+                         </motion.button>
+                       ))}
+                     </div>
+                   </div>
+                 </motion.div>
+               )}
+             </AnimatePresence>
+           </div>
+          
+          <AnimatePresence>
+            {error && (
+              <motion.p 
+                className="text-red-600 text-sm"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.1 }}
+              >
+                {error}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
+
+             {/* Address Dropdown */}
+       {!showManualEntry && (
+         <div className="relative" ref={dropdownRef}>
+           <AnimatePresence>
+             {showDropdown && addresses.length > 0 && !showSuggestions && (
+              <motion.div
+                variants={dropdownVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="absolute top-0 left-0 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+              >
+                <div className="p-2">
+                  <motion.p 
+                    className="text-sm text-gray-600 px-3 py-2 border-b"
+                    variants={addressItemVariants}
+                  >
+                    Select your address (use ↑↓ arrow keys and Enter):
+                  </motion.p>
+                  <div>
+                    {addresses.map((address, index) => (
+                      <motion.button
+                        key={index}
+                        ref={(el) => { itemRefs.current[index] = el }}
+                        onClick={() => handleAddressSelect(address)}
+                        className={`w-full text-left p-3 rounded-md flex items-start space-x-3 transition-colors ${
+                          index === highlightedIndex 
+                            ? 'border-l-4' 
+                            : 'hover:bg-gray-50'
+                        }`}
+                        style={index === highlightedIndex ? {
+                          backgroundColor: companyColor ? `${companyColor}10` : '#dbeafe',
+                          borderLeftColor: companyColor || '#3b82f6'
+                        } : {}}
+                        variants={addressItemVariants}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                        transition={{ duration: 0.05 }}
+                      >
+                        <MapPin size={16} className={`mt-1 flex-shrink-0 ${
+                          index === highlightedIndex ? '' : 'text-gray-400'
+                        }`} style={index === highlightedIndex ? { color: companyColor || '#3b82f6' } : {}} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <p className="font-medium text-gray-900 truncate">{address.address_line_1}</p>
+                            {address.street_number && (
+                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                #{address.street_number}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {address.address_line_2 && (
+                            <p className="text-sm text-gray-600 mb-1">{address.address_line_2}</p>
+                          )}
+                          
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                            <span>{address.town_or_city}</span>
+                            {address.county && (
+                              <>
+                                <span>•</span>
+                                <span>{address.county}</span>
+                              </>
+                            )}
+                            <span>•</span>
+                            <span className="font-medium">{address.postcode}</span>
+                          </div>
+                          
+                          {(address.building_name || address.sub_building) && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {address.building_name && (
+                                <span className="text-xs px-2 py-1 rounded" style={{
+                                  backgroundColor: companyColor ? `${companyColor}20` : '#dbeafe',
+                                  color: companyColor || '#1d4ed8'
+                                }}>
+                                  {address.building_name}
+                                </span>
+                              )}
+                              {address.sub_building && (
+                                <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded">
+                                  Unit {address.sub_building}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                  
+                  {addresses.length > 5 && (
+                    <motion.p 
+                      className="text-xs text-gray-500 px-3 py-2 border-t bg-gray-50"
+                      variants={addressItemVariants}
+                    >
+                      Showing {addresses.length} addresses • Use arrow keys to navigate
+                    </motion.p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Selected Address Display */}
+      <AnimatePresence>
+        {selectedAddress && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="bg-green-50 border border-green-200 rounded-lg p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <MapPin size={16} className="text-green-600" />
+                <span className="text-sm font-medium text-green-800">Selected Address:</span>
+              </div>
+              <div className="flex space-x-2">
+                <motion.button
+                  onClick={() => {
+                    // Set up manual editing with current address
+                    setManualAddress({
+                      address_line_1: selectedAddress.address_line_1 || '',
+                      address_line_2: selectedAddress.address_line_2 || '',
+                      street_name: selectedAddress.street_name || '',
+                      street_number: selectedAddress.street_number || '',
+                      building_name: selectedAddress.building_name || '',
+                      sub_building: selectedAddress.sub_building || '',
+                      town_or_city: selectedAddress.town_or_city || '',
+                      county: selectedAddress.county || '',
+                      postcode: selectedAddress.postcode || '',
+                      country: selectedAddress.country || 'United Kingdom'
+                    })
+                    setSelectedAddress(null)
+                    setShowManualEntry(true)
+                  }}
+                  className="text-sm underline hover:opacity-80 transition-opacity"
+                  style={{ color: companyColor || '#2563eb' }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.05 }}
+                >
+                  Edit
+                </motion.button>
+                <motion.button
+                  onClick={() => {
+                    setSelectedAddress(null)
+                    setPostcode('')
+                    setError('')
+                    setShowDropdown(false)
+                    setHighlightedIndex(-1)
+                    inputRef.current?.focus()
+                  }}
+                  className="text-sm text-green-700 hover:text-green-800 underline"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.05 }}
+                >
+                  Change
+                </motion.button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="text-gray-900">
+                <p className="font-semibold text-lg">{selectedAddress.address_line_1}</p>
+                {selectedAddress.address_line_2 && (
+                  <p className="text-gray-700">{selectedAddress.address_line_2}</p>
+                )}
+              </div>
+              
+              <div className="text-gray-700">
+                <p>{selectedAddress.town_or_city}</p>
+                {selectedAddress.county && (
+                  <p className="text-sm">{selectedAddress.county}</p>
+                )}
+                <p className="font-medium">{selectedAddress.postcode}</p>
+                {selectedAddress.country && (
+                  <p className="text-sm text-gray-500">{selectedAddress.country}</p>
+                )}
+              </div>
+              
+              {(selectedAddress.building_name || selectedAddress.sub_building || selectedAddress.street_name) && (
+                <div className="pt-2 border-t border-green-200">
+                  <p className="text-xs font-medium text-green-800 mb-1">Additional Details:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAddress.street_name && (
+                      <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded border">
+                        Street: {selectedAddress.street_name}
+                      </span>
+                    )}
+                    {selectedAddress.building_name && (
+                      <span className="text-xs px-2 py-1 rounded border" style={{
+                        backgroundColor: companyColor ? `${companyColor}20` : '#dbeafe',
+                        color: companyColor || '#1d4ed8',
+                        borderColor: companyColor ? `${companyColor}40` : '#93c5fd'
+                      }}>
+                        Building: {selectedAddress.building_name}
+                      </span>
+                    )}
+                    {selectedAddress.sub_building && (
+                      <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-200">
+                        Unit: {selectedAddress.sub_building}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Manual Address Input Option */}
+      {!selectedAddress && !showManualEntry && (
+        <motion.div 
+          className="text-center"
+          variants={itemVariants}
+        >
+          <p className="text-sm text-gray-600 mb-2">Can't find your address?</p>
+          <motion.button
+            type="button"
+            onClick={() => setShowManualEntry(true)}
+            className="hover:underline text-sm font-medium transition-opacity hover:opacity-80 company-text"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.05 }}
+          >
+            Enter address manually
+          </motion.button>
+        </motion.div>
+      )}
+
+      {/* Manual Address Entry Form */}
+      <AnimatePresence>
+        {showManualEntry && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4 p-6 bg-gray-50 rounded-lg border"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Enter your address</h3>
+              <motion.button
+                type="button"
+                onClick={() => setShowManualEntry(false)}
+                className="text-gray-400 hover:text-gray-600"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ duration: 0.05 }}
+              >
+                ✕
+              </motion.button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Street Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="street_number" className="block text-sm font-medium text-gray-700 mb-1">
+                    House/Flat Number
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="street_number"
+                    value={manualAddress.street_number}
+                    onChange={(e) => handleManualInputChange('street_number', e.target.value)}
+                    placeholder="e.g. 123 or Flat 4"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                    style={{
+                      '--tw-ring-color': companyColor || '#3b82f6'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = '';
+                    }}
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="street_name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Street Name *
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="street_name"
+                    value={manualAddress.street_name}
+                    onChange={(e) => handleManualInputChange('street_name', e.target.value)}
+                    placeholder="e.g. High Street"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                    style={{
+                      '--tw-ring-color': companyColor || '#3b82f6'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = '';
+                    }}
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+              </div>
+
+              {/* Building Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="building_name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Building Name
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="building_name"
+                    value={manualAddress.building_name}
+                    onChange={(e) => handleManualInputChange('building_name', e.target.value)}
+                    placeholder="e.g. The Old Post Office"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                    style={{
+                      '--tw-ring-color': companyColor || '#3b82f6'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = '';
+                    }}
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="sub_building" className="block text-sm font-medium text-gray-700 mb-1">
+                    Unit/Flat Number
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="sub_building"
+                    value={manualAddress.sub_building}
+                    onChange={(e) => handleManualInputChange('sub_building', e.target.value)}
+                    placeholder="e.g. Flat 4A or Unit 12"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                    style={{
+                      '--tw-ring-color': companyColor || '#3b82f6'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = '';
+                    }}
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+              </div>
+
+              {/* Address Lines */}
+              <div>
+                <label htmlFor="address_line_1" className="block text-sm font-medium text-gray-700 mb-1">
+                  Address Line 1 *
+                </label>
+                <motion.input
+                  type="text"
+                  id="address_line_1"
+                  value={manualAddress.address_line_1}
+                  onChange={(e) => handleManualInputChange('address_line_1', e.target.value)}
+                  placeholder="Full address line 1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{
+                    '--tw-ring-color': companyColor || '#3b82f6'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.boxShadow = '';
+                  }}
+                  whileFocus={{ scale: 1.02 }}
+                  transition={{ duration: 0.1 }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="address_line_2" className="block text-sm font-medium text-gray-700 mb-1">
+                  Address Line 2
+                </label>
+                <motion.input
+                  type="text"
+                  id="address_line_2"
+                  value={manualAddress.address_line_2}
+                  onChange={(e) => handleManualInputChange('address_line_2', e.target.value)}
+                  placeholder="Additional address information (optional)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{
+                    '--tw-ring-color': companyColor || '#3b82f6'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.boxShadow = '';
+                  }}
+                  whileFocus={{ scale: 1.02 }}
+                  transition={{ duration: 0.1 }}
+                />
+              </div>
+
+              {/* City and County */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="town_or_city" className="block text-sm font-medium text-gray-700 mb-1">
+                    Town/City *
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="town_or_city"
+                    value={manualAddress.town_or_city}
+                    onChange={(e) => handleManualInputChange('town_or_city', e.target.value)}
+                    placeholder="Town or city"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                    style={{
+                      '--tw-ring-color': companyColor || '#3b82f6'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = '';
+                    }}
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="county" className="block text-sm font-medium text-gray-700 mb-1">
+                    County
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="county"
+                    value={manualAddress.county}
+                    onChange={(e) => handleManualInputChange('county', e.target.value)}
+                    placeholder="County (optional)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
+                    style={{
+                      '--tw-ring-color': companyColor || '#3b82f6'
+                    } as React.CSSProperties}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = `0 0 0 2px ${companyColor || '#3b82f6'}40`;
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = '';
+                    }}
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+              </div>
+
+              {/* Postcode and Country */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="manual_postcode" className="block text-sm font-medium text-gray-700 mb-1">
+                    Postcode *
+                  </label>
+                  <motion.input
+                    type="text"
+                    id="manual_postcode"
+                    value={manualAddress.postcode}
+                    onChange={(e) => handleManualInputChange('postcode', e.target.value.toUpperCase())}
+                    placeholder="Postcode"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+                    Country
+                  </label>
+                  <motion.select
+                    id="country"
+                    value={manualAddress.country}
+                    onChange={(e) => handleManualInputChange('country', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    whileFocus={{ scale: 1.02 }}
+                    transition={{ duration: 0.1 }}
+                  >
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="Ireland">Ireland</option>
+                    <option value="United States">United States</option>
+                    <option value="Canada">Canada</option>
+                    <option value="Australia">Australia</option>
+                  </motion.select>
+                </div>
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.1 }}
+                  className="text-red-600 text-sm"
+                >
+                  {error}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            <div className="flex space-x-3 pt-2">
+              <motion.button
+                type="button"
+                onClick={() => setShowManualEntry(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.05 }}
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={handleManualAddressSubmit}
+                className="flex-1 px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors"
+                style={{ backgroundColor: companyColor }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ duration: 0.05 }}
+              >
+                Use this address
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Navigation buttons */}
+      <motion.div 
+        className="flex justify-center pt-6 max-w-md mx-auto"
+        variants={itemVariants}
+      >
+        <motion.button
+          type="button"
+          onClick={() => {
+            if (selectedAddress) {
+              onNext()
+            } else {
+              setError('Please select an address to continue')
+            }
+          }}
+          disabled={!selectedAddress}
+          className={`px-6 py-2 rounded-md transition-colors ${
+            selectedAddress
+              ? 'text-white hover:opacity-90'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
+          style={selectedAddress ? { backgroundColor: companyColor } : {}}
+          whileHover={selectedAddress ? { scale: 1.02 } : {}}
+          whileTap={selectedAddress ? { scale: 0.98 } : {}}
+          transition={{ duration: 0.05 }}
+        >
+          Next
+        </motion.button>
+      </motion.div>
+    </motion.div>
+  );
+}

@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
+  const role = formData.get("role")?.toString() || "partner";
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
 
@@ -19,24 +20,128 @@ export const signUpAction = async (formData: FormData) => {
     );
   }
 
-  const { error } = await supabase.auth.signUp({
+  // Validate password strength
+  if (password.length < 6) {
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "Password must be at least 6 characters long",
+    );
+  }
+
+  // Sign up the user with Auth
+  const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback`,
+      data: {
+        role: role,
+      },
     },
   });
 
-  if (error) {
-    console.error(error.code + " " + error.message);
-    return encodedRedirect("error", "/sign-up", error.message);
-  } else {
-    return encodedRedirect(
-      "success",
-      "/sign-up",
-      "Thanks for signing up! Please check your email for a verification link.",
-    );
+  if (authError) {
+    console.error(authError.code + " " + authError.message);
+    
+    // Provide more user-friendly error messages
+    if (authError.message.includes("already registered")) {
+      return encodedRedirect("error", "/sign-up", "This email is already registered. Please sign in or use another email address.");
+    }
+    
+    if (authError.message.includes("invalid email")) {
+      return encodedRedirect("error", "/sign-up", "Please enter a valid email address.");
+    }
+    
+    return encodedRedirect("error", "/sign-up", authError.message);
   }
+
+  // If user is a partner, create a profile
+  if (role === "partner" && authData?.user) {
+    // Get additional form fields
+    const companyName = formData.get("company_name")?.toString() || "";
+    const contactPerson = formData.get("contact_person")?.toString() || "";
+    const address = formData.get("address")?.toString() || "";
+    const phone = formData.get("phone")?.toString() || "";
+    const postcode = formData.get("postcode")?.toString() || "";
+    const website = formData.get("website")?.toString() || "";
+    const businessDescription = formData.get("business_description")?.toString() || "";
+    const primaryCategory = formData.get("primary_category")?.toString() || "";
+    const logoUrl = formData.get("logo_url")?.toString() || "";
+    const subdomain = formData.get("subdomain")?.toString() || null;
+
+    // Validate required fields
+    if (!companyName || !contactPerson || !postcode) {
+      return encodedRedirect("error", "/sign-up", "Company name, contact person, and postcode are required");
+    }
+
+    // Create user profile with all fields from form
+    const { error: profileError } = await supabase.from("UserProfiles").insert({
+      user_id: authData.user.id,
+      company_name: companyName,
+      contact_person: contactPerson,
+      address: address,
+      phone: phone,
+      postcode: postcode,
+      status: "pending",
+      website_url: website,
+      business_description: businessDescription,
+      role: role,
+      logo_url: logoUrl,
+      subdomain: subdomain
+    });
+
+    if (profileError) {
+      console.error("Profile creation error:", profileError.message);
+      
+      // Handle specific profile creation errors
+      if (profileError.message.includes("duplicate key") && profileError.message.includes("subdomain")) {
+        return encodedRedirect("error", "/sign-up", "This subdomain is already taken. Please choose a different one.");
+      }
+      
+      return encodedRedirect("error", "/sign-up", "Account created but profile setup failed. Please contact support.");
+    }
+
+    // Create category access request if primary category is selected
+    if (primaryCategory) {
+      const { error: categoryError } = await supabase.from("UserCategoryAccess").insert({
+        user_id: authData.user.id,
+        service_category_id: primaryCategory,
+        status: "pending",
+        is_primary: true
+      });
+
+      if (categoryError) {
+        console.error("Category access error:", categoryError.message);
+      }
+    }
+
+    // Create initial partner metrics
+    if (primaryCategory) {
+      await supabase.from("PartnerMetrics").insert({
+        user_id: authData.user.id,
+        service_category_id: primaryCategory
+      }).then(null, (error) => {
+        console.error("Partner metrics creation error:", error.message);
+      });
+    }
+
+    // Send notification to admins about new partner
+    await supabase.from("CategoryNotifications").insert({
+      user_id: authData.user.id,
+      service_category_id: primaryCategory,
+      type: "new_partner",
+      message: `New partner ${companyName} has registered and requested access to your category.`
+    }).then(null, (error) => {
+      console.error("Notification creation error:", error.message);
+    });
+  }
+
+  return encodedRedirect(
+    "success",
+    "/sign-up",
+    "Thanks for signing up! Please check your email for a verification link.",
+  );
 };
 
 export const signInAction = async (formData: FormData) => {
@@ -44,16 +149,53 @@ export const signInAction = async (formData: FormData) => {
   const password = formData.get("password") as string;
   const supabase = await createClient();
 
+  if (!email || !password) {
+    return encodedRedirect("error", "/sign-in", "Email and password are required");
+  }
+
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
+    console.error("Sign-in error:", error.message);
+    
+    // Provide more user-friendly error messages
+    if (error.message.includes("Invalid login credentials")) {
+      return encodedRedirect("error", "/sign-in", "Invalid email or password. Please try again.");
+    }
+    
+    if (error.message.includes("Email not confirmed")) {
+      return encodedRedirect("error", "/sign-in", "Please verify your email address before signing in. Check your inbox for a verification link.");
+    }
+    
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
-  return redirect("/admin");
+  // Get user profile to check role
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from('UserProfiles')
+    .select('role, status')
+    .eq('user_id', user?.id)
+    .single();
+
+  // Redirect based on role and status
+  if (profile?.role === 'admin') {
+    return redirect('/admin');
+  } else if (profile?.role === 'partner') {
+    if (profile.status === 'pending') {
+      return redirect('/partner/pending');
+    } else if (profile.status === 'suspended') {
+      return redirect('/partner/suspended');
+    } else {
+      return redirect('/partner');
+    }
+  }
+
+  // Default redirect if no role found
+  return redirect('/');
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
@@ -132,3 +274,14 @@ export const signOutAction = async () => {
   await supabase.auth.signOut();
   return redirect("/sign-in");
 };
+
+export async function handleLoginRedirect(role: string) {
+  switch (role) {
+    case 'admin':
+      return redirect('/admin')
+    case 'partner':
+      return redirect('/partner')
+    default:
+      return redirect('/')
+  }
+}
