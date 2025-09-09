@@ -141,8 +141,30 @@ export async function middleware(request: NextRequest) {
   // Domain restriction logic for subdomains and custom domains
   // Consider any host different from the main hostname as subdomain/custom
   const isSubdomainOrCustomDomain = hostname !== mainHostname;
-  const allowedPaths = ['/boiler', '/solar', '/partner', '/admin', '/sign-in', '/sign-up', '/info'];
+  const allowedPaths = ['/partner', '/admin', '/sign-in', '/sign-up', '/info', '/domain-restricted'];
   const isAllowedPath = allowedPaths.some(allowedPath => path.startsWith(allowedPath));
+  
+  console.log('Domain restriction check:', {
+    hostname,
+    mainHostname,
+    isSubdomainOrCustomDomain,
+    path,
+    isAllowedPath
+  });
+  
+  // For subdomains/custom domains, restrict access to /boiler and /solar pages and their inner pages
+  if (isSubdomainOrCustomDomain && (path.startsWith('/boiler') || path.startsWith('/solar'))) {
+    // Redirect to domain restricted page on the same host
+    const redirectUrl = new URL('/domain-restricted', request.url);
+    console.log('Redirecting boiler/solar page from subdomain:', {
+      hostname,
+      path,
+      redirectUrl: redirectUrl.toString(),
+      isSubdomainOrCustomDomain,
+      requestUrl: request.url
+    });
+    return NextResponse.redirect(redirectUrl);
+  }
   
   if (isSubdomainOrCustomDomain && !isAllowedPath && path !== '/domain-restricted') {
     // Redirect to domain restricted page on the same host
@@ -150,20 +172,37 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Only check auth for protected routes
-  if (path.startsWith('/partner') || path.startsWith('/admin')) {
+  // Check authentication for all routes except public ones
+  const publicPaths = ['/sign-in', '/sign-up', '/forgot-password', '/auth', '/info', '/domain-restricted'];
+  const isPublicPath = publicPaths.some(publicPath => path.startsWith(publicPath));
+  
+  if (!isPublicPath) {
     try {
       const supabase = createClient(request);
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        const redirectUrl = new URL('/auth/login', request.url);
+        const redirectUrl = new URL('/sign-in', request.url);
         redirectUrl.searchParams.set('redirect_to', path);
         return NextResponse.redirect(forceDomain(redirectUrl));
       }
+    } catch (error) {
+      console.error('Auth error:', error);
+      // On auth error, redirect to sign-in
+      const redirectUrl = new URL('/sign-in', request.url);
+      redirectUrl.searchParams.set('redirect_to', path);
+      return NextResponse.redirect(forceDomain(redirectUrl));
+    }
+  }
 
+  // Only check role-based access for protected routes
+  if (path.startsWith('/partner') || path.startsWith('/admin')) {
+    try {
+      const supabase = createClient(request);
+      const { data: { session } } = await supabase.auth.getSession();
+      
       // For admin routes, check if user has admin role
-      if (path.startsWith('/admin')) {
+      if (path.startsWith('/admin') && session) {
         const { data: profile } = await supabase
           .from('UserProfiles')
           .select('role')
@@ -176,7 +215,7 @@ export async function middleware(request: NextRequest) {
       }
 
       // For partner routes, check if user has partner role
-      if (path.startsWith('/partner')) {
+      if (path.startsWith('/partner') && session) {
         const { data: profile } = await supabase
           .from('UserProfiles')
           .select('role')
@@ -191,8 +230,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     } catch (error) {
       console.error('Auth error:', error);
-      // On auth error, redirect to login
-      const redirectUrl = new URL('/auth/login', request.url);
+      // On auth error, redirect to sign-in
+      const redirectUrl = new URL('/sign-in', request.url);
       redirectUrl.searchParams.set('redirect_to', path);
       return NextResponse.redirect(forceDomain(redirectUrl));
     }
@@ -202,13 +241,14 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isCategoryPage = pathname.startsWith('/category')
 
-  // Add a custom header to indicate if we're on a category page
+  // Add custom headers
   const response = NextResponse.next({
     request: {
       headers: new Headers(request.headers),
     },
   })
   response.headers.set('x-is-category-page', isCategoryPage.toString())
+  response.headers.set('x-pathname', pathname)
 
   // Refresh session if expired - required for Server Components
   const supabase = createMiddlewareClient({ req: request, res: response })

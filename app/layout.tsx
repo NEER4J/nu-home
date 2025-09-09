@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import Loader from '@/components/Loader';
 import { Metadata } from 'next';
 import MainHeader from '@/components/MainHeader';
+import { headers } from 'next/headers';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -24,23 +25,35 @@ export default async function RootLayout({
   const { data: { user } } = await supabase.auth.getUser();
   const isLoggedIn = !!user;
 
+  // Check if we're on the domain-restricted page
+  const headersList = await headers();
+  const pathname = headersList.get('x-pathname') || '';
+  const isDomainRestricted = pathname.includes('/domain-restricted');
+
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="flex flex-col h-screen bg-gray-50">
-          {/* Main content */}
-          <div className="flex-1 flex flex-col">
-            <MainHeader isLoggedIn={isLoggedIn} />
-
-            {/* Main content area */}
-            <main className="">
-              <Loader />
-              {children}
-            </main>
-           
+        {isDomainRestricted ? (
+          // For domain-restricted page, render without header
+          <div className="min-h-screen bg-white">
+            {children}
           </div>
-        </div>
-    
+        ) : (
+          // For all other pages, render with header
+          <div className="flex flex-col h-screen bg-gray-50">
+            {/* Main content */}
+            <div className="flex-1 flex flex-col">
+              <MainHeader isLoggedIn={isLoggedIn} />
+
+              {/* Main content area */}
+              <main className="">
+                <Loader />
+                {children}
+              </main>
+             
+            </div>
+          </div>
+        )}
       </body>
     </html>
   );
