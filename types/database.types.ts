@@ -64,6 +64,7 @@ export interface PartnerSettings {
   is_monthly_payment_enabled: boolean;
   is_pay_after_installation_enabled: boolean;
   admin_email?: string | null;
+  gtm_event_name?: string | null;
 }
 
 export interface ServiceCategory {

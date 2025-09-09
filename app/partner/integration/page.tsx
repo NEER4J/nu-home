@@ -79,9 +79,37 @@ function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfi
       return; // Security check
     }
     
-    if (event.data.type === 'quote-submitted') {
+    if (event.data.type === 'gtm-event') {
+      // Handle direct GTM event from iframe
+      if (event.data.event_name && window.dataLayer) {
+        window.dataLayer.push({
+          event: event.data.event_name,
+          ...event.data.event_data
+        });
+        console.log('GTM Event triggered from iframe:', event.data.event_name);
+      }
+    } else if (event.data.type === 'quote-submitted') {
       // Handle form submission completion
       console.log('Quote submitted:', event.data);
+      
+      // Trigger GTM event if event data is provided
+      if (event.data.gtm_event_name && window.dataLayer) {
+        window.dataLayer.push({
+          event: event.data.gtm_event_name,
+          event_category: 'Quote Submission',
+          event_label: event.data.service_category_name || 'Unknown Service',
+          service_category_id: event.data.service_category_id,
+          service_category_name: event.data.service_category_name,
+          customer_name: event.data.customer_name,
+          customer_email: event.data.customer_email,
+          customer_phone: event.data.customer_phone,
+          customer_postcode: event.data.customer_postcode,
+          submission_id: event.data.submission_id,
+          partner_id: event.data.partner_id,
+          timestamp: new Date().toISOString()
+        });
+        console.log('GTM Event triggered:', event.data.gtm_event_name);
+      }
       
       // Optional: Redirect to a thank you page or show success message
       // window.location.href = '/thank-you';
@@ -140,6 +168,25 @@ function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfi
     if (event.data.type === 'quote-submitted') {
       // Handle form submission completion
       console.log('Quote submitted:', event.data);
+      
+      // Trigger GTM event if event data is provided
+      if (event.data.gtm_event_name && window.dataLayer) {
+        window.dataLayer.push({
+          event: event.data.gtm_event_name,
+          event_category: 'Quote Submission',
+          event_label: event.data.service_category_name || 'Unknown Service',
+          service_category_id: event.data.service_category_id,
+          service_category_name: event.data.service_category_name,
+          customer_name: event.data.customer_name,
+          customer_email: event.data.customer_email,
+          customer_phone: event.data.customer_phone,
+          customer_postcode: event.data.customer_postcode,
+          submission_id: event.data.submission_id,
+          partner_id: event.data.partner_id,
+          timestamp: new Date().toISOString()
+        });
+        console.log('GTM Event triggered:', event.data.gtm_event_name);
+      }
       
       // Optional: Redirect to a thank you page or show success message
       // window.location.href = '/thank-you';

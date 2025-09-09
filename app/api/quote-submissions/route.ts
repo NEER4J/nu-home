@@ -136,9 +136,26 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Get GTM event name if partner is assigned
+    let gtmEventName = null;
+    if (assignedPartnerId) {
+      const { data: gtmSettings } = await supabase
+        .from('PartnerSettings')
+        .select('gtm_event_name')
+        .eq('partner_id', assignedPartnerId)
+        .eq('service_category_id', formData.service_category_id)
+        .single();
+      
+      gtmEventName = gtmSettings?.gtm_event_name || null;
+    }
     
     return NextResponse.json(
-      { success: true, data: partnerLead },
+      { 
+        success: true, 
+        data: partnerLead,
+        gtm_event_name: gtmEventName
+      },
       { status: 201 }
     );
     
