@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iframe Persistence Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .instructions {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .iframe-container {
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            height: 600px;
+            position: relative;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .controls {
+            margin-top: 10px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Iframe URL Persistence Test</h1>
+        
+        <div class="instructions">
+            <h3>Test Instructions:</h3>
+            <ol>
+                <li>Click "Load Iframe" to load the boiler quote form</li>
+                <li>Navigate through the form (fill out some steps)</li>
+                <li>Click "Reload Main Page" to simulate a page refresh</li>
+                <li>The iframe should restore to the last page you were on</li>
+                <li>Check the browser console for navigation tracking logs</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 1: Basic Iframe Persistence</h3>
+            <div class="iframe-container">
+                <iframe id="test-iframe" src="about:blank"></iframe>
+            </div>
+            <div class="controls">
+                <button onclick="loadIframe()">Load Iframe</button>
+                <button onclick="reloadMainPage()">Reload Main Page</button>
+                <button onclick="clearStorage()">Clear Storage</button>
+            </div>
+            <div id="status" class="status info">
+                Ready to test iframe persistence
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: Multiple Navigation Tracking</h3>
+            <div class="iframe-container">
+                <iframe id="test-iframe-2" src="about:blank"></iframe>
+            </div>
+            <div class="controls">
+                <button onclick="loadIframe2()">Load Products Page</button>
+                <button onclick="simulateNavigation()">Simulate Navigation</button>
+                <button onclick="checkStorage()">Check Storage</button>
+            </div>
+            <div id="status-2" class="status info">
+                Ready to test navigation tracking
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Test 1: Basic iframe persistence
+        function loadIframe() {
+            const iframe = document.getElementById('test-iframe');
+            // Use a boiler quote URL for testing
+            iframe.src = '/boiler/quote';
+            updateStatus('Iframe loaded with boiler quote form');
+        }
+
+        function reloadMainPage() {
+            // Simulate a page reload by reloading the iframe
+            const iframe = document.getElementById('test-iframe');
+            const currentSrc = iframe.src;
+            iframe.src = 'about:blank';
+            setTimeout(() => {
+                iframe.src = currentSrc;
+                updateStatus('Main page reloaded - iframe should restore to last page');
+            }, 100);
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            updateStatus('Local storage cleared');
+        }
+
+        function updateStatus(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status info';
+        }
+
+        // Test 2: Navigation tracking
+        function loadIframe2() {
+            const iframe = document.getElementById('test-iframe-2');
+            iframe.src = '/boiler/products';
+            updateStatus2('Products page loaded');
+        }
+
+        function simulateNavigation() {
+            const iframe = document.getElementById('test-iframe-2');
+            if (iframe.src.includes('products')) {
+                iframe.src = '/boiler/addons';
+                updateStatus2('Navigated to addons page');
+            } else {
+                iframe.src = '/boiler/products';
+                updateStatus2('Navigated to products page');
+            }
+        }
+
+        function checkStorage() {
+            const storage = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('iframe-url-')) {
+                    storage[key] = localStorage.getItem(key);
+                }
+            }
+            updateStatus2('Storage contents: ' + JSON.stringify(storage, null, 2));
+        }
+
+        function updateStatus2(message) {
+            const status = document.getElementById('status-2');
+            status.textContent = message;
+            status.className = 'status info';
+        }
+
+        // Listen for messages from iframes
+        window.addEventListener('message', function(event) {
+            console.log('Received message from iframe:', event.data);
+            
+            if (event.data.type === 'iframe-navigation') {
+                updateStatus('Navigation detected: ' + event.data.url);
+                updateStatus2('Navigation detected: ' + event.data.url);
+            }
+        });
+
+        // Initialize
+        console.log('Iframe persistence test page loaded');
+        console.log('Check browser console for navigation tracking logs');
+    </script>
+</body>
+</html>

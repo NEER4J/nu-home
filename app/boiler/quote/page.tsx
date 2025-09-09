@@ -12,6 +12,7 @@ import { useDynamicStyles } from '@/hooks/use-dynamic-styles';
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
 import { QuoteLoader } from '@/components/category-commons/Loader';
 import { triggerQuoteSubmissionEvent, triggerGTMEventCrossFrame } from '@/lib/gtm';
+import IframeNavigationTracker from '@/components/IframeNavigationTracker';
 
 interface HeatingQuotePageProps {
   serviceCategoryId?: string;
@@ -528,6 +529,9 @@ export default function HeatingQuotePage({
 
   return (
     <div className="min-h-[calc(100vh-100px)] relative flex items-center">
+      {/* Iframe Navigation Tracker */}
+      <IframeNavigationTracker categorySlug="boiler" />
+      
       {/* Progress Bar */}
       <div className="h-1 bg-gray-200 relative overflow-hidden">
         <div

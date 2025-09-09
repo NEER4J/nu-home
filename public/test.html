@@ -6,55 +6,21 @@
 <body>
     <h1>Test Quote Form</h1>
     
-    <!-- Your iframe code here -->
     <iframe 
-      id="quote-form-iframe-boiler"
-      src="http://origin.localhost:3000/boiler/quote" 
-      width="100%" 
-      height="100vh" 
-      frameborder="0" 
-      style="border: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999;"
-      title="Quote Form - Boiler">
-        </iframe>
-
-    <script>
-    // Enhanced iframe functionality for Boiler
-    (function() {
-      const iframe = document.getElementById('quote-form-iframe-boiler');
-      
-      // Check for submission ID in URL parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const submissionId = urlParams.get('submission');
-      
-      if (submissionId && iframe) {
-        // Redirect iframe to products page with submission ID
-        const iframeSrc = iframe.src;
-        const url = new URL(iframeSrc);
-        const pathParts = url.pathname.split('/');
-        
-        // Find the service category slug and replace 'quote' with 'products'
-        const categoryIndex = pathParts.findIndex(part => part === 'boiler');
-        if (categoryIndex !== -1 && pathParts[categoryIndex + 1] === 'quote') {
-          pathParts[categoryIndex + 1] = 'products';
-        }
-        
-        const productsPath = pathParts.join('/');
-        const productsUrl = url.origin + productsPath + '?submission=' + encodeURIComponent(submissionId);
-        iframe.src = productsUrl;
-      }
-      
-      // Listen for messages from iframe (for form completion)
-      window.addEventListener('message', function(event) {
-        if (event.origin !== 'http://localhost:3000') {
-          return; // Security check
-        }
-        
-        if (event.data.type === 'quote-submitted') {
-          // Handle form submission completion
-          console.log('Quote submitted:', event.data);
-        }
-      });
-    })();
-    </script>
+    id="quote-form-iframe-boiler"
+    src="http://origin.localhost:3000/boiler/quote" 
+    width="100%" 
+    height="100vh" 
+    frameborder="0" 
+    style="border: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999;"
+    title="Quote Form - Boiler">
+  </iframe>
+  
+  <script>
+  // Configure iframe settings
+  window.currentIframe = document.getElementById('quote-form-iframe-boiler');
+  window.currentCategorySlug = 'boiler';
+  </script>
+  <script src="/quote-script.js"></script>
 </body>
 </html>

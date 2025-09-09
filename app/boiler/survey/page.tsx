@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import SurveyLayout from '@/components/category-commons/survey/SurveyLayout'
+import IframeNavigationTracker from '@/components/IframeNavigationTracker'
 
 interface PartnerInfo {
   user_id: string
@@ -265,19 +266,24 @@ function SurveyContent() {
   }
 
   return (
-    <SurveyLayout
-      selectedProduct={selectedProduct}
-      selectedAddons={selectedAddons}
-      selectedBundles={selectedBundles}
-      companyColor={partnerInfo.company_color}
+    <>
+      {/* Iframe Navigation Tracker */}
+      <IframeNavigationTracker categorySlug="boiler" />
+      
+      <SurveyLayout
+        selectedProduct={selectedProduct}
+        selectedAddons={selectedAddons}
+        selectedBundles={selectedBundles}
+        companyColor={partnerInfo.company_color}
       partnerSettings={partnerSettings}
       currentCalculatorSettings={currentCalculatorSettings}
       prefillUserInfo={prefillUserInfo}
       submissionId={submissionId || undefined}
-      backHref="/boiler/products"
-      backLabel="Back to Products"
-      showBack={true}
-    />
+        backHref="/boiler/products"
+        backLabel="Back to Products"
+        showBack={true}
+      />
+    </>
   )
 }
 

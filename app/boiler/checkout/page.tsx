@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import CheckoutLayout, { SelectedAddonItem, SelectedBundleItem, BundleLite } from '@/components/category-commons/checkout/CheckoutLayout'
 import { resolvePartnerByHost } from '@/lib/partner'
 import { CheckoutLoader } from '@/components/category-commons/Loader'
+import IframeNavigationTracker from '@/components/IframeNavigationTracker'
 
 interface Addon {
   addon_id: string
@@ -441,11 +442,15 @@ function BoilerCheckoutPageContent() {
   console.log('Checkout: Rendering CheckoutLayout with calculatorSettings:', calculatorSettings)
 
   return (
-    <CheckoutLayout
-      selectedProduct={product}
-      selectedAddons={selectedAddons}
-      selectedBundles={selectedBundles}
-      companyColor={companyColor}
+    <>
+      {/* Iframe Navigation Tracker */}
+      <IframeNavigationTracker categorySlug="boiler" />
+      
+      <CheckoutLayout
+        selectedProduct={product}
+        selectedAddons={selectedAddons}
+        selectedBundles={selectedBundles}
+        companyColor={companyColor}
       partnerSettings={partnerSettings}
       currentCalculatorSettings={calculatorSettings}
       prefillUserInfo={userInfo}
@@ -459,11 +464,12 @@ function BoilerCheckoutPageContent() {
         // TODO: integrate payments and booking save
         alert('Booking submitted! (stub)')
       }}
-      backHref={`/boiler/addons${submissionId ? `?submission=${submissionId}` : ''}`}
-      backLabel="Back to Add-ons"
-      showBack={true}
-      showMobileCard={true}
-    />
+        backHref={`/boiler/addons${submissionId ? `?submission=${submissionId}` : ''}`}
+        backLabel="Back to Add-ons"
+        showBack={true}
+        showMobileCard={true}
+      />
+    </>
   )
 }
 
