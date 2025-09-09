@@ -531,17 +531,33 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const { 
+      // New standardized fields
+      firstName,
+      lastName,
+      email,
+      phone,
+      postcode,
+      fullAddress,
+      submissionId,
+      submissionDate,
+      quoteData,
+      quoteLink,
+      
+      // Legacy fields for backward compatibility
       first_name, 
       last_name, 
-      email, 
-      phone,
-      postcode, 
       quote_data,
       address_data,
       questions,
       submission_id,
       subdomain: bodySubdomain 
     } = body || {}
+
+    // Use new fields if available, fallback to legacy fields
+    const finalFirstName = firstName || first_name
+    const finalLastName = lastName || last_name
+    const finalSubmissionId = submissionId || submission_id
+    const finalQuoteData = quoteData || quote_data
 
     const hostname = parseHostname(request, bodySubdomain)
     console.log('quote-verified - Parsed hostname:', hostname);
@@ -620,11 +636,11 @@ export async function POST(request: NextRequest) {
         ? `https://${partner.subdomain}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || 'yourdomain.com'}`
         : null
 
-    const quoteLink = buildQuoteLink(
+    const formattedQuoteLink = buildQuoteLink(
       partner.custom_domain || null,
       partner.domain_verified || null,
       partner.subdomain || null,
-      submission_id,
+      finalSubmissionId,
       'boiler'
     )
 
@@ -652,7 +668,7 @@ export async function POST(request: NextRequest) {
 
     const quoteInfo = formatQuoteData(quote_data, questions)
     const addressInfo = formatAddressData(address_data)
-    const submissionDate = new Date().toLocaleString('en-GB', {
+    const formattedSubmissionDate = new Date().toLocaleString('en-GB', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -661,27 +677,37 @@ export async function POST(request: NextRequest) {
     })
 
     // Prepare template data
+    // Prepare template data with new standardized field structure
     const templateData = {
-      firstName: first_name,
-      lastName: last_name,
+      // User Information fields
+      firstName: finalFirstName,
+      lastName: finalLastName,
       email,
       phone,
       postcode,
+      fullAddress: fullAddress || addressInfo,
+      submissionId: finalSubmissionId,
+      submissionDate: submissionDate || formattedSubmissionDate,
+      
+      // Company Information fields
       companyName,
       companyPhone,
       companyEmail,
       companyAddress,
       companyWebsite,
       logoUrl,
-      refNumber: submission_id || `BOILER-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-      submissionId: submission_id,
-      quoteLink: quoteLink || undefined,
-      quoteInfo,
-      addressInfo,
-      submissionDate,
+      primaryColor: companyColor,
+      currentYear: new Date().getFullYear().toString(),
       privacyPolicy,
       termsConditions,
-      primaryColor: companyColor
+      
+      // Quote Details
+      quoteData: finalQuoteData || quoteInfo,
+      quoteLink: quoteLink || formattedQuoteLink,
+      
+      // Legacy fields for backward compatibility
+      refNumber: finalSubmissionId || `BOILER-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      addressInfo,
     }
 
     // Try to get custom customer template first
@@ -710,15 +736,15 @@ export async function POST(request: NextRequest) {
       customerHtml = createCustomerEmailTemplate({
         companyName,
         logoUrl,
-        firstName: first_name,
-        lastName: last_name,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email,
         phone,
         postcode,
         companyColor,
         quoteInfo,
         addressInfo,
-        submissionId: submission_id,
+        submissionId: finalSubmissionId,
         privacyPolicy,
         termsConditions,
         companyPhone,
@@ -731,14 +757,14 @@ export async function POST(request: NextRequest) {
     // Fallback customerText only if no custom template
     if (!customerText) {
       customerText = `Quote Verified Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
-        `Hi ${first_name},\n\n` +
+        `Hi ${finalFirstName},\n\n` +
         `Great news! Your quote has been verified and you can now proceed to view your boiler options and pricing.\n\n` +
         `Your Details:\n` +
-        `Name: ${first_name} ${last_name}\n` +
+        `Name: ${finalFirstName} ${finalLastName}\n` +
         `Email: ${email}\n` +
         (phone ? `Phone: ${phone}\n` : '') +
         (postcode ? `Postcode: ${postcode}\n` : '') +
-        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        (finalSubmissionId ? `Reference: ${finalSubmissionId}\n` : '') +
         `\n${addressInfo ? 'Property Details:\n' + addressInfo + '\n\n' : ''}` +
         `${quoteInfo ? 'Quote Information:\n' + quoteInfo + '\n\n' : ''}` +
         `What happens next?\n` +
@@ -777,15 +803,15 @@ export async function POST(request: NextRequest) {
       adminHtml = createAdminEmailTemplate({
         companyName,
         logoUrl,
-        firstName: first_name,
-        lastName: last_name,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email,
         phone,
         postcode,
         companyColor,
         quoteInfo,
         addressInfo,
-        submissionId: submission_id,
+        submissionId: finalSubmissionId,
         privacyPolicy,
         termsConditions,
         companyAddress,
@@ -797,11 +823,11 @@ export async function POST(request: NextRequest) {
     if (!adminText && adminEmail) {
       adminText = `Quote Verified - Customer Ready${companyName ? ' - ' + companyName : ''}\n\n` +
         `Customer Details:\n` +
-        `Name: ${first_name} ${last_name}\n` +
+        `Name: ${finalFirstName} ${finalLastName}\n` +
         `Email: ${email}\n` +
         (phone ? `Phone: ${phone}\n` : '') +
         (postcode ? `Postcode: ${postcode}\n` : '') +
-        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        (finalSubmissionId ? `Reference: ${finalSubmissionId}\n` : '') +
         (addressInfo ? `\nProperty Details:\n${addressInfo}\n` : '') +
         (quoteInfo ? `\nQuote Information:\n${quoteInfo}\n` : '') +
         `\nThe customer is now ready to proceed with their boiler selection and booking.`

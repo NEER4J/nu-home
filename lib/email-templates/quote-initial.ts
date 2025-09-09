@@ -152,7 +152,7 @@ export function getDefaultAdminTemplate() {
               
               <h3 style="color: #1f2937; margin: 30px 0 20px 0;">Quote Details</h3>
               <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px;">
-                {{quoteInfo}}
+                {{quoteData}}
               </div>
             </td>
           </tr>
@@ -185,7 +185,7 @@ Postcode: {{postcode}}
 Submission Date: {{submissionDate}}
 
 Quote Details:
-{{quoteInfo}}
+{{quoteData}}
 
 This is an automated notification from {{companyName}}`
 }

@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
 import { getProcessedEmailTemplate, buildQuoteLink } from '@/lib/email-templates'
+import { formatProducts } from '@/lib/email-templates/product-formatter'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -444,7 +445,32 @@ function createAdminEmailTemplate(data: {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
-    const { first_name, last_name, email, submission_id, postcode, products, subdomain: bodySubdomain } = body || {}
+    const { 
+      // New standardized fields
+      firstName,
+      lastName,
+      email,
+      phone,
+      postcode,
+      fullAddress,
+      submissionId,
+      submissionDate,
+      quoteData,
+      quoteLink,
+      
+      // Legacy fields for backward compatibility
+      first_name, 
+      last_name, 
+      submission_id, 
+      products, 
+      subdomain: bodySubdomain 
+    } = body || {}
+
+    // Use new fields if available, fallback to legacy fields
+    const finalFirstName = firstName || first_name
+    const finalLastName = lastName || last_name
+    const finalSubmissionId = submissionId || submission_id
+    const finalQuoteData = quoteData || products
 
     const hostname = parseHostname(request, bodySubdomain)
     console.log('save-quote - Parsed hostname:', hostname);
@@ -523,36 +549,52 @@ export async function POST(request: NextRequest) {
         ? `https://${partner.subdomain}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || 'yourdomain.com'}`
         : null
 
-    const quoteLink = buildQuoteLink(
+    const formattedQuoteLink = buildQuoteLink(
       partner.custom_domain || null,
       partner.domain_verified || null,
       partner.subdomain || null,
-      submission_id,
+      finalSubmissionId,
       'boiler'
     )
 
-    // Format products information
-    const formatProducts = (productsData: any) => {
-      if (!productsData) return 'No products selected'
-      
-      if (Array.isArray(productsData)) {
-        return productsData.map((product: any, index: number) => {
-          let productText = `${index + 1}. ${product.name || 'Product'}`
-          if (product.price) productText += ` - £${product.price.toFixed(2)}`
-          if (product.description) productText += `\n   ${product.description}`
-          return productText
-        }).join('\n\n')
+    // Fetch full product data from database using product IDs
+    let fullProductsData = []
+    if (products && Array.isArray(products) && products.length > 0) {
+      const productIds = products.map((p: any) => p.id).filter(Boolean)
+      if (productIds.length > 0) {
+        const { data: fullProducts, error: productsError } = await supabase
+          .from('PartnerProducts')
+          .select('partner_product_id, name, description, price, image_url, product_fields')
+          .in('partner_product_id', productIds)
+          .eq('is_active', true)
+        
+        if (productsError) {
+          console.error('Error fetching full product data:', productsError)
+          // Fallback to basic product data
+          fullProductsData = products
+        } else if (fullProducts && fullProducts.length > 0) {
+          fullProductsData = fullProducts.map((product: any) => ({
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            image_url: product.image_url,
+            product_fields: product.product_fields || {}
+          }))
+        } else {
+          fullProductsData = products
+        }
+      } else {
+        fullProductsData = products
       }
-      
-      if (typeof productsData === 'object') {
-        return Object.entries(productsData).map(([key, value]) => `${key}: ${value}`).join('\n')
-      }
-      
-      return String(productsData)
+    } else {
+      fullProductsData = products || []
     }
-
-    const productsInfo = formatProducts(products)
-    const submissionDate = new Date().toLocaleString('en-GB', {
+    
+    // Use the common product formatter with full product data
+    console.log('save-quote route - full products data:', JSON.stringify(fullProductsData, null, 2))
+    
+    const productsInfo = formatProducts(fullProductsData)
+    const formattedSubmissionDate = new Date().toLocaleString('en-GB', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -561,27 +603,40 @@ export async function POST(request: NextRequest) {
     })
 
     // Prepare template data
+    // Prepare template data with new standardized field structure
     const templateData = {
-      firstName: first_name,
-      lastName: last_name,
+      // User Information fields
+      firstName: finalFirstName,
+      lastName: finalLastName,
       email,
-      phone: undefined, // Not available in save-quote
+      phone: phone || undefined,
       postcode,
+      fullAddress: fullAddress || undefined,
+      submissionId: finalSubmissionId,
+      submissionDate: submissionDate || formattedSubmissionDate,
+      
+      // Company Information fields
       companyName,
       companyPhone,
       companyEmail,
       companyAddress,
       companyWebsite,
       logoUrl,
-      refNumber: submission_id || `BOILER-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-      submissionId: submission_id,
-      quoteLink: quoteLink || undefined,
-      quoteInfo: productsInfo,
-      addressInfo: undefined, // Not available in save-quote
-      submissionDate,
+      primaryColor: companyColor,
+      currentYear: new Date().getFullYear().toString(),
       privacyPolicy,
       termsConditions,
-      primaryColor: companyColor
+      
+      // Comprehensive Product Information (formatted HTML for multiple products)
+      productInformation: productsInfo,
+      
+      // Quote Details
+      quoteData: fullProductsData || productsInfo,
+      quoteLink: quoteLink || formattedQuoteLink,
+      
+      // Legacy fields for backward compatibility
+      refNumber: finalSubmissionId || `BOILER-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      addressInfo: undefined, // Not available in save-quote
     }
 
     // Try to get custom customer template first
@@ -610,13 +665,13 @@ export async function POST(request: NextRequest) {
       customerHtml = createCustomerEmailTemplate({
         companyName,
         logoUrl,
-        firstName: first_name,
-        lastName: last_name,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email,
         postcode,
         companyColor,
         productsInfo,
-        submissionId: submission_id,
+        submissionId: finalSubmissionId,
         privacyPolicy,
         termsConditions,
         companyPhone,
@@ -629,13 +684,13 @@ export async function POST(request: NextRequest) {
     // Fallback customerText only if no custom template
     if (!customerText) {
       customerText = `Quote Saved Successfully${companyName ? ' - ' + companyName : ''}\n\n` +
-        `Hi ${first_name},\n\n` +
+        `Hi ${finalFirstName},\n\n` +
         `Your boiler quote has been successfully saved. You can return anytime to complete your booking or make changes.\n\n` +
         `Your Details:\n` +
-        `Name: ${first_name} ${last_name}\n` +
+        `Name: ${finalFirstName} ${finalLastName}\n` +
         `Email: ${email}\n` +
         (postcode ? `Postcode: ${postcode}\n` : '') +
-        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        (finalSubmissionId ? `Reference: ${finalSubmissionId}\n` : '') +
         `\n${productsInfo ? 'Saved Products & Options:\n' + productsInfo + '\n\n' : ''}` +
         `Your Quote Benefits:\n` +
         `• Quote saved for 30 days - no pressure to decide now\n` +
@@ -673,13 +728,13 @@ export async function POST(request: NextRequest) {
       adminHtml = createAdminEmailTemplate({
         companyName,
         logoUrl,
-        firstName: first_name,
-        lastName: last_name,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email,
         postcode,
         companyColor,
         productsInfo,
-        submissionId: submission_id,
+        submissionId: finalSubmissionId,
         privacyPolicy,
         termsConditions,
         companyAddress,
@@ -692,10 +747,10 @@ export async function POST(request: NextRequest) {
       adminText = `Customer Saved Quote - Follow Up${companyName ? ' - ' + companyName : ''}\n\n` +
         `A customer has saved their boiler quote - great follow-up opportunity!\n\n` +
         `Customer Information:\n` +
-        `Name: ${first_name} ${last_name}\n` +
+        `Name: ${finalFirstName} ${finalLastName}\n` +
         `Email: ${email}\n` +
         (postcode ? `Postcode: ${postcode}\n` : '') +
-        (submission_id ? `Reference: ${submission_id}\n` : '') +
+        (finalSubmissionId ? `Reference: ${finalSubmissionId}\n` : '') +
         (productsInfo ? `\nSaved Products & Options:\n${productsInfo}\n` : '') +
         `\nThis is a great opportunity to follow up and help them complete their booking.`
     }

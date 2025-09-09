@@ -537,17 +537,33 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const { 
+      // New standardized fields
+      firstName,
+      lastName,
+      email,
+      phone,
+      postcode,
+      fullAddress,
+      submissionId,
+      submissionDate,
+      quoteData,
+      quoteLink,
+      
+      // Legacy fields for backward compatibility
       first_name, 
       last_name, 
-      email, 
-      phone,
-      postcode, 
       quote_data,
       address_data,
       questions,
       submission_id,
       subdomain: bodySubdomain 
     } = body || {}
+
+    // Use new fields if available, fallback to legacy fields
+    const finalFirstName = firstName || first_name
+    const finalLastName = lastName || last_name
+    const finalSubmissionId = submissionId || submission_id
+    const finalQuoteData = quoteData || quote_data
 
     const hostname = parseHostname(request, bodySubdomain)
     console.log('quote-initial - Parsed hostname:', hostname);
@@ -593,8 +609,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Use submission_id as reference number, or generate one if not provided
-    const refNumber = submission_id || `BOILER-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-    const submissionDate = new Date().toLocaleString('en-GB', {
+    const refNumber = finalSubmissionId || `BOILER-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+    const finalSubmissionDate = submissionDate || new Date().toLocaleString('en-GB', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -620,7 +636,8 @@ export async function POST(request: NextRequest) {
       return formattedAnswers.join('\n')
     }
     
-    const quoteInfo = formatQuoteData(quote_data, questions || [])
+    // Use pre-formatted quote data if available, otherwise format from raw data
+    const quoteInfo = finalQuoteData || formatQuoteData(quote_data, questions || [])
 
     const addressInfo = address_data ? Object.entries(address_data)
       .map(([key, value]) => `${key}: ${value}`)
@@ -633,11 +650,11 @@ export async function POST(request: NextRequest) {
         ? `https://${partner.subdomain}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || 'yourdomain.com'}`
         : null
 
-    const quoteLink = buildQuoteLink(
+    const finalQuoteLink = quoteLink || buildQuoteLink(
       partner.custom_domain || null,
       partner.domain_verified || null,
       partner.subdomain || null,
-      submission_id,
+      finalSubmissionId,
       'boiler'
     )
 
@@ -663,28 +680,37 @@ export async function POST(request: NextRequest) {
 
     const companyEmail: string | undefined = adminEmail || undefined
 
-    // Prepare template data
+    // Prepare template data with new standardized field structure
     const templateData = {
-      firstName: first_name,
-      lastName: last_name,
+      // User Information fields
+      firstName: finalFirstName,
+      lastName: finalLastName,
       email,
       phone,
       postcode,
+      fullAddress: fullAddress || addressInfo,
+      submissionId: finalSubmissionId,
+      submissionDate: finalSubmissionDate,
+      
+      // Company Information fields
       companyName,
       companyPhone,
       companyEmail,
       companyAddress,
       companyWebsite,
       logoUrl,
-      refNumber,
-      submissionId: submission_id,
-      quoteLink: quoteLink || undefined,
-      quoteInfo,
-      addressInfo,
-      submissionDate,
+      primaryColor: companyColor,
+      currentYear: new Date().getFullYear().toString(),
       privacyPolicy,
       termsConditions,
-      primaryColor: companyColor
+      
+      // Quote Details
+      quoteData: quoteInfo,
+      quoteLink: finalQuoteLink,
+      
+      // Legacy fields for backward compatibility
+      refNumber,
+      addressInfo,
     }
 
     // Try to get custom customer template first
@@ -714,8 +740,8 @@ export async function POST(request: NextRequest) {
         refNumber,
         companyName,
         logoUrl,
-        firstName: first_name,
-        lastName: last_name,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email,
         phone,
         postcode,
@@ -727,13 +753,13 @@ export async function POST(request: NextRequest) {
         companyAddress,
         companyWebsite,
         baseUrl: baseUrl || undefined,
-        submissionId: submission_id
+        submissionId: finalSubmissionId
       })
     }
 
     // Fallback customerText only if no custom template
     if (!customerText) {
-      customerText = `Hi ${first_name ? String(first_name) : 'there'},\n` +
+      customerText = `Hi ${finalFirstName ? String(finalFirstName) : 'there'},\n` +
         `Excellent decision on requesting your free boiler quote.\n\n` +
         `We know that when you need a boiler, finding a reliable company who you can trust can be a challenge, so our goal at ${companyName || 'our company'} is to make the process as simple and stress free as possible.\n\n` +
         `Here are a few things you should know about us before you buy your new boiler:\n\n` +
@@ -744,7 +770,7 @@ export async function POST(request: NextRequest) {
         `Check out our website at ${companyWebsite || 'our website'} and if you have any questions, simply reply to this email and we'll reply as soon as possible.\n\n` +
         `Or give us a call on ${companyPhone || 'our phone number'}.\n\n` +
       `Your Details:\n` +
-      `Name: ${first_name} ${last_name}\n` +
+      `Name: ${finalFirstName} ${finalLastName}\n` +
       `Email: ${email}\n` +
       (phone ? `Phone: ${phone}\n` : '') +
       (postcode ? `Postcode: ${postcode}\n` : '') +
@@ -795,15 +821,15 @@ export async function POST(request: NextRequest) {
           refNumber,
           companyName,
           logoUrl,
-          firstName: first_name,
-          lastName: last_name,
+          firstName: finalFirstName,
+          lastName: finalLastName,
           email,
           phone,
           postcode,
           addressInfo,
           quoteInfo,
           companyColor,
-          submissionDate,
+          submissionDate: finalSubmissionDate,
           privacyPolicy,
           termsConditions,
           companyAddress,
@@ -816,9 +842,9 @@ export async function POST(request: NextRequest) {
         adminText = `New Boiler Quote Request Received\n\n` +
           `Reference: ${refNumber}\n` +
           `Company: ${companyName || 'N/A'}\n` +
-          `Submission Date: ${submissionDate}\n\n` +
+          `Submission Date: ${finalSubmissionDate}\n\n` +
           `Customer Details:\n` +
-          `Name: ${first_name} ${last_name}\n` +
+          `Name: ${finalFirstName} ${finalLastName}\n` +
           `Email: ${email}\n` +
           (phone ? `Phone: ${phone}\n` : '') +
           (postcode ? `Postcode: ${postcode}\n` : '') +

@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
 import { getProcessedEmailTemplate } from '@/lib/email-templates'
+import { formatProducts } from '@/lib/email-templates/product-formatter'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -67,7 +68,7 @@ function createCustomerEmailTemplate(data: {
   postcode?: string
   companyColor?: string
   orderDetails: string
-  paymentPlanInfo: string
+  formattedPaymentPlanInfo: string
   installationInfo?: string
   submissionId?: string
   privacyPolicy?: string
@@ -87,7 +88,7 @@ function createCustomerEmailTemplate(data: {
     postcode,
     companyColor = '#3b82f6',
     orderDetails,
-    paymentPlanInfo,
+    formattedPaymentPlanInfo,
     installationInfo,
     submissionId,
     privacyPolicy,
@@ -217,7 +218,7 @@ function createCustomerEmailTemplate(data: {
                     </tr>
                     <tr>
                       <td style="padding: 15px; color: #6b7280; line-height: 1.6; white-space: pre-line;">
-                        ${paymentPlanInfo}
+                        ${formattedPaymentPlanInfo}
 
                       </td>
                     </tr>
@@ -302,7 +303,7 @@ function createAdminEmailTemplate(data: {
   postcode?: string
   companyColor?: string
   orderDetails: string
-  paymentPlanInfo: string
+  formattedPaymentPlanInfo: string
   installationInfo?: string
   submissionId?: string
   privacyPolicy?: string
@@ -320,7 +321,7 @@ function createAdminEmailTemplate(data: {
     postcode,
     companyColor = '#3b82f6',
     orderDetails,
-    paymentPlanInfo,
+    formattedPaymentPlanInfo,
     installationInfo,
     submissionId,
     privacyPolicy,
@@ -452,7 +453,7 @@ function createAdminEmailTemplate(data: {
                     </tr>
                     <tr>
                       <td style="padding: 15px; color: #6b7280; line-height: 1.6; white-space: pre-line;">
-                        ${paymentPlanInfo}
+                        ${formattedPaymentPlanInfo}
 
                       </td>
                     </tr>
@@ -523,17 +524,41 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const { 
+      // New standardized fields
+      firstName,
+      lastName,
+      email,
+      phone,
+      postcode,
+      fullAddress,
+      submissionId,
+      submissionDate,
+      orderDetails,
+      paymentInfo,
+      installationInfo,
+      monthlyPayment,
+      paymentDuration,
+      deposit,
+      apr,
+      totalAmount,
+      
+      // Legacy fields for backward compatibility
       first_name, 
       last_name, 
-      email, 
-      phone,
-      postcode, 
       order_details,
       payment_plan,
       installation_date,
       submission_id,
       subdomain: bodySubdomain 
     } = body || {}
+
+    // Use new fields if available, fallback to legacy fields
+    const finalFirstName = firstName || first_name
+    const finalLastName = lastName || last_name
+    const finalSubmissionId = submissionId || submission_id
+    const finalOrderDetails = orderDetails || order_details
+    const finalPaymentInfo = paymentInfo || payment_plan
+    const finalInstallationInfo = installationInfo || installation_date
 
     const hostname = parseHostname(request, bodySubdomain)
     console.log('checkout-monthly - Parsed hostname:', hostname);
@@ -651,30 +676,153 @@ export async function POST(request: NextRequest) {
       return details.join('\n')
     }
 
-    const orderDetails = formatOrderDetails(order_details)
-    const paymentPlanInfo = formatPaymentPlan(payment_plan)
-    const installationInfo = installation_date ? `Scheduled installation date: ${new Date(installation_date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : undefined
+    const formattedOrderDetails = formatOrderDetails(order_details)
+    const formattedPaymentPlanInfo = formatPaymentPlan(payment_plan)
+    const formattedInstallationInfo = installation_date ? `Scheduled installation date: ${new Date(installation_date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : undefined
+
+    // Fetch quote data from submission if available (using same approach as quote-initial)
+    const formatQuoteData = (submissionData: any, questionsList: any[]) => {
+      if (!submissionData?.form_answers || !Array.isArray(submissionData.form_answers)) return ''
+      
+      const formattedAnswers: string[] = []
+      
+      submissionData.form_answers.forEach((answerObj: any) => {
+        if (answerObj?.question_text && answerObj?.answer !== null && answerObj?.answer !== undefined && answerObj?.answer !== '') {
+          const formattedAnswer = Array.isArray(answerObj.answer) ? answerObj.answer.join(', ') : String(answerObj.answer)
+          formattedAnswers.push(`${answerObj.question_text}: ${formattedAnswer}`)
+        }
+      })
+      
+      return formattedAnswers.join('\n')
+    }
+
+    // Get service category ID for boiler (same approach as quote-initial)
+    const { data: boilerServiceCategory } = await supabase
+      .from('ServiceCategories')
+      .select('service_category_id')
+      .eq('slug', 'boiler')
+      .single()
+
+    // Debug logging
+    console.log('checkout-monthly - Received data:', {
+      finalSubmissionId,
+      finalOrderDetails,
+      productId: finalOrderDetails?.product?.id,
+      boilerServiceCategory: boilerServiceCategory?.service_category_id
+    })
+
+    // Fetch quote data and product information like other email types
+    let quoteData = undefined
+    let productInformation = undefined
+    
+    if (finalSubmissionId) {
+      try {
+        // Fetch quote data from partner_leads table (where the form_answers are actually stored)
+        const { data: leadData, error: leadError } = await supabase
+          .from('partner_leads')
+          .select('form_answers')
+          .eq('submission_id', finalSubmissionId)
+          .single()
+        
+        console.log('checkout-monthly - Lead data fetch result:', { leadData, leadError })
+        
+        if (leadData && leadData.form_answers && Array.isArray(leadData.form_answers)) {
+          console.log('checkout-monthly - Found form_answers:', leadData.form_answers)
+          
+          // Format the quote data from the form_answers array
+          const formattedAnswers: string[] = []
+          leadData.form_answers.forEach((answerObj: any) => {
+            if (answerObj?.question_text && answerObj?.answer) {
+              const answerText = Array.isArray(answerObj.answer) 
+                ? answerObj.answer.join(', ') 
+                : String(answerObj.answer)
+              formattedAnswers.push(`${answerObj.question_text}: ${answerText}`)
+            }
+          })
+          
+          quoteData = formattedAnswers.join('\n')
+          console.log('checkout-monthly - Generated quoteData:', quoteData)
+        } else {
+          console.log('checkout-monthly - No form_answers found in partner_leads')
+        }
+        
+        // Fetch product data (same as save-quote)
+        if (finalOrderDetails?.product?.id) {
+          console.log('checkout-monthly - Fetching product data for ID:', finalOrderDetails.product.id)
+          const { data: fullProduct, error: productError } = await supabase
+            .from('PartnerProducts')
+            .select('partner_product_id, name, description, price, image_url, product_fields')
+            .eq('partner_product_id', finalOrderDetails.product.id)
+            .eq('is_active', true)
+            .single()
+          
+          console.log('checkout-monthly - Product fetch result:', { fullProduct, productError })
+          
+          if (!productError && fullProduct) {
+            const fullProductData = {
+              name: fullProduct.name,
+              description: fullProduct.description,
+              price: fullProduct.price,
+              image_url: fullProduct.image_url,
+              product_fields: fullProduct.product_fields || {}
+            }
+            productInformation = formatProducts([fullProductData])
+            console.log('checkout-monthly - Generated productInformation:', productInformation)
+          }
+        } else {
+          console.log('checkout-monthly - No product ID found in order details')
+        }
+      } catch (error) {
+        console.error('Error fetching quote and product data:', error)
+      }
+    }
 
     // Prepare template data
+    // Prepare template data with new standardized field structure
     const templateData = {
-      firstName: first_name,
-      lastName: last_name,
+      // User Information fields
+      firstName: finalFirstName,
+      lastName: finalLastName,
       email,
       phone,
       postcode,
+      fullAddress: fullAddress || undefined,
+      submissionId: finalSubmissionId,
+      submissionDate: submissionDate || new Date().toISOString(),
+      
+      // Company Information fields
       companyName,
-      logoUrl,
       companyPhone,
       companyEmail,
       companyAddress,
       companyWebsite,
+      logoUrl,
       primaryColor: companyColor,
-      orderDetails,
-      paymentPlanInfo,
-      installationInfo,
-      submissionId: submission_id,
+      currentYear: new Date().getFullYear().toString(),
       privacyPolicy,
-      termsConditions
+      termsConditions,
+      
+      // Comprehensive Product Information (formatted HTML for multiple products)
+      productInformation: productInformation || formattedOrderDetails,
+      
+      // Quote Information (formatted question/answer pairs like initial-quote)
+      quoteData: quoteData || formattedOrderDetails,
+      
+      // Order and Payment fields
+      orderDetails: formattedOrderDetails,
+      paymentInfo: formattedPaymentPlanInfo,
+      paymentPlanInfo: formattedPaymentPlanInfo,
+      installationInfo: finalInstallationInfo || formattedInstallationInfo,
+      
+      // Monthly payment plan fields (extract from payment_plan if individual fields not provided)
+      monthlyPayment: monthlyPayment || (payment_plan?.monthly_amount ? `£${payment_plan.monthly_amount.toFixed(2)}` : undefined),
+      paymentDuration: paymentDuration || (payment_plan?.duration_months ? `${payment_plan.duration_months} months` : undefined),
+      deposit: deposit || (payment_plan?.deposit_amount !== undefined ? `£${payment_plan.deposit_amount.toFixed(2)}` : (payment_plan?.deposit_percentage !== undefined ? `${payment_plan.deposit_percentage}%` : '£0.00')),
+      apr: apr || (payment_plan?.apr ? `${payment_plan.apr}` : undefined),
+      totalAmount: totalAmount || (payment_plan?.total_amount ? `£${payment_plan.total_amount.toFixed(2)}` : undefined),
+      
+      // Legacy fields for backward compatibility
+      formattedPaymentPlanInfo: formattedPaymentPlanInfo,
     }
 
     // Try to get custom templates
@@ -701,16 +849,16 @@ export async function POST(request: NextRequest) {
       customerHtml = createCustomerEmailTemplate({
         companyName,
         logoUrl,
-        firstName: first_name,
-        lastName: last_name,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email,
         phone,
         postcode,
         companyColor,
         orderDetails,
-        paymentPlanInfo,
+        formattedPaymentPlanInfo,
         installationInfo,
-        submissionId: submission_id,
+        submissionId: finalSubmissionId,
         privacyPolicy,
         termsConditions,
         companyPhone,
@@ -732,7 +880,7 @@ export async function POST(request: NextRequest) {
         (postcode ? `Postcode: ${postcode}\n` : '') +
         `\n${installationInfo ? installationInfo + '\n\n' : ''}` +
         `Order Summary:\n${orderDetails}\n\n` +
-        `Payment Plan Details:\n${paymentPlanInfo}\n\n` +
+        `Payment Plan Details:\n${formattedPaymentPlanInfo}\n\n` +
         (submission_id ? `Booking Reference: ${submission_id}\n\n` : '') +
         `What happens next?\n` +
         `• We'll contact you within 24 hours to set up payment details\n` +
@@ -774,9 +922,9 @@ export async function POST(request: NextRequest) {
           postcode,
           companyColor,
           orderDetails,
-          paymentPlanInfo,
+          formattedPaymentPlanInfo,
           installationInfo,
-          submissionId: submission_id,
+          submissionId: finalSubmissionId,
           privacyPolicy,
           termsConditions,
           companyAddress,
@@ -796,7 +944,7 @@ export async function POST(request: NextRequest) {
           (submission_id ? `Reference: ${submission_id}\n` : '') +
           `\n${installationInfo ? installationInfo + '\n\n' : ''}` +
           `Order Details:\n${orderDetails}\n\n` +
-          `Payment Plan Information:\n${paymentPlanInfo}\n\n` +
+          `Payment Plan Information:\n${formattedPaymentPlanInfo}\n\n` +
           `Action Required: Contact customer within 24 hours to set up direct debit and payment plan details.`
       }
     }

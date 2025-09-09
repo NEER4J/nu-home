@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
 import { getProcessedEmailTemplate } from '@/lib/email-templates'
+import { formatProducts } from '@/lib/email-templates/product-formatter'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -525,17 +526,35 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const { 
+      // New standardized fields
+      firstName,
+      lastName,
+      email,
+      phone,
+      postcode,
+      fullAddress,
+      submissionId,
+      submissionDate,
+      enquiryDetails,
+      uploadedImages,
+      category,
+      projectDescription,
+      
+      // Legacy fields for backward compatibility
       first_name, 
       last_name, 
-      email, 
-      phone,
-      postcode, 
       enquiry_details,
       submission_id,
-      category,
       uploaded_image_urls,
       subdomain: bodySubdomain 
     } = body || {}
+
+    // Use new fields if available, fallback to legacy fields
+    const finalFirstName = firstName || first_name
+    const finalLastName = lastName || last_name
+    const finalSubmissionId = submissionId || submission_id
+    const finalEnquiryDetails = enquiryDetails || enquiry_details
+    const finalUploadedImages = uploadedImages || uploaded_image_urls
 
     const hostname = parseHostname(request, bodySubdomain)
     console.log('enquiry-submitted - Parsed hostname:', hostname);
@@ -608,25 +627,38 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare template data
+    // Prepare template data with new standardized field structure
     const templateData = {
-      firstName: first_name,
-      lastName: last_name,
+      // User Information fields
+      firstName: finalFirstName,
+      lastName: finalLastName,
       email,
       phone,
       postcode,
+      fullAddress: fullAddress || undefined,
+      submissionId: finalSubmissionId,
+      submissionDate: submissionDate || new Date().toISOString(),
+      
+      // Company Information fields
       companyName,
-      logoUrl,
       companyPhone,
       companyEmail,
       companyAddress,
       companyWebsite,
+      logoUrl,
       primaryColor: companyColor,
-      enquiryDetails: enquiry_details,
-      category,
-      submissionId: submission_id,
-      uploadedImages: uploaded_image_urls,
+      currentYear: new Date().getFullYear().toString(),
       privacyPolicy,
-      termsConditions
+      termsConditions,
+      
+      // Comprehensive Product Information (formatted HTML for multiple products)
+      productInformation: formatProducts(finalEnquiryDetails || undefined),
+      
+      // Enquiry fields
+      enquiryDetails: finalEnquiryDetails,
+      uploadedImages: finalUploadedImages,
+      category: category || undefined,
+      projectDescription: projectDescription || undefined,
     }
 
     // Try to get custom templates
@@ -653,15 +685,15 @@ export async function POST(request: NextRequest) {
       customerHtml = createCustomerEmailTemplate({
         companyName,
         logoUrl,
-        firstName: first_name,
-        lastName: last_name,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email,
         phone,
         postcode,
         companyColor,
-        enquiryDetails: enquiry_details,
+        enquiryDetails: finalEnquiryDetails,
         category,
-        submissionId: submission_id,
+        submissionId: finalSubmissionId,
         uploadedImages: uploaded_image_urls,
         privacyPolicy,
         termsConditions,
@@ -725,9 +757,9 @@ export async function POST(request: NextRequest) {
           phone,
           postcode,
           companyColor,
-          enquiryDetails: enquiry_details,
+          enquiryDetails: finalEnquiryDetails,
           category,
-          submissionId: submission_id,
+          submissionId: finalSubmissionId,
           uploadedImages: uploaded_image_urls,
           privacyPolicy,
           termsConditions,

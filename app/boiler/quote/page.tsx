@@ -307,20 +307,55 @@ export default function HeatingQuotePage({
         throw new Error(result.error || 'Failed to submit heating quote request');
       }
       
-      // Send email with the correct submission_id
+      // Send email with the correct submission_id and standardized field data
       try {
         const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
         const subdomain = hostname || null
+
+        // Format full address from selected address or contact details
+        let fullAddress = ''
+        if (selectedAddress) {
+          const addressParts = [
+            selectedAddress.address_line_1,
+            selectedAddress.address_line_2,
+            selectedAddress.street_name,
+            selectedAddress.county,
+            selectedAddress.postcode
+          ].filter(Boolean)
+          fullAddress = addressParts.join(', ')
+        } else if (contactDetails.postcode) {
+          fullAddress = contactDetails.postcode
+        }
+
+        // Format quote data for email template
+        const formattedQuoteData = Object.entries(filteredAnswers).map(([questionId, answer]) => {
+          const question = questions.find(q => q.question_id === questionId)
+          const questionText = question?.question_text || questionId
+          const formattedAnswer = Array.isArray(answer) ? answer.join(', ') : String(answer)
+          return `${questionText}: ${formattedAnswer}`
+        }).join('\n')
 
         const emailRes = await fetch('/api/email/boiler/quote-initial', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            first_name: contactDetails.firstName,
-            last_name: contactDetails.lastName,
+            // User Information fields
+            firstName: contactDetails.firstName,
+            lastName: contactDetails.lastName,
             email: contactDetails.email,
             phone: contactDetails.phone,
             postcode: contactDetails.postcode,
+            fullAddress: fullAddress,
+            submissionId: result.data.submission_id,
+            submissionDate: new Date().toISOString(),
+            
+            // Quote Details
+            quoteData: formattedQuoteData,
+            quoteLink: `${window.location.origin}/boiler/products?submission=${result.data.submission_id}`,
+            
+            // Legacy fields for backward compatibility
+            first_name: contactDetails.firstName,
+            last_name: contactDetails.lastName,
             quote_data: filteredAnswers,
             address_data: selectedAddress,
             questions: questions,

@@ -263,6 +263,19 @@ export default function CheckoutLayout({
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
       const subdomain = hostname || null
 
+      // Extract payment plan fields for monthly payment method
+      let paymentPlanFields = {}
+      if (paymentMethod === 'monthly' && additionalData.payment_plan) {
+        const plan = additionalData.payment_plan
+        paymentPlanFields = {
+          monthlyPayment: plan.monthly_amount ? `£${plan.monthly_amount.toFixed(2)}` : undefined,
+          paymentDuration: plan.duration_months ? `${plan.duration_months} months` : undefined,
+          deposit: plan.deposit_amount !== undefined ? `£${plan.deposit_amount.toFixed(2)}` : (plan.deposit_percentage !== undefined ? `${plan.deposit_percentage}%` : '£0.00'),
+          apr: plan.apr ? `${plan.apr}%` : undefined,
+          totalAmount: plan.total_amount ? `£${plan.total_amount.toFixed(2)}` : undefined,
+        }
+      }
+
       const emailData = {
         first_name: details.firstName,
         last_name: details.lastName,
@@ -271,6 +284,7 @@ export default function CheckoutLayout({
         postcode: details.postcode,
         order_details: {
           product: selectedProduct ? {
+            id: selectedProduct.partner_product_id,
             name: selectedProduct.name,
             price: basePrice
           } : null,
@@ -289,6 +303,7 @@ export default function CheckoutLayout({
         installation_date: selectedDate,
         submission_id: submissionId,
         subdomain,
+        ...paymentPlanFields,
         ...additionalData
       }
 

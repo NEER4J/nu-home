@@ -18,7 +18,7 @@ import {
 import { toast } from 'sonner'
 import { createClient } from '@/utils/supabase/client'
 import Editor from '@monaco-editor/react'
-import { TemplateField, getTemplateFieldsByEmailType, TemplateFieldCategory } from '@/lib/email-templates/shared'
+import { TemplateField, getTemplateFieldsByEmailType, getAllTemplateFieldsForCategory, TemplateFieldCategory } from '@/lib/email-templates/shared'
 
 interface EmailTemplate {
   template_id: string
@@ -90,7 +90,7 @@ export default function EmailTemplateEditor({
       if (!initialData[field.field_name] && field.sample_value) {
         // Only use sample value if we haven't already set real company data
         if (!field.field_name.startsWith('company') && 
-            !['logoUrl', 'primaryColor', 'privacyPolicy', 'termsConditions'].includes(field.field_name)) {
+            !['logoUrl', 'primaryColor', 'privacyPolicy', 'termsConditions', 'currentYear'].includes(field.field_name)) {
           initialData[field.field_name] = field.sample_value
         }
       }
@@ -233,8 +233,8 @@ export default function EmailTemplateEditor({
     }
   }
 
-  // Get categorized fields based on email type
-  const categorizedFields = getTemplateFieldsByEmailType(template.email_type)
+  // Get all categorized fields for all email types in the category
+  const categorizedFields = getAllTemplateFieldsForCategory()
 
   return (
     <div className="grid grid-cols-12 gap-6">
@@ -401,7 +401,7 @@ export default function EmailTemplateEditor({
               Dynamic Fields
             </CardTitle>
             <CardDescription>
-              Click to copy field codes to use in your template
+              All available fields for all email types in this category. Click to copy field codes.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -425,7 +425,7 @@ export default function EmailTemplateEditor({
 
                 {/* Categorized Dynamic Fields */}
                 <div>
-                  <h3 className="font-semibold mb-3">Available Fields</h3>
+                  <h3 className="font-semibold mb-3">All Available Fields</h3>
                   <div className="space-y-4">
                     {categorizedFields.map((category, categoryIndex) => (
                       <div key={categoryIndex}>

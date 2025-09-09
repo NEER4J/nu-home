@@ -78,25 +78,14 @@ export function getDefaultCustomerCheckoutMonthlyTemplate() {
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 15px; color: #6b7280; line-height: 1.6;">
+                  <td style="padding: 15px; color: #6b7280; line-height: 1.6; white-space: pre-line;">
+                    {{quoteData}}
+                    
                     {{installationInfo}}
                   </td>
                 </tr>
               </table>
 
-              <!-- Order Summary Table -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-                <tr>
-                  <td style="background-color: #f9fafb; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">
-                    Order Summary
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 15px; color: #6b7280; line-height: 1.6; white-space: pre-line;">
-                    {{orderDetails}}
-                  </td>
-                </tr>
-              </table>
 
               <!-- Payment Plan Table -->
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
@@ -106,8 +95,29 @@ export function getDefaultCustomerCheckoutMonthlyTemplate() {
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 15px; color: #6b7280; line-height: 1.6; white-space: pre-line;">
-                    {{paymentPlanInfo}}
+                  <td style="padding: 0;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Monthly Payment:</td>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{monthlyPayment}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Payment Duration:</td>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{paymentDuration}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Deposit:</td>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{deposit}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">APR:</td>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{apr}}%</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Total Amount:</td>
+                        <td style="padding: 12px 15px; color: #6b7280;">{{totalAmount}}</td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -185,12 +195,16 @@ Email: {{email}}
 Phone: {{phone}}
 Postcode: {{postcode}}
 
+{{quoteData}}
+
 {{installationInfo}}
-Order Summary:
-{{orderDetails}}
 
 Payment Plan Details:
-{{paymentPlanInfo}}
+Monthly Payment: {{monthlyPayment}}
+Payment Duration: {{paymentDuration}}
+Deposit: {{deposit}}
+APR: {{apr}}%
+Total Amount: {{totalAmount}}
 
 Booking Reference: {{submissionId}}
 What happens next?
@@ -285,25 +299,14 @@ export function getDefaultAdminCheckoutMonthlyTemplate() {
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 15px; color: #6b7280; line-height: 1.6;">
+                  <td style="padding: 15px; color: #6b7280; line-height: 1.6; white-space: pre-line;">
+                    {{quoteData}}
+                    
                     {{installationInfo}}
                   </td>
                 </tr>
               </table>
 
-              <!-- Order Details Table -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-                <tr>
-                  <td style="background-color: #f9fafb; padding: 15px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">
-                    Order Details
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 15px; color: #6b7280; line-height: 1.6; white-space: pre-line;">
-                    {{orderDetails}}
-                  </td>
-                </tr>
-              </table>
 
               <!-- Payment Plan Information Table -->
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
@@ -313,8 +316,29 @@ export function getDefaultAdminCheckoutMonthlyTemplate() {
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 15px; color: #6b7280; line-height: 1.6; white-space: pre-line;">
-                    {{paymentPlanInfo}}
+                  <td style="padding: 0;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Monthly Payment:</td>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{monthlyPayment}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Payment Duration:</td>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{paymentDuration}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Deposit:</td>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{deposit}}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">APR:</td>
+                        <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">{{apr}}%</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 12px 15px; width: 35%; font-weight: 600; color: #374151; background-color: #f8f9fa;">Total Amount:</td>
+                        <td style="padding: 12px 15px; color: #6b7280;">{{totalAmount}}</td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -387,12 +411,16 @@ Phone: {{phone}}
 Postcode: {{postcode}}
 Reference: {{submissionId}}
 
+{{quoteData}}
+
 {{installationInfo}}
-Order Details:
-{{orderDetails}}
 
 Payment Plan Information:
-{{paymentPlanInfo}}
+Monthly Payment: {{monthlyPayment}}
+Payment Duration: {{paymentDuration}}
+Deposit: {{deposit}}
+APR: {{apr}}%
+Total Amount: {{totalAmount}}
 
 Action Required: Contact customer within 24 hours to set up direct debit and payment plan details.
 

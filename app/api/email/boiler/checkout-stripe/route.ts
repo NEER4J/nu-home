@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
 import { getProcessedEmailTemplate } from '@/lib/email-templates'
+import { formatProducts } from '@/lib/email-templates/product-formatter'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -521,17 +522,36 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const { 
+      // New standardized fields
+      firstName,
+      lastName,
+      email,
+      phone,
+      postcode,
+      fullAddress,
+      submissionId,
+      submissionDate,
+      orderDetails,
+      paymentInfo,
+      installationInfo,
+      
+      // Legacy fields for backward compatibility
       first_name, 
       last_name, 
-      email, 
-      phone,
-      postcode, 
       order_details,
       payment_details,
       installation_date,
       submission_id,
       subdomain: bodySubdomain 
     } = body || {}
+
+    // Use new fields if available, fallback to legacy fields
+    const finalFirstName = firstName || first_name
+    const finalLastName = lastName || last_name
+    const finalSubmissionId = submissionId || submission_id
+    const finalOrderDetails = orderDetails || order_details
+    const finalPaymentInfo = paymentInfo || payment_details
+    const finalInstallationInfo = installationInfo || installation_date
 
     const hostname = parseHostname(request, bodySubdomain)
     console.log('checkout-stripe - Parsed hostname:', hostname);
@@ -633,7 +653,9 @@ export async function POST(request: NextRequest) {
       
       let details = [`Payment method: Card payment via Stripe`]
       if (paymentData.amount) {
-        details.push(`Amount paid: £${paymentData.amount.toFixed(2)}`)
+        // Convert from pence to pounds (Stripe amounts are in pence)
+        const amountInPounds = paymentData.amount / 100
+        details.push(`Amount paid: £${amountInPounds.toFixed(2)}`)
       }
       if (paymentData.payment_intent_id) {
         details.push(`Payment ID: ${paymentData.payment_intent_id}`)
@@ -647,30 +669,106 @@ export async function POST(request: NextRequest) {
       return details.join('\n')
     }
 
-    const orderDetails = formatOrderDetails(order_details)
-    const paymentInfo = formatPaymentDetails(payment_details)
-    const installationInfo = installation_date ? `Scheduled installation date: ${new Date(installation_date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : undefined
+    const formattedOrderDetails = formatOrderDetails(order_details)
+    const formattedPaymentInfo = formatPaymentDetails(payment_details)
+    const formattedInstallationInfo = installation_date ? `Scheduled installation date: ${new Date(installation_date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : undefined
+
+    // Get service category ID for boiler
+    const { data: boilerServiceCategory } = await supabase
+      .from('ServiceCategories')
+      .select('service_category_id')
+      .eq('slug', 'boiler')
+      .single()
+
+    // Fetch quote data and product information like other email types
+    let quoteData = undefined
+    let productInformation = undefined
+    
+    if (finalSubmissionId) {
+      try {
+        // Fetch quote data from partner_leads table (where the form_answers are actually stored)
+        const { data: leadData, error: leadError } = await supabase
+          .from('partner_leads')
+          .select('form_answers')
+          .eq('submission_id', finalSubmissionId)
+          .single()
+        
+        if (leadData && leadData.form_answers && Array.isArray(leadData.form_answers)) {
+          // Format the quote data from the form_answers array
+          const formattedAnswers: string[] = []
+          leadData.form_answers.forEach((answerObj: any) => {
+            if (answerObj?.question_text && answerObj?.answer) {
+              const answerText = Array.isArray(answerObj.answer) 
+                ? answerObj.answer.join(', ') 
+                : String(answerObj.answer)
+              formattedAnswers.push(`${answerObj.question_text}: ${answerText}`)
+            }
+          })
+          
+          quoteData = formattedAnswers.join('\n')
+        }
+        
+        // Fetch product data (same as save-quote)
+        if (finalOrderDetails?.product?.id) {
+          console.log('checkout-stripe - Fetching product data for ID:', finalOrderDetails.product.id)
+          const { data: fullProduct, error: productError } = await supabase
+            .from('PartnerProducts')
+            .select('partner_product_id, name, description, price, image_url, product_fields')
+            .eq('partner_product_id', finalOrderDetails.product.id)
+            .eq('is_active', true)
+            .single()
+          
+          if (!productError && fullProduct) {
+            const fullProductData = {
+              name: fullProduct.name,
+              description: fullProduct.description,
+              price: fullProduct.price,
+              image_url: fullProduct.image_url,
+              product_fields: fullProduct.product_fields || {}
+            }
+            productInformation = formatProducts([fullProductData])
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching quote and product data:', error)
+      }
+    }
 
     // Prepare template data
+    // Prepare template data with new standardized field structure
     const templateData = {
-      firstName: first_name,
-      lastName: last_name,
+      // User Information fields
+      firstName: finalFirstName,
+      lastName: finalLastName,
       email,
       phone,
       postcode,
+      fullAddress: fullAddress || undefined,
+      submissionId: finalSubmissionId,
+      submissionDate: submissionDate || new Date().toISOString(),
+      
+      // Company Information fields
       companyName,
-      logoUrl,
       companyPhone,
       companyEmail,
       companyAddress,
       companyWebsite,
+      logoUrl,
       primaryColor: companyColor,
-      orderDetails,
-      paymentInfo,
-      installationInfo,
-      submissionId: submission_id,
+      currentYear: new Date().getFullYear().toString(),
       privacyPolicy,
-      termsConditions
+      termsConditions,
+      
+      // Comprehensive Product Information (formatted HTML for multiple products)
+      productInformation: productInformation || formattedOrderDetails,
+      
+      // Quote Information (formatted question/answer pairs like initial-quote)
+      quoteData: quoteData || formattedOrderDetails,
+      
+      // Order and Payment fields
+      orderDetails: formattedOrderDetails,
+      paymentInfo: formattedPaymentInfo,
+      installationInfo: finalInstallationInfo || formattedInstallationInfo,
     }
 
     // Try to get custom templates
@@ -697,16 +795,16 @@ export async function POST(request: NextRequest) {
       customerHtml = createCustomerEmailTemplate({
         companyName,
         logoUrl,
-        firstName: first_name,
-        lastName: last_name,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email,
         phone,
         postcode,
         companyColor,
-        orderDetails,
-        paymentInfo,
-        installationInfo,
-        submissionId: submission_id,
+        orderDetails: finalOrderDetails || formattedOrderDetails,
+        paymentInfo: finalPaymentInfo || formattedPaymentInfo,
+        installationInfo: finalInstallationInfo || formattedInstallationInfo,
+        submissionId: finalSubmissionId,
         privacyPolicy,
         termsConditions,
         companyPhone,
@@ -763,16 +861,16 @@ export async function POST(request: NextRequest) {
         adminHtml = createAdminEmailTemplate({
           companyName,
           logoUrl,
-          firstName: first_name,
-          lastName: last_name,
+          firstName: finalFirstName,
+          lastName: finalLastName,
           email,
           phone,
           postcode,
           companyColor,
-          orderDetails,
-          paymentInfo,
-          installationInfo,
-          submissionId: submission_id,
+          orderDetails: finalOrderDetails,
+          paymentInfo: finalPaymentInfo,
+          installationInfo: finalInstallationInfo,
+          submissionId: finalSubmissionId,
           privacyPolicy,
           termsConditions,
           companyAddress,

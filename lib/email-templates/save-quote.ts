@@ -55,12 +55,8 @@ export function getDefaultCustomerSaveQuoteTemplate() {
               </div>
 
               <!-- Product Information -->
-              <div style="background-color: #fef3c7; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-                <h3 style="margin: 0 0 15px 0; color: #92400e; font-size: 18px;">Selected Products</h3>
-                <div style="color: #92400e; font-size: 14px; line-height: 1.6;">
-                  <div style="white-space: pre-line;">{{quoteInfo}}</div>
-                </div>
-              </div>
+            
+              <div> {{productInformation}}</div>
 
               <!-- Call to Action -->
               <div style="text-align: center; margin: 30px 0;">
@@ -116,7 +112,7 @@ Postcode: {{postcode}}
 Reference: {{refNumber}}
 
 Selected Products:
-{{quoteInfo}}
+{{quoteData}}
 
 View & Complete Your Quote: {{quoteLink}}
 
@@ -188,12 +184,7 @@ export function getDefaultAdminSaveQuoteTemplate() {
               </div>
 
               <!-- Products Information -->
-              <div style="background-color: #fef3c7; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-                <h3 style="margin: 0 0 15px 0; color: #92400e; font-size: 18px;">Selected Products</h3>
-                <div style="color: #92400e; font-size: 14px; line-height: 1.6;">
-                  <div style="white-space: pre-line;">{{quoteInfo}}</div>
-                </div>
-              </div>
+             <div> {{productInformation}}</div>
 
               <!-- Quote Link -->
               <div style="text-align: center; margin: 30px 0;">
@@ -240,7 +231,7 @@ Reference: {{refNumber}}
 Date Saved: {{submissionDate}}
 
 Selected Products:
-{{quoteInfo}}
+{{productInformation}}
 
 View Customer Quote: {{quoteLink}}
 
