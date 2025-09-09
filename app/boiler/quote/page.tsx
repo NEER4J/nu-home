@@ -470,6 +470,7 @@ export default function HeatingQuotePage({
             onPrevious={handlePrevStep}
             companyColor={getDynamicColor()}
             onAddressSelect={handleAddressSelect}
+            selectedAddress={selectedAddress}
           />
         </div>
       );
