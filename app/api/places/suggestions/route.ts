@@ -1,5 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Retry function with exponential backoff
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries: number = 2): Promise<Response> {
+  let lastError: Error;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 500; // Exponential backoff: 0.5s, 1s, 2s
+        console.log(`Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError!;
+}
+
 interface PostcodeSuggestion {
   postcode: string;
   address: string;
@@ -46,7 +76,8 @@ export async function GET(request: NextRequest) {
     
     console.log('Making request to:', webuildUrl);
 
-    const response = await fetch(webuildUrl, {
+    // Use retry mechanism with exponential backoff
+    const response = await fetchWithRetry(webuildUrl, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'

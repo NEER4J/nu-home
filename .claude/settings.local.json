@@ -9,7 +9,8 @@
       "Read(/f:\\Projects\\nu-home/**)",
       "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)",
       "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)",
-      "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)"
+      "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

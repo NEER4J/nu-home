@@ -264,6 +264,7 @@ export default function QuoteForm({
           onNext={handleNextStep}
           onPrevious={handlePrevStep}
           onAddressSelect={handleAddressSelect}
+          selectedAddress={selectedAddress}
         />
       );
     } else {

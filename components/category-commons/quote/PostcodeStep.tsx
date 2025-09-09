@@ -26,6 +26,7 @@ interface PostcodeStepProps {
   companyColor?: string;
   submissionId?: string;
   onAddressSelect?: (address: Address) => void;
+  selectedAddress?: Address | null;
 }
 
 export default function PostcodeStep({
@@ -35,7 +36,8 @@ export default function PostcodeStep({
   onPrevious,
   companyColor = '#2563eb',
   submissionId,
-  onAddressSelect
+  onAddressSelect,
+  selectedAddress: propSelectedAddress
 }: PostcodeStepProps) {
   const [postcode, setPostcode] = useState(value)
   const [addresses, setAddresses] = useState<Address[]>([])
@@ -127,7 +129,7 @@ export default function PostcodeStep({
     }
   };
 
-  // Search postcode suggestions
+  // Search postcode suggestions using direct Webuild API call
   const searchSuggestions = async (partial: string) => {
     if (!partial.trim() || partial.trim().length < 2) {
       setSuggestions([])
@@ -137,17 +139,31 @@ export default function PostcodeStep({
     }
 
     try {
-      const response = await fetch(`/api/places/suggestions?partial=${encodeURIComponent(partial)}`)
+      // Check if API key is available
+      if (!process.env.NEXT_PUBLIC_WEBUILD_API_KEY) {
+        console.error('NEXT_PUBLIC_WEBUILD_API_KEY is not configured')
+        setSuggestions([])
+        setShowSuggestions(false)
+        setHighlightedSuggestionIndex(-1)
+        return
+      }
+
+      // Clean partial postcode - remove spaces and convert to uppercase
+      const cleanPartial = partial.replace(/\s+/g, '').toUpperCase()
+      
+      // Call postcode server directly
+      const response = await fetch(`https://webuildapi.com/post-code-lookup/api/suggestions/${cleanPartial}`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_WEBUILD_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      })
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
       const data = await response.json()
-      
-      if (data.error) {
-        throw new Error(data.error)
-      }
       
       if (!data.suggestions || data.suggestions.length === 0) {
         setSuggestions([])
@@ -156,16 +172,22 @@ export default function PostcodeStep({
         return
       }
       
+      // Transform suggestions to include formatted postcodes
+      const suggestions = data.suggestions.map((suggestion: any) => ({
+        postcode: suggestion.postcode.replace(/(.{3,4})(.+)/, '$1 $2'),
+        address: suggestion.address
+      }))
+      
       // Clear address dropdown when showing suggestions
       setAddresses([])
       setShowDropdown(false)
       setHighlightedIndex(-1)
       
-      setSuggestions(data.suggestions)
+      setSuggestions(suggestions)
       setShowSuggestions(true)
       setHighlightedSuggestionIndex(-1)
       // Reset refs array for new suggestions
-      suggestionRefs.current = new Array(data.suggestions.length).fill(null)
+      suggestionRefs.current = new Array(suggestions.length).fill(null)
     } catch (err) {
       console.error('Postcode suggestions error:', err)
       setSuggestions([])
@@ -174,7 +196,7 @@ export default function PostcodeStep({
     }
   }
 
-  // Search addresses using Webuild API
+  // Search addresses using direct Webuild API call
   const searchAddresses = async (postcode: string, isLiveSearch = false) => {
     if (!postcode.trim() || postcode.trim().length < 3) {
       setAddresses([])
@@ -187,7 +209,26 @@ export default function PostcodeStep({
     setError('')
     
     try {
-      const response = await fetch(`/api/places?postcode=${encodeURIComponent(postcode)}`)
+      // Check if API key is available
+      if (!process.env.NEXT_PUBLIC_WEBUILD_API_KEY) {
+        console.error('NEXT_PUBLIC_WEBUILD_API_KEY is not configured')
+        setError('Postcode service is not available. Please try again later.')
+        setAddresses([])
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+        return
+      }
+
+      // Clean postcode - remove spaces and convert to uppercase
+      const cleanPostcode = postcode.replace(/\s+/g, '').toUpperCase()
+      
+      // Call postcode server directly
+      const response = await fetch(`https://webuildapi.com/post-code-lookup/api/postcodes/${cleanPostcode}`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_WEBUILD_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      })
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -195,11 +236,69 @@ export default function PostcodeStep({
       
       const data = await response.json()
       
-      if (data.error) {
-        throw new Error(data.error)
+      if (!data.SearchEnd || !data.SearchEnd.Summaries || data.SearchEnd.Summaries.length === 0) {
+        if (!isLiveSearch) {
+          setError('No addresses found for this postcode. Please check and try again.')
+        }
+        setAddresses([])
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
+        return
       }
       
-      if (!data.addresses || data.addresses.length === 0) {
+      // Transform Webuild API results to our Address format
+      const addresses = data.SearchEnd.Summaries.map((summary: any) => {
+        // Parse the address components
+        const addressParts = summary.Address.split(', ')
+        
+        // Extract building number and street address
+        let address_line_1 = ''
+        let address_line_2 = ''
+        let building_name = ''
+        let sub_building = ''
+        
+        if (summary.Type === 'residential') {
+          // For residential addresses, BuildingNumber might contain unit info
+          if (summary.BuildingNumber.toLowerCase().includes('ff') || 
+              summary.BuildingNumber.toLowerCase().includes('flat') ||
+              summary.BuildingNumber.toLowerCase().includes('unit')) {
+            sub_building = summary.BuildingNumber
+            address_line_1 = summary.StreetAddress
+          } else {
+            address_line_1 = `${summary.BuildingNumber} ${summary.StreetAddress}`.trim()
+          }
+        } else {
+          // For Google Places, BuildingNumber is usually the business name
+          building_name = summary.BuildingNumber
+          address_line_1 = summary.StreetAddress
+        }
+
+        // Extract street number if present
+        const streetMatch = summary.StreetAddress.match(/^(\d+)\s+(.+)$/)
+        const street_number = streetMatch ? streetMatch[1] : undefined
+        const street_name = streetMatch ? streetMatch[2] : summary.StreetAddress
+
+        // Format postcode with space
+        const formattedPostcode = summary.Postcode.replace(/(.{3,4})(.+)/, '$1 $2')
+
+        return {
+          address_line_1: address_line_1.trim(),
+          address_line_2: address_line_2 ? address_line_2.trim() : undefined,
+          street_name: street_name || undefined,
+          street_number: street_number || undefined,
+          building_name: building_name || undefined,
+          sub_building: sub_building || undefined,
+          town_or_city: summary.Town,
+          postcode: formattedPostcode,
+          formatted_address: summary.Address,
+          country: 'United Kingdom'
+        }
+      }).filter((addr: any) => 
+        // Filter out results that don't have basic address info
+        addr.address_line_1 && addr.town_or_city
+      )
+      
+      if (addresses.length === 0) {
         if (!isLiveSearch) {
           setError('No addresses found for this postcode. Please check and try again.')
         }
@@ -214,11 +313,11 @@ export default function PostcodeStep({
       setShowSuggestions(false)
       setHighlightedSuggestionIndex(-1)
       
-      setAddresses(data.addresses)
+      setAddresses(addresses)
       setShowDropdown(true)
       setHighlightedIndex(-1)
       // Reset refs array for new addresses
-      itemRefs.current = new Array(data.addresses.length).fill(null)
+      itemRefs.current = new Array(addresses.length).fill(null)
     } catch (err) {
       console.error('Address search error:', err)
       if (!isLiveSearch) {
@@ -417,9 +516,12 @@ export default function PostcodeStep({
           }
           break
         case 'Escape':
-          setShowDropdown(false)
-          setHighlightedIndex(-1)
-          inputRef.current?.blur()
+          // Only hide dropdown if we have a selected address, otherwise keep it open
+          if (selectedAddress) {
+            setShowDropdown(false)
+            setHighlightedIndex(-1)
+            inputRef.current?.blur()
+          }
           break
       }
       return
@@ -485,14 +587,24 @@ export default function PostcodeStep({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false)
-        setHighlightedIndex(-1)
-      }
+      // Only hide suggestions dropdown on outside click
       if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
         setShowSuggestions(false)
         setHighlightedSuggestionIndex(-1)
         setSuggestions([])
+      }
+      
+      // For address dropdown, only hide if clicking outside AND no address is selected
+      // This allows the dropdown to persist until an address is actually selected
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        // Don't hide the dropdown if we have addresses and no selection has been made yet
+        if (addresses.length > 0 && !selectedAddress) {
+          // Keep dropdown open - don't hide it
+          return
+        }
+        // Only hide if we have a selected address or no addresses
+        setShowDropdown(false)
+        setHighlightedIndex(-1)
       }
     }
 
@@ -504,7 +616,7 @@ export default function PostcodeStep({
         clearTimeout(searchTimeout)
       }
     }
-  }, [searchTimeout])
+  }, [searchTimeout, addresses.length, selectedAddress])
 
   // Update state when initial values change
   useEffect(() => {
@@ -512,6 +624,14 @@ export default function PostcodeStep({
       setPostcode(value)
     }
   }, [value])
+
+  // Update selectedAddress when prop changes (for navigation back)
+  useEffect(() => {
+    if (propSelectedAddress && propSelectedAddress !== selectedAddress) {
+      setSelectedAddress(propSelectedAddress)
+      setPostcode(propSelectedAddress.postcode)
+    }
+  }, [propSelectedAddress, selectedAddress])
 
   return (
     <motion.div 
@@ -669,6 +789,14 @@ export default function PostcodeStep({
                   >
                     Select your address (use ↑↓ arrow keys and Enter):
                   </motion.p>
+                  {!selectedAddress && (
+                    <motion.p 
+                      className="text-xs text-blue-600 px-3 py-1 bg-blue-50 border-b"
+                      variants={addressItemVariants}
+                    >
+                      💡 Click on an address below to select it
+                    </motion.p>
+                  )}
                   <div>
                     {addresses.map((address, index) => (
                       <motion.button
