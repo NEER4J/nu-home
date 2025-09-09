@@ -114,8 +114,19 @@ export function buildQuoteLink(
   domainVerified: boolean | null,
   subdomain: string | null,
   submissionId: string,
-  category: string = 'boiler'
+  category: string = 'boiler',
+  mainPageUrl?: string | null,
+  isIframeContext?: boolean
 ): string | null {
+  // If we have a main page URL and this is from iframe context, use the main page URL
+  if (mainPageUrl && isIframeContext) {
+    // Add submission ID as a parameter to the main page URL
+    const url = new URL(mainPageUrl);
+    url.searchParams.set('submission', submissionId);
+    return url.toString();
+  }
+
+  // Otherwise, use the original logic for main domain
   const baseUrl = customDomain && domainVerified 
     ? `https://${customDomain}`
     : subdomain 

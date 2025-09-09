@@ -43,9 +43,10 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Get partner ID from URL if present
+    // Get partner ID and iframe context from URL if present
     const url = new URL(req.url);
     const partnerId = url.searchParams.get('partner_id');
+    const isIframe = url.searchParams.get('is_iframe') === 'true';
     
     // Get hostname from request headers
     const hostname = req.headers.get('host') || '';
