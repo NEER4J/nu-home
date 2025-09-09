@@ -64,6 +64,9 @@ export default function SaveQuoteDialog({
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
       const subdomain = hostname || null
 
+      // Detect if running in iframe
+      const isIframe = window.self !== window.top;
+
       const res = await fetch('/api/email/boiler/save-quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -75,6 +78,7 @@ export default function SaveQuoteDialog({
           postcode,
           products,
           subdomain,
+          is_iframe: isIframe,
         }),
       })
       const data = await res.json().catch(() => ({}))

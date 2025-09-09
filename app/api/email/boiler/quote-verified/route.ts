@@ -550,7 +550,8 @@ export async function POST(request: NextRequest) {
       address_data,
       questions,
       submission_id,
-      subdomain: bodySubdomain 
+      subdomain: bodySubdomain,
+      is_iframe
     } = body || {}
 
     // Use new fields if available, fallback to legacy fields
@@ -609,17 +610,19 @@ export async function POST(request: NextRequest) {
       .eq('slug', 'boiler')
       .single()
 
-    // Get category-specific admin email from PartnerSettings
+    // Get category-specific settings from PartnerSettings
     let adminEmail: string | undefined = undefined
+    let mainPageUrl: string | null = null
     if (boilerCategory) {
       const { data: partnerSettings } = await supabase
         .from('PartnerSettings')
-        .select('admin_email')
+        .select('admin_email, main_page_url')
         .eq('partner_id', partner.user_id)
         .eq('service_category_id', boilerCategory.service_category_id)
         .single()
 
       adminEmail = partnerSettings?.admin_email || undefined
+      mainPageUrl = partnerSettings?.main_page_url || null
     }
 
     const companyEmail: string | undefined = adminEmail || undefined
@@ -636,13 +639,26 @@ export async function POST(request: NextRequest) {
         ? `https://${partner.subdomain}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || 'yourdomain.com'}`
         : null
 
+    // Debug logging
+    console.log('Quote-verified email quote link debug:', {
+      is_iframe,
+      mainPageUrl,
+      partner_subdomain: partner.subdomain,
+      partner_custom_domain: partner.custom_domain,
+      domain_verified: partner.domain_verified
+    });
+
     const formattedQuoteLink = buildQuoteLink(
       partner.custom_domain || null,
       partner.domain_verified || null,
       partner.subdomain || null,
       finalSubmissionId,
-      'boiler'
+      'boiler',
+      mainPageUrl,
+      is_iframe
     )
+
+    console.log('Quote-verified final quote link generated:', formattedQuoteLink);
 
     // Format quote data
     const formatQuoteData = (data: any, questions: any[]) => {

@@ -276,6 +276,9 @@ export default function CheckoutLayout({
         }
       }
 
+      // Detect if running in iframe
+      const isIframe = window.self !== window.top;
+
       const emailData = {
         first_name: details.firstName,
         last_name: details.lastName,
@@ -303,6 +306,7 @@ export default function CheckoutLayout({
         installation_date: selectedDate,
         submission_id: submissionId,
         subdomain,
+        is_iframe: isIframe,
         ...paymentPlanFields,
         ...additionalData
       }

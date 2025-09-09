@@ -220,6 +220,9 @@ export default function OtpVerification({
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
       const subdomain = hostname || null
 
+      // Detect if running in iframe
+      const isIframe = window.self !== window.top;
+
       const res = await fetch('/api/email/boiler/quote-verified', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -234,6 +237,7 @@ export default function OtpVerification({
           questions: questions,
           submission_id: submissionId,
           subdomain,
+          is_iframe: isIframe,
         }),
       })
 

@@ -40,9 +40,9 @@ function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfi
   id="quote-form-iframe-${category.slug}"
   src="${subdomainUrl}" 
   width="100%" 
-  height="800" 
+  height="100vh" 
   frameborder="0" 
-  style="border: none; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"
+  style="border: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999;"
   title="Quote Form - ${category.name}">
 </iframe>
 
@@ -55,12 +55,22 @@ function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfi
   const urlParams = new URLSearchParams(window.location.search);
   const submissionId = urlParams.get('submission');
   
-  if (submissionId && iframe) {
-    // Redirect iframe to products page with submission ID
-    const iframeSrc = iframe.src;
-    const productsUrl = iframeSrc.replace('/quote', '/products') + '?submission=' + encodeURIComponent(submissionId);
-    iframe.src = productsUrl;
-  }
+   if (submissionId && iframe) {
+     // Redirect iframe to products page with submission ID
+     const iframeSrc = iframe.src;
+     const url = new URL(iframeSrc);
+     const pathParts = url.pathname.split('/');
+     
+     // Find the service category slug and replace 'quote' with 'products'
+     const categoryIndex = pathParts.findIndex(part => part === '${category.slug}');
+     if (categoryIndex !== -1 && pathParts[categoryIndex + 1] === 'quote') {
+       pathParts[categoryIndex + 1] = 'products';
+     }
+     
+     const productsPath = pathParts.join('/');
+     const productsUrl = url.origin + productsPath + '?submission=' + encodeURIComponent(submissionId);
+     iframe.src = productsUrl;
+   }
   
   // Listen for messages from iframe (for form completion)
   window.addEventListener('message', function(event) {
@@ -88,9 +98,9 @@ function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfi
   id="quote-form-iframe-${category.slug}"
   src="${customDomainUrl}" 
   width="100%" 
-  height="800" 
+  height="100vh" 
   frameborder="0" 
-  style="border: none; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"
+  style="border: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999;"
   title="Quote Form - ${category.name}">
 </iframe>
 
@@ -103,12 +113,22 @@ function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfi
   const urlParams = new URLSearchParams(window.location.search);
   const submissionId = urlParams.get('submission');
   
-  if (submissionId && iframe) {
-    // Redirect iframe to products page with submission ID
-    const iframeSrc = iframe.src;
-    const productsUrl = iframeSrc.replace('/quote', '/products') + '?submission=' + encodeURIComponent(submissionId);
-    iframe.src = productsUrl;
-  }
+   if (submissionId && iframe) {
+     // Redirect iframe to products page with submission ID
+     const iframeSrc = iframe.src;
+     const url = new URL(iframeSrc);
+     const pathParts = url.pathname.split('/');
+     
+     // Find the service category slug and replace 'quote' with 'products'
+     const categoryIndex = pathParts.findIndex(part => part === '${category.slug}');
+     if (categoryIndex !== -1 && pathParts[categoryIndex + 1] === 'quote') {
+       pathParts[categoryIndex + 1] = 'products';
+     }
+     
+     const productsPath = pathParts.join('/');
+     const productsUrl = url.origin + productsPath + '?submission=' + encodeURIComponent(submissionId);
+     iframe.src = productsUrl;
+   }
   
   // Listen for messages from iframe (for form completion)
   window.addEventListener('message', function(event) {

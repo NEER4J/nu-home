@@ -118,12 +118,25 @@ export function buildQuoteLink(
   mainPageUrl?: string | null,
   isIframeContext?: boolean
 ): string | null {
+  console.log('buildQuoteLink called with:', {
+    customDomain,
+    domainVerified,
+    subdomain,
+    submissionId,
+    category,
+    mainPageUrl,
+    isIframeContext
+  });
+
   // If we have a main page URL and this is from iframe context, use the main page URL
   if (mainPageUrl && isIframeContext) {
+    console.log('Using main page URL for iframe context:', mainPageUrl);
     // Add submission ID as a parameter to the main page URL
     const url = new URL(mainPageUrl);
     url.searchParams.set('submission', submissionId);
-    return url.toString();
+    const result = url.toString();
+    console.log('Generated main page URL with submission:', result);
+    return result;
   }
 
   // Otherwise, use the original logic for main domain
@@ -135,5 +148,7 @@ export function buildQuoteLink(
 
   if (!baseUrl) return null
   
-  return `${baseUrl}/${category}/products?submission=${submissionId}`
+  const result = `${baseUrl}/${category}/products?submission=${submissionId}`;
+  console.log('Generated subdomain/custom domain URL:', result);
+  return result;
 }
