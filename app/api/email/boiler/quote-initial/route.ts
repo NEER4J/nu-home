@@ -673,6 +673,15 @@ export async function POST(request: NextRequest) {
       mainPageUrl = partnerSettings?.main_page_url || null
     }
 
+    // Debug logging
+    console.log('Email quote link debug:', {
+      is_iframe,
+      mainPageUrl,
+      partner_subdomain: partner.subdomain,
+      partner_custom_domain: partner.custom_domain,
+      domain_verified: partner.domain_verified
+    });
+
     const finalQuoteLink = quoteLink || buildQuoteLink(
       partner.custom_domain || null,
       partner.domain_verified || null,
@@ -682,6 +691,8 @@ export async function POST(request: NextRequest) {
       mainPageUrl,
       is_iframe
     )
+
+    console.log('Final quote link generated:', finalQuoteLink);
 
     const companyEmail: string | undefined = adminEmail || undefined
 
