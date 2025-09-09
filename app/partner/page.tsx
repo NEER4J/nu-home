@@ -58,19 +58,20 @@ export default async function PartnerDashboard() {
 
   // Fetch products count
   const { count: productsCount } = await supabase
-    .from("Products")
+    .from("PartnerProducts")
     .select("*", { count: 'exact', head: true })
-    .eq("owner_id", user.id);
+    .eq("partner_id", user.id)
+    .eq("is_active", true);
 
   // Fetch leads count
   const { count: leadsCount } = await supabase
-    .from("QuoteSubmissions")
+    .from("partner_leads")
     .select("*", { count: 'exact', head: true })
     .eq("assigned_partner_id", user.id);
 
   // Fetch recent leads
   const { data: recentLeads } = await supabase
-    .from("QuoteSubmissions")
+    .from("partner_leads")
     .select(`
       *,
       ServiceCategories(name)
@@ -79,20 +80,30 @@ export default async function PartnerDashboard() {
     .order('submission_date', { ascending: false })
     .limit(3);
 
-  // Fetch notifications
-  const { data: notifications } = await supabase
-    .from("CategoryNotifications")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("is_read", false)
-    .order('created_at', { ascending: false })
+  // Fetch latest leads for notifications section
+  const { data: latestLeads } = await supabase
+    .from("partner_leads")
+    .select(`
+      *,
+      ServiceCategories(name)
+    `)
+    .eq("assigned_partner_id", user.id)
+    .order('submission_date', { ascending: false })
     .limit(5);
 
   // Use the stored domain verification status from the database
   const customDomainVerified = profile?.domain_verified || false;
 
   return (
-    <div className="max-w-[1500px] mx-auto">
+    <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Welcome greeting */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Hi {profile?.company_name || 'Partner'} 👋
+        </h1>
+        <p className="text-gray-600 mt-1">Welcome to your dashboard</p>
+      </div>
+
       {/* Account status bar */}
       <div className={`mb-6 p-4 hidden rounded-lg ${profile?.status === 'active' ? 'bg-green-50' : profile?.status === 'pending' ? 'bg-yellow-50' : 'bg-red-50'}`}>
         <div className="flex items-center">
@@ -315,90 +326,8 @@ export default async function PartnerDashboard() {
               </div>
             )}
           </div>
-          
-          {/* Recent leads */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Recent Leads</h2>
-              <Link 
-                href="/partner/leads" 
-                className="text-sm font-medium text-blue-600 hover:text-blue-500"
-              >
-                View all
-              </Link>
-            </div>
-            
-            {!recentLeads || recentLeads.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No leads assigned to you yet.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200">
-                {recentLeads.map((lead) => (
-                  <div key={lead.submission_id} className="py-4 flex items-start">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {lead.first_name} {lead.last_name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {lead.ServiceCategories?.name} - {lead.postcode}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-400">
-                        {new Date(lead.submission_date).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div>
-                      <Link 
-                        href={`/partner/leads/${lead.submission_id}`} 
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm leading-5 font-medium rounded-md text-gray-700 bg-white hover:text-gray-500"
-                      >
-                        View
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Right column */}
-        <div className="space-y-6">
-          {/* Profile card */}
-        
-          
-          {/* Notifications */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Notifications</h2>
-              <Link 
-                href="/partner/notifications" 
-                className="text-sm font-medium text-blue-600 hover:text-blue-500"
-              >
-                View all
-              </Link>
-            </div>
-            
-            {!notifications || notifications.length === 0 ? (
-              <div className="text-center py-6 text-gray-500">
-                <p>No new notifications</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {notifications.map((notification) => (
-                  <div key={notification.notification_id} className="p-3 bg-gray-50 rounded-md">
-                    <p className="text-sm text-gray-900">{notification.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(notification.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          {/* Quick actions */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+             {/* Quick actions */}
+             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
             
             <div className="space-y-2">
@@ -419,6 +348,61 @@ export default async function PartnerDashboard() {
               </Link>
             </div>
           </div>
+       
+        </div>
+        
+        {/* Right column */}
+        <div className="space-y-6">
+          {/* Profile card */}
+        
+          
+          {/* Latest Leads */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Latest Leads</h2>
+              <Link 
+                href="/partner/leads" 
+                className="text-sm font-medium text-blue-600 hover:text-blue-500"
+              >
+                View all
+              </Link>
+            </div>
+            
+            {!latestLeads || latestLeads.length === 0 ? (
+              <div className="text-center py-6 text-gray-500">
+                <p>No leads assigned to you yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {latestLeads.map((lead) => (
+                  <div key={lead.submission_id} className="p-3 bg-gray-50 rounded-md">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {lead.first_name} {lead.last_name}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {lead.ServiceCategories?.name} - {lead.postcode}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(lead.submission_date).toLocaleDateString()}
+                        </p>
+                      
+                      </div>
+                      <Link 
+                        href={`/partner/leads/${lead.submission_id}`} 
+                        className="ml-2 text-xs font-medium text-blue-600 hover:text-blue-500"
+                      >
+                        View
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+       
         </div>
       </div>
     </div>

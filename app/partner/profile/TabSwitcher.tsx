@@ -22,6 +22,8 @@ interface UserProfile {
   subdomain: string | null;
   custom_domain?: string | null;
   domain_verified: boolean;
+  privacy_policy: string | null;
+  terms_conditions: string | null;
 }
 
 interface PartnerTier {

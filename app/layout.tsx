@@ -24,6 +24,19 @@ export default async function RootLayout({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const isLoggedIn = !!user;
+  
+  // Get user profile for company name and logo
+  let companyName = undefined;
+  let logoUrl = undefined;
+  if (user) {
+    const { data: profile } = await supabase
+      .from('UserProfiles')
+      .select('company_name, logo_url')
+      .eq('user_id', user.id)
+      .single();
+    companyName = profile?.company_name;
+    logoUrl = profile?.logo_url;
+  }
 
   // Check if we're on the domain-restricted page
   const headersList = await headers();
@@ -43,7 +56,7 @@ export default async function RootLayout({
           <div className="flex flex-col h-screen bg-gray-50">
             {/* Main content */}
             <div className="flex-1 flex flex-col">
-              <MainHeader isLoggedIn={isLoggedIn} />
+              <MainHeader isLoggedIn={isLoggedIn} companyName={companyName} logoUrl={logoUrl} />
 
               {/* Main content area */}
               <main className="">

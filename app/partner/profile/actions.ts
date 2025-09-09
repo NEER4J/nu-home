@@ -15,7 +15,10 @@ export async function updateProfile(prevState: any, formData: FormData) {
     business_description: formData.get('business_description'),
     website_url: formData.get('website_url')?.toString() || null,
     subdomain: formData.get('subdomain'),
-    tier_id: formData.get('tier_id') || null
+    tier_id: formData.get('tier_id') || null,
+    logo_url: formData.get('logo_url')?.toString() || null,
+    privacy_policy: formData.get('privacy_policy')?.toString() || null,
+    terms_conditions: formData.get('terms_conditions')?.toString() || null
   };
 
   try {
