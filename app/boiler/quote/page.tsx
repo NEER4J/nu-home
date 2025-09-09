@@ -11,6 +11,7 @@ import QuoteFormSteps from '@/components/category-commons/quote/QuoteFormSteps';
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles';
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
 import { QuoteLoader } from '@/components/category-commons/Loader';
+import { triggerQuoteSubmissionEvent, triggerGTMEventCrossFrame } from '@/lib/gtm';
 
 interface HeatingQuotePageProps {
   serviceCategoryId?: string;
@@ -370,6 +371,29 @@ export default function HeatingQuotePage({
         }
       } catch (err: any) {
         console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
+      }
+      
+      // Trigger GTM event if event name is provided
+      if (result.gtm_event_name) {
+        const gtmData = {
+          serviceCategoryId: formData.service_category_id,
+          serviceCategoryName: 'boiler',
+          firstName: contactDetails.firstName,
+          lastName: contactDetails.lastName,
+          email: contactDetails.email,
+          phone: contactDetails.phone,
+          postcode: contactDetails.postcode,
+          submissionId: result.data.submission_id,
+          partnerId: effectivePartnerId
+        };
+        
+        // Use cross-frame trigger to ensure it works in iframe contexts
+        triggerGTMEventCrossFrame(result.gtm_event_name, {
+          event_category: 'Quote Submission',
+          event_label: 'boiler',
+          ...gtmData,
+          timestamp: new Date().toISOString()
+        });
       }
       
       router.push(`/boiler/products?submission=${result.data.submission_id}`);

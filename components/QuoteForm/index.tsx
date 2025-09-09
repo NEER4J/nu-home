@@ -8,6 +8,7 @@ import QuestionsStep from './QuestionsStep';
 import PostcodeStep from '../category-commons/quote/PostcodeStep';
 import UserInfoForm from '../category-commons/quote/UserInfoForm';
 import ThankYouMessage from './ThankYouMessage';
+import { triggerQuoteSubmissionEvent, triggerGTMEventCrossFrame } from '@/lib/gtm';
 
 interface QuoteFormProps {
   serviceCategoryId: string;
@@ -448,6 +449,29 @@ export default function QuoteForm({
         console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
       }
       
+      // Trigger GTM event if event name is provided
+      if (result.gtm_event_name) {
+        const gtmData = {
+          serviceCategoryId: formData.service_category_id,
+          serviceCategoryName: serviceCategorySlug,
+          firstName: contactDetails.firstName,
+          lastName: contactDetails.lastName,
+          email: contactDetails.email,
+          phone: contactDetails.phone,
+          postcode: contactDetails.postcode,
+          submissionId: result.data.submission_id,
+          partnerId: effectivePartnerId
+        };
+        
+        // Use cross-frame trigger to ensure it works in iframe contexts
+        triggerGTMEventCrossFrame(result.gtm_event_name, {
+          event_category: 'Quote Submission',
+          event_label: serviceCategorySlug || 'Unknown Service',
+          ...gtmData,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       // Call onSubmitSuccess callback if provided
       if (onSubmitSuccess) {
         onSubmitSuccess(result.data);
@@ -462,7 +486,15 @@ export default function QuoteForm({
         window.parent.postMessage({
           type: 'quote-submitted',
           submissionId: result.data.submission_id,
-          data: result.data
+          data: result.data,
+          gtm_event_name: result.gtm_event_name,
+          service_category_id: formData.service_category_id,
+          service_category_name: serviceCategorySlug,
+          customer_name: `${contactDetails.firstName} ${contactDetails.lastName}`,
+          customer_email: contactDetails.email,
+          customer_phone: contactDetails.phone,
+          customer_postcode: contactDetails.postcode,
+          partner_id: effectivePartnerId
         }, '*');
       }
       
