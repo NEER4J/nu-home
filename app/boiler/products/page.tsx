@@ -115,7 +115,7 @@ function BoilerProductsContent() {
   const [showWhatsIncluded, setShowWhatsIncluded] = useState(false)
   const [selectedProductForWhatsIncluded, setSelectedProductForWhatsIncluded] = useState<PartnerProduct | null>(null)
   const [isContinuing, setIsContinuing] = useState(false)
-  const [isHorizontalLayout, setIsHorizontalLayout] = useState(false)
+  const [isHorizontalLayout, setIsHorizontalLayout] = useState(true)
 
   // Filters
   const [filterBoilerType, setFilterBoilerType] = useState<string | null>(null)

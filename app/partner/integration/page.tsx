@@ -51,7 +51,7 @@ function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfi
 window.currentIframe = document.getElementById('quote-form-iframe-${category.slug}');
 window.currentCategorySlug = '${category.slug}';
 </script>
-<script src="/quote-script.js"></script>`;
+<script src="https://www.aifortrades.co.uk/quote-script.js"></script>`;
     }
 
     // Generate custom domain URL and iframe code
@@ -72,7 +72,7 @@ window.currentCategorySlug = '${category.slug}';
 window.currentIframe = document.getElementById('quote-form-iframe-${category.slug}');
 window.currentCategorySlug = '${category.slug}';
 </script>
-<script src="/quote-script.js"></script>`;
+<script src="https://www.aifortrades.co.uk/quote-script.js"></script>`;
     }
 
     return {
@@ -136,21 +136,7 @@ export default async function IntegrationPage() {
         </p>
       </div>
 
-      {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
-        <div className="flex items-start">
-          <Info className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-          <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">How to use these embed codes:</p>
-            <ul className="list-disc list-inside space-y-1 text-blue-700">
-              <li>Copy the iframe code for your preferred domain (subdomain or custom domain)</li>
-              <li>Paste it into your website's HTML where you want the quote form to appear</li>
-              <li>The form will automatically adapt to your website's styling</li>
-              <li>All form submissions will be sent to your partner dashboard</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+
 
       {embedCodes.length === 0 ? (
         <div className="text-center py-12">
@@ -169,28 +155,7 @@ export default async function IntegrationPage() {
         <MainPageUrlManager categories={categories as unknown as ServiceCategory[]} userId={user.id} />
       </div>
 
-      {/* Additional Information */}
-      <div className="mt-12 bg-gray-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Integration Tips</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-600">
-          <div>
-            <h4 className="font-medium text-gray-900 mb-2">Styling</h4>
-            <ul className="space-y-1">
-              <li>• The iframe includes basic styling with rounded corners and shadow</li>
-              <li>• You can adjust the width and height as needed</li>
-              <li>• The form will be responsive within the iframe</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-medium text-gray-900 mb-2">Customization</h4>
-            <ul className="space-y-1">
-              <li>• Use custom domain for branded experience</li>
-              <li>• All form submissions go to your partner dashboard</li>
-              <li>• Forms automatically include your company branding</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+    
     </div>
   );
 }
