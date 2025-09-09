@@ -3,6 +3,7 @@
 import { useFormState, useFormStatus } from 'react-dom';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { updateProfile } from './actions';
+import { useState } from 'react';
 
 interface PartnerTier {
   tier_id: string;
@@ -29,6 +30,8 @@ interface UserProfile {
   subdomain: string | null;
   custom_domain?: string | null;
   domain_verified: boolean;
+  privacy_policy: string | null;
+  terms_conditions: string | null;
   tier?: PartnerTier;
 }
 
@@ -60,6 +63,7 @@ function SubmitButton() {
 
 export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
   const [state, formAction] = useFormState(updateProfile, null);
+  const [logoUrl, setLogoUrl] = useState(profile.logo_url || '');
 
   return (
     <form action={formAction} className="space-y-8 divide-y divide-gray-200 bg-white p-8 shadow sm:rounded-lg">
@@ -277,13 +281,114 @@ export default function ProfileForm({ profile, tiers }: ProfileFormProps) {
         </div>
       </div>
 
-      {/* Logo Upload - To be implemented */}
+      {/* Company Logo */}
       <div className="pt-8">
         <div>
           <h3 className="text-lg font-medium leading-6 text-gray-900">Company Logo</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Coming soon: Upload your company logo.
+            Enter the URL of your company logo. This will be displayed in the header and on your profile.
           </p>
+        </div>
+        
+        <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+          {/* Logo URL Input */}
+          <div className="sm:col-span-4">
+            <label htmlFor="logo_url" className="block text-sm font-medium text-gray-700">
+              Logo URL
+            </label>
+            <div className="mt-1">
+              <input
+                type="url"
+                name="logo_url"
+                id="logo_url"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                placeholder="https://example.com/logo.png"
+              />
+            </div>
+            <p className="mt-2 text-sm text-gray-500">
+              Supported formats: PNG, JPG, SVG. Recommended size: 200x200px or larger.
+            </p>
+          </div>
+
+          {/* Logo Preview */}
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Preview
+            </label>
+            <div className="mt-1 flex items-center justify-center w-32 h-32 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Logo preview"
+                  className="max-w-full max-h-full object-contain rounded-lg"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as HTMLImageElement).nextElementSibling?.setAttribute('style', 'display: flex');
+                  }}
+                />
+              ) : null}
+              <div className={`flex flex-col items-center justify-center text-gray-400 ${logoUrl ? 'hidden' : ''}`}>
+                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                </svg>
+                <span className="text-xs mt-1">Logo preview</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Legal Documents */}
+      <div className="pt-8">
+        <div>
+          <h3 className="text-lg font-medium leading-6 text-gray-900">Legal Documents</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Add your privacy policy and terms & conditions that will be displayed on your website.
+          </p>
+        </div>
+        
+        <div className="mt-6 space-y-6">
+          {/* Privacy Policy */}
+          <div>
+            <label htmlFor="privacy_policy" className="block text-sm font-medium text-gray-700">
+              Privacy Policy URL
+            </label>
+            <div className="mt-1">
+              <input
+                type="url"
+                name="privacy_policy"
+                id="privacy_policy"
+                defaultValue={profile.privacy_policy || ''}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                placeholder="https://example.com/privacy-policy"
+              />
+            </div>
+            <p className="mt-2 text-sm text-gray-500">
+              Link to your privacy policy page that explains how you collect, use, and protect user data.
+            </p>
+          </div>
+
+          {/* Terms & Conditions */}
+          <div>
+            <label htmlFor="terms_conditions" className="block text-sm font-medium text-gray-700">
+              Terms & Conditions URL
+            </label>
+            <div className="mt-1">
+              <input
+                type="url"
+                name="terms_conditions"
+                id="terms_conditions"
+                defaultValue={profile.terms_conditions || ''}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
+                placeholder="https://example.com/terms-conditions"
+              />
+            </div>
+            <p className="mt-2 text-sm text-gray-500">
+              Link to your terms & conditions page that includes your service terms and legal agreements.
+            </p>
+          </div>
         </div>
       </div>
 
