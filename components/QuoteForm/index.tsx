@@ -57,6 +57,48 @@ export default function QuoteForm({
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [submissionData, setSubmissionData] = useState<any>(null);
   
+  // Check for submission ID in URL parameters and populate form
+  useEffect(() => {
+    async function checkSubmissionId() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const submissionId = urlParams.get('submission');
+      
+      if (submissionId) {
+        try {
+          const supabase = await createClient();
+          
+          // Fetch submission data
+          const { data: submission, error } = await supabase
+            .from('QuoteSubmissions')
+            .select(`
+              *,
+              FormAnswers (
+                question_id,
+                answer
+              )
+            `)
+            .eq('submission_id', submissionId)
+            .single();
+          
+          if (!error && submission) {
+            // If we have a submission ID, redirect to products page instead of showing form
+            const currentUrl = new URL(window.location.href);
+            const baseUrl = currentUrl.origin + currentUrl.pathname;
+            const productsUrl = baseUrl.replace('/quote', '/products') + '?submission=' + submissionId;
+            
+            console.log('Redirecting to products page:', productsUrl);
+            window.location.href = productsUrl;
+            return;
+          }
+        } catch (error) {
+          console.error('Error loading submission data:', error);
+        }
+      }
+    }
+    
+    checkSubmissionId();
+  }, []);
+
   // Fetch questions on component mount
   useEffect(() => {
     async function loadQuestions() {
@@ -354,6 +396,12 @@ export default function QuoteForm({
       if (subdomain) {
         apiUrl.searchParams.append('subdomain', subdomain);
       }
+
+      // Detect if running in iframe
+      const isIframe = window.self !== window.top;
+      if (isIframe) {
+        apiUrl.searchParams.append('is_iframe', 'true');
+      }
       
       const response = await fetch(apiUrl.toString(), {
         method: 'POST',
@@ -388,6 +436,7 @@ export default function QuoteForm({
             questions: questions,
             submission_id: result.data.submission_id,
             subdomain,
+            is_iframe: isIframe,
           }),
         })
 
@@ -407,6 +456,15 @@ export default function QuoteForm({
       // Set success state to show thank you message
       setSuccess(true);
       setIsRedirecting(false);
+      
+      // Send message to parent window if in iframe
+      if (window.self !== window.top) {
+        window.parent.postMessage({
+          type: 'quote-submitted',
+          submissionId: result.data.submission_id,
+          data: result.data
+        }, '*');
+      }
       
       // If redirect to products is enabled, do it immediately
       if (redirectToProducts) {
