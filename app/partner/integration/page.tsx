@@ -47,76 +47,11 @@ function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfi
 </iframe>
 
 <script>
-// Enhanced iframe functionality for ${category.name}
-(function() {
-  const iframe = document.getElementById('quote-form-iframe-${category.slug}');
-  
-  // Check for submission ID in URL parameters
-  const urlParams = new URLSearchParams(window.location.search);
-  const submissionId = urlParams.get('submission');
-  
-   if (submissionId && iframe) {
-     // Redirect iframe to products page with submission ID
-     const iframeSrc = iframe.src;
-     const url = new URL(iframeSrc);
-     const pathParts = url.pathname.split('/');
-     
-     // Find the service category slug and replace 'quote' with 'products'
-     const categoryIndex = pathParts.findIndex(part => part === '${category.slug}');
-     if (categoryIndex !== -1 && pathParts[categoryIndex + 1] === 'quote') {
-       pathParts[categoryIndex + 1] = 'products';
-     }
-     
-     const productsPath = pathParts.join('/');
-     const productsUrl = url.origin + productsPath + '?submission=' + encodeURIComponent(submissionId);
-     iframe.src = productsUrl;
-   }
-  
-  // Listen for messages from iframe (for form completion)
-  window.addEventListener('message', function(event) {
-    if (event.origin !== '${protocol}//${profile.subdomain}.${mainDomain}' && 
-        event.origin !== '${protocol}//${profile.custom_domain || 'localhost'}') {
-      return; // Security check
-    }
-    
-    if (event.data.type === 'gtm-event') {
-      // Handle direct GTM event from iframe
-      if (event.data.event_name && window.dataLayer) {
-        window.dataLayer.push({
-          event: event.data.event_name,
-          ...event.data.event_data
-        });
-        console.log('GTM Event triggered from iframe:', event.data.event_name);
-      }
-    } else if (event.data.type === 'quote-submitted') {
-      // Handle form submission completion
-      console.log('Quote submitted:', event.data);
-      
-      // Trigger GTM event if event data is provided
-      if (event.data.gtm_event_name && window.dataLayer) {
-        window.dataLayer.push({
-          event: event.data.gtm_event_name,
-          event_category: 'Quote Submission',
-          event_label: event.data.service_category_name || 'Unknown Service',
-          service_category_id: event.data.service_category_id,
-          service_category_name: event.data.service_category_name,
-          customer_name: event.data.customer_name,
-          customer_email: event.data.customer_email,
-          customer_phone: event.data.customer_phone,
-          customer_postcode: event.data.customer_postcode,
-          submission_id: event.data.submission_id,
-          partner_id: event.data.partner_id,
-          timestamp: new Date().toISOString()
-        });
-        console.log('GTM Event triggered:', event.data.gtm_event_name);
-      }
-      
-      // Optional: Redirect to a thank you page or show success message
-      // window.location.href = '/thank-you';
-    }
-  });
-})();
-</script>`;
+// Configure iframe settings
+window.currentIframe = document.getElementById('quote-form-iframe-${category.slug}');
+window.currentCategorySlug = '${category.slug}';
+</script>
+<script src="/quote-script.js"></script>`;
     }
 
     // Generate custom domain URL and iframe code
@@ -133,67 +68,11 @@ function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfi
 </iframe>
 
 <script>
-// Enhanced iframe functionality for ${category.name}
-(function() {
-  const iframe = document.getElementById('quote-form-iframe-${category.slug}');
-  
-  // Check for submission ID in URL parameters
-  const urlParams = new URLSearchParams(window.location.search);
-  const submissionId = urlParams.get('submission');
-  
-   if (submissionId && iframe) {
-     // Redirect iframe to products page with submission ID
-     const iframeSrc = iframe.src;
-     const url = new URL(iframeSrc);
-     const pathParts = url.pathname.split('/');
-     
-     // Find the service category slug and replace 'quote' with 'products'
-     const categoryIndex = pathParts.findIndex(part => part === '${category.slug}');
-     if (categoryIndex !== -1 && pathParts[categoryIndex + 1] === 'quote') {
-       pathParts[categoryIndex + 1] = 'products';
-     }
-     
-     const productsPath = pathParts.join('/');
-     const productsUrl = url.origin + productsPath + '?submission=' + encodeURIComponent(submissionId);
-     iframe.src = productsUrl;
-   }
-  
-  // Listen for messages from iframe (for form completion)
-  window.addEventListener('message', function(event) {
-    if (event.origin !== '${protocol}//${profile.custom_domain}' && 
-        event.origin !== '${protocol}//${profile.subdomain}.${mainDomain}') {
-      return; // Security check
-    }
-    
-    if (event.data.type === 'quote-submitted') {
-      // Handle form submission completion
-      console.log('Quote submitted:', event.data);
-      
-      // Trigger GTM event if event data is provided
-      if (event.data.gtm_event_name && window.dataLayer) {
-        window.dataLayer.push({
-          event: event.data.gtm_event_name,
-          event_category: 'Quote Submission',
-          event_label: event.data.service_category_name || 'Unknown Service',
-          service_category_id: event.data.service_category_id,
-          service_category_name: event.data.service_category_name,
-          customer_name: event.data.customer_name,
-          customer_email: event.data.customer_email,
-          customer_phone: event.data.customer_phone,
-          customer_postcode: event.data.customer_postcode,
-          submission_id: event.data.submission_id,
-          partner_id: event.data.partner_id,
-          timestamp: new Date().toISOString()
-        });
-        console.log('GTM Event triggered:', event.data.gtm_event_name);
-      }
-      
-      // Optional: Redirect to a thank you page or show success message
-      // window.location.href = '/thank-you';
-    }
-  });
-})();
-</script>`;
+// Configure iframe settings
+window.currentIframe = document.getElementById('quote-form-iframe-${category.slug}');
+window.currentCategorySlug = '${category.slug}';
+</script>
+<script src="/quote-script.js"></script>`;
     }
 
     return {

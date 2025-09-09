@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Check, ShieldCheck, Droplets, Flame, Box, ChevronDown } from 'lucide-react'
+import IframeNavigationTracker from '@/components/IframeNavigationTracker'
 
 interface PartnerInfo {
   company_name: string
@@ -1187,6 +1188,9 @@ function BoilerProductsContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 relative">
+      {/* Iframe Navigation Tracker */}
+      <IframeNavigationTracker categorySlug="boiler" />
+      
       {/* Loading Overlay */}
       {showLoadingOverlay && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-lg z-50 flex items-center justify-center">

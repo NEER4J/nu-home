@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import AddonsLayout, { BundleLite } from '@/components/category-commons/addon/AddonsLayout'
 import { resolvePartnerByHost } from '@/lib/partner'
 import { AddonsLoader } from '@/components/category-commons/Loader'
+import IframeNavigationTracker from '@/components/IframeNavigationTracker'
 
 interface AddonType {
   id: string
@@ -564,6 +565,9 @@ function BoilerAddonsPageContent() {
   
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Iframe Navigation Tracker */}
+      <IframeNavigationTracker categorySlug="boiler" />
+      
       {/* Back Link */}
       <div className="mb-6">
         <a href={`/boiler/products${submissionId ? `?submission=${submissionId}` : ''}`} className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors">
