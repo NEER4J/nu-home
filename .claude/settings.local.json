@@ -10,7 +10,10 @@
       "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)",
       "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)",
       "Read(/F:\\Projects\\nu-home\\app\\partner\\notifications/**)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebFetch(domain:marketplace.gohighlevel.com)",
+      "Bash(curl:*)",
+      "WebSearch"
     ],
     "deny": []
   }
