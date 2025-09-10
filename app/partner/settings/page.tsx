@@ -136,12 +136,35 @@ export default function PartnerSettingsPage() {
   // GTM event name state
   const [gtmEventName, setGtmEventName] = useState('');
 
+  // GHL integration states
+  const [ghlIntegration, setGhlIntegration] = useState<any>(null);
+  const [ghlLoading, setGhlLoading] = useState(false);
+  const [ghlConnecting, setGhlConnecting] = useState(false);
+
   const supabase = createClient();
 
   useEffect(() => {
     // Load both categories and global integrations
     loadCategories();
     loadIntegrations();
+    
+    // Handle URL parameters for GHL OAuth
+    const urlParams = new URLSearchParams(window.location.search);
+    const ghlSuccess = urlParams.get('ghl_success');
+    const ghlError = urlParams.get('ghl_error');
+    
+    if (ghlSuccess === 'true') {
+      // Reload GHL integration status
+      loadGHLIntegration();
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (ghlError) {
+      console.error('GHL OAuth error:', ghlError);
+      // Show error message to user
+      alert(`GHL OAuth Error: ${decodeURIComponent(ghlError)}`);
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   useEffect(() => {
@@ -267,6 +290,9 @@ export default function PartnerSettingsPage() {
         setBodyCode(profile.body_code || '');
         setFooterCode(profile.footer_code || '');
       }
+
+      // Load GHL integration
+      await loadGHLIntegration();
     } catch (error) {
       console.error('Unexpected error loading integrations:', error);
       // Fallback to defaults on error
@@ -495,6 +521,66 @@ export default function PartnerSettingsPage() {
     const updated = [...faqs];
     updated[index][field] = value;
     setFaqs(updated);
+  };
+
+  // GHL Integration Functions
+  const loadGHLIntegration = async () => {
+    setGhlLoading(true);
+    try {
+      const { getGHLIntegration } = await import('@/lib/ghl-api-client');
+      const integration = await getGHLIntegration();
+      
+      if (integration) {
+        setGhlIntegration(integration);
+      }
+    } catch (error) {
+      console.error('Unexpected error loading GHL integration:', error);
+    } finally {
+      setGhlLoading(false);
+    }
+  };
+
+  const connectGHL = async () => {
+    setGhlConnecting(true);
+    try {
+      console.log('Requesting GHL auth URL from server...');
+      
+      const response = await fetch('/api/ghl/auth-url');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate auth URL');
+      }
+      
+      console.log('Generated GHL auth URL:', data.authUrl);
+      
+      // Redirect to GHL OAuth
+      window.location.href = data.authUrl;
+    } catch (error) {
+      console.error('Error connecting to GHL:', error);
+      alert(`Error connecting to GHL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setGhlConnecting(false);
+    }
+  };
+
+  const disconnectGHL = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('ghl_integrations')
+        .update({ is_active: false })
+        .eq('partner_id', user.id);
+
+      if (error) {
+        console.error('Error disconnecting GHL:', error);
+      } else {
+        setGhlIntegration(null);
+      }
+    } catch (error) {
+      console.error('Unexpected error disconnecting GHL:', error);
+    }
   };
 
   // Page-level loader: only block when viewing category tab
@@ -841,6 +927,115 @@ export default function PartnerSettingsPage() {
                 <input type="text" value={kandaSettings.KANDA_PROD} onChange={(e) => setKandaSettings({ ...kandaSettings, KANDA_PROD: e.target.value })} className="block w-full px-3 py-2 border rounded-md" placeholder="e.g., prod" />
               </div>
             </div>
+          </div>
+
+          {/* GoHighLevel Integration */}
+          <div className="bg-gray-50 rounded-lg border p-4 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-5 h-5 bg-green-600 rounded flex items-center justify-center">
+                <span className="text-white text-xs font-semibold">G</span>
+              </div>
+              <h3 className="font-medium text-gray-900">GoHighLevel CRM Integration</h3>
+            </div>
+            
+            {ghlLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-sm text-gray-600">Loading integration status...</span>
+              </div>
+            ) : ghlIntegration ? (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h4 className="text-sm font-medium text-green-800">Connected to GoHighLevel</h4>
+                      <p className="text-sm text-green-700 mt-1">
+                        Your account is connected to GoHighLevel. Leads will be automatically sent to your CRM.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Company ID:</span>
+                    <span className="ml-2 text-gray-600">{ghlIntegration.company_id}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">User Type:</span>
+                    <span className="ml-2 text-gray-600">{ghlIntegration.user_type}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Connected:</span>
+                    <span className="ml-2 text-gray-600">
+                      {new Date(ghlIntegration.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Token Expires:</span>
+                    <span className="ml-2 text-gray-600">
+                      {new Date(ghlIntegration.token_expires_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={disconnectGHL}
+                    className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  >
+                    Disconnect
+                  </button>
+                  <button
+                    onClick={() => window.open('https://app.gohighlevel.com', '_blank')}
+                    className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Open GoHighLevel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h4 className="text-sm font-medium text-yellow-800">Not Connected</h4>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        Connect your GoHighLevel account to automatically send leads to your CRM.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-sm text-gray-600">
+                  <p className="mb-2">Benefits of connecting GoHighLevel:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Automatically create contacts for every lead</li>
+                    <li>Map custom fields to your CRM</li>
+                    <li>Add leads to specific opportunities and stages</li>
+                    <li>Sync lead data in real-time</li>
+                  </ul>
+                </div>
+                
+                <button
+                  onClick={connectGHL}
+                  disabled={ghlConnecting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {ghlConnecting ? 'Connecting...' : 'Connect GoHighLevel'}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mt-6">

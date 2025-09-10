@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHostname } from '@/lib/partner'
 import { getProcessedEmailTemplate, buildQuoteLink } from '@/lib/email-templates'
+import { createGHLContactFromQuoteSubmission } from '@/lib/ghl-contact-helper'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -881,6 +882,41 @@ export async function POST(request: NextRequest) {
         })
       } catch (sendErr: any) {
         console.error('Failed to send admin email:', sendErr?.message || String(sendErr))
+      }
+    }
+
+    // Create GHL contact if integration is enabled
+    if (boilerCategory) {
+      try {
+        const ghlSuccess = await createGHLContactFromQuoteSubmission(
+          {
+            first_name: finalFirstName,
+            last_name: finalLastName,
+            email,
+            phone,
+            postcode,
+            address_line_1: fullAddress ? fullAddress.split('\n')[0] : undefined,
+            address_line_2: fullAddress ? fullAddress.split('\n')[1] : undefined,
+            city: postcode, // Using postcode as city fallback
+            county: undefined,
+            country: 'United Kingdom',
+            submission_id: finalSubmissionId,
+            created_at: finalSubmissionDate,
+            form_answers: finalQuoteData ? { quote_data: finalQuoteData } : undefined,
+            // Add the formatted quote data that matches what's sent to email template
+            quoteData: quoteInfo
+          },
+          boilerCategory.service_category_id,
+          'quote-initial',
+          partner.user_id
+        )
+        
+        if (ghlSuccess) {
+          console.log('GHL contact created successfully for quote-initial')
+        }
+      } catch (ghlError) {
+        console.error('Failed to create GHL contact:', ghlError)
+        // Don't fail the email sending if GHL fails
       }
     }
 

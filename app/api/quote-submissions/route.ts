@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { resolvePartnerByHostname } from '@/lib/partner';
+import { createGHLContactFromQuoteSubmission } from '@/lib/ghl-contact-helper';
 
 export async function POST(req: NextRequest) {
   try {
@@ -150,6 +151,44 @@ export async function POST(req: NextRequest) {
       gtmEventName = gtmSettings?.gtm_event_name || null;
     }
     
+    // Create GHL contact if integration is enabled
+    try {
+      // Format quote data for GHL (similar to email template)
+      const formatQuoteData = (formAnswers: any[]) => {
+        if (!formAnswers) return ''
+        
+        const formattedAnswers: string[] = []
+        
+        formAnswers.forEach((answer) => {
+          if (answer.question_text && answer.answer !== null && answer.answer !== undefined && answer.answer !== '') {
+            const formattedAnswer = Array.isArray(answer.answer) ? answer.answer.join(', ') : String(answer.answer)
+            formattedAnswers.push(`${answer.question_text}: ${formattedAnswer}`)
+          }
+        })
+        
+        return formattedAnswers.join('\n')
+      }
+
+      const formattedQuoteData = formatQuoteData(formAnswers)
+      
+      const ghlSuccess = await createGHLContactFromQuoteSubmission(
+        {
+          ...partnerLead,
+          quoteData: formattedQuoteData // Add formatted quote data
+        },
+        formData.service_category_id,
+        'quote-initial', // Default email type for new submissions
+        assignedPartnerId || partnerLead.assigned_partner_id
+      )
+      
+      if (ghlSuccess) {
+        console.log('GHL contact created successfully for new submission')
+      }
+    } catch (ghlError) {
+      console.error('Failed to create GHL contact:', ghlError)
+      // Don't fail the submission if GHL fails
+    }
+
     return NextResponse.json(
       { 
         success: true, 

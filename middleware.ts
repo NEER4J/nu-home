@@ -179,9 +179,9 @@ export async function middleware(request: NextRequest) {
   if (!isPublicPath) {
     try {
       const supabase = createClient(request);
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
       
-      if (!session) {
+      if (!user) {
         const redirectUrl = new URL('/sign-in', request.url);
         redirectUrl.searchParams.set('redirect_to', path);
         return NextResponse.redirect(forceDomain(redirectUrl));
@@ -199,14 +199,14 @@ export async function middleware(request: NextRequest) {
   if (path.startsWith('/partner') || path.startsWith('/admin')) {
     try {
       const supabase = createClient(request);
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
       
       // For admin routes, check if user has admin role
-      if (path.startsWith('/admin') && session) {
+      if (path.startsWith('/admin') && user) {
         const { data: profile } = await supabase
           .from('UserProfiles')
           .select('role')
-          .eq('user_id', session.user.id)
+          .eq('user_id', user.id)
           .single();
 
         if (!profile || profile.role !== 'admin') {
@@ -215,11 +215,11 @@ export async function middleware(request: NextRequest) {
       }
 
       // For partner routes, check if user has partner role
-      if (path.startsWith('/partner') && session) {
+      if (path.startsWith('/partner') && user) {
         const { data: profile } = await supabase
           .from('UserProfiles')
           .select('role')
-          .eq('user_id', session.user.id)
+          .eq('user_id', user.id)
           .single();
 
         if (!profile || profile.role !== 'partner') {
