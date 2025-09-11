@@ -14,6 +14,55 @@ import { QuoteLoader } from '@/components/category-commons/Loader';
 import { triggerQuoteSubmissionEvent, triggerGTMEventCrossFrame } from '@/lib/gtm';
 import IframeNavigationTracker from '@/components/IframeNavigationTracker';
 
+// Helper function to save data to lead_submission_data table
+const saveLeadSubmissionData = async (
+  supabase: any,
+  submissionId: string,
+  partnerId: string,
+  serviceCategoryId: string,
+  data: any,
+  currentPage: string,
+  pagesCompleted: string[] = []
+) => {
+  try {
+    const { error } = await supabase
+      .from('lead_submission_data')
+      .upsert({
+        submission_id: submissionId,
+        partner_id: partnerId,
+        service_category_id: serviceCategoryId,
+        ...data,
+        current_page: currentPage,
+        pages_completed: pagesCompleted,
+        last_activity_at: new Date().toISOString(),
+        session_id: typeof window !== 'undefined' ? 
+          (window as any).sessionStorage?.getItem('session_id') || 
+          `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+          `server_${Date.now()}`,
+        device_info: typeof window !== 'undefined' ? {
+          user_agent: navigator.userAgent,
+          screen_resolution: `${screen.width}x${screen.height}`,
+          viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+          language: navigator.language,
+          platform: navigator.platform,
+          cookie_enabled: navigator.cookieEnabled,
+          online_status: navigator.onLine
+        } : {},
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'submission_id'
+      });
+
+    if (error) {
+      console.error('Error saving lead submission data:', error);
+    } else {
+      console.log('Successfully saved lead submission data for page:', currentPage);
+    }
+  } catch (error) {
+    console.error('Error in saveLeadSubmissionData:', error);
+  }
+};
+
 interface HeatingQuotePageProps {
   serviceCategoryId?: string;
   partnerId?: string;
@@ -53,6 +102,8 @@ export default function HeatingQuotePage({
   const [userInfo, setUserInfo] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partnerInfoFromDomain, setPartnerInfoFromDomain] = useState<PartnerProfile | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [pageStartTime, setPageStartTime] = useState<number>(Date.now());
   const supabase = createClient();
 
   // Get dynamic color based on partner info
@@ -64,6 +115,17 @@ export default function HeatingQuotePage({
   // Use dynamic styles hook
   const effectivePartner = partnerInfo || partnerInfoFromDomain;
   const classes = useDynamicStyles(effectivePartner?.company_color || null); 
+
+  // Initialize session tracking
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Generate session ID if not exists
+      if (!sessionStorage.getItem('session_id')) {
+        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sessionStorage.setItem('session_id', sessionId);
+      }
+    }
+  }, []);
 
   // Get the heating service category ID
   useEffect(() => {
@@ -205,18 +267,107 @@ export default function HeatingQuotePage({
   // Get total steps (active question steps + postcode & contact details)
   const totalSteps = activeSteps.length + 2;
 
+
   // Handle value changes
-  const handleValueChange = (questionId: string, value: any) => {
+  const handleValueChange = async (questionId: string, value: any) => {
     setFormValues((prev: FormValues) => ({
       ...prev,
       [questionId]: value
     }));
+
+    // Save quote data if we have submission info
+    if (submissionId && partnerInfoFromDomain?.user_id) {
+      const effectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
+      const categoryId = serviceCategoryId || (await supabase
+        .from('ServiceCategories')
+        .select('service_category_id')
+        .eq('slug', 'boiler')
+        .eq('is_active', true)
+        .single()).data?.service_category_id;
+
+      if (effectivePartnerId && categoryId) {
+        // Find the question to get its text
+        const question = questions.find(q => q.question_id === questionId);
+        const questionText = question?.question_text || questionId;
+        
+        // Create enhanced form answers with question text
+        const enhancedFormAnswers = { ...formValues, [questionId]: value };
+        const formAnswersWithText = Object.entries(enhancedFormAnswers).reduce((acc, [key, val]) => {
+          const q = questions.find(question => question.question_id === key);
+          acc[key] = {
+            question_id: key,
+            question_text: q?.question_text || key,
+            answer: val,
+            answered_at: new Date().toISOString()
+          };
+          return acc;
+        }, {} as Record<string, any>);
+        
+        await saveLeadSubmissionData(
+          supabase,
+          submissionId,
+          effectivePartnerId,
+          categoryId.toString(),
+          {
+            quote_data: {
+              form_answers: formAnswersWithText,
+              current_step: currentStep,
+              last_updated: new Date().toISOString()
+            }
+          },
+          'quote',
+          []
+        );
+      }
+    }
   };
 
   // Handle address selection from PostcodeStep
-  const handleAddressSelect = (address: any) => {
+  const handleAddressSelect = async (address: any) => {
     setSelectedAddress(address);
     console.log('Address selected:', address);
+
+    // Save address data if we have submission info
+    if (submissionId && partnerInfoFromDomain?.user_id) {
+      const effectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
+      const categoryId = serviceCategoryId || (await supabase
+        .from('ServiceCategories')
+        .select('service_category_id')
+        .eq('slug', 'boiler')
+        .eq('is_active', true)
+        .single()).data?.service_category_id;
+
+      if (effectivePartnerId && categoryId) {
+        // Create enhanced form answers with question text
+        const formAnswersWithText = Object.entries(formValues).reduce((acc, [key, val]) => {
+          const q = questions.find(question => question.question_id === key);
+          acc[key] = {
+            question_id: key,
+            question_text: q?.question_text || key,
+            answer: val,
+            answered_at: new Date().toISOString()
+          };
+          return acc;
+        }, {} as Record<string, any>);
+
+        await saveLeadSubmissionData(
+          supabase,
+          submissionId,
+          effectivePartnerId,
+          categoryId.toString(),
+          {
+            quote_data: {
+              form_answers: formAnswersWithText,
+              selected_address: address,
+              address_selected_at: new Date().toISOString(),
+              last_updated: new Date().toISOString()
+            }
+          },
+          'quote',
+          []
+        );
+      }
+    }
   };
 
   // Handle next step
@@ -244,7 +395,7 @@ export default function HeatingQuotePage({
         .eq('is_active', true)
         .single();
 
-      if (!categoryData) {
+      if (!categoryData || !categoryData.service_category_id) {
         throw new Error('Heating category not found');
       }
 
@@ -307,6 +458,76 @@ export default function HeatingQuotePage({
       
       if (!response.ok) {
         throw new Error(result.error || 'Failed to submit heating quote request');
+      }
+
+      // Set submission ID for tracking
+      setSubmissionId(result.data.submission_id);
+
+      // Save final quote data to lead_submission_data
+      const finalEffectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
+      if (finalEffectivePartnerId) {
+        const totalTimeOnPage = Date.now() - pageStartTime;
+        
+        // Create enhanced form answers with question text
+        const formAnswersWithText = Object.entries(filteredAnswers).reduce((acc, [key, val]) => {
+          const q = questions.find(question => question.question_id === key);
+          acc[key] = {
+            question_id: key,
+            question_text: q?.question_text || key,
+            answer: val,
+            answered_at: new Date().toISOString()
+          };
+          return acc;
+        }, {} as Record<string, any>);
+
+        await saveLeadSubmissionData(
+          supabase,
+          result.data.submission_id,
+          finalEffectivePartnerId,
+          String(categoryData.service_category_id),
+          {
+            quote_data: {
+              form_answers: formAnswersWithText,
+              selected_address: selectedAddress,
+              contact_details: {
+                first_name: contactDetails.firstName,
+                last_name: contactDetails.lastName,
+                email: contactDetails.email,
+                phone: contactDetails.phone,
+                postcode: contactDetails.postcode,
+                city: contactDetails.city
+              },
+              completed_at: new Date().toISOString(),
+              total_time_on_page_ms: totalTimeOnPage,
+              form_submission_count: 1
+            },
+            form_submissions: [{
+              submission_id: result.data.submission_id,
+              submitted_at: new Date().toISOString(),
+              form_type: 'quote',
+              data_completeness: Object.keys(filteredAnswers).length,
+              total_questions: questions.length
+            }],
+            conversion_events: [{
+              event: 'quote_completed',
+              timestamp: new Date().toISOString(),
+              data: {
+                submission_id: result.data.submission_id,
+                partner_id: finalEffectivePartnerId,
+                service_category: 'boiler'
+              }
+            }],
+            page_timings: {
+              quote_page: {
+                total_time_ms: totalTimeOnPage,
+                started_at: new Date(pageStartTime).toISOString(),
+                completed_at: new Date().toISOString()
+              }
+            }
+          },
+          'products',
+          ['quote']
+        );
       }
       
       // Send email with the correct submission_id and standardized field data
