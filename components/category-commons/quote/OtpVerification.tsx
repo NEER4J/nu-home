@@ -194,8 +194,10 @@ export default function OtpVerification({
       
       if (data.status === 'approved') {
         setSuccess(true)
-        // Send verification email after successful OTP verification
-        await sendVerifiedQuoteEmail()
+        // Send verification email in background (non-blocking)
+        sendVerifiedQuoteEmail().catch(err => 
+          console.warn('Failed to send verification email in background:', err)
+        )
         // The OTP verification API already updated the submission in the database
         // We just need to notify the parent to redirect - no additional submission needed
         onVerificationComplete(submissionId)
@@ -225,27 +227,50 @@ export default function OtpVerification({
       // Detect if running in iframe
       const isIframe = window.self !== window.top;
 
-      const res = await fetch('/api/email/boiler/quote-verified', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: userInfo.firstName,
-          last_name: userInfo.lastName,
-          email: userInfo.email,
-          phone: userInfo.phone,
-          postcode: formValues.postcode,
-          quote_data: formValues,
-          address_data: formValues.address,
-          questions: questions,
-          submission_id: submissionId,
-          subdomain,
-          is_iframe: isIframe,
-        }),
-      })
+      const emailData = {
+        first_name: userInfo.firstName,
+        last_name: userInfo.lastName,
+        email: userInfo.email,
+        phone: userInfo.phone,
+        postcode: formValues.postcode,
+        quote_data: formValues,
+        address_data: formValues.address,
+        questions: questions,
+        submission_id: submissionId,
+        subdomain,
+        is_iframe: isIframe,
+      }
 
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        console.warn('Failed to send verified quote email:', data?.error || 'Unknown error')
+      // Use sendBeacon for critical email sending (persists through page navigation)
+      if (typeof window !== 'undefined' && navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(emailData)], { type: 'application/json' })
+        const success = navigator.sendBeacon('/api/email/boiler/quote-verified', blob)
+        if (success) {
+          console.log('Verification email queued with sendBeacon')
+        } else {
+          // Fallback to fetch if sendBeacon fails
+          const res = await fetch('/api/email/boiler/quote-verified', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailData),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) {
+            console.warn('Failed to send verified quote email:', data?.error || 'Unknown error')
+          }
+        }
+      } else {
+        // Fallback to regular fetch
+        const res = await fetch('/api/email/boiler/quote-verified', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(emailData),
+        })
+
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          console.warn('Failed to send verified quote email:', data?.error || 'Unknown error')
+        }
       }
     } catch (err: any) {
       console.warn('Failed to send verified quote email:', err?.message || 'Unknown error')
