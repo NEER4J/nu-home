@@ -8,6 +8,79 @@ import { resolvePartnerByHost } from '@/lib/partner'
 import { AddonsLoader } from '@/components/category-commons/Loader'
 import IframeNavigationTracker from '@/components/IframeNavigationTracker'
 
+// Helper function to save data to lead_submission_data table
+const saveLeadSubmissionData = async (
+  supabase: any,
+  submissionId: string,
+  partnerId: string,
+  serviceCategoryId: string,
+  data: any,
+  currentPage: string,
+  pagesCompleted: string[] = []
+) => {
+  try {
+    // Validate required fields
+    if (!submissionId) {
+      console.error('Missing submissionId');
+      return;
+    }
+    if (!partnerId) {
+      console.error('Missing partnerId');
+      return;
+    }
+    if (!serviceCategoryId) {
+      console.error('Missing serviceCategoryId');
+      return;
+    }
+
+    const payload = {
+      submission_id: submissionId,
+      partner_id: partnerId,
+      service_category_id: serviceCategoryId,
+      ...data,
+      current_page: currentPage,
+      pages_completed: pagesCompleted,
+      last_activity_at: new Date().toISOString(),
+      session_id: typeof window !== 'undefined' ? 
+        (window as any).sessionStorage?.getItem('session_id') || 
+        `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+        `server_${Date.now()}`,
+      device_info: typeof window !== 'undefined' ? {
+        user_agent: navigator.userAgent,
+        screen_resolution: `${screen.width}x${screen.height}`,
+        viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+        language: navigator.language,
+        platform: navigator.platform,
+        cookie_enabled: navigator.cookieEnabled,
+        online_status: navigator.onLine
+      } : {},
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('Saving lead submission data with payload:', payload);
+
+    const { error } = await supabase
+      .from('lead_submission_data')
+      .upsert(payload, {
+        onConflict: 'submission_id'
+      });
+
+    if (error) {
+      console.error('Error saving lead submission data:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+    } else {
+      console.log('Successfully saved lead submission data for page:', currentPage);
+    }
+  } catch (error) {
+    console.error('Error in saveLeadSubmissionData:', error);
+  }
+};
+
 interface AddonType {
   id: string
   name: string
@@ -100,6 +173,8 @@ function BoilerAddonsPageContent() {
     selected_deposit?: number
   } | null>(null)
   const [isContinuing, setIsContinuing] = useState(false)
+  const [partnerInfo, setPartnerInfo] = useState<any>(null)
+  const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
 
   // Debug calculator settings changes
   useEffect(() => {
@@ -388,6 +463,29 @@ function BoilerAddonsPageContent() {
     }
   }, [submissionId, calculatorSettings, supabase])
 
+  // Fetch partner info for database saving
+  useEffect(() => {
+    async function fetchPartnerInfo() {
+      if (partnerId) {
+        try {
+          const { data: partner } = await supabase
+            .from('UserProfiles')
+            .select('user_id, company_name, company_color')
+            .eq('user_id', partnerId)
+            .single()
+          
+          if (partner) {
+            setPartnerInfo(partner)
+            console.log('Partner info loaded:', partner)
+          }
+        } catch (error) {
+          console.error('Error fetching partner info:', error)
+        }
+      }
+    }
+    fetchPartnerInfo()
+  }, [partnerId, supabase])
+
   // UI aggregation moved into AddonsLayout
 
   const handleQuantityChange = (addon: Addon, change: number) => {
@@ -612,9 +710,133 @@ function BoilerAddonsPageContent() {
         // This will help us see if the calculator settings are being passed correctly
         onContinue={async (selectedAddonsList, selectedBundlesList) => {
           setIsContinuing(true)
-          // Persist cart and move with only submission in URL
+          
           try {
-            if (submissionId) {
+            if (submissionId && partnerInfo) {
+              const totalTimeOnPage = Date.now() - pageStartTime;
+              
+              // Fetch complete bundle details including items
+              const bundleDetails = await Promise.all(
+                selectedBundlesList.map(async (b) => {
+                  try {
+                    const { data: bundleData } = await supabase
+                      .from('Bundles')
+                      .select(`
+                        bundle_id,
+                        title,
+                        description,
+                        discount_type,
+                        discount_value
+                      `)
+                      .eq('bundle_id', b.bundle.bundle_id)
+                      .single();
+
+                    // Fetch bundle addons separately
+                    const { data: bundleAddons } = await supabase
+                      .from('BundlesAddons')
+                      .select(`
+                        bundle_addon_id,
+                        addon_id,
+                        quantity,
+                        Addons (
+                          addon_id,
+                          title,
+                          description,
+                          price,
+                          image_link
+                        )
+                      `)
+                      .eq('bundle_id', b.bundle.bundle_id);
+                    
+                    return {
+                      bundle_id: String(b.bundle.bundle_id),
+                      name: String(b.bundle.title),
+                      description: bundleData?.description || null,
+                      discount_type: bundleData?.discount_type || null,
+                      discount_value: Number(bundleData?.discount_value) || 0,
+                      quantity: Number(b.quantity) || 0,
+                      selected_at: new Date().toISOString(),
+                      included_items: bundleAddons?.map((item: any) => ({
+                        addon_id: String(item.addon_id),
+                        addon_name: String(item.Addons?.title || 'Unknown'),
+                        addon_description: String(item.Addons?.description || ''),
+                        addon_price: Number(item.Addons?.price) || 0,
+                        addon_image: item.Addons?.image_link || null,
+                        quantity_included: Number(item.quantity) || 0,
+                        total_value: Number(item.Addons?.price) * Number(item.quantity) || 0
+                      })) || []
+                    };
+                  } catch (error) {
+                    console.error('Error fetching bundle details:', error);
+                    // Fallback to basic bundle info
+                    return {
+                      bundle_id: String(b.bundle.bundle_id),
+                      name: String(b.bundle.title),
+                      description: null,
+                      discount_type: null,
+                      discount_value: 0,
+                      quantity: Number(b.quantity) || 0,
+                      selected_at: new Date().toISOString(),
+                      included_items: []
+                    };
+                  }
+                })
+              );
+              
+              // Prepare addon data for lead_submission_data
+              const addonData = {
+                selected_addons: selectedAddonsList.map(a => ({
+                  addon_id: String(a.addon_id),
+                  name: String(a.title),
+                  price: Number(a.price) || 0,
+                  quantity: Number(a.quantity) || 0,
+                  total_price: Number(a.price) * Number(a.quantity) || 0,
+                  selected_at: new Date().toISOString()
+                })),
+                selected_bundles: bundleDetails,
+                product_info: selectedProduct ? {
+                  product_id: String(selectedProduct.partner_product_id),
+                  name: String(selectedProduct.name),
+                  price: Number(selectedProduct.price) || 0,
+                  image_url: selectedProduct.image_url ? String(selectedProduct.image_url) : null,
+                  selected_power: selectedProduct.selected_power ? String(selectedProduct.selected_power) : null,
+                } : null,
+                calculator_settings: calculatorSettings || selectedProduct?.calculator_settings || null,
+                total_addon_price: Number(selectedAddonsList.reduce((sum, a) => sum + (Number(a.price) * Number(a.quantity)), 0)),
+                total_bundle_count: Number(selectedBundlesList.reduce((sum, b) => sum + Number(b.quantity), 0)),
+                total_bundle_items: Number(bundleDetails.reduce((sum: number, bundle: any) => 
+                  sum + bundle.included_items.reduce((itemSum: number, item: any) => 
+                    itemSum + (item.quantity_included * bundle.quantity), 0
+                  ), 0
+                )),
+                selection_completed_at: new Date().toISOString(),
+                total_time_on_page_ms: Number(totalTimeOnPage)
+              };
+
+              console.log('Prepared addon data:', addonData);
+
+              // Save addon data to lead_submission_data in background
+              const serviceCategoryId = selectedProduct?.service_category_id || category?.service_category_id || '';
+              
+              if (serviceCategoryId) {
+                saveLeadSubmissionData(
+                  supabase,
+                  submissionId,
+                  partnerInfo.user_id,
+                  serviceCategoryId,
+                  {
+                    addons_data: addonData
+                  },
+                  'checkout',
+                  ['quote', 'products', 'addons']
+                ).catch(err => 
+                  console.warn('Failed to save addon data to lead_submission_data:', err)
+                );
+              } else {
+                console.warn('Cannot save addon data: missing service_category_id');
+              }
+
+              // Also update partner_leads table (existing functionality)
               await supabase
                 .from('partner_leads')
                 .update({
@@ -651,6 +873,7 @@ function BoilerAddonsPageContent() {
           } catch (e) {
             console.warn('Failed to persist cart before checkout', e)
           }
+          
           const url = new URL('/boiler/checkout', window.location.origin)
                     if (submissionId) url.searchParams.set('submission', submissionId)
                     window.location.href = url.toString()

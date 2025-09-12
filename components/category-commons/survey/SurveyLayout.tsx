@@ -57,6 +57,7 @@ export interface SurveyLayoutProps {
     notes: string
   }
   submissionId?: string
+  onSurveySubmit?: (surveyDetails: any) => void
   backHref?: string
   backLabel?: string
   showBack?: boolean
@@ -78,6 +79,7 @@ export default function SurveyLayout({
   currentCalculatorSettings = null,
   prefillUserInfo,
   submissionId,
+  onSurveySubmit,
   backHref = '/boiler/products',
   backLabel = 'Back to Products',
   showBack = true,
@@ -161,48 +163,54 @@ export default function SurveyLayout({
     setIsSubmitting(true)
 
     try {
-      // Save survey submission to database if submissionId exists
-      if (submissionId) {
-        await fetch('/api/partner-leads/update-payment', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            submissionId,
-            surveyDetails: details,
-            progressStep: 'survey_completed'
-          }),
-        })
-      }
+      // Use custom survey submit handler if provided
+      if (onSurveySubmit) {
+        await onSurveySubmit(details)
+      } else {
+        // Fallback to original behavior
+        // Save survey submission to database if submissionId exists
+        if (submissionId) {
+          await fetch('/api/partner-leads/update-payment', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              submissionId,
+              surveyDetails: details,
+              progressStep: 'survey_completed'
+            }),
+          })
+        }
 
-      // Send survey submission email
-      try {
-        await fetch('/api/email/boiler/survey-submitted', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            first_name: details.firstName,
-            last_name: details.lastName,
-            email: details.email,
-            phone: details.phone,
-            postcode: details.postcode,
-            notes: details.notes,
-            submission_id: submissionId
-          }),
-        })
-      } catch (emailError) {
-        console.error('Failed to send survey email:', emailError)
-      }
+        // Send survey submission email
+        try {
+          await fetch('/api/email/boiler/survey-submitted', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              first_name: details.firstName,
+              last_name: details.lastName,
+              email: details.email,
+              phone: details.phone,
+              postcode: details.postcode,
+              notes: details.notes,
+              submission_id: submissionId
+            }),
+          })
+        } catch (emailError) {
+          console.error('Failed to send survey email:', emailError)
+        }
 
-      // Redirect to enquiry page
-      const enquiryUrl = new URL('/boiler/enquiry', window.location.origin)
-      if (submissionId) {
-        enquiryUrl.searchParams.set('submission', submissionId)
+        // Redirect to enquiry page
+        const enquiryUrl = new URL('/boiler/enquiry', window.location.origin)
+        if (submissionId) {
+          enquiryUrl.searchParams.set('submission', submissionId)
+        }
+        router.push(enquiryUrl.toString())
       }
-      router.push(enquiryUrl.toString())
     } catch (error) {
       console.error('Failed to submit survey:', error)
       // Still redirect even if saving fails

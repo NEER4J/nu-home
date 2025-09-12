@@ -6,6 +6,109 @@ import { createClient } from '@/utils/supabase/client'
 import { Gauge, Home, Droplets, Thermometer, Settings, Building } from 'lucide-react'
 import EnquiryLayout, { ImageUploadArea, FormField } from '@/components/category-commons/enquiry/EnquiryLayout'
 
+// Helper function to save data to lead_submission_data table
+const saveLeadSubmissionData = async (
+  supabase: any,
+  submissionId: string,
+  partnerId: string,
+  serviceCategoryId: string,
+  data: any,
+  currentPage: string,
+  pagesCompleted: string[] = []
+) => {
+  console.log('=== saveLeadSubmissionData CALLED ===')
+  console.log('Parameters:', { submissionId, partnerId, serviceCategoryId, currentPage, pagesCompleted })
+  
+  try {
+    // Validate required fields
+    if (!submissionId) {
+      console.error('Missing submissionId');
+      return;
+    }
+    if (!partnerId) {
+      console.error('Missing partnerId');
+      return;
+    }
+    if (!serviceCategoryId) {
+      console.error('Missing serviceCategoryId');
+      return;
+    }
+
+    // Get existing form submissions to append new ones
+    let existingFormSubmissions = []
+    if (data.form_submissions) {
+      try {
+        const { data: existingData } = await supabase
+          .from('lead_submission_data')
+          .select('form_submissions')
+          .eq('submission_id', submissionId)
+          .single()
+        
+        if (existingData?.form_submissions) {
+          existingFormSubmissions = Array.isArray(existingData.form_submissions) 
+            ? existingData.form_submissions 
+            : []
+        }
+      } catch (err) {
+        console.warn('Could not fetch existing form submissions:', err)
+      }
+    }
+
+    // Prepare the payload
+    const payload = {
+      submission_id: submissionId,
+      partner_id: partnerId,
+      service_category_id: serviceCategoryId,
+      ...data,
+      current_page: currentPage,
+      pages_completed: pagesCompleted,
+      last_activity_at: new Date().toISOString(),
+      session_id: typeof window !== 'undefined' ? 
+        (window as any).sessionStorage?.getItem('session_id') || 
+        `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+        `server_${Date.now()}`,
+      device_info: typeof window !== 'undefined' ? {
+        user_agent: navigator.userAgent,
+        screen_resolution: `${screen.width}x${screen.height}`,
+        viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+        language: navigator.language,
+        platform: navigator.platform,
+        cookie_enabled: navigator.cookieEnabled,
+        online_status: navigator.onLine
+      } : {},
+      updated_at: new Date().toISOString()
+    };
+
+    // Append new form submissions to existing ones
+    if (data.form_submissions && Array.isArray(data.form_submissions)) {
+      payload.form_submissions = [...existingFormSubmissions, ...data.form_submissions]
+      console.log('Form submissions count:', payload.form_submissions.length)
+    }
+
+    console.log('Saving lead submission data with payload:', payload);
+
+    const { error } = await supabase
+      .from('lead_submission_data')
+      .upsert(payload, {
+        onConflict: 'submission_id'
+      });
+
+    if (error) {
+      console.error('Error saving lead submission data:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+    } else {
+      console.log('Successfully saved lead submission data for page:', currentPage);
+    }
+  } catch (error) {
+    console.error('Error in saveLeadSubmissionData:', error);
+  }
+};
+
 interface PartnerInfo {
   user_id: string
   company_name: string
@@ -94,6 +197,8 @@ function EnquiryContent() {
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails | null>(null)
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [serviceCategoryId, setServiceCategoryId] = useState<string | null>(null)
+  const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
 
   const submissionId = searchParams?.get('submission') ?? null
 
@@ -101,6 +206,17 @@ function EnquiryContent() {
     async function loadData() {
       try {
         setLoading(true)
+
+        // Load service category ID
+        const { data: boilerCategory } = await supabase
+          .from('ServiceCategories')
+          .select('service_category_id')
+          .eq('slug', 'boiler')
+          .single()
+        
+        if (boilerCategory) {
+          setServiceCategoryId(boilerCategory.service_category_id as string)
+        }
 
         let partnerId: string | null = null
 
@@ -193,61 +309,165 @@ function EnquiryContent() {
     setIsSubmitting(true)
 
     try {
-      // Send enquiry submission email
-      try {
-        await fetch('/api/email/boiler/enquiry-submitted', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            first_name: customerDetails?.first_name,
-            last_name: customerDetails?.last_name,
-            email: customerDetails?.email,
-            phone: customerDetails?.phone,
-            postcode: customerDetails?.postcode,
-            enquiry_details: formData,
-            submission_id: submissionId,
-            category: 'boiler',
-            uploaded_image_urls: uploadedImageUrls
-          }),
-        })
-      } catch (emailError) {
-        console.error('Failed to send enquiry email:', emailError)
-      }
-
-      // Update partner_leads progress to enquiry_completed
-      if (submissionId) {
-        try {
-          await fetch('/api/partner-leads/update-enquiry', {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
+      console.log('=== ENQUIRY FORM SUBMISSION HANDLER CALLED ===')
+      console.log('Form data:', formData)
+      console.log('Uploaded images:', uploadedImages)
+      console.log('Uploaded image URLs:', uploadedImageUrls)
+      
+      if (submissionId && partnerInfo && serviceCategoryId) {
+        const totalTimeOnPage = Date.now() - pageStartTime;
+        
+        // Prepare enquiry data for lead_submission_data
+        const enquiryData = {
+          enquiry_details: {
+            user_details: {
+              first_name: customerDetails?.first_name || '',
+              last_name: customerDetails?.last_name || '',
+              email: customerDetails?.email || '',
+              phone: customerDetails?.phone || '',
+              postcode: customerDetails?.postcode || '',
+              notes: customerDetails?.notes || ''
             },
-            body: JSON.stringify({
-              submissionId,
-              enquiryDetails: formData,
-              progressStep: 'enquiry_completed'
-            }),
-          })
-        } catch (progressError) {
-          console.error('Failed to update progress:', progressError)
+            form_responses: formData,
+            uploaded_images: {
+              image_areas: Object.keys(uploadedImageUrls).map(areaIndex => ({
+                area_index: parseInt(areaIndex),
+                image_urls: uploadedImageUrls[parseInt(areaIndex)] || []
+              })),
+              total_images: Object.values(uploadedImageUrls).flat().length
+            },
+            enquiry_completed_at: new Date().toISOString(),
+            total_time_on_page_ms: totalTimeOnPage
+          }
+        };
+
+        // Prepare form submission data
+        const formSubmissionData = {
+          form_type: 'enquiry',
+          submitted_at: new Date().toISOString(),
+          form_data: {
+            user_details: {
+              first_name: customerDetails?.first_name || '',
+              last_name: customerDetails?.last_name || '',
+              email: customerDetails?.email || '',
+              phone: customerDetails?.phone || '',
+              postcode: customerDetails?.postcode || '',
+              notes: customerDetails?.notes || ''
+            },
+            form_responses: formData,
+            uploaded_images: {
+              image_areas: Object.keys(uploadedImageUrls).map(areaIndex => ({
+                area_index: parseInt(areaIndex),
+                image_urls: uploadedImageUrls[parseInt(areaIndex)] || []
+              })),
+              total_images: Object.values(uploadedImageUrls).flat().length
+            }
+          },
+          submission_metadata: {
+            page_url: typeof window !== 'undefined' ? window.location.href : '',
+            user_agent: typeof window !== 'undefined' ? navigator.userAgent : '',
+            timestamp: Date.now(),
+            session_id: typeof window !== 'undefined' ? 
+              (window as any).sessionStorage?.getItem('session_id') || 
+              `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+              `server_${Date.now()}`
+          }
+        };
+
+        console.log('Prepared enquiry data:', enquiryData);
+        console.log('Form submission data:', formSubmissionData);
+
+        // Save enquiry data to lead_submission_data
+        await saveLeadSubmissionData(
+          supabase,
+          submissionId,
+          partnerInfo.user_id,
+          serviceCategoryId,
+          {
+            enquiry_data: enquiryData,
+            form_submissions: [formSubmissionData]
+          },
+          'success',
+          ['quote', 'products', 'addons', 'survey', 'enquiry']
+        );
+
+        console.log('Enquiry data saved successfully');
+
+        // Send enquiry email in background
+        console.log('=== SCHEDULING ENQUIRY EMAIL IN BACKGROUND ===')
+        setTimeout(async () => {
+          try {
+            const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+            const subdomain = hostname || null
+            const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
+
+            const emailData = {
+              first_name: customerDetails?.first_name,
+              last_name: customerDetails?.last_name,
+              email: customerDetails?.email,
+              phone: customerDetails?.phone,
+              postcode: customerDetails?.postcode,
+              enquiry_details: formData,
+              submission_id: submissionId,
+              category: 'boiler',
+              uploaded_image_urls: uploadedImageUrls,
+              subdomain,
+              is_iframe: isIframe
+            };
+
+            console.log('Sending background enquiry email to: /api/email/boiler/enquiry-submitted')
+            const emailResponse = await fetch('/api/email/boiler/enquiry-submitted', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(emailData),
+            });
+
+            if (emailResponse.ok) {
+              console.log('Background enquiry email sent successfully')
+            } else {
+              console.warn('Failed to send background enquiry email:', await emailResponse.text())
+            }
+          } catch (emailError) {
+            console.warn('Error sending background enquiry email:', emailError)
+          }
+        }, 100);
+
+        // Update partner_leads progress to enquiry_completed
+        if (submissionId) {
+          try {
+            await fetch('/api/partner-leads/update-enquiry', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                submissionId,
+                enquiryDetails: formData,
+                progressStep: 'enquiry_completed'
+              }),
+            })
+          } catch (progressError) {
+            console.error('Failed to update progress:', progressError)
+          }
         }
-      }
 
-      // Images are already uploaded to Supabase storage and tracked in database
-      console.log('Enquiry submitted successfully', { 
-        formData, 
-        uploadedImages: Object.keys(uploadedImages).length,
-        uploadedImageUrls: Object.keys(uploadedImageUrls).length
-      })
+        // Images are already uploaded to Supabase storage and tracked in database
+        console.log('Enquiry submitted successfully', { 
+          formData, 
+          uploadedImages: Object.keys(uploadedImages).length,
+          uploadedImageUrls: Object.keys(uploadedImageUrls).length
+        })
 
-      // Redirect to enquiry success page
-      const successUrl = new URL('/boiler/enquiry/success', window.location.origin)
-      if (submissionId) {
-        successUrl.searchParams.set('submission', submissionId)
+        // Redirect to enquiry success page
+        const successUrl = new URL('/boiler/enquiry/success', window.location.origin)
+        if (submissionId) {
+          successUrl.searchParams.set('submission', submissionId)
+        }
+        window.location.href = successUrl.toString()
+      } else {
+        console.error('Missing submissionId, partnerInfo, or serviceCategoryId for enquiry');
+        alert('Error: Missing required information for enquiry submission');
       }
-      window.location.href = successUrl.toString()
       
     } catch (error) {
       console.error('Failed to submit enquiry:', error)
