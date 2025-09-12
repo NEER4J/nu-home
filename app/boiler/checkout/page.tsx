@@ -8,6 +8,109 @@ import { resolvePartnerByHost } from '@/lib/partner'
 import { CheckoutLoader } from '@/components/category-commons/Loader'
 import IframeNavigationTracker from '@/components/IframeNavigationTracker'
 
+// Helper function to save data to lead_submission_data table
+const saveLeadSubmissionData = async (
+  supabase: any,
+  submissionId: string,
+  partnerId: string,
+  serviceCategoryId: string,
+  data: any,
+  currentPage: string,
+  pagesCompleted: string[] = []
+) => {
+  console.log('=== saveLeadSubmissionData CALLED ===')
+  console.log('Parameters:', { submissionId, partnerId, serviceCategoryId, currentPage, pagesCompleted })
+  
+  try {
+    // Validate required fields
+    if (!submissionId) {
+      console.error('Missing submissionId');
+      return;
+    }
+    if (!partnerId) {
+      console.error('Missing partnerId');
+      return;
+    }
+    if (!serviceCategoryId) {
+      console.error('Missing serviceCategoryId');
+      return;
+    }
+
+    // Get existing form submissions to append new ones
+    let existingFormSubmissions = []
+    if (data.form_submissions) {
+      try {
+        const { data: existingData } = await supabase
+          .from('lead_submission_data')
+          .select('form_submissions')
+          .eq('submission_id', submissionId)
+          .single()
+        
+        if (existingData?.form_submissions) {
+          existingFormSubmissions = Array.isArray(existingData.form_submissions) 
+            ? existingData.form_submissions 
+            : []
+        }
+      } catch (err) {
+        console.warn('Could not fetch existing form submissions:', err)
+      }
+    }
+
+    // Prepare the payload
+    const payload = {
+      submission_id: submissionId,
+      partner_id: partnerId,
+      service_category_id: serviceCategoryId,
+      ...data,
+      current_page: currentPage,
+      pages_completed: pagesCompleted,
+      last_activity_at: new Date().toISOString(),
+      session_id: typeof window !== 'undefined' ? 
+        (window as any).sessionStorage?.getItem('session_id') || 
+        `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+        `server_${Date.now()}`,
+      device_info: typeof window !== 'undefined' ? {
+        user_agent: navigator.userAgent,
+        screen_resolution: `${screen.width}x${screen.height}`,
+        viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+        language: navigator.language,
+        platform: navigator.platform,
+        cookie_enabled: navigator.cookieEnabled,
+        online_status: navigator.onLine
+      } : {},
+      updated_at: new Date().toISOString()
+    };
+
+    // Append new form submissions to existing ones
+    if (data.form_submissions && Array.isArray(data.form_submissions)) {
+      payload.form_submissions = [...existingFormSubmissions, ...data.form_submissions]
+      console.log('Form submissions count:', payload.form_submissions.length)
+    }
+
+    console.log('Saving lead submission data with payload:', payload);
+
+    const { error } = await supabase
+      .from('lead_submission_data')
+      .upsert(payload, {
+        onConflict: 'submission_id'
+      });
+
+    if (error) {
+      console.error('Error saving lead submission data:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+    } else {
+      console.log('Successfully saved lead submission data for page:', currentPage);
+    }
+  } catch (error) {
+    console.error('Error in saveLeadSubmissionData:', error);
+  }
+};
+
 interface Addon {
   addon_id: string
   title: string
@@ -95,6 +198,9 @@ function BoilerCheckoutPageContent() {
   
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [partnerInfo, setPartnerInfo] = useState<any>(null)
+  const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
+  const [serviceCategoryId, setServiceCategoryId] = useState<string | null>(null)
 
   // Debug calculator settings changes
   useEffect(() => {
@@ -155,6 +261,24 @@ function BoilerCheckoutPageContent() {
   const handleCalculatorMonthlyPaymentUpdate = (monthlyPayment: number) => {
     // This is handled by the calculator itself, but we can use it for logging if needed
     console.log('Checkout: Monthly payment updated:', monthlyPayment)
+  }
+
+  // Handle payment success (for Stripe payments)
+  const handlePaymentSuccess = async (paymentIntent: any) => {
+    console.log('=== handlePaymentSuccess CALLED ===')
+    console.log('Payment successful:', {
+      payment_intent_id: paymentIntent.id,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      status: paymentIntent.status,
+      payment_method_types: paymentIntent.payment_method_types,
+      livemode: paymentIntent.livemode,
+      charges_count: paymentIntent.charges?.data?.length || 0
+    })
+    
+    // Note: Database saving is now handled by onSubmitBooking which is called
+    // after this function, so we don't need to save data here to avoid duplicates
+    console.log('Stripe payment success - database saving will be handled by onSubmitBooking')
   }
 
   const loadPaymentSettings = async (partnerUserId: string, serviceCategoryId: string) => {
@@ -229,15 +353,16 @@ function BoilerCheckoutPageContent() {
           .single()
         
         if (boilerCategory) {
+          setServiceCategoryId(boilerCategory.service_category_id as string)
           // Load payment settings
-          await loadPaymentSettings(partnerUserId, boilerCategory.service_category_id)
+          await loadPaymentSettings(partnerUserId, boilerCategory.service_category_id as string)
           
           // Load partner settings for APR configurations
           const { data: settingsData, error: settingsError } = await supabase
             .from('PartnerSettings')
             .select('apr_settings')
             .eq('partner_id', partnerUserId)
-            .eq('service_category_id', boilerCategory.service_category_id)
+            .eq('service_category_id', boilerCategory.service_category_id as string)
             .single()
 
           if (!settingsError && settingsData) {
@@ -305,11 +430,11 @@ function BoilerCheckoutPageContent() {
             // Pre-fill user info from the database
             if (lead.first_name || lead.last_name || lead.email || lead.phone || lead.postcode) {
               setUserInfo({
-                first_name: lead.first_name || '',
-                last_name: lead.last_name || '',
-                email: lead.email || '',
-                phone: lead.phone || '',
-                postcode: lead.postcode || '',
+                first_name: String(lead.first_name || ''),
+                last_name: String(lead.last_name || ''),
+                email: String(lead.email || ''),
+                phone: String(lead.phone || ''),
+                postcode: String(lead.postcode || ''),
                 notes: ''
               })
             }
@@ -372,7 +497,7 @@ function BoilerCheckoutPageContent() {
             .eq('partner_id', partnerUserId)
           
           if (rows && rows.length > 0) {
-            setAddons(rows as Addon[])
+            setAddons(rows as unknown as Addon[])
           }
         } else {
           setAddons([])
@@ -405,6 +530,29 @@ function BoilerCheckoutPageContent() {
     }
     init()
   }, [submissionId])
+
+  // Fetch partner info for database saving
+  useEffect(() => {
+    async function fetchPartnerInfo() {
+      if (partnerId) {
+        try {
+          const { data: partner } = await supabase
+            .from('UserProfiles')
+            .select('user_id, company_name, company_color')
+            .eq('user_id', partnerId)
+            .single()
+          
+          if (partner) {
+            setPartnerInfo(partner)
+            console.log('Partner info loaded for checkout:', partner)
+          }
+        } catch (error) {
+          console.error('Error fetching partner info:', error)
+        }
+      }
+    }
+    fetchPartnerInfo()
+  }, [partnerId, supabase])
 
   const selectedAddons: SelectedAddonItem[] = useMemo(() => {
     return addons.map(addon => ({
@@ -459,10 +607,252 @@ function BoilerCheckoutPageContent() {
       onCalculatorPlanChange={handleCalculatorPlanChange}
       onCalculatorDepositChange={handleCalculatorDepositChange}
       onCalculatorMonthlyPaymentUpdate={handleCalculatorMonthlyPaymentUpdate}
+      onPaymentSuccess={handlePaymentSuccess}
       onSubmitBooking={async (payload) => {
+        console.log('=== onSubmitBooking CALLED ===')
         console.log('Booking submitted', payload)
-        // TODO: integrate payments and booking save
-        alert('Booking submitted! (stub)')
+        console.log('submissionId:', submissionId)
+        console.log('partnerInfo:', partnerInfo)
+        console.log('product?.service_category_id:', (product as any)?.service_category_id)
+        console.log('userInfo:', userInfo)
+        
+        try {
+        console.log('=== VALIDATION CHECK ===')
+        console.log('submissionId exists:', !!submissionId)
+        console.log('partnerInfo exists:', !!partnerInfo)
+        console.log('partnerInfo.user_id:', partnerInfo?.user_id)
+        console.log('service_category_id (from state):', serviceCategoryId)
+        console.log('service_category_id (from product):', (product as any)?.service_category_id)
+          
+          if (submissionId && partnerInfo) {
+            console.log('=== VALIDATION PASSED - PROCEEDING WITH SAVE ===')
+            const totalTimeOnPage = Date.now() - pageStartTime;
+            
+            // Prepare checkout data for lead_submission_data
+            const checkoutData = {
+              booking_data: {
+                payment_method: (payload as any).payment_method || 'unknown',
+                payment_details: (payload as any).payment_details || null,
+                booking_notes: (payload as any).notes || userInfo.notes || '',
+                preferred_installation_date: (payload as any).date || null,
+                special_requirements: (payload as any).special_requirements || '',
+                contact_preferences: (payload as any).contact_preferences || {},
+                total_amount: (payload as any).total_amount || 0,
+                deposit_amount: (payload as any).deposit_amount || 0,
+                monthly_payment: (payload as any).monthly_payment || 0,
+                finance_terms: (payload as any).finance_terms || null,
+                booking_submitted_at: new Date().toISOString(),
+                total_time_on_page_ms: totalTimeOnPage,
+                // Add Stripe-specific metadata if this is a Stripe payment
+                ...((payload as any).payment_method === 'stripe' && (payload as any).payment_details ? {
+                  stripe_metadata: {
+                    payment_intent_id: (payload as any).payment_details.payment_intent_id,
+                    payment_status: 'succeeded',
+                    amount_captured: (payload as any).payment_details.amount,
+                    currency: 'gbp', // Assuming GBP for now
+                    payment_method_types: ['card'],
+                    livemode: false, // Will be determined by environment
+                    created_timestamp: Date.now(),
+                    receipt_url: null, // Not available in basic payment details
+                    receipt_number: null
+                  }
+                } : {})
+              },
+              user_contact_info: {
+                first_name: (payload as any).firstName || userInfo.first_name,
+                last_name: (payload as any).lastName || userInfo.last_name,
+                email: (payload as any).email || userInfo.email,
+                phone: (payload as any).phone || userInfo.phone,
+                address: (payload as any).address || '',
+                postcode: (payload as any).postcode || userInfo.postcode,
+                notes: (payload as any).notes || userInfo.notes
+              },
+              payment_settings_used: {
+                stripe_enabled: paymentSettings.is_stripe_enabled,
+                kanda_enabled: paymentSettings.is_kanda_enabled,
+                monthly_payment_enabled: paymentSettings.is_monthly_payment_enabled,
+                pay_after_installation_enabled: paymentSettings.is_pay_after_installation_enabled
+              },
+              calculator_settings: calculatorSettings,
+              product_id: product?.partner_product_id || null,
+              addon_ids: selectedAddons.map(addon => ({
+                addon_id: addon.addon_id,
+                quantity: addon.quantity
+              })),
+              bundle_ids: selectedBundles.map(bundle => ({
+                bundle_id: bundle.bundle.bundle_id,
+                quantity: bundle.quantity
+              }))
+            };
+
+            console.log('Prepared checkout data:', checkoutData);
+
+            // Save checkout data to lead_submission_data in background
+            // Use the loaded service category ID
+            const finalServiceCategoryId = serviceCategoryId || (product as any)?.service_category_id || 'boiler'
+            
+            // Prepare form submission data
+            const formSubmissionData = {
+              form_type: 'checkout',
+              payment_method: (payload as any).payment_method,
+              submitted_at: new Date().toISOString(),
+              form_data: {
+                user_details: {
+                  first_name: userInfo.first_name,
+                  last_name: userInfo.last_name,
+                  email: userInfo.email,
+                  phone: userInfo.phone,
+                  postcode: userInfo.postcode,
+                  notes: userInfo.notes
+                },
+                installation_date: (payload as any).date,
+                payment_details: (payload as any).payment_details,
+                selected_items: {
+                  product_id: product?.partner_product_id || null,
+                  addon_ids: selectedAddons.map(addon => ({
+                    addon_id: addon.addon_id,
+                    quantity: addon.quantity
+                  })),
+                  bundle_ids: selectedBundles.map(bundle => ({
+                    bundle_id: bundle.bundle.bundle_id,
+                    quantity: bundle.quantity
+                  }))
+                },
+                calculator_settings: calculatorSettings,
+                total_amount: (product?.price || 0) + selectedAddons.reduce((sum, a) => sum + (a.price * a.quantity), 0) + selectedBundles.reduce((sum, b) => sum + (b.unitPrice * b.quantity), 0)
+              },
+              submission_metadata: {
+                page_url: typeof window !== 'undefined' ? window.location.href : '',
+                user_agent: typeof window !== 'undefined' ? navigator.userAgent : '',
+                timestamp: Date.now(),
+                session_id: typeof window !== 'undefined' ? 
+                  (window as any).sessionStorage?.getItem('session_id') || 
+                  `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+                  `server_${Date.now()}`
+              }
+            }
+            
+            console.log('=== CALLING saveLeadSubmissionData ===')
+            console.log('Parameters:', {
+              submissionId,
+              partnerId: partnerInfo.user_id,
+              serviceCategoryId: finalServiceCategoryId,
+              currentPage: 'success',
+              pagesCompleted: ['quote', 'products', 'addons', 'checkout']
+            })
+            console.log('Form submission data:', formSubmissionData)
+            
+            saveLeadSubmissionData(
+              supabase,
+              submissionId,
+              partnerInfo.user_id,
+              finalServiceCategoryId,
+              {
+                checkout_data: checkoutData,
+                form_submissions: [formSubmissionData] // Add form submission tracking
+              },
+              'success',
+              ['quote', 'products', 'addons', 'checkout']
+            ).then(() => {
+              console.log('=== saveLeadSubmissionData COMPLETED SUCCESSFULLY ===')
+            }).catch(err => {
+              console.error('=== saveLeadSubmissionData FAILED ===')
+              console.error('Error details:', err)
+              console.warn('Failed to save checkout data to lead_submission_data:', err)
+            });
+
+            // Send checkout email in background for all payment methods
+            console.log('=== SCHEDULING CHECKOUT EMAIL IN BACKGROUND ===')
+            setTimeout(async () => {
+              try {
+                const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+                const subdomain = hostname || null
+                const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
+
+                const emailData = {
+                  first_name: userInfo.first_name,
+                  last_name: userInfo.last_name,
+                  email: userInfo.email,
+                  phone: userInfo.phone,
+                  postcode: userInfo.postcode,
+                  order_details: {
+                    product: product ? {
+                      id: product.partner_product_id,
+                      name: product.name,
+                      price: product.price || 0
+                    } : null,
+                    addons: selectedAddons.map(addon => ({
+                      title: addon.title,
+                      quantity: addon.quantity,
+                      price: addon.price
+                    })),
+                    bundles: selectedBundles.map(bundle => ({
+                      title: bundle.bundle.title,
+                      quantity: bundle.quantity,
+                      unitPrice: bundle.unitPrice || 0
+                    })),
+                    total: (product?.price || 0) + selectedAddons.reduce((sum, a) => sum + (a.price * a.quantity), 0) + selectedBundles.reduce((sum, b) => sum + (b.unitPrice * b.quantity), 0)
+                  },
+                  installation_date: (payload as any).date,
+                  submission_id: submissionId,
+                  subdomain,
+                  is_iframe: isIframe,
+                  payment_method: (payload as any).payment_method,
+                  payment_details: (payload as any).payment_details
+                }
+
+                // Determine API endpoint based on payment method
+                let apiEndpoint = '/api/email/boiler/checkout-pay-later' // default
+                if ((payload as any).payment_method === 'stripe') {
+                  apiEndpoint = '/api/email/boiler/checkout-stripe'
+                } else if ((payload as any).payment_method === 'monthly') {
+                  apiEndpoint = '/api/email/boiler/checkout-monthly'
+                }
+
+                console.log('Sending background email to:', apiEndpoint)
+                const emailResponse = await fetch(apiEndpoint, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(emailData),
+                })
+
+                if (emailResponse.ok) {
+                  console.log('Background checkout email sent successfully')
+                } else {
+                  console.warn('Failed to send background checkout email:', await emailResponse.text())
+                }
+              } catch (emailError) {
+                console.warn('Error sending background checkout email:', emailError)
+              }
+            }, 100) // Small delay to ensure database save completes first
+
+            // Process payment based on payment method
+            if ((payload as any).payment_method === 'stripe') {
+              console.log('Processing Stripe payment...');
+            } else if ((payload as any).payment_method === 'kanda') {
+              console.log('Processing Kanda payment...');
+            } else if ((payload as any).payment_method === 'monthly') {
+              console.log('Processing monthly payment...');
+            } else if ((payload as any).payment_method === 'pay_after_installation') {
+              console.log('Booking confirmed - payment after installation');
+            }
+
+            // Redirect to success page
+            const url = new URL('/boiler/success', window.location.origin);
+            if (submissionId) url.searchParams.set('submission', submissionId);
+            window.location.href = url.toString();
+          } else {
+            console.error('=== VALIDATION FAILED ===')
+            console.error('Missing submissionId:', !submissionId)
+            console.error('Missing partnerInfo:', !partnerInfo)
+            console.error('submissionId value:', submissionId)
+            console.error('partnerInfo value:', partnerInfo)
+            alert('Error: Missing required information for checkout');
+          }
+        } catch (error) {
+          console.error('Error processing checkout:', error);
+          alert('Error processing checkout. Please try again.');
+        }
       }}
         backHref={`/boiler/addons${submissionId ? `?submission=${submissionId}` : ''}`}
         backLabel="Back to Add-ons"

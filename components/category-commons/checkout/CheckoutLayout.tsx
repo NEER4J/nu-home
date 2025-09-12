@@ -112,6 +112,7 @@ export interface CheckoutLayoutProps {
   onCalculatorDepositChange?: (deposit: number) => void
   onCalculatorMonthlyPaymentUpdate?: (monthlyPayment: number) => void
   onSubmitBooking: (details: CustomerDetails & { date: string }) => void
+  onPaymentSuccess?: (paymentIntent: any) => void
   backHref?: string
   backLabel?: string
   showBack?: boolean
@@ -142,6 +143,7 @@ export default function CheckoutLayout({
   onCalculatorDepositChange,
   onCalculatorMonthlyPaymentUpdate,
   onSubmitBooking,
+  onPaymentSuccess,
   backHref = '/boiler/addons',
   backLabel = 'Back to Add-ons',
   showBack = true,
@@ -529,14 +531,25 @@ export default function CheckoutLayout({
                               submissionId={submissionId || ''}
                               onPaymentSuccess={async (paymentIntent) => {
                                 console.log('Payment successful:', paymentIntent)
-                                // Send checkout email
-                                await sendCheckoutEmail('stripe', {
+                                
+                                // Call the parent's payment success handler if provided
+                                if (onPaymentSuccess) {
+                                  await onPaymentSuccess(paymentIntent)
+                                }
+                                
+                                // Also call onSubmitBooking to save form data (like other payment methods)
+                                console.log('Calling onSubmitBooking for Stripe payment')
+                                onSubmitBooking({ 
+                                  ...details, 
+                                  date: selectedDate,
+                                  payment_method: 'stripe',
                                   payment_details: {
                                     payment_intent_id: paymentIntent.id,
                                     amount: paymentIntent.amount,
                                     payment_method: 'stripe'
                                   }
                                 })
+                                
                                 // Redirect to success page
                                 if (submissionId) {
                                   window.location.href = `/boiler/success?submission_id=${submissionId}`
@@ -714,76 +727,15 @@ export default function CheckoutLayout({
                         onClick={async () => {
                           setLoadingPaymentMethod('monthly')
                           
-                          // Send checkout email first
-                          await sendCheckoutEmail('monthly', {
-                            payment_plan: (() => {
-                              // Use currentCalculatorSettings if available, otherwise fall back to calculatorSettings
-                              const currentSettings = currentCalculatorSettings || calculatorSettings
-                              
-                              if (!currentSettings?.selected_plan) {
-                                return null
-                              }
-                              
-                              const { months, apr } = currentSettings.selected_plan
-                              const depositPercentage = currentSettings.selected_deposit || 0
-                              
-                              // Calculate monthly payment using the same formula as OrderSummarySidebar
-                              const calculateMonthlyPayment = (price: number, months: number, apr: number, depositPercentage: number): number => {
-                                if (depositPercentage > 0) {
-                                  const depositAmount = (price * depositPercentage) / 100
-                                  const loanAmount = price - depositAmount
-                                  const monthlyRate = apr / 100 / 12
-                                  return (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
-                                         (Math.pow(1 + monthlyRate, months) - 1)
-                                } else {
-                                  const monthlyRate = apr / 100 / 12
-                                  return (price * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
-                                         (Math.pow(1 + monthlyRate, months) - 1)
-                                }
-                              }
-                              
-                              const monthlyPayment = calculateMonthlyPayment(orderTotal, months, apr, depositPercentage)
-                              const depositAmount = (orderTotal * depositPercentage) / 100
-                              
-                              return {
-                                monthly_amount: monthlyPayment,
-                                duration_months: months,
-                                deposit_amount: depositAmount,
-                                deposit_percentage: depositPercentage,
-                                total_amount: orderTotal,
-                                apr: apr,
-                                loan_amount: orderTotal - depositAmount
-                              }
-                            })()
-                          })
-                          
-                          // Save payment completion for Monthly Plans
-                          if (submissionId) {
-                            try {
-                              await fetch('/api/partner-leads/update-payment', {
-                                method: 'PUT',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                  submissionId,
-                                  paymentMethod: 'monthly_plans',
-                                  paymentStatus: 'completed',
-                                  progressStep: 'payment_completed'
-                                }),
-                              })
-                              
-                              // Redirect to success page
-                              window.location.href = `/boiler/success?submission_id=${submissionId}`
-                            } catch (err) {
-                              console.error('Failed to save Monthly Plans payment completion:', err)
-                              // Still redirect even if DB update fails
-                              window.location.href = `/boiler/success?submission_id=${submissionId}`
+                          // Call onSubmitBooking to save form data and send email
+                          onSubmitBooking({ 
+                            ...details, 
+                            date: selectedDate,
+                            payment_method: 'monthly',
+                            payment_details: {
+                              payment_method: 'monthly'
                             }
-                          } else {
-                            // Fallback redirect if no submission ID
-                            window.location.href = '/boiler/success'
-                          }
+                          })
                         }} 
                         disabled={loadingPaymentMethod === 'monthly'}
                         className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
@@ -859,36 +811,15 @@ export default function CheckoutLayout({
                         onClick={async () => {
                           setLoadingPaymentMethod('pay-later')
                           
-                          // Send checkout email first
-                          await sendCheckoutEmail('pay-later')
-                          
-                          // Save payment completion for Pay After Installation
-                          if (submissionId) {
-                            try {
-                              await fetch('/api/partner-leads/update-payment', {
-                                method: 'PUT',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                  submissionId,
-                                  paymentMethod: 'pay_after_installation',
-                                  paymentStatus: 'completed',
-                                  progressStep: 'payment_completed'
-                                }),
-                              })
-                              
-                              // Redirect to success page
-                              window.location.href = `/boiler/success?submission_id=${submissionId}`
-                            } catch (err) {
-                              console.error('Failed to save Pay After Installation status:', err)
-                              // Still redirect even if DB update fails
-                              window.location.href = `/boiler/success?submission_id=${submissionId}`
+                          // Call onSubmitBooking to save form data and send email
+                          onSubmitBooking({ 
+                            ...details, 
+                            date: selectedDate,
+                            payment_method: 'pay_after_installation',
+                            payment_details: {
+                              payment_method: 'pay_after_installation'
                             }
-                          } else {
-                            // Fallback redirect if no submission ID
-                            window.location.href = '/boiler/success'
-                          }
+                          })
                         }} 
                         disabled={loadingPaymentMethod === 'pay-later'}
                         className={`w-full py-3 rounded-lg font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
