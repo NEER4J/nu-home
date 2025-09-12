@@ -54,7 +54,7 @@ async function getTwilioCredentials(request: NextRequest, bodySubdomain?: string
 
 export async function POST(request: NextRequest) {
   try {
-    const { phoneNumber, subdomain: bodySubdomain } = await request.json();
+    const { phoneNumber, subdomain: bodySubdomain, submissionId } = await request.json();
 
     if (!phoneNumber) {
       return NextResponse.json(
@@ -126,6 +126,71 @@ export async function POST(request: NextRequest) {
       }
 
       console.log(`OTP sent successfully to ${phoneNumber}:`, data.sid);
+      
+      // Track OTP sent stage if submissionId is provided
+      if (submissionId) {
+        try {
+          const supabase = await createClient();
+          
+          // Get current data
+          const { data: currentData, error: fetchError } = await supabase
+            .from('lead_submission_data')
+            .select('quote_data, conversion_events')
+            .eq('submission_id', submissionId)
+            .single();
+
+          if (!fetchError && currentData) {
+            const currentQuoteData = currentData.quote_data || {};
+            const currentStageHistory = currentQuoteData.stage_history || [];
+            const currentConversionEvents = currentData.conversion_events || [];
+
+            // Create new stage entry
+            const newStageEntry = {
+              stage: 'otp_sent',
+              timestamp: new Date().toISOString(),
+              data: {
+                phone_number: phoneNumber,
+                verification_sid: data.sid,
+                twilio_status: data.status
+              }
+            };
+
+            // Update the quote_data with new stage
+            const updatedQuoteData = {
+              ...currentQuoteData,
+              verification_stage: 'otp_sent',
+              stage_history: [...currentStageHistory, newStageEntry]
+            };
+
+            // Add conversion event
+            const newConversionEvent = {
+              event: 'otp_sent',
+              timestamp: new Date().toISOString(),
+              data: {
+                submission_id: submissionId,
+                phone_number: phoneNumber,
+                verification_sid: data.sid
+              }
+            };
+
+            // Update in database
+            await supabase
+              .from('lead_submission_data')
+              .update({
+                quote_data: updatedQuoteData,
+                conversion_events: [...currentConversionEvents, newConversionEvent],
+                last_activity_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('submission_id', submissionId);
+
+            console.log(`Successfully tracked OTP sent stage for submission: ${submissionId}`);
+          }
+        } catch (trackingError) {
+          console.error('Error tracking OTP sent stage:', trackingError);
+          // Don't fail the request if tracking fails
+        }
+      }
       
       return NextResponse.json({
         success: true,

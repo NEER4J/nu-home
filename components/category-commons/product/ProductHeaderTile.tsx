@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import SaveQuoteDialog, { type ProductSummary } from './SaveQuoteDialog'
 import {
   Dialog,
@@ -41,6 +41,7 @@ interface ProductHeaderTileProps {
   submissionId?: string | null
   productsForEmail?: ProductSummary[]
   onRestart?: () => void
+  onSaveQuoteOpen?: () => void
 }
 
 function normalizeIncludedItem(entry: any) {
@@ -73,12 +74,44 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
     submissionId = null,
     productsForEmail = [],
     onRestart,
+    onSaveQuoteOpen,
   } = props
 
   const [showIncluded, setShowIncluded] = useState(false)
   const [showSaveQuote, setShowSaveQuote] = useState(false)
   const [showRestartConfirm, setShowRestartConfirm] = useState(false)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [singleProductForSave, setSingleProductForSave] = useState<ProductSummary[]>([])
+  const [saveType, setSaveType] = useState<'all_products' | 'single_product'>('all_products')
+  const [detailedProductData, setDetailedProductData] = useState<any>(null)
+  const [detailedAllProductsData, setDetailedAllProductsData] = useState<any[]>([])
+
+  // Handle custom event for opening save quote dialog
+  useEffect(() => {
+    const handleOpenSaveQuoteDialog = (event: CustomEvent) => {
+      const { products, saveType: eventSaveType, detailedProductData: eventDetailedData, detailedAllProductsData: eventDetailedAllData } = event.detail
+      setSingleProductForSave(products)
+      setSaveType(eventSaveType || 'single_product')
+      setDetailedProductData(eventDetailedData || null)
+      setDetailedAllProductsData(eventDetailedAllData || [])
+      setShowSaveQuote(true)
+    }
+
+    const handleUpdateSaveQuoteData = (event: CustomEvent) => {
+      const { detailedAllProductsData: updatedDetailedAllData } = event.detail
+      if (updatedDetailedAllData) {
+        setDetailedAllProductsData(updatedDetailedAllData)
+      }
+    }
+
+    window.addEventListener('openSaveQuoteDialog', handleOpenSaveQuoteDialog as EventListener)
+    window.addEventListener('updateSaveQuoteData', handleUpdateSaveQuoteData as EventListener)
+    
+    return () => {
+      window.removeEventListener('openSaveQuoteDialog', handleOpenSaveQuoteDialog as EventListener)
+      window.removeEventListener('updateSaveQuoteData', handleUpdateSaveQuoteData as EventListener)
+    }
+  }, [])
 
   const bedroomLabel = useMemo(() => {
     const fullLabel = filterBedroom ? `${filterBedroom} bedroom${filterBedroom === '1' ? '' : 's'}` : 'All bedrooms'
@@ -243,7 +276,11 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
               What's included?
             </Button>
            
-            <Button onClick={() => setShowSaveQuote(true)} style={{ backgroundColor: brandColor }} className='w-full'>
+            <Button onClick={() => {
+              if (onSaveQuoteOpen) {
+                onSaveQuoteOpen();
+              }
+            }} style={{ backgroundColor: brandColor }} className='w-full'>
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
@@ -286,15 +323,24 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
       {showSaveQuote && (
         <SaveQuoteDialog
           open={showSaveQuote}
-          onClose={() => setShowSaveQuote(false)}
+          onClose={() => {
+            setShowSaveQuote(false)
+            setSingleProductForSave([])
+            setSaveType('all_products')
+            setDetailedProductData(null)
+            setDetailedAllProductsData([])
+          }}
           defaultFirstName={defaultFirstName}
           defaultLastName={defaultLastName}
           defaultEmail={defaultEmail}
           defaultPhone={defaultPhone}
           submissionId={submissionId}
           postcode={postcode || null}
-          products={productsForEmail}
+          products={saveType === 'single_product' ? singleProductForSave : productsForEmail}
           brandColor={brandColor}
+          saveType={saveType}
+          detailedProductData={detailedProductData}
+          detailedAllProductsData={detailedAllProductsData}
         />
       )}
 

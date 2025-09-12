@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 interface OtpVerificationProps {
   phoneNumber: string
-  onVerificationComplete: () => void
+  onVerificationComplete: (submissionId?: string) => void
   onResendOtp?: () => void
   className?: string
   userInfo?: {
@@ -131,7 +131,7 @@ export default function OtpVerification({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phoneNumber, subdomain }),
+        body: JSON.stringify({ phoneNumber, subdomain, submissionId }),
       })
       
       const data = await response.json()
@@ -181,7 +181,8 @@ export default function OtpVerification({
           phoneNumber, 
           code: otpCode,
           verificationSid,
-          subdomain
+          subdomain,
+          submissionId
         }),
       })
       
@@ -193,10 +194,13 @@ export default function OtpVerification({
       
       if (data.status === 'approved') {
         setSuccess(true)
-        // Send verified quote email before completing
-        await sendVerifiedQuoteEmail()
-        // Immediately notify parent to proceed; avoid lingering on OTP screen
-        onVerificationComplete()
+        // Send verification email in background (non-blocking)
+        sendVerifiedQuoteEmail().catch(err => 
+          console.warn('Failed to send verification email in background:', err)
+        )
+        // The OTP verification API already updated the submission in the database
+        // We just need to notify the parent to redirect - no additional submission needed
+        onVerificationComplete(submissionId)
       } else {
         throw new Error('Verification failed')
       }
@@ -223,27 +227,50 @@ export default function OtpVerification({
       // Detect if running in iframe
       const isIframe = window.self !== window.top;
 
-      const res = await fetch('/api/email/boiler/quote-verified', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: userInfo.firstName,
-          last_name: userInfo.lastName,
-          email: userInfo.email,
-          phone: userInfo.phone,
-          postcode: formValues.postcode,
-          quote_data: formValues,
-          address_data: formValues.address,
-          questions: questions,
-          submission_id: submissionId,
-          subdomain,
-          is_iframe: isIframe,
-        }),
-      })
+      const emailData = {
+        first_name: userInfo.firstName,
+        last_name: userInfo.lastName,
+        email: userInfo.email,
+        phone: userInfo.phone,
+        postcode: formValues.postcode,
+        quote_data: formValues,
+        address_data: formValues.address,
+        questions: questions,
+        submission_id: submissionId,
+        subdomain,
+        is_iframe: isIframe,
+      }
 
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        console.warn('Failed to send verified quote email:', data?.error || 'Unknown error')
+      // Use sendBeacon for critical email sending (persists through page navigation)
+      if (typeof window !== 'undefined' && navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(emailData)], { type: 'application/json' })
+        const success = navigator.sendBeacon('/api/email/boiler/quote-verified', blob)
+        if (success) {
+          console.log('Verification email queued with sendBeacon')
+        } else {
+          // Fallback to fetch if sendBeacon fails
+          const res = await fetch('/api/email/boiler/quote-verified', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailData),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) {
+            console.warn('Failed to send verified quote email:', data?.error || 'Unknown error')
+          }
+        }
+      } else {
+        // Fallback to regular fetch
+        const res = await fetch('/api/email/boiler/quote-verified', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(emailData),
+        })
+
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          console.warn('Failed to send verified quote email:', data?.error || 'Unknown error')
+        }
       }
     } catch (err: any) {
       console.warn('Failed to send verified quote email:', err?.message || 'Unknown error')

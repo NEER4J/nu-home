@@ -73,7 +73,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Handle protected paths that need subdomain/custom domain processing
-  const isProtectedPath = (path.includes('/quote') || path.includes('/products')) && 
+  const isProtectedPath = (path.includes('/boiler')) && 
     !path.includes('/products/addons');
   
   if (isProtectedPath) {
@@ -152,11 +152,11 @@ export async function middleware(request: NextRequest) {
     isAllowedPath
   });
   
-  // For subdomains/custom domains, restrict access to /boiler and /solar pages and their inner pages
-  if (isSubdomainOrCustomDomain && (path.startsWith('/boiler') || path.startsWith('/solar'))) {
+  // For subdomains/custom domains, restrict access to /solar pages and their inner pages
+  if (isSubdomainOrCustomDomain && path.startsWith('/solar')) {
     // Redirect to domain restricted page on the same host
     const redirectUrl = new URL('/domain-restricted', request.url);
-    console.log('Redirecting boiler/solar page from subdomain:', {
+    console.log('Redirecting solar page from subdomain:', {
       hostname,
       path,
       redirectUrl: redirectUrl.toString(),

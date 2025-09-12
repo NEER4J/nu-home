@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { CheckCircle2 } from 'lucide-react'
 
 export interface ProductSummary {
@@ -32,6 +31,9 @@ interface SaveQuoteDialogProps {
   postcode?: string | null
   products: ProductSummary[]
   brandColor?: string
+  saveType?: 'all_products' | 'single_product'
+  detailedProductData?: any
+  detailedAllProductsData?: any[]
 }
 
 export default function SaveQuoteDialog({
@@ -45,6 +47,9 @@ export default function SaveQuoteDialog({
   postcode,
   products,
   brandColor = '#2563eb',
+  saveType = 'all_products',
+  detailedProductData,
+  detailedAllProductsData,
 }: SaveQuoteDialogProps) {
   const [firstName, setFirstName] = useState<string>(defaultFirstName || '')
   const [lastName, setLastName] = useState<string>(defaultLastName || '')
@@ -60,6 +65,7 @@ export default function SaveQuoteDialog({
     setError(null)
     setSuccess(null)
 
+
     try {
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
       const subdomain = hostname || null
@@ -74,11 +80,15 @@ export default function SaveQuoteDialog({
           first_name: firstName,
           last_name: lastName,
           email,
+          phone,
           submission_id: submissionId,
           postcode,
           products,
           subdomain,
           is_iframe: isIframe,
+          saveType,
+          detailedProductData,
+          detailedAllProductsData,
         }),
       })
       const data = await res.json().catch(() => ({}))

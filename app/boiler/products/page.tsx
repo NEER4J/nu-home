@@ -19,6 +19,55 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Check, ShieldCheck, Droplets, Flame, Box, ChevronDown } from 'lucide-react'
 import IframeNavigationTracker from '@/components/IframeNavigationTracker'
 
+// Helper function to save data to lead_submission_data table
+const saveLeadSubmissionData = async (
+  supabase: any,
+  submissionId: string,
+  partnerId: string,
+  serviceCategoryId: string,
+  data: any,
+  currentPage: string,
+  pagesCompleted: string[] = []
+) => {
+  try {
+    const { error } = await supabase
+      .from('lead_submission_data')
+      .upsert({
+        submission_id: submissionId,
+        partner_id: partnerId,
+        service_category_id: serviceCategoryId,
+        ...data,
+        current_page: currentPage,
+        pages_completed: pagesCompleted,
+        last_activity_at: new Date().toISOString(),
+        session_id: typeof window !== 'undefined' ? 
+          (window as any).sessionStorage?.getItem('session_id') || 
+          `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+          `server_${Date.now()}`,
+        device_info: typeof window !== 'undefined' ? {
+          user_agent: navigator.userAgent,
+          screen_resolution: `${screen.width}x${screen.height}`,
+          viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+          language: navigator.language,
+          platform: navigator.platform,
+          cookie_enabled: navigator.cookieEnabled,
+          online_status: navigator.onLine
+        } : {},
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'submission_id'
+      });
+
+    if (error) {
+      console.error('Error saving lead submission data:', error);
+    } else {
+      console.log('Successfully saved lead submission data for page:', currentPage);
+    }
+  } catch (error) {
+    console.error('Error in saveLeadSubmissionData:', error);
+  }
+};
+
 interface PartnerInfo {
   company_name: string
   contact_person: string
@@ -116,6 +165,7 @@ function BoilerProductsContent() {
   const [selectedProductForWhatsIncluded, setSelectedProductForWhatsIncluded] = useState<PartnerProduct | null>(null)
   const [isContinuing, setIsContinuing] = useState(false)
   const [isHorizontalLayout, setIsHorizontalLayout] = useState(true)
+  const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
 
   // Filters
   const [filterBoilerType, setFilterBoilerType] = useState<string | null>(null)
@@ -303,6 +353,40 @@ function BoilerProductsContent() {
     
     // Otherwise, use default deposit (0%)
     return 0
+  }
+
+  // Helper function to build product data structure for tracking
+  const buildProductData = (product: PartnerProduct, isSelected: boolean = false) => {
+    const selectedPower = getSelectedPowerOption(product)
+    const currentPrice = getCurrentPrice(product)
+    const monthlyPayment = getMonthlyPayment(product)
+    const selectedPlan = getSelectedPlan(product)
+    const selectedDeposit = getSelectedDeposit(product)
+    
+    // Extract warranty from specifications
+    const warranty = (product.specifications as any)?.warranty || 
+                    (product.specifications as any)?.warranty_years || 
+                    (product.specifications as any)?.guarantee || 
+                    'Not specified'
+
+    return {
+      product_id: product.partner_product_id,
+      name: product.name,
+      price: currentPrice,
+      monthly_price: monthlyPayment,
+      power: selectedPower?.power || 'Not specified',
+      warranty: warranty,
+      image_url: product.image_url,
+      description: product.description,
+      is_selected: isSelected,
+      selected_at: isSelected ? new Date().toISOString() : null,
+      calculator_settings: {
+        selected_plan: selectedPlan,
+        selected_deposit: selectedDeposit,
+        monthly_payment: monthlyPayment
+      },
+      specifications: product.specifications
+    }
   }
 
   const selectPowerOption = (product: PartnerProduct, powerOption: PowerAndPrice) => {
@@ -651,6 +735,170 @@ function BoilerProductsContent() {
     window.location.href = url.toString()
   }
 
+  // Handle save quote dialog opening
+  const handleSaveQuoteOpen = () => {
+    // Show popup immediately for better UX
+    const event = new CustomEvent('openSaveQuoteDialog', {
+      detail: {
+        products: productsForEmail,
+        saveType: 'all_products',
+        detailedAllProductsData: [] // Will be populated after data loads
+      }
+    });
+    window.dispatchEvent(event);
+
+    // Handle data loading in background
+    if (submissionId && partnerInfo?.user_id) {
+      const loadDataInBackground = async () => {
+        try {
+          const totalTimeOnPage = Date.now() - pageStartTime;
+          const allProductsData = products.map(p => buildProductData(p, false));
+          
+          // Build detailed products data for all products
+          const detailedAllProductsData = displayProducts.map(p => ({
+            product_id: p.partner_product_id,
+            name: p.name,
+            price: getCurrentPrice(p),
+            monthly_price: getMonthlyPayment(p),
+            power: getSelectedPowerOption(p)?.power || 'Not specified',
+            warranty: (p.specifications as any)?.warranty || 
+                     (p.specifications as any)?.warranty_years || 
+                     (p.specifications as any)?.guarantee || 
+                     'Not specified',
+            image_url: p.image_url,
+            description: p.description,
+            is_selected: false,
+            selected_at: null,
+            specifications: p.specifications,
+            product_fields: p.product_fields
+          }));
+
+          // Update the dialog with loaded data
+          const updateEvent = new CustomEvent('updateSaveQuoteData', {
+            detail: {
+              detailedAllProductsData: detailedAllProductsData
+            }
+          });
+          window.dispatchEvent(updateEvent);
+
+          // Save to database in background
+          await saveLeadSubmissionData(
+            supabase,
+            submissionId,
+            partnerInfo.user_id,
+            products[0]?.service_category_id || '',
+            {
+              products_data: {
+                all_products: allProductsData,
+                total_products_viewed: displayProducts.length,
+                save_quote_opened_at: new Date().toISOString(),
+                total_time_on_page_ms: totalTimeOnPage,
+                action: 'save_all_products_quote'
+              },
+              conversion_events: [{
+                event: 'save_all_products_quote',
+                timestamp: new Date().toISOString(),
+                data: {
+                  total_products: displayProducts.length,
+                  action: 'save_all_products_quote'
+                }
+              }]
+            },
+            'products',
+            ['quote']
+          );
+        } catch (error) {
+          console.error('Error loading save quote data:', error);
+        }
+      };
+
+      // Run data loading without blocking UI
+      loadDataInBackground();
+    }
+  }
+
+  // Handle save single product quote
+  const handleSaveSingleProductQuote = (product: PartnerProduct) => {
+    // Build detailed product data immediately
+    const detailedProductData = {
+      product_id: product.partner_product_id,
+      name: product.name,
+      price: getCurrentPrice(product),
+      monthly_price: getMonthlyPayment(product),
+      power: getSelectedPowerOption(product)?.power || 'Not specified',
+      warranty: (product.specifications as any)?.warranty || 
+               (product.specifications as any)?.warranty_years || 
+               (product.specifications as any)?.guarantee || 
+               'Not specified',
+      image_url: product.image_url,
+      description: product.description,
+      is_selected: false,
+      selected_at: null,
+      specifications: product.specifications,
+      product_fields: product.product_fields
+    };
+
+    // Open save quote dialog with single product immediately
+    const singleProductForEmail = [{
+      id: product.partner_product_id,
+      name: product.name,
+      priceLabel: `£${getCurrentPrice(product).toFixed(2)}`
+    }];
+
+    // Trigger the save quote dialog with single product
+    const event = new CustomEvent('openSaveQuoteDialog', {
+      detail: {
+        products: singleProductForEmail,
+        saveType: 'single_product',
+        detailedProductData: detailedProductData
+      }
+    });
+    window.dispatchEvent(event);
+
+    // Handle database operations in background
+    if (submissionId && partnerInfo?.user_id) {
+      const saveToDatabase = async () => {
+        try {
+          const totalTimeOnPage = Date.now() - pageStartTime;
+          const singleProductData = buildProductData(product, false);
+          
+          // Save to lead_submission_data
+          await saveLeadSubmissionData(
+            supabase,
+            submissionId,
+            partnerInfo.user_id,
+            product.service_category_id,
+            {
+              products_data: {
+                selected_product: singleProductData,
+                total_products_viewed: displayProducts.length,
+                save_quote_opened_at: new Date().toISOString(),
+                total_time_on_page_ms: totalTimeOnPage,
+                action: 'save_single_product_quote'
+              },
+              conversion_events: [{
+                event: 'save_single_product_quote',
+                timestamp: new Date().toISOString(),
+                data: {
+                  product_id: product.partner_product_id,
+                  product_name: product.name,
+                  action: 'save_single_product_quote'
+                }
+              }]
+            },
+            'products',
+            ['quote']
+          );
+        } catch (error) {
+          console.error('Error saving single product quote:', error);
+        }
+      };
+
+      // Run database save without blocking UI
+      saveToDatabase();
+    }
+  }
+
 
 
   const openFinanceCalculator = (product: PartnerProduct) => {
@@ -802,6 +1050,46 @@ function BoilerProductsContent() {
           image_url: product.image_url,
         }
       })
+
+      // Save products data to lead_submission_data
+      const totalTimeOnPage = Date.now() - pageStartTime;
+      const allProductsData = products.map(p => buildProductData(p, p.partner_product_id === product.partner_product_id));
+      
+      await saveLeadSubmissionData(
+        supabase,
+        submissionId,
+        partnerInfo.user_id,
+        product.service_category_id,
+        {
+          products_data: {
+            selected_product: buildProductData(product, true),
+            all_products: allProductsData,
+            total_products_viewed: displayProducts.length,
+            selection_timestamp: new Date().toISOString(),
+            total_time_on_page_ms: totalTimeOnPage,
+            action: 'book_and_pick_install_date'
+          },
+          conversion_events: [{
+            event: 'product_selected',
+            timestamp: new Date().toISOString(),
+            data: {
+              product_id: product.partner_product_id,
+              product_name: product.name,
+              price: currentPrice,
+              action: 'book_and_pick_install_date'
+            }
+          }],
+          page_timings: {
+            products_page: {
+              total_time_ms: totalTimeOnPage,
+              started_at: new Date(pageStartTime).toISOString(),
+              completed_at: new Date().toISOString()
+            }
+          }
+        },
+        'addons',
+        ['quote', 'products']
+      );
       
       // Verify what was actually saved in the database (for console logging only)
       const { data: verifyData, error: verifyError } = await supabase
@@ -955,6 +1243,46 @@ function BoilerProductsContent() {
           image_url: product.image_url,
         }
       })
+
+      // Save products data to lead_submission_data
+      const totalTimeOnPage = Date.now() - pageStartTime;
+      const allProductsData = products.map(p => buildProductData(p, p.partner_product_id === product.partner_product_id));
+      
+      await saveLeadSubmissionData(
+        supabase,
+        submissionId,
+        partnerInfo.user_id,
+        product.service_category_id,
+        {
+          products_data: {
+            selected_product: buildProductData(product, true),
+            all_products: allProductsData,
+            total_products_viewed: displayProducts.length,
+            selection_timestamp: new Date().toISOString(),
+            total_time_on_page_ms: totalTimeOnPage,
+            action: 'book_a_call_to_discuss'
+          },
+          conversion_events: [{
+            event: 'product_selected',
+            timestamp: new Date().toISOString(),
+            data: {
+              product_id: product.partner_product_id,
+              product_name: product.name,
+              price: currentPrice,
+              action: 'book_a_call_to_discuss'
+            }
+          }],
+          page_timings: {
+            products_page: {
+              total_time_ms: totalTimeOnPage,
+              started_at: new Date(pageStartTime).toISOString(),
+              completed_at: new Date().toISOString()
+            }
+          }
+        },
+        'survey',
+        ['quote', 'products']
+      );
       
       // Verify what was actually saved in the database (for console logging only)
       const { data: verifyData, error: verifyError } = await supabase
@@ -1226,6 +1554,7 @@ function BoilerProductsContent() {
         submissionId={submissionId}
         productsForEmail={productsForEmail}
         onRestart={handleRestart}
+        onSaveQuoteOpen={handleSaveQuoteOpen}
       />
 
       {/* Products Grid */}
@@ -1602,6 +1931,16 @@ function BoilerProductsContent() {
                           )}
                         </Button>
 
+                        {/* Save Quote Button */}
+                        <Button
+                          variant="outline"
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          onClick={() => handleSaveSingleProductQuote(product)}
+                          disabled={isContinuing}
+                        >
+                          {isContinuing ? 'Loading...' : 'Save this quote'}
+                        </Button>
+
                         {/* Survey Button */}
                         <Button
                           variant="outline"
@@ -1905,6 +2244,16 @@ function BoilerProductsContent() {
                           ) : (
                             'Book and pick install date'
                           )}
+                        </Button>
+
+                        {/* Save Quote Button */}
+                        <Button
+                          variant="outline"
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          onClick={() => handleSaveSingleProductQuote(product)}
+                          disabled={isContinuing}
+                        >
+                          {isContinuing ? 'Loading...' : 'Save this quote'}
                         </Button>
 
                         {/* Survey Button */}

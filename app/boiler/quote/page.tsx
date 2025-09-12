@@ -14,6 +14,139 @@ import { QuoteLoader } from '@/components/category-commons/Loader';
 import { triggerQuoteSubmissionEvent, triggerGTMEventCrossFrame } from '@/lib/gtm';
 import IframeNavigationTracker from '@/components/IframeNavigationTracker';
 
+// Helper function to save data to lead_submission_data table
+const saveLeadSubmissionData = async (
+  supabase: any,
+  submissionId: string,
+  partnerId: string,
+  serviceCategoryId: string,
+  data: any,
+  currentPage: string,
+  pagesCompleted: string[] = []
+) => {
+  try {
+    const { error } = await supabase
+      .from('lead_submission_data')
+      .upsert({
+        submission_id: submissionId,
+        partner_id: partnerId,
+        service_category_id: serviceCategoryId,
+        ...data,
+        current_page: currentPage,
+        pages_completed: pagesCompleted,
+        last_activity_at: new Date().toISOString(),
+        session_id: typeof window !== 'undefined' ? 
+          (window as any).sessionStorage?.getItem('session_id') || 
+          `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+          `server_${Date.now()}`,
+        device_info: typeof window !== 'undefined' ? {
+          user_agent: navigator.userAgent,
+          screen_resolution: `${screen.width}x${screen.height}`,
+          viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+          language: navigator.language,
+          platform: navigator.platform,
+          cookie_enabled: navigator.cookieEnabled,
+          online_status: navigator.onLine
+        } : {},
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'submission_id'
+      });
+
+    if (error) {
+      console.error('Error saving lead submission data:', error);
+    } else {
+      console.log('Successfully saved lead submission data for page:', currentPage);
+    }
+  } catch (error) {
+    console.error('Error in saveLeadSubmissionData:', error);
+  }
+};
+
+// Helper function to update OTP verification stage
+const updateOtpVerificationStage = async (
+  supabase: any,
+  submissionId: string,
+  stage: 'otp_sent' | 'otp_verified',
+  additionalData?: any
+) => {
+  try {
+    // Get current data
+    const { data: currentData, error: fetchError } = await supabase
+      .from('lead_submission_data')
+      .select('quote_data')
+      .eq('submission_id', submissionId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching current data for OTP stage update:', fetchError);
+      return;
+    }
+
+    const currentQuoteData = currentData?.quote_data || {};
+    const currentStageHistory = currentQuoteData.stage_history || [];
+
+    // Create new stage entry
+    const newStageEntry = {
+      stage: stage,
+      timestamp: new Date().toISOString(),
+      data: additionalData || {}
+    };
+
+    // Update the quote_data with new stage
+    const updatedQuoteData = {
+      ...currentQuoteData,
+      verification_stage: stage,
+      stage_history: [...currentStageHistory, newStageEntry],
+      // Mark as complete if OTP is verified
+      ...(stage === 'otp_verified' && {
+        is_complete: true,
+        completed_at: new Date().toISOString()
+      })
+    };
+
+    // Update in database
+    const { error: updateError } = await supabase
+      .from('lead_submission_data')
+      .update({
+        quote_data: updatedQuoteData,
+        last_activity_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('submission_id', submissionId);
+
+    if (updateError) {
+      console.error('Error updating OTP verification stage:', updateError);
+    } else {
+      console.log(`Successfully updated OTP stage to: ${stage} for submission: ${submissionId}`);
+    }
+
+    // Add conversion event for OTP verified
+    if (stage === 'otp_verified') {
+      const currentConversionEvents = currentData?.conversion_events || [];
+      const newConversionEvent = {
+        event: 'otp_verified',
+        timestamp: new Date().toISOString(),
+        data: {
+          submission_id: submissionId,
+          verification_completed_at: new Date().toISOString(),
+          ...additionalData
+        }
+      };
+
+      await supabase
+        .from('lead_submission_data')
+        .update({
+          conversion_events: [...currentConversionEvents, newConversionEvent]
+        })
+        .eq('submission_id', submissionId);
+    }
+
+  } catch (error) {
+    console.error('Error in updateOtpVerificationStage:', error);
+  }
+};
+
 interface HeatingQuotePageProps {
   serviceCategoryId?: string;
   partnerId?: string;
@@ -53,7 +186,207 @@ export default function HeatingQuotePage({
   const [userInfo, setUserInfo] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partnerInfoFromDomain, setPartnerInfoFromDomain] = useState<PartnerProfile | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [showOtpScreen, setShowOtpScreen] = useState<boolean>(false);
+  const [pageStartTime, setPageStartTime] = useState<number>(Date.now());
+  const [emailSent, setEmailSent] = useState<boolean>(false);
   const supabase = createClient();
+
+  // Background database save function (non-blocking)
+  const saveLeadSubmissionDataInBackground = async (
+    submissionId: string,
+    partnerId: string,
+    serviceCategoryId: string,
+    filteredAnswers: any,
+    selectedAddress: any,
+    contactDetails: any,
+    questions: any[],
+    isOtpEnabled: boolean,
+    pageStartTime: number
+  ) => {
+    try {
+      const totalTimeOnPage = Date.now() - pageStartTime;
+      
+      // Create enhanced form answers with question text
+      const formAnswersWithText = Object.entries(filteredAnswers).reduce((acc, [key, val]) => {
+        const q = questions.find(question => question.question_id === key);
+        acc[key] = {
+          question_id: key,
+          question_text: q?.question_text || key,
+          answer: val,
+          answered_at: new Date().toISOString()
+        };
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Determine the current stage and completion status
+      const currentStage = isOtpEnabled ? 'details_filled' : 'completed';
+      const isComplete = !isOtpEnabled; // Complete immediately if no OTP required
+
+      await saveLeadSubmissionData(
+        supabase,
+        submissionId,
+        partnerId,
+        serviceCategoryId,
+        {
+          quote_data: {
+            form_answers: formAnswersWithText,
+            selected_address: selectedAddress,
+            contact_details: {
+              first_name: contactDetails.firstName,
+              last_name: contactDetails.lastName,
+              email: contactDetails.email,
+              phone: contactDetails.phone,
+              postcode: contactDetails.postcode,
+              city: contactDetails.city
+            },
+            // Stage tracking
+            verification_stage: currentStage,
+            otp_enabled: isOtpEnabled,
+            stage_history: [{
+              stage: 'details_filled',
+              timestamp: new Date().toISOString(),
+              data: {
+                form_questions_answered: Object.keys(filteredAnswers).length,
+                total_questions: questions.length,
+                otp_required: isOtpEnabled
+              }
+            }],
+            // Completion tracking
+            completed_at: isComplete ? new Date().toISOString() : null,
+            is_complete: isComplete,
+            total_time_on_page_ms: totalTimeOnPage,
+            form_submission_count: 1
+          },
+          form_submissions: [{
+            submission_id: submissionId,
+            submitted_at: new Date().toISOString(),
+            form_type: 'quote',
+            data_completeness: Object.keys(filteredAnswers).length,
+            total_questions: questions.length,
+            verification_stage: currentStage
+          }],
+          conversion_events: [{
+            event: isComplete ? 'quote_completed' : 'details_filled',
+            timestamp: new Date().toISOString(),
+            data: {
+              submission_id: submissionId,
+              partner_id: partnerId,
+              service_category: 'boiler',
+              verification_stage: currentStage,
+              otp_required: isOtpEnabled
+            }
+          }],
+          page_timings: {
+            quote_page: {
+              total_time_ms: totalTimeOnPage,
+              started_at: new Date(pageStartTime).toISOString(),
+              completed_at: new Date().toISOString()
+            }
+          }
+        },
+        'products',
+        ['quote']
+      );
+      console.log('Lead submission data saved successfully in background');
+    } catch (error) {
+      console.error('Error saving lead submission data in background:', error);
+    }
+  };
+
+  // Background email sending function (non-blocking with persistence)
+  const sendInitialEmailInBackground = async (
+    submissionId: string, 
+    contactDetails: any, 
+    filteredAnswers: any, 
+    selectedAddress: any, 
+    questions: any[]
+  ) => {
+    try {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+      const subdomain = hostname || null
+
+      // Format full address from selected address or contact details
+      let fullAddress = ''
+      if (selectedAddress) {
+        const addressParts = [
+          selectedAddress.address_line_1,
+          selectedAddress.address_line_2,
+          selectedAddress.street_name,
+          selectedAddress.county,
+          selectedAddress.postcode
+        ].filter(Boolean)
+        fullAddress = addressParts.join(', ')
+      } else if (contactDetails.postcode) {
+        fullAddress = contactDetails.postcode
+      }
+
+      // Format quote data for email template
+      const formattedQuoteData = Object.entries(filteredAnswers).map(([questionId, answer]) => {
+        const question = questions.find(q => q.question_id === questionId)
+        const questionText = question?.question_text || questionId
+        const formattedAnswer = Array.isArray(answer) ? answer.join(', ') : String(answer)
+        return `${questionText}: ${formattedAnswer}`
+      }).join('\n')
+
+      const emailData = {
+        // User Information fields
+        firstName: contactDetails.firstName,
+        lastName: contactDetails.lastName,
+        email: contactDetails.email,
+        phone: contactDetails.phone,
+        postcode: contactDetails.postcode,
+        fullAddress: fullAddress,
+        submissionId: submissionId,
+        submissionDate: new Date().toISOString(),
+        
+        // Quote Details
+        quoteData: formattedQuoteData,
+        quoteLink: `${window.location.origin}/boiler/products?submission=${submissionId}`,
+        
+        // Legacy fields for backward compatibility
+        first_name: contactDetails.firstName,
+        last_name: contactDetails.lastName,
+        quote_data: filteredAnswers,
+        address_data: selectedAddress,
+        questions: questions,
+        submission_id: submissionId,
+        subdomain,
+      }
+
+      // Use sendBeacon for critical email sending (persists through page navigation)
+      if (typeof window !== 'undefined' && navigator.sendBeacon) {
+        const blob = new Blob([JSON.stringify(emailData)], { type: 'application/json' })
+        const success = navigator.sendBeacon('/api/email/boiler/quote-initial', blob)
+        if (success) {
+          console.log('Initial quote email queued with sendBeacon')
+        } else {
+          // Fallback to fetch if sendBeacon fails
+          await fetch('/api/email/boiler/quote-initial', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailData),
+          })
+        }
+      } else {
+        // Fallback to regular fetch
+        const emailRes = await fetch('/api/email/boiler/quote-initial', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(emailData),
+        })
+
+        const responseData = await emailRes.json().catch(() => ({}))
+        if (!emailRes.ok) {
+          console.warn('Failed to send initial quote email:', responseData?.error || 'Unknown error')
+        } else {
+          console.log('Initial quote email sent successfully in background')
+        }
+      }
+    } catch (err: any) {
+      console.warn('Failed to send initial quote email in background:', err?.message || 'Unknown error')
+    }
+  };
 
   // Get dynamic color based on partner info
   const getDynamicColor = () => {
@@ -64,6 +397,17 @@ export default function HeatingQuotePage({
   // Use dynamic styles hook
   const effectivePartner = partnerInfo || partnerInfoFromDomain;
   const classes = useDynamicStyles(effectivePartner?.company_color || null); 
+
+  // Initialize session tracking
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Generate session ID if not exists
+      if (!sessionStorage.getItem('session_id')) {
+        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sessionStorage.setItem('session_id', sessionId);
+      }
+    }
+  }, []);
 
   // Get the heating service category ID
   useEffect(() => {
@@ -205,18 +549,107 @@ export default function HeatingQuotePage({
   // Get total steps (active question steps + postcode & contact details)
   const totalSteps = activeSteps.length + 2;
 
+
   // Handle value changes
-  const handleValueChange = (questionId: string, value: any) => {
+  const handleValueChange = async (questionId: string, value: any) => {
     setFormValues((prev: FormValues) => ({
       ...prev,
       [questionId]: value
     }));
+
+    // Save quote data if we have submission info
+    if (submissionId && partnerInfoFromDomain?.user_id) {
+      const effectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
+      const categoryId = serviceCategoryId || (await supabase
+        .from('ServiceCategories')
+        .select('service_category_id')
+        .eq('slug', 'boiler')
+        .eq('is_active', true)
+        .single()).data?.service_category_id;
+
+      if (effectivePartnerId && categoryId) {
+        // Find the question to get its text
+        const question = questions.find(q => q.question_id === questionId);
+        const questionText = question?.question_text || questionId;
+        
+        // Create enhanced form answers with question text
+        const enhancedFormAnswers = { ...formValues, [questionId]: value };
+        const formAnswersWithText = Object.entries(enhancedFormAnswers).reduce((acc, [key, val]) => {
+          const q = questions.find(question => question.question_id === key);
+          acc[key] = {
+            question_id: key,
+            question_text: q?.question_text || key,
+            answer: val,
+            answered_at: new Date().toISOString()
+          };
+          return acc;
+        }, {} as Record<string, any>);
+        
+        await saveLeadSubmissionData(
+          supabase,
+          submissionId,
+          effectivePartnerId,
+          categoryId.toString(),
+          {
+            quote_data: {
+              form_answers: formAnswersWithText,
+              current_step: currentStep,
+              last_updated: new Date().toISOString()
+            }
+          },
+          'quote',
+          []
+        );
+      }
+    }
   };
 
   // Handle address selection from PostcodeStep
-  const handleAddressSelect = (address: any) => {
+  const handleAddressSelect = async (address: any) => {
     setSelectedAddress(address);
     console.log('Address selected:', address);
+
+    // Save address data if we have submission info
+    if (submissionId && partnerInfoFromDomain?.user_id) {
+      const effectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
+      const categoryId = serviceCategoryId || (await supabase
+        .from('ServiceCategories')
+        .select('service_category_id')
+        .eq('slug', 'boiler')
+        .eq('is_active', true)
+        .single()).data?.service_category_id;
+
+      if (effectivePartnerId && categoryId) {
+        // Create enhanced form answers with question text
+        const formAnswersWithText = Object.entries(formValues).reduce((acc, [key, val]) => {
+          const q = questions.find(question => question.question_id === key);
+          acc[key] = {
+            question_id: key,
+            question_text: q?.question_text || key,
+            answer: val,
+            answered_at: new Date().toISOString()
+          };
+          return acc;
+        }, {} as Record<string, any>);
+
+        await saveLeadSubmissionData(
+          supabase,
+          submissionId,
+          effectivePartnerId,
+          categoryId.toString(),
+          {
+            quote_data: {
+              form_answers: formAnswersWithText,
+              selected_address: address,
+              address_selected_at: new Date().toISOString(),
+              last_updated: new Date().toISOString()
+            }
+          },
+          'quote',
+          []
+        );
+      }
+    }
   };
 
   // Handle next step
@@ -231,8 +664,14 @@ export default function HeatingQuotePage({
     }
   };
 
-  // Handle form submission
-  const handleSubmit = async (contactDetails: any) => {
+  // Handle initial form data saving (called immediately after form submission)
+  const saveInitialFormData = async (contactDetails: any) => {
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring duplicate submission');
+      return null;
+    }
+    
     try {
       setIsSubmitting(true);
       setError(null);
@@ -244,7 +683,7 @@ export default function HeatingQuotePage({
         .eq('is_active', true)
         .single();
 
-      if (!categoryData) {
+      if (!categoryData || !categoryData.service_category_id) {
         throw new Error('Heating category not found');
       }
 
@@ -308,70 +747,32 @@ export default function HeatingQuotePage({
       if (!response.ok) {
         throw new Error(result.error || 'Failed to submit heating quote request');
       }
+
+      // Set submission ID for tracking
+      setSubmissionId(result.data.submission_id);
+
+      // Save initial quote data to lead_submission_data in background (non-blocking)
+      const finalEffectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
+      if (finalEffectivePartnerId) {
+        saveLeadSubmissionDataInBackground(
+          result.data.submission_id,
+          finalEffectivePartnerId,
+          String(categoryData.service_category_id),
+          filteredAnswers,
+          selectedAddress,
+          contactDetails,
+          questions,
+          effectivePartner?.otp || false,
+          pageStartTime
+        ).catch(err => 
+          console.warn('Failed to save lead submission data in background:', err)
+        );
+      }
       
-      // Send email with the correct submission_id and standardized field data
-      try {
-        const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-        const subdomain = hostname || null
-
-        // Format full address from selected address or contact details
-        let fullAddress = ''
-        if (selectedAddress) {
-          const addressParts = [
-            selectedAddress.address_line_1,
-            selectedAddress.address_line_2,
-            selectedAddress.street_name,
-            selectedAddress.county,
-            selectedAddress.postcode
-          ].filter(Boolean)
-          fullAddress = addressParts.join(', ')
-        } else if (contactDetails.postcode) {
-          fullAddress = contactDetails.postcode
-        }
-
-        // Format quote data for email template
-        const formattedQuoteData = Object.entries(filteredAnswers).map(([questionId, answer]) => {
-          const question = questions.find(q => q.question_id === questionId)
-          const questionText = question?.question_text || questionId
-          const formattedAnswer = Array.isArray(answer) ? answer.join(', ') : String(answer)
-          return `${questionText}: ${formattedAnswer}`
-        }).join('\n')
-
-        const emailRes = await fetch('/api/email/boiler/quote-initial', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            // User Information fields
-            firstName: contactDetails.firstName,
-            lastName: contactDetails.lastName,
-            email: contactDetails.email,
-            phone: contactDetails.phone,
-            postcode: contactDetails.postcode,
-            fullAddress: fullAddress,
-            submissionId: result.data.submission_id,
-            submissionDate: new Date().toISOString(),
-            
-            // Quote Details
-            quoteData: formattedQuoteData,
-            quoteLink: `${window.location.origin}/boiler/products?submission=${result.data.submission_id}`,
-            
-            // Legacy fields for backward compatibility
-            first_name: contactDetails.firstName,
-            last_name: contactDetails.lastName,
-            quote_data: filteredAnswers,
-            address_data: selectedAddress,
-            questions: questions,
-            submission_id: result.data.submission_id,
-            subdomain,
-          }),
-        })
-
-        const emailData = await emailRes.json().catch(() => ({}))
-        if (!emailRes.ok) {
-          console.warn('Failed to send initial quote email:', emailData?.error || 'Unknown error')
-        }
-      } catch (err: any) {
-        console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
+      // Send email in background (non-blocking)
+      if (!emailSent) {
+        setEmailSent(true) // Mark email as sent to prevent duplicates
+        sendInitialEmailInBackground(result.data.submission_id, contactDetails, filteredAnswers, selectedAddress, questions)
       }
       
       // Trigger GTM event if event name is provided
@@ -397,12 +798,106 @@ export default function HeatingQuotePage({
         });
       }
       
-      router.push(`/boiler/products?submission=${result.data.submission_id}`);
-      return;
+      // Only redirect immediately if OTP is NOT enabled
+      const isOtpEnabled = effectivePartner?.otp || false;
+      if (!isOtpEnabled) {
+        router.push(`/boiler/products?submission=${result.data.submission_id}`);
+      }
+      
+      return result.data.submission_id; // Return submission ID for OTP flow
       
     } catch (error: any) {
       setError(error.message || 'An unexpected error occurred');
       console.error('Error submitting heating quote form:', error);
+      setIsSubmitting(false);
+    } finally {
+      // Only set submitting to false if OTP is not enabled (since OTP flow will handle this)
+      const isOtpEnabled = effectivePartner?.otp || false;
+      if (!isOtpEnabled) {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  // Handle completion after OTP verification (redirect to products page)
+  const handlePostVerificationCompletion = async (submissionId: string) => {
+    console.log('=== POST VERIFICATION COMPLETION ===');
+    console.log('About to redirect to products page with submissionId:', submissionId);
+    
+    try {
+      // The OTP verification API already updated the verification stage to 'otp_verified'
+      // and marked the quote as complete, so we just need to redirect
+      setShowOtpScreen(false); // Reset OTP screen state
+      console.log('showOtpScreen set to false');
+      
+      const redirectUrl = `/boiler/products?submission=${submissionId}`;
+      console.log('Attempting redirect to:', redirectUrl);
+      
+      // Use window.location.href for more reliable redirect
+      if (typeof window !== 'undefined') {
+        window.location.href = redirectUrl;
+      } else {
+        router.push(redirectUrl);
+      }
+      console.log('Redirect initiated');
+    } catch (error: any) {
+      console.error('Error during post-verification completion:', error);
+      setError(error.message || 'An error occurred after verification');
+    }
+  };
+
+  // Handle OTP verification completion
+  const handleOtpVerificationComplete = async (submissionId: string) => {
+    console.log('=== OTP VERIFICATION COMPLETE ===');
+    console.log('Received submissionId:', submissionId);
+    console.log('Stack trace:', new Error().stack);
+    
+    try {
+      // The OTP verification API already updated the submission and marked it as complete
+      // We just need to redirect to the products page - no need to resubmit
+      await handlePostVerificationCompletion(submissionId);
+      setIsSubmitting(false);
+      console.log('OTP completion handled successfully');
+    } catch (error: any) {
+      console.error('Error handling OTP verification completion:', error);
+      setError(error.message || 'An error occurred after verification');
+      setIsSubmitting(false);
+    }
+  };
+
+  // Main form submission handler (only handles initial form data saving)
+  const handleSubmit = async (contactDetails: any) => {
+    console.log('=== HANDLE SUBMIT CALLED ===');
+    console.log('Contact details:', contactDetails);
+    console.log('Stack trace:', new Error().stack);
+    
+    try {
+      // Save the form data immediately
+      console.log('Calling saveInitialFormData...');
+      const submissionId = await saveInitialFormData(contactDetails);
+      console.log('saveInitialFormData completed, submissionId:', submissionId);
+      
+      // If OTP is enabled, show OTP verification screen
+      // If OTP is disabled, saveInitialFormData already redirected to products
+      const isOtpEnabled = effectivePartner?.otp || false;
+      console.log('OTP enabled:', isOtpEnabled);
+      
+      if (isOtpEnabled && submissionId) {
+        // Store submission ID for OTP verification flow
+        setSubmissionId(submissionId);
+        // Signal that data is saved and OTP screen should be shown
+        setShowOtpScreen(true);
+        console.log('OTP flow: showOtpScreen set to true');
+        // Keep isSubmitting true for OTP flow
+      } else {
+        // OTP not enabled, form is complete
+        setIsSubmitting(false);
+        console.log('No OTP: form complete, isSubmitting set to false');
+      }
+      
+    } catch (error: any) {
+      console.error('Error in main form submission handler:', error);
+      setError(error.message || 'An unexpected error occurred');
       setIsSubmitting(false);
     }
   };
@@ -479,11 +974,13 @@ export default function HeatingQuotePage({
         <div className="mt-6 lg:mt-8 max-w-lg mx-auto">
           <UserInfoForm
             initialUserInfo={userInfo}
-            formValues={formValues}
+            formValues={{...formValues, submission_id: submissionId}}
             onUserInfoChange={setUserInfo}
             onSubmit={handleSubmit}
+            onOtpVerified={handleOtpVerificationComplete}
             companyColor={getDynamicColor()}
             otpEnabled={effectivePartner?.otp || false}
+            showOtpScreen={showOtpScreen}
             questions={questions}
           />
         </div>

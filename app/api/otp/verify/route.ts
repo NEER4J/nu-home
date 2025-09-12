@@ -49,7 +49,7 @@ async function getTwilioCredentials(request: NextRequest, bodySubdomain?: string
 
 export async function POST(request: NextRequest) {
   try {
-    const { phoneNumber, code, verificationSid, subdomain: bodySubdomain } = await request.json();
+    const { phoneNumber, code, verificationSid, subdomain: bodySubdomain, submissionId } = await request.json();
 
     if (!phoneNumber || !code) {
       return NextResponse.json(
@@ -110,6 +110,86 @@ export async function POST(request: NextRequest) {
 
       if (data.status === 'approved') {
         console.log(`OTP verified successfully for ${phoneNumber}`);
+        
+        // Track OTP verified stage if submissionId is provided
+        if (submissionId) {
+          try {
+            const supabase = await createClient();
+            
+            // Get current data
+            const { data: currentData, error: fetchError } = await supabase
+              .from('lead_submission_data')
+              .select('quote_data, conversion_events')
+              .eq('submission_id', submissionId)
+              .single();
+
+            if (!fetchError && currentData) {
+              const currentQuoteData = currentData.quote_data || {};
+              const currentStageHistory = currentQuoteData.stage_history || [];
+              const currentConversionEvents = currentData.conversion_events || [];
+
+              // Create new stage entry
+              const newStageEntry = {
+                stage: 'otp_verified',
+                timestamp: new Date().toISOString(),
+                data: {
+                  phone_number: phoneNumber,
+                  verification_sid: verificationSid,
+                  twilio_status: data.status,
+                  verified_at: new Date().toISOString()
+                }
+              };
+
+              // Update the quote_data with new stage and mark as complete
+              const updatedQuoteData = {
+                ...currentQuoteData,
+                verification_stage: 'otp_verified',
+                stage_history: [...currentStageHistory, newStageEntry],
+                is_complete: true,
+                completed_at: new Date().toISOString()
+              };
+
+              // Add conversion events
+              const newConversionEvents = [
+                {
+                  event: 'otp_verified',
+                  timestamp: new Date().toISOString(),
+                  data: {
+                    submission_id: submissionId,
+                    phone_number: phoneNumber,
+                    verification_sid: verificationSid
+                  }
+                },
+                {
+                  event: 'quote_completed',
+                  timestamp: new Date().toISOString(),
+                  data: {
+                    submission_id: submissionId,
+                    phone_number: phoneNumber,
+                    completed_via: 'otp_verification'
+                  }
+                }
+              ];
+
+              // Update in database
+              await supabase
+                .from('lead_submission_data')
+                .update({
+                  quote_data: updatedQuoteData,
+                  conversion_events: [...currentConversionEvents, ...newConversionEvents],
+                  last_activity_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .eq('submission_id', submissionId);
+
+              console.log(`Successfully tracked OTP verified stage for submission: ${submissionId}`);
+            }
+          } catch (trackingError) {
+            console.error('Error tracking OTP verified stage:', trackingError);
+            // Don't fail the request if tracking fails
+          }
+        }
+        
         return NextResponse.json({
           success: true,
           status: 'approved',

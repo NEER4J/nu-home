@@ -47,10 +47,12 @@ interface UserInfoFormProps {
   onUserInfoChange: (userInfo: UserInfo) => void
   onContinue?: () => void
   onSubmit?: (contactDetails: ContactDetails) => void
+  onOtpVerified?: (submissionId: string) => void  // Direct callback for OTP completion
   className?: string
   initialUserInfo?: UserInfo | null
   formValues?: Record<string, any>
   otpEnabled?: boolean
+  showOtpScreen?: boolean  // Parent controls when to show OTP screen
   companyColor?: string
   questions?: any[]
 }
@@ -59,10 +61,12 @@ export default function UserInfoForm({
   onUserInfoChange, 
   onContinue,
   onSubmit,
+  onOtpVerified,
   className = '', 
   initialUserInfo = null,
   formValues = {},
   otpEnabled = false,
+  showOtpScreen = false,
   companyColor = '#2563eb',
   questions = []
 }: UserInfoFormProps) {
@@ -196,6 +200,13 @@ export default function UserInfoForm({
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
+
+  // Effect to handle showing OTP screen when parent indicates data is saved
+  useEffect(() => {
+    if (showOtpScreen && otpEnabled && currentView === 'form') {
+      setCurrentView('otp')
+    }
+  }, [showOtpScreen, otpEnabled, currentView])
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -344,8 +355,12 @@ export default function UserInfoForm({
     setIsSubmitting(true)
     try {
       if (otpEnabled) {
-        setCurrentView('otp')
+        // For OTP enabled: first submit the contact details to save data
+        // then show OTP screen
+        submitContactDetails()
+        // The form data submission will handle the OTP flow
       } else {
+        // For OTP disabled: just submit the contact details  
         submitContactDetails()
       }
     } catch (error) {
@@ -369,10 +384,15 @@ export default function UserInfoForm({
     onSubmit(contactDetails)
   }
 
-  const handleOtpVerificationComplete = () => {
-    // Switch back to form view and show submitting state immediately
-    setCurrentView('form')
-    submitContactDetails()
+  const handleOtpVerificationComplete = (submissionId?: string) => {
+    // Use the new direct callback for OTP completion to avoid duplicate form submission
+    if (submissionId && onOtpVerified) {
+      onOtpVerified(submissionId);
+    } else {
+      // Fallback: just switch back to form view without resubmitting
+      setCurrentView('form')
+      setIsSubmitting(false)
+    }
   }
 
   return (

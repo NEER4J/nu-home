@@ -457,6 +457,9 @@ export async function POST(request: NextRequest) {
       submissionDate,
       quoteData,
       quoteLink,
+      saveType,
+      detailedProductData,
+      detailedAllProductsData,
       
       // Legacy fields for backward compatibility
       first_name, 
@@ -474,7 +477,6 @@ export async function POST(request: NextRequest) {
     const finalQuoteData = quoteData || products
 
     const hostname = parseHostname(request, bodySubdomain)
-    console.log('save-quote - Parsed hostname:', hostname);
     
     if (!hostname) {
       return NextResponse.json({ error: 'Missing hostname' }, { status: 400 })
@@ -793,6 +795,85 @@ export async function POST(request: NextRequest) {
       }
     } catch (sendErr: any) {
       return NextResponse.json({ error: 'SMTP send failed', details: sendErr?.message || String(sendErr) }, { status: 400 })
+    }
+
+    // Save form submission data to lead_submission_data if submissionId is provided
+    if (finalSubmissionId && boilerCategory) {
+      try {
+        // Get existing data
+        const { data: existingData } = await supabase
+          .from('lead_submission_data')
+          .select('form_submissions, save_quote_data')
+          .eq('submission_id', finalSubmissionId)
+          .single()
+
+        const existingFormSubmissions = existingData?.form_submissions || []
+        const existingSaveQuoteData = existingData?.save_quote_data || []
+        
+        // Create simplified form submission entry (detailed data is in save_quote_data)
+        const newFormSubmission = {
+          form_type: 'save_quote',
+          submitted_at: new Date().toISOString(),
+          submission_id: finalSubmissionId,
+          total_questions: 4, // firstName, lastName, email, phone
+          data_completeness: 4, // All fields are required
+          form_data: {
+            first_name: finalFirstName,
+            last_name: finalLastName,
+            email: email,
+            phone: phone || null,
+            postcode: postcode || null,
+            products_count: Array.isArray(finalQuoteData) ? finalQuoteData.length : 0,
+            save_type: saveType || 'all_products'
+          }
+        }
+
+        // Create save quote data entry
+        const detailedDataToStore = saveType === 'single_product' 
+          ? (detailedProductData ? [detailedProductData] : [])
+          : (detailedAllProductsData || []);
+          
+        const newSaveQuoteData = {
+          form_type: 'save_quote',
+          submitted_at: new Date().toISOString(),
+          submission_id: finalSubmissionId,
+          user_info: {
+            first_name: finalFirstName,
+            last_name: finalLastName,
+            email: email,
+            phone: phone || null,
+            postcode: postcode || null
+          },
+          products: finalQuoteData || [],
+          products_count: Array.isArray(finalQuoteData) ? finalQuoteData.length : 0,
+          save_type: saveType || 'all_products', // 'single_product' when called from product card
+          detailed_products_data: detailedDataToStore,
+          total_products_viewed: saveType === 'single_product' 
+            ? (detailedProductData ? 1 : 0)
+            : (Array.isArray(detailedAllProductsData) ? detailedAllProductsData.length : (Array.isArray(finalQuoteData) ? finalQuoteData.length : 0)),
+          save_quote_opened_at: new Date().toISOString(),
+          action: saveType === 'single_product' ? 'save_single_product_quote' : 'save_all_products_quote'
+        }
+
+        // Add to existing arrays
+        const updatedFormSubmissions = [...existingFormSubmissions, newFormSubmission]
+        const updatedSaveQuoteData = [...existingSaveQuoteData, newSaveQuoteData]
+
+        // Update the lead_submission_data record
+        await supabase
+          .from('lead_submission_data')
+          .update({
+            form_submissions: updatedFormSubmissions,
+            save_quote_data: updatedSaveQuoteData,
+            last_activity_at: new Date().toISOString()
+          })
+          .eq('submission_id', finalSubmissionId)
+
+        console.log('Successfully saved save_quote form submission to lead_submission_data')
+      } catch (formSubmissionError) {
+        console.error('Error saving form submission data:', formSubmissionError)
+        // Don't fail the entire request if form submission tracking fails
+      }
     }
 
     return NextResponse.json({ success: true })

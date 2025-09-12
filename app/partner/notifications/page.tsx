@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Loader2, Mail, Edit, Eye, Save, RotateCcw, Users, Settings } from 'lucide-react'
 import EmailTemplateEditor from '@/components/partner/notifications/EmailTemplateEditor'
+import LeadsMapping from '@/components/partner/notifications/LeadsMapping'
 import { toast } from 'sonner'
 import {
   getDefaultCustomerTemplate,
@@ -815,6 +816,12 @@ export default function NotificationsPage() {
     }
   }
 
+  const updateGHLFieldMapping = (mappingId: string, updates: any) => {
+    setGhlFieldMappings(prev => 
+      prev.map(m => m.mapping_id === mappingId ? { ...m, ...updates } : m)
+    )
+  }
+
   const saveGHLFieldMappings = async (mapping: any) => {
     setGhlSaving(true)
     
@@ -1049,257 +1056,18 @@ export default function NotificationsPage() {
 
       {/* Leads Tab Content */}
       {activeTab === 'leads' && ghlIntegration && availableEmailTypes.length > 0 && selectedEmailType && (
-        <div className="space-y-6">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-    </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-green-800">GoHighLevel Integration Active</h3>
-                  <p className="text-sm text-green-700 mt-1">
-                    Configure how leads are sent to your GoHighLevel CRM for this email type.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={loadGHLIntegration}
-                disabled={ghlLoading}
-                className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {ghlLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                    <span>Loading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    <span>Refresh</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-
-          {ghlFieldMappings.map((mapping) => (
-            <div key={mapping.mapping_id} className="bg-white rounded-lg border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  {mapping.recipient_type === 'customer' ? 'Customer Lead' : 'Admin Lead'} Mapping
-                </h3>
-                <Button
-                  onClick={() => saveGHLFieldMappings(mapping)}
-                  disabled={ghlSaving}
-                  size="sm"
-                >
-                  {ghlSaving ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  Save Mapping
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Pipeline Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pipeline
-                  </label>
-                  <select
-                    value={mapping.pipeline_id || ''}
-                    onChange={(e) => {
-                      const pipelineId = e.target.value
-                      const updatedMapping = { ...mapping, pipeline_id: pipelineId, opportunity_stage: '' }
-                      setGhlFieldMappings(prev => 
-                        prev.map(m => m.mapping_id === mapping.mapping_id ? updatedMapping : m)
-                      )
-                    }}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select a pipeline</option>
-                    {ghlPipelines.map((pipeline) => (
-                      <option key={pipeline.id} value={pipeline.id}>
-                        {pipeline.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Choose the pipeline where new opportunities will be created
-                  </p>
-                </div>
-
-                {/* Stage Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Initial Stage
-                  </label>
-                  <select
-                    value={mapping.opportunity_stage || ''}
-                    onChange={(e) => {
-                      const updatedMapping = { ...mapping, opportunity_stage: e.target.value }
-                      setGhlFieldMappings(prev => 
-                        prev.map(m => m.mapping_id === mapping.mapping_id ? updatedMapping : m)
-                      )
-                    }}
-                    disabled={!mapping.pipeline_id}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">
-                      {!mapping.pipeline_id ? 'Select a pipeline first' : 'Select initial stage'}
-                    </option>
-                    {mapping.pipeline_id && ghlPipelines
-                      .find(pipeline => pipeline.id === mapping.pipeline_id)
-                      ?.stages?.map((stage: any) => (
-                        <option key={stage.id} value={stage.id}>
-                          {stage.name}
-                        </option>
-                      ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    The stage where new opportunities will be placed initially
-                  </p>
-                </div>
-              </div>
-
-              {/* Tags Configuration */}
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Contact Tags</h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tags to Apply to Contacts
-                    </label>
-                    <div className="relative">
-                      <div className="flex flex-wrap items-center gap-2 p-3 border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 min-h-[42px]">
-                        {Array.isArray(mapping.tags) && mapping.tags.length > 0 && (
-                          <>
-                            {mapping.tags.map((tag: string, tagIndex: number) => (
-                              <span
-                                key={tagIndex}
-                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200"
-                              >
-                                {tag}
-                                <button
-                                  onClick={() => {
-                                    const updatedTags = mapping.tags.filter((_: string, index: number) => index !== tagIndex)
-                                    const updatedMapping = { ...mapping, tags: updatedTags }
-                                    setGhlFieldMappings(prev => 
-                                      prev.map(m => m.mapping_id === mapping.mapping_id ? updatedMapping : m)
-                                    )
-                                  }}
-                                  className="ml-1 hover:bg-blue-200 rounded-full p-0.5 transition-colors"
-                                  title="Remove tag"
-                                >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </span>
-                            ))}
-                            {Array.isArray(mapping.tags) && mapping.tags.length > 0 && (
-                              <button
-                                onClick={() => {
-                                  const updatedMapping = { ...mapping, tags: [] }
-                                  setGhlFieldMappings(prev => 
-                                    prev.map(m => m.mapping_id === mapping.mapping_id ? updatedMapping : m)
-                                  )
-                                }}
-                                className="text-xs text-red-600 hover:text-red-800 font-medium transition-colors ml-2"
-                              >
-                                Clear All
-                              </button>
-                            )}
-                          </>
-                        )}
-                        <input
-                          type="text"
-                          placeholder={Array.isArray(mapping.tags) && mapping.tags.length > 0 ? "Add more tags..." : "Type tag and press Enter"}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              const currentValue = e.currentTarget.value.trim()
-                              if (currentValue && (!Array.isArray(mapping.tags) || !mapping.tags.includes(currentValue))) {
-                                const newTags = Array.isArray(mapping.tags) ? [...mapping.tags, currentValue] : [currentValue]
-                                const updatedMapping = { ...mapping, tags: newTags }
-                                setGhlFieldMappings(prev => 
-                                  prev.map(m => m.mapping_id === mapping.mapping_id ? updatedMapping : m)
-                                )
-                                e.currentTarget.value = ''
-                              }
-                            }
-                          }}
-                          className="flex-1 min-w-[120px] outline-none bg-transparent text-sm"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Press Enter to add tags. These will be applied to {mapping.recipient_type} leads in GoHighLevel.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Field Mappings */}
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Field Mappings</h4>
-                <div className="space-y-3">
-                  {templateFields.map((field, index) => (
-                    <div key={field.field_name || index} className="flex items-center space-x-4">
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700">
-                          {field.display_name}
-                        </label>
-                        <p className="text-xs text-gray-500">{field.description}</p>
-                      </div>
-                      <div className="flex-1">
-                        <select
-                          value={mapping.field_mappings[field.field_name] || ''}
-                          onChange={(e) => {
-                            const updatedFieldMappings = {
-                              ...mapping.field_mappings,
-                              [field.field_name]: e.target.value
-                            }
-                            const updatedMapping = { ...mapping, field_mappings: updatedFieldMappings }
-                            setGhlFieldMappings(prev => 
-                              prev.map(m => m.mapping_id === mapping.mapping_id ? updatedMapping : m)
-                            )
-                          }}
-                          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="">Select GHL field</option>
-                          {ghlCustomFields.map((ghlField) => (
-                            <option key={ghlField.id} value={ghlField.id}>
-                              {ghlField.name} ({ghlField.fieldType})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {ghlFieldMappings.length === 0 && (
-            <div className="text-center py-8">
-              <Users className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">No Field Mappings</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Field mappings will be created automatically when you select a category and email type.
-              </p>
-            </div>
-          )}
-        </div>
+        <LeadsMapping
+          ghlIntegration={ghlIntegration}
+          ghlFieldMappings={ghlFieldMappings}
+          ghlPipelines={ghlPipelines}
+          ghlCustomFields={ghlCustomFields}
+          templateFields={templateFields}
+          ghlLoading={ghlLoading}
+          ghlSaving={ghlSaving}
+          onSaveMapping={saveGHLFieldMappings}
+          onRefresh={loadGHLIntegration}
+          onUpdateMapping={updateGHLFieldMapping}
+        />
       )}
 
       {/* GHL Not Connected Message */}
