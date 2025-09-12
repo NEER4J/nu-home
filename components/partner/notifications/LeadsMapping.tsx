@@ -115,8 +115,8 @@ export default function LeadsMapping({
   return (
     <div className="space-y-6">
      
-      {/* Mapping Cards - Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Mapping Card - Single Column */}
+      <div className="grid grid-cols-1 gap-6">
         {ghlFieldMappings.map((mapping) => (
         <div 
           key={mapping.mapping_id} 
@@ -126,19 +126,15 @@ export default function LeadsMapping({
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  mapping.recipient_type === 'customer' 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'bg-purple-100 text-purple-600'
-                }`}>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600">
                   <Users className="h-5 w-5" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {mapping.recipient_type === 'customer' ? 'Customer Lead' : 'Admin Lead'} Mapping
+                    Lead Mapping
                   </h3>
                   <p className="text-sm text-gray-500">
-                    Configure how {mapping.recipient_type} leads are processed
+                    Configure how leads are processed in GoHighLevel
                   </p>
                 </div>
               </div>

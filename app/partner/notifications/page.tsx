@@ -786,18 +786,6 @@ export default function NotificationsPage() {
           tags: [],
           is_active: true,
           is_default: true
-        },
-        {
-          partner_id: user.id,
-          service_category_id: selectedCategoryId,
-          email_type: selectedEmailType,
-          recipient_type: 'admin',
-          pipeline_id: null,
-          opportunity_stage: null,
-          field_mappings: {},
-          tags: [],
-          is_active: true,
-          is_default: true
         }
       ]
 

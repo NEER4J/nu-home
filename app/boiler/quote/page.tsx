@@ -797,6 +797,49 @@ export default function HeatingQuotePage({
           timestamp: new Date().toISOString()
         });
       }
+
+      // Create GHL lead directly from frontend (visible in network tab)
+      if (effectivePartnerId) {
+        try {
+          console.log('🚀 Creating GHL lead from frontend...');
+          
+          const ghlResponse = await fetch('/api/ghl/create-lead-client', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              partnerId: effectivePartnerId,
+              contactData: {
+                firstName: contactDetails.firstName,
+                lastName: contactDetails.lastName,
+                email: contactDetails.email,
+                phone: contactDetails.phone,
+                address1: selectedAddress?.address_line_1 || contactDetails.postcode,
+                city: contactDetails.city || contactDetails.postcode,
+                country: selectedAddress?.country || 'United Kingdom'
+              },
+              customFields: {}, // Will be populated by the API based on field mappings
+              pipelineId: null, // Will be determined by the API based on field mappings
+              stageId: null, // Will be determined by the API based on field mappings
+              opportunityName: `${contactDetails.firstName} ${contactDetails.lastName} - Quote Request`,
+              monetaryValue: 0,
+              tags: []
+            })
+          });
+
+          if (ghlResponse.ok) {
+            const ghlResult = await ghlResponse.json();
+            console.log('✅ GHL lead created successfully from frontend:', ghlResult);
+          } else {
+            const errorText = await ghlResponse.text();
+            console.error('❌ GHL lead creation failed from frontend:', ghlResponse.status, errorText);
+          }
+        } catch (ghlError) {
+          console.error('❌ GHL lead creation error from frontend:', ghlError);
+          // Don't fail the form submission if GHL fails
+        }
+      }
       
       // Only redirect immediately if OTP is NOT enabled
       const isOtpEnabled = effectivePartner?.otp || false;
