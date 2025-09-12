@@ -63,6 +63,90 @@ const saveLeadSubmissionData = async (
   }
 };
 
+// Helper function to update OTP verification stage
+const updateOtpVerificationStage = async (
+  supabase: any,
+  submissionId: string,
+  stage: 'otp_sent' | 'otp_verified',
+  additionalData?: any
+) => {
+  try {
+    // Get current data
+    const { data: currentData, error: fetchError } = await supabase
+      .from('lead_submission_data')
+      .select('quote_data')
+      .eq('submission_id', submissionId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching current data for OTP stage update:', fetchError);
+      return;
+    }
+
+    const currentQuoteData = currentData?.quote_data || {};
+    const currentStageHistory = currentQuoteData.stage_history || [];
+
+    // Create new stage entry
+    const newStageEntry = {
+      stage: stage,
+      timestamp: new Date().toISOString(),
+      data: additionalData || {}
+    };
+
+    // Update the quote_data with new stage
+    const updatedQuoteData = {
+      ...currentQuoteData,
+      verification_stage: stage,
+      stage_history: [...currentStageHistory, newStageEntry],
+      // Mark as complete if OTP is verified
+      ...(stage === 'otp_verified' && {
+        is_complete: true,
+        completed_at: new Date().toISOString()
+      })
+    };
+
+    // Update in database
+    const { error: updateError } = await supabase
+      .from('lead_submission_data')
+      .update({
+        quote_data: updatedQuoteData,
+        last_activity_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('submission_id', submissionId);
+
+    if (updateError) {
+      console.error('Error updating OTP verification stage:', updateError);
+    } else {
+      console.log(`Successfully updated OTP stage to: ${stage} for submission: ${submissionId}`);
+    }
+
+    // Add conversion event for OTP verified
+    if (stage === 'otp_verified') {
+      const currentConversionEvents = currentData?.conversion_events || [];
+      const newConversionEvent = {
+        event: 'otp_verified',
+        timestamp: new Date().toISOString(),
+        data: {
+          submission_id: submissionId,
+          verification_completed_at: new Date().toISOString(),
+          ...additionalData
+        }
+      };
+
+      await supabase
+        .from('lead_submission_data')
+        .update({
+          conversion_events: [...currentConversionEvents, newConversionEvent]
+        })
+        .eq('submission_id', submissionId);
+    }
+
+  } catch (error) {
+    console.error('Error in updateOtpVerificationStage:', error);
+  }
+};
+
 interface HeatingQuotePageProps {
   serviceCategoryId?: string;
   partnerId?: string;
@@ -103,7 +187,9 @@ export default function HeatingQuotePage({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [partnerInfoFromDomain, setPartnerInfoFromDomain] = useState<PartnerProfile | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [showOtpScreen, setShowOtpScreen] = useState<boolean>(false);
   const [pageStartTime, setPageStartTime] = useState<number>(Date.now());
+  const [emailSent, setEmailSent] = useState<boolean>(false);
   const supabase = createClient();
 
   // Get dynamic color based on partner info
@@ -382,8 +468,14 @@ export default function HeatingQuotePage({
     }
   };
 
-  // Handle form submission
-  const handleSubmit = async (contactDetails: any) => {
+  // Handle initial form data saving (called immediately after form submission)
+  const saveInitialFormData = async (contactDetails: any) => {
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring duplicate submission');
+      return null;
+    }
+    
     try {
       setIsSubmitting(true);
       setError(null);
@@ -463,10 +555,11 @@ export default function HeatingQuotePage({
       // Set submission ID for tracking
       setSubmissionId(result.data.submission_id);
 
-      // Save final quote data to lead_submission_data
+      // Save initial quote data to lead_submission_data with stage tracking
       const finalEffectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
       if (finalEffectivePartnerId) {
         const totalTimeOnPage = Date.now() - pageStartTime;
+        const isOtpEnabled = effectivePartner?.otp || false;
         
         // Create enhanced form answers with question text
         const formAnswersWithText = Object.entries(filteredAnswers).reduce((acc, [key, val]) => {
@@ -479,6 +572,10 @@ export default function HeatingQuotePage({
           };
           return acc;
         }, {} as Record<string, any>);
+
+        // Determine the current stage and completion status
+        const currentStage = isOtpEnabled ? 'details_filled' : 'completed';
+        const isComplete = !isOtpEnabled; // Complete immediately if no OTP required
 
         await saveLeadSubmissionData(
           supabase,
@@ -497,7 +594,21 @@ export default function HeatingQuotePage({
                 postcode: contactDetails.postcode,
                 city: contactDetails.city
               },
-              completed_at: new Date().toISOString(),
+              // Stage tracking
+              verification_stage: currentStage,
+              otp_enabled: isOtpEnabled,
+              stage_history: [{
+                stage: 'details_filled',
+                timestamp: new Date().toISOString(),
+                data: {
+                  form_questions_answered: Object.keys(filteredAnswers).length,
+                  total_questions: questions.length,
+                  otp_required: isOtpEnabled
+                }
+              }],
+              // Completion tracking
+              completed_at: isComplete ? new Date().toISOString() : null,
+              is_complete: isComplete,
               total_time_on_page_ms: totalTimeOnPage,
               form_submission_count: 1
             },
@@ -506,15 +617,18 @@ export default function HeatingQuotePage({
               submitted_at: new Date().toISOString(),
               form_type: 'quote',
               data_completeness: Object.keys(filteredAnswers).length,
-              total_questions: questions.length
+              total_questions: questions.length,
+              verification_stage: currentStage
             }],
             conversion_events: [{
-              event: 'quote_completed',
+              event: isComplete ? 'quote_completed' : 'details_filled',
               timestamp: new Date().toISOString(),
               data: {
                 submission_id: result.data.submission_id,
                 partner_id: finalEffectivePartnerId,
-                service_category: 'boiler'
+                service_category: 'boiler',
+                verification_stage: currentStage,
+                otp_required: isOtpEnabled
               }
             }],
             page_timings: {
@@ -531,9 +645,11 @@ export default function HeatingQuotePage({
       }
       
       // Send email with the correct submission_id and standardized field data
-      try {
-        const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-        const subdomain = hostname || null
+      // Only send email if not already sent
+      if (!emailSent) {
+        try {
+          const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+          const subdomain = hostname || null
 
         // Format full address from selected address or contact details
         let fullAddress = ''
@@ -587,12 +703,15 @@ export default function HeatingQuotePage({
           }),
         })
 
-        const emailData = await emailRes.json().catch(() => ({}))
-        if (!emailRes.ok) {
-          console.warn('Failed to send initial quote email:', emailData?.error || 'Unknown error')
+          const emailData = await emailRes.json().catch(() => ({}))
+          if (!emailRes.ok) {
+            console.warn('Failed to send initial quote email:', emailData?.error || 'Unknown error')
+          } else {
+            setEmailSent(true) // Mark email as sent
+          }
+        } catch (err: any) {
+          console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
         }
-      } catch (err: any) {
-        console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
       }
       
       // Trigger GTM event if event name is provided
@@ -618,12 +737,109 @@ export default function HeatingQuotePage({
         });
       }
       
-      router.push(`/boiler/products?submission=${result.data.submission_id}`);
-      return;
+      // Only redirect immediately if OTP is NOT enabled
+      const isOtpEnabled = effectivePartner?.otp || false;
+      if (!isOtpEnabled) {
+        router.push(`/boiler/products?submission=${result.data.submission_id}`);
+      }
+      
+      return result.data.submission_id; // Return submission ID for OTP flow
       
     } catch (error: any) {
       setError(error.message || 'An unexpected error occurred');
       console.error('Error submitting heating quote form:', error);
+      setIsSubmitting(false);
+    } finally {
+      // Only set submitting to false if OTP is not enabled (since OTP flow will handle this)
+      const isOtpEnabled = effectivePartner?.otp || false;
+      if (!isOtpEnabled) {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  // Handle completion after OTP verification (redirect to products page)
+  const handlePostVerificationCompletion = async (submissionId: string) => {
+    console.log('=== POST VERIFICATION COMPLETION ===');
+    console.log('About to redirect to products page with submissionId:', submissionId);
+    
+    try {
+      // The OTP verification API already updated the verification stage to 'otp_verified'
+      // and marked the quote as complete, so we just need to redirect
+      setShowOtpScreen(false); // Reset OTP screen state
+      console.log('showOtpScreen set to false');
+      
+      // Add a small delay to ensure email is sent before redirect
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const redirectUrl = `/boiler/products?submission=${submissionId}`;
+      console.log('Attempting redirect to:', redirectUrl);
+      
+      // Use window.location.href for more reliable redirect
+      if (typeof window !== 'undefined') {
+        window.location.href = redirectUrl;
+      } else {
+        router.push(redirectUrl);
+      }
+      console.log('Redirect initiated');
+    } catch (error: any) {
+      console.error('Error during post-verification completion:', error);
+      setError(error.message || 'An error occurred after verification');
+    }
+  };
+
+  // Handle OTP verification completion
+  const handleOtpVerificationComplete = async (submissionId: string) => {
+    console.log('=== OTP VERIFICATION COMPLETE ===');
+    console.log('Received submissionId:', submissionId);
+    console.log('Stack trace:', new Error().stack);
+    
+    try {
+      // The OTP verification API already updated the submission and marked it as complete
+      // We just need to redirect to the products page - no need to resubmit
+      await handlePostVerificationCompletion(submissionId);
+      setIsSubmitting(false);
+      console.log('OTP completion handled successfully');
+    } catch (error: any) {
+      console.error('Error handling OTP verification completion:', error);
+      setError(error.message || 'An error occurred after verification');
+      setIsSubmitting(false);
+    }
+  };
+
+  // Main form submission handler (only handles initial form data saving)
+  const handleSubmit = async (contactDetails: any) => {
+    console.log('=== HANDLE SUBMIT CALLED ===');
+    console.log('Contact details:', contactDetails);
+    console.log('Stack trace:', new Error().stack);
+    
+    try {
+      // Save the form data immediately
+      console.log('Calling saveInitialFormData...');
+      const submissionId = await saveInitialFormData(contactDetails);
+      console.log('saveInitialFormData completed, submissionId:', submissionId);
+      
+      // If OTP is enabled, show OTP verification screen
+      // If OTP is disabled, saveInitialFormData already redirected to products
+      const isOtpEnabled = effectivePartner?.otp || false;
+      console.log('OTP enabled:', isOtpEnabled);
+      
+      if (isOtpEnabled && submissionId) {
+        // Store submission ID for OTP verification flow
+        setSubmissionId(submissionId);
+        // Signal that data is saved and OTP screen should be shown
+        setShowOtpScreen(true);
+        console.log('OTP flow: showOtpScreen set to true');
+        // Keep isSubmitting true for OTP flow
+      } else {
+        // OTP not enabled, form is complete
+        setIsSubmitting(false);
+        console.log('No OTP: form complete, isSubmitting set to false');
+      }
+      
+    } catch (error: any) {
+      console.error('Error in main form submission handler:', error);
+      setError(error.message || 'An unexpected error occurred');
       setIsSubmitting(false);
     }
   };
@@ -700,11 +916,13 @@ export default function HeatingQuotePage({
         <div className="mt-6 lg:mt-8 max-w-lg mx-auto">
           <UserInfoForm
             initialUserInfo={userInfo}
-            formValues={formValues}
+            formValues={{...formValues, submission_id: submissionId}}
             onUserInfoChange={setUserInfo}
             onSubmit={handleSubmit}
+            onOtpVerified={handleOtpVerificationComplete}
             companyColor={getDynamicColor()}
             otpEnabled={effectivePartner?.otp || false}
+            showOtpScreen={showOtpScreen}
             questions={questions}
           />
         </div>

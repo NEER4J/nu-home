@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 interface OtpVerificationProps {
   phoneNumber: string
-  onVerificationComplete: () => void
+  onVerificationComplete: (submissionId?: string) => void
   onResendOtp?: () => void
   className?: string
   userInfo?: {
@@ -131,7 +131,7 @@ export default function OtpVerification({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phoneNumber, subdomain }),
+        body: JSON.stringify({ phoneNumber, subdomain, submissionId }),
       })
       
       const data = await response.json()
@@ -181,7 +181,8 @@ export default function OtpVerification({
           phoneNumber, 
           code: otpCode,
           verificationSid,
-          subdomain
+          subdomain,
+          submissionId
         }),
       })
       
@@ -193,10 +194,11 @@ export default function OtpVerification({
       
       if (data.status === 'approved') {
         setSuccess(true)
-        // Send verified quote email before completing
+        // Send verification email after successful OTP verification
         await sendVerifiedQuoteEmail()
-        // Immediately notify parent to proceed; avoid lingering on OTP screen
-        onVerificationComplete()
+        // The OTP verification API already updated the submission in the database
+        // We just need to notify the parent to redirect - no additional submission needed
+        onVerificationComplete(submissionId)
       } else {
         throw new Error('Verification failed')
       }
