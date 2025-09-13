@@ -18,7 +18,7 @@ import {
 import { toast } from 'sonner'
 import { createClient } from '@/utils/supabase/client'
 import Editor from '@monaco-editor/react'
-import { TemplateField, getTemplateFieldsByEmailType, getAllTemplateFieldsForCategory, TemplateFieldCategory } from '@/lib/email-templates/shared'
+import { TemplateField } from '@/lib/email-templates/shared'
 
 interface EmailTemplate {
   template_id: string
@@ -69,7 +69,7 @@ export default function EmailTemplateEditor({
   }, [])
 
   useEffect(() => {
-    // Initialize preview data with mix of real company data and dummy customer data
+    // Initialize preview data with real company data and sample values from field mappings
     const initialData: Record<string, any> = {}
     
     // Use real company data if available
@@ -85,17 +85,14 @@ export default function EmailTemplateEditor({
       initialData.termsConditions = partnerProfile.terms_conditions || 'Terms & Conditions'
     }
 
-    // Use dummy data for customer fields and other dynamic content
+    // Use sample values from field mappings
     templateFields.forEach(field => {
-      if (!initialData[field.field_name] && field.sample_value) {
-        // Only use sample value if we haven't already set real company data
-        if (!field.field_name.startsWith('company') && 
-            !['logoUrl', 'primaryColor', 'privacyPolicy', 'termsConditions', 'currentYear'].includes(field.field_name)) {
-          initialData[field.field_name] = field.sample_value
-        }
+      if (field.sample_value) {
+        initialData[field.field_name] = field.sample_value
       }
     })
     
+    // Add common fields that might be used
     initialData.currentYear = new Date().getFullYear()
     setPreviewData(initialData)
   }, [templateFields, partnerProfile])
@@ -233,8 +230,23 @@ export default function EmailTemplateEditor({
     }
   }
 
-  // Get all categorized fields for all email types in the category
-  const categorizedFields = getAllTemplateFieldsForCategory()
+  // Group template fields by category
+  const categorizedFields = templateFields.reduce((acc, field) => {
+    const categoryName = field.category || 'General'
+    const existingCategory = acc.find(cat => cat.name === categoryName)
+    
+    if (existingCategory) {
+      existingCategory.fields.push(field)
+    } else {
+      acc.push({
+        name: categoryName,
+        description: `Fields related to ${categoryName.toLowerCase()}`,
+        fields: [field]
+      })
+    }
+    
+    return acc
+  }, [] as Array<{ name: string; description: string; fields: TemplateField[] }>)
 
   return (
     <div className="grid grid-cols-12 gap-6">
@@ -401,7 +413,7 @@ export default function EmailTemplateEditor({
               Dynamic Fields
             </CardTitle>
             <CardDescription>
-              All available fields for all email types in this category. Click to copy field codes.
+              Dynamic fields for this email type. Click to copy field codes.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -423,65 +435,86 @@ export default function EmailTemplateEditor({
                   </div>
                 </div>
 
-                {/* Categorized Dynamic Fields */}
-                <div>
-                  <h3 className="font-semibold mb-3">All Available Fields</h3>
-                  <div className="space-y-4">
-                    {categorizedFields.map((category, categoryIndex) => (
-                      <div key={categoryIndex}>
-                        <h4 className="font-medium text-sm text-gray-700 mb-2 flex items-center">
-                          {category.name}
-                          <span className="ml-2 text-xs text-gray-500">({category.fields.length})</span>
-                        </h4>
-                        <p className="text-xs text-gray-500 mb-2">{category.description}</p>
-                        <div className="space-y-1">
-                          {category.fields.map((field, fieldIndex) => (
-                            <div
-                              key={`${field.field_name}-${fieldIndex}`}
-                              className="p-2 border rounded hover:bg-gray-50 transition-colors cursor-pointer"
-                              onClick={() => copyFieldTag(field.field_name)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-1 mb-1">
-                                    <span className="font-medium text-sm truncate">
-                                      {field.display_name}
-                                    </span>
-                                    {field.is_required && (
-                                      <Badge variant="secondary" className="text-xs px-1">
-                                        *
-                                      </Badge>
+                {/* Dynamic Fields from Database */}
+                {categorizedFields.length > 0 ? (
+                  <div>
+                    <h3 className="font-semibold mb-3">Available Fields</h3>
+                    <div className="space-y-4">
+                      {categorizedFields.map((category, categoryIndex) => (
+                        <div key={categoryIndex}>
+                          <h4 className="font-medium text-sm text-gray-700 mb-2 flex items-center">
+                            {category.name}
+                            <span className="ml-2 text-xs text-gray-500">({category.fields.length})</span>
+                          </h4>
+                          <p className="text-xs text-gray-500 mb-2">{category.description}</p>
+                          <div className="space-y-1">
+                            {category.fields.map((field, fieldIndex) => (
+                              <div
+                                key={`${field.field_name}-${fieldIndex}`}
+                                className="p-2 border rounded hover:bg-gray-50 transition-colors cursor-pointer"
+                                onClick={() => copyFieldTag(field.field_name)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center space-x-1 mb-1">
+                                      <span className="font-medium text-sm truncate">
+                                        {field.display_name}
+                                      </span>
+                                      {field.is_required && (
+                                        <Badge variant="secondary" className="text-xs px-1">
+                                          *
+                                        </Badge>
+                                      )}
+                                      {field.field_type === 'html_template' && (
+                                        <Badge variant="outline" className="text-xs px-1">
+                                          HTML
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <code className="text-xs text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
+                                      {`{{${field.field_name}}}`}
+                                    </code>
+                                    {field.description && (
+                                      <p className="text-xs text-gray-500 mt-1 truncate">
+                                        {field.description}
+                                      </p>
                                     )}
                                   </div>
-                                  <code className="text-xs text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
-                                    {`{{${field.field_name}}}`}
-                                  </code>
-                                  {field.description && (
-                                    <p className="text-xs text-gray-500 mt-1 truncate">
-                                      {field.description}
-                                    </p>
-                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      copyFieldTag(field.field_name)
+                                    }}
+                                    title="Copy field tag"
+                                    className="h-6 w-6 p-0 shrink-0"
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    copyFieldTag(field.field_name)
-                                  }}
-                                  title="Copy field tag"
-                                  className="h-6 w-6 p-0 shrink-0"
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Hash className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">No Fields Available</h3>
+                    <p className="text-xs text-gray-500 mb-4">
+                      No field mappings have been configured for this email type yet.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => window.open('/partner/field-mappings', '_blank')}
+                    >
+                      Create Field Mappings
+                    </Button>
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </CardContent>

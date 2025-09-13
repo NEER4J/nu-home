@@ -9,6 +9,13 @@ export interface TemplateField {
   is_required: boolean
   is_system: boolean
   sample_value?: string
+  category?: string
+  database_source?: string
+  database_path?: any
+  html_template?: string
+  html_template_type?: string
+  loop_config?: any
+  template_variables?: any
 }
 
 export function getDefaultDynamicFields(): string[] {
@@ -64,8 +71,8 @@ export function getTemplateFieldsByEmailType(emailType: string): TemplateFieldCa
     'Company Information': {
       name: 'Company Information',
       description: 'Partner company information available in all email templates',
-      fields: allFields.filter(field => 
-        ['companyName', 'companyPhone', 'companyEmail', 'companyAddress', 'companyWebsite', 'logoUrl', 'primaryColor', 'currentYear', 'privacyPolicy', 'termsConditions'].includes(field.field_name)
+      fields: allFields.filter(field =>
+        ['companyName', 'companyPhone', 'companyAddress', 'companyPostcode', 'companyWebsite', 'logoUrl', 'companyColor', 'currentYear', 'privacyPolicy', 'termsConditions'].includes(field.field_name)
       )
     },
     
@@ -160,18 +167,18 @@ function getAllTemplateFields(): TemplateField[] {
     { field_name: 'fullAddress', field_type: 'text', display_name: 'Full Address', description: 'Customer complete address', is_required: false, is_system: true, sample_value: '123 Main Street, London, SW1A 1AA' },
     { field_name: 'submissionId', field_type: 'text', display_name: 'Submission ID', description: 'Unique submission identifier', is_required: true, is_system: true, sample_value: '896cd588-20e5-45c2-8c30-2622958bfca2' },
     { field_name: 'submissionDate', field_type: 'date', display_name: 'Submission Date', description: 'Date of quote submission', is_required: true, is_system: true, sample_value: '2024-01-15' },
-    
-    // Company Information fields (for all email types)
-    { field_name: 'companyName', field_type: 'text', display_name: 'Company Name', description: 'Partner company name', is_required: true, is_system: true, sample_value: 'ABC Boilers Ltd' },
-    { field_name: 'companyPhone', field_type: 'text', display_name: 'Company Phone', description: 'Company contact phone', is_required: false, is_system: true, sample_value: '0800 123 4567' },
-    { field_name: 'companyEmail', field_type: 'text', display_name: 'Company Email', description: 'Company contact email', is_required: false, is_system: true, sample_value: 'info@abcboilers.com' },
-    { field_name: 'companyAddress', field_type: 'text', display_name: 'Company Address', description: 'Company full address', is_required: false, is_system: true, sample_value: '123 Business St, London' },
-    { field_name: 'companyWebsite', field_type: 'text', display_name: 'Company Website', description: 'Company website URL', is_required: false, is_system: true, sample_value: 'https://www.abcboilers.com' },
-    { field_name: 'logoUrl', field_type: 'text', display_name: 'Logo URL', description: 'Company logo image URL', is_required: false, is_system: true, sample_value: 'https://example.com/logo.png' },
-    { field_name: 'primaryColor', field_type: 'text', display_name: 'Primary Color', description: 'Company primary color', is_required: false, is_system: true, sample_value: '#3b82f6' },
+
+    // Company Information fields (for all email types) - sourced from UserProfiles
+    { field_name: 'companyName', field_type: 'text', display_name: 'Company Name', description: 'Partner company name from UserProfiles', is_required: true, is_system: true, sample_value: 'ABC Boilers Ltd' },
+    { field_name: 'companyPhone', field_type: 'text', display_name: 'Company Phone', description: 'Company contact phone from UserProfiles', is_required: false, is_system: true, sample_value: '0800 123 4567' },
+    { field_name: 'companyAddress', field_type: 'text', display_name: 'Company Address', description: 'Company full address from UserProfiles', is_required: false, is_system: true, sample_value: '123 Business St, London, SW1A 1AA' },
+    { field_name: 'companyPostcode', field_type: 'text', display_name: 'Company Postcode', description: 'Company postcode from UserProfiles', is_required: false, is_system: true, sample_value: 'SW1A 1AA' },
+    { field_name: 'companyWebsite', field_type: 'text', display_name: 'Company Website', description: 'Company website URL from UserProfiles', is_required: false, is_system: true, sample_value: 'https://www.abcboilers.com' },
+    { field_name: 'logoUrl', field_type: 'text', display_name: 'Logo URL', description: 'Company logo image URL from UserProfiles', is_required: false, is_system: true, sample_value: 'https://example.com/logo.png' },
+    { field_name: 'companyColor', field_type: 'text', display_name: 'Company Color', description: 'Company primary color from UserProfiles', is_required: false, is_system: true, sample_value: '#3b82f6' },
+    { field_name: 'privacyPolicy', field_type: 'text', display_name: 'Privacy Policy', description: 'Privacy policy text from UserProfiles', is_required: false, is_system: true, sample_value: 'Privacy Policy' },
+    { field_name: 'termsConditions', field_type: 'text', display_name: 'Terms & Conditions', description: 'Terms and conditions text from UserProfiles', is_required: false, is_system: true, sample_value: 'Terms & Conditions' },
     { field_name: 'currentYear', field_type: 'text', display_name: 'Current Year', description: 'Current year', is_required: false, is_system: true, sample_value: '2024' },
-    { field_name: 'privacyPolicy', field_type: 'text', display_name: 'Privacy Policy', description: 'Privacy policy text or link', is_required: false, is_system: true, sample_value: 'Privacy Policy' },
-    { field_name: 'termsConditions', field_type: 'text', display_name: 'Terms & Conditions', description: 'Terms and conditions text or link', is_required: false, is_system: true, sample_value: 'Terms & Conditions' },
     
     // Product Information field (for all templates)
     { field_name: 'productInformation', field_type: 'html', display_name: 'Product Information', description: 'Comprehensive product information with formatted HTML (handles multiple products)', is_required: false, is_system: true, sample_value: createSampleProductCard() },
@@ -225,8 +232,8 @@ export function getAllTemplateFieldsForCategory(): TemplateFieldCategory[] {
     {
       name: 'Company Information',
       description: 'Partner company information available in all email templates',
-      fields: allFields.filter(field => 
-        ['companyName', 'companyPhone', 'companyEmail', 'companyAddress', 'companyWebsite', 'logoUrl', 'primaryColor', 'currentYear', 'privacyPolicy', 'termsConditions'].includes(field.field_name)
+      fields: allFields.filter(field =>
+        ['companyName', 'companyPhone', 'companyAddress', 'companyPostcode', 'companyWebsite', 'logoUrl', 'companyColor', 'currentYear', 'privacyPolicy', 'termsConditions'].includes(field.field_name)
       )
     },
     

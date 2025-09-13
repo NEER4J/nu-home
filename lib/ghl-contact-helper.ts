@@ -79,19 +79,27 @@ export async function createGHLContact(leadData: LeadData): Promise<boolean> {
     }
 
     console.log('📋 Found field mappings:', fieldMappings.map(m => ({
+      mapping_id: m.mapping_id,
       recipient_type: m.recipient_type,
       pipeline_id: m.pipeline_id,
       opportunity_stage: m.opportunity_stage,
       tags: m.tags,
       tags_type: typeof m.tags,
-      tags_is_array: Array.isArray(m.tags)
+      tags_is_array: Array.isArray(m.tags),
+      is_active: m.is_active
     })))
+    
+    // Enhanced debug logging for opportunity creation
+    console.log('🚀 GHL INTEGRATION DEBUG: Starting contact/opportunity creation process...')
 
-    // Create contacts for both customer and admin mappings
+    // Create only one contact (customer mapping only)
     let successCount = 0
     let failureCount = 0
     
-    for (const mapping of fieldMappings) {
+    // Filter to only process customer mappings
+    const customerMappings = fieldMappings.filter(mapping => mapping.recipient_type === 'customer')
+    
+    for (const mapping of customerMappings) {
       try {
         // Prepare custom fields based on mapping - convert to array format
         const customFields: Array<{field: string, value: string | number | boolean | null}> = []
@@ -194,8 +202,12 @@ export async function createGHLContact(leadData: LeadData): Promise<boolean> {
         }
         
         if (contactId) {
+          console.log(`🎯 GHL INTEGRATION DEBUG: Contact created with ID ${contactId}, checking for opportunity creation...`)
+          console.log(`📊 Pipeline configuration: pipeline_id=${mapping.pipeline_id}, opportunity_stage=${mapping.opportunity_stage}`)
+          
           // Create opportunity in pipeline if specified
           if (mapping.pipeline_id) {
+            console.log('✅ GHL INTEGRATION DEBUG: Pipeline ID found, proceeding with opportunity creation...')
             try {
               // First, try to validate that the pipeline and stage exist
               console.log('🔍 Validating pipeline and stage...')
@@ -236,15 +248,38 @@ export async function createGHLContact(leadData: LeadData): Promise<boolean> {
 
               const opportunityName = `${leadData.firstName} ${leadData.lastName}`
               console.log(`🎯 Creating opportunity "${opportunityName}" for contact ${contactId} (source: quote_ai)`)
+              console.log(`📋 Opportunity creation parameters:`, {
+                contactId,
+                pipelineId: mapping.pipeline_id,
+                stageId: mapping.opportunity_stage || undefined,
+                opportunityName,
+                recipientType: mapping.recipient_type
+              })
+              
+              // Ensure stage ID is present - required by GHL API
+              if (!mapping.opportunity_stage) {
+                console.error(`❌ GHL INTEGRATION ERROR: opportunity_stage is required but missing for mapping ${mapping.mapping_id}`)
+                throw new Error('opportunity_stage is required for opportunity creation')
+              }
+
               const opportunity = await ghlService.createOpportunityForContact(
                 contactId,
                 mapping.pipeline_id,
-                mapping.opportunity_stage || undefined,
+                mapping.opportunity_stage,
                 opportunityName
               )
-              console.log(`✅ Created opportunity ${opportunity.id} for contact ${contactId} in pipeline ${mapping.pipeline_id}`)
+              console.log(`🎉 GHL INTEGRATION SUCCESS: Created opportunity ${opportunity.id} for contact ${contactId} in pipeline ${mapping.pipeline_id}`)
+              console.log(`📊 Full opportunity response:`, opportunity)
+              console.log('🚀 GHL INTEGRATION DEBUG: OPPORTUNITY CREATION COMPLETED SUCCESSFULLY!')
             } catch (oppError) {
               console.error('❌ Failed to create opportunity for contact:', oppError)
+              console.error('❌ Full opportunity error details:', {
+                error: oppError,
+                message: (oppError as any)?.message,
+                status: (oppError as any)?.status,
+                response: (oppError as any)?.response,
+                stack: (oppError as any)?.stack
+              })
               // If opportunity creation fails due to duplicate, that's acceptable
               if (oppError && typeof oppError === 'object' && 'message' in oppError && 
                   typeof oppError.message === 'string' && (oppError.message.includes('duplicate') || oppError.message.includes('already exists'))) {
@@ -252,7 +287,8 @@ export async function createGHLContact(leadData: LeadData): Promise<boolean> {
               }
             }
           } else {
-            console.log(`ℹ️ No pipeline configured for ${mapping.recipient_type}, skipping opportunity creation`)
+            console.log(`❌ GHL INTEGRATION DEBUG: No pipeline configured for ${mapping.recipient_type}, skipping opportunity creation`)
+            console.log(`🔍 GHL INTEGRATION DEBUG: mapping.pipeline_id is: ${mapping.pipeline_id} (type: ${typeof mapping.pipeline_id})`)
           }
         }
         successCount++

@@ -5,7 +5,7 @@ import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { signOutAction } from '../actions';
-import { Home, Package, FileText, Grid, Settings, Bell, LogOut, User, PlusCircle, BarChart2, Tag, Download, Gift, Code } from 'lucide-react';
+import { Home, Package, FileText, Grid, Settings, Bell, LogOut, User, PlusCircle, BarChart2, Tag, Download, Gift, Code, MapPin } from 'lucide-react';
 import Loader from '@/components/Loader';
 import { useState, useEffect } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -157,6 +157,16 @@ export default function PartnerLayout({
               >
                 <Code className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
                 Integration
+              </Link>
+            </li>
+            
+            <li>
+              <Link 
+                href="/partner/field-mappings" 
+                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+              >
+                <MapPin className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                Field Mappings
               </Link>
             </li>
             

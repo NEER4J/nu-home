@@ -83,7 +83,7 @@ export class GHLAPIService {
         'Authorization': `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Version': '2021-04-15',
+        'Version': '2021-07-28',
         ...options.headers,
       },
     })
@@ -369,30 +369,30 @@ export class GHLAPIService {
     })
   }
 
-  // Create opportunity for contact in pipeline
+  // Create opportunity for contact in pipeline using direct curl/fetch approach
   async createOpportunityForContact(contactId: string, pipelineId: string, stageId?: string, opportunityName?: string): Promise<any> {
-    // Build payload matching official GHL SDK format
-    const data: any = {
-      pipelineId,
-      name: opportunityName || 'New Lead from NU-Home', // Use 'name' not 'title'
-      contactId,
-      status: 'open',
-      source: 'quote_ai' // Add opportunity source
-    }
-
-    if (stageId) {
-      data.pipelineStageId = stageId
-    }
-
-    // LocationId is REQUIRED - add it to the payload (not just query param)
-    if (this.locationId) {
-      data.locationId = this.locationId
-    } else {
+    // Validate required fields
+    if (!this.locationId) {
       console.error('❌ LocationId is required for opportunity creation but not available')
       throw new Error('LocationId is required for opportunity creation')
     }
 
-    console.log('🔍 Opportunity creation payload (SDK format):', JSON.stringify(data, null, 2))
+    if (!stageId) {
+      console.error('❌ pipelineStageId is required for opportunity creation but not provided')
+      throw new Error('pipelineStageId is required for opportunity creation')
+    }
+
+    // Build payload exactly matching your working Postman example
+    const data = {
+      pipelineId,
+      locationId: this.locationId,
+      pipelineStageId: stageId,
+      name: opportunityName || 'New Lead from NU-Home',
+      status: 'open',
+      monetaryValue: 0 // Adding this field from your working example
+    }
+
+    console.log('🔍 Direct API Opportunity creation payload:', JSON.stringify(data, null, 2))
     console.log('🏢 User type:', this.userType, 'Location ID:', this.locationId)
     
     // Validate contact exists first (helps debug 404 issues)
@@ -403,10 +403,43 @@ export class GHLAPIService {
       console.warn('⚠️ Could not validate contact existence:', contactError)
     }
 
-    return this.makeRequest('/opportunities/upsert', {
+    // Use direct fetch with exact headers from your working Postman example
+    const url = `${GHL_BASE_URL}/opportunities/upsert`
+    console.log(`🔄 Making direct GHL API request to: ${url}`)
+    
+    const response = await fetch(url, {
       method: 'POST',
-      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Version': '2021-07-28'
+      },
+      body: JSON.stringify(data)
     })
+
+    console.log(`📡 Direct API Response status: ${response.status} ${response.statusText}`)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`❌ Direct GHL API Error: ${response.status} - ${errorText}`)
+      
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { message: errorText }
+      }
+      
+      const error = new Error(`GHL API Error: ${response.status} - ${errorText}`)
+      ;(error as any).errorData = errorData
+      ;(error as any).status = response.status
+      throw error
+    }
+
+    const result = await response.json()
+    console.log(`✅ Direct GHL API response:`, result)
+    return result
   }
 
   // Add contact to opportunity (deprecated - use createOpportunityForContact instead)

@@ -1,51 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { resolvePartnerByHostname } from '@/lib/partner';
-import { createGHLContactFromQuoteSubmission } from '@/lib/ghl-contact-helper';
 
-// Background GHL contact creation function
-async function createGHLContactInBackground(
-  partnerLead: any,
-  formAnswers: any[],
-  serviceCategoryId: string,
-  partnerId: string
-) {
-  try {
-    // Format quote data for GHL (similar to email template)
-    const formatQuoteData = (formAnswers: any[]) => {
-      if (!formAnswers) return ''
-      
-      const formattedAnswers: string[] = []
-      
-      formAnswers.forEach((answer) => {
-        if (answer.question_text && answer.answer !== null && answer.answer !== undefined && answer.answer !== '') {
-          const formattedAnswer = Array.isArray(answer.answer) ? answer.answer.join(', ') : String(answer.answer)
-          formattedAnswers.push(`${answer.question_text}: ${formattedAnswer}`)
-        }
-      })
-      
-      return formattedAnswers.join('\n')
-    }
-
-    const formattedQuoteData = formatQuoteData(formAnswers)
-    
-    const ghlSuccess = await createGHLContactFromQuoteSubmission(
-      {
-        ...partnerLead,
-        quoteData: formattedQuoteData // Add formatted quote data
-      },
-      serviceCategoryId,
-      'quote-initial', // Default email type for new submissions
-      partnerId
-    )
-    
-    if (ghlSuccess) {
-      console.log('GHL contact created successfully in background')
-    }
-  } catch (ghlError) {
-    console.error('Failed to create GHL contact in background:', ghlError)
-  }
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -195,18 +151,7 @@ export async function POST(req: NextRequest) {
       gtmEventName = gtmSettings?.gtm_event_name || null;
     }
     
-    // Create GHL contact in background (non-blocking)
-    if (assignedPartnerId || partnerLead.assigned_partner_id) {
-      // Don't await this - let it run in background
-      createGHLContactInBackground(
-        partnerLead,
-        formAnswers,
-        formData.service_category_id,
-        assignedPartnerId || partnerLead.assigned_partner_id
-      ).catch(err => 
-        console.warn('GHL contact creation failed in background:', err)
-      )
-    }
+    // Note: GHL lead creation is now handled by the frontend to make it visible in network tab
 
     return NextResponse.json(
       { 
