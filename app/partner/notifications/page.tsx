@@ -55,7 +55,7 @@ import {
   getDefaultAdminSurveySubmittedTemplate,
   getDefaultAdminSurveySubmittedTextTemplate
 } from '@/lib/email-templates/survey-submitted'
-import { getDefaultDynamicFields, getDefaultTemplateFields, TemplateField } from '@/lib/email-templates/shared'
+import { getDefaultDynamicFields, TemplateField } from '@/lib/email-templates/shared'
 import { FieldMappingEngine } from '@/lib/field-mapping-engine'
 
 // Helper function to get templates based on category and email type
@@ -226,7 +226,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
-  const [templateFields, setTemplateFields] = useState<TemplateField[]>(getDefaultTemplateFields())
+  const [templateFields, setTemplateFields] = useState<TemplateField[]>([])
   const [fieldMappings, setFieldMappings] = useState<any[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
 
@@ -440,7 +440,7 @@ export default function NotificationsPage() {
     }
   }
 
-  // Template fields are now loaded from database field mappings
+  // Template fields are now loaded from database field mappings only
 
   const loadAdminEmail = async () => {
     if (!selectedCategoryId) return
@@ -486,19 +486,93 @@ export default function NotificationsPage() {
         return
       }
 
-      setFieldMappings(mappings || [])
+      // Check if company field mappings exist, create them if they don't
+      await ensureCompanyFieldMappings(mappings || [])
+
+      // Reload mappings after potentially creating new ones
+      const { data: updatedMappings } = await supabase
+        .from('email_field_mappings')
+        .select('*')
+        .eq('partner_id', user.id)
+        .eq('service_category_id', selectedCategoryId)
+        .eq('email_type', selectedEmailType)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+
+      setFieldMappings(updatedMappings || [])
 
       // Convert field mappings to template fields
-      const convertedFields = convertFieldMappingsToTemplateFields(mappings || [])
-      
-      // If no field mappings found, use default template fields as fallback
-      if (convertedFields.length === 0) {
-        setTemplateFields(getDefaultTemplateFields())
-      } else {
-        setTemplateFields(convertedFields)
-      }
+      const convertedFields = convertFieldMappingsToTemplateFields(updatedMappings || [])
+      setTemplateFields(convertedFields)
     } catch (error) {
       console.error('Error loading field mappings:', error)
+    }
+  }
+
+  const ensureCompanyFieldMappings = async (existingMappings: any[]) => {
+    const companyFields = ['companyName', 'companyPhone', 'companyAddress', 'companyPostcode', 'companyWebsite', 'logoUrl', 'companyColor', 'privacyPolicy', 'termsConditions']
+
+    const existingCompanyFields = existingMappings
+      .filter(m => companyFields.includes(m.template_field_name))
+      .map(m => m.template_field_name)
+
+    const missingFields = companyFields.filter(field => !existingCompanyFields.includes(field))
+
+    if (missingFields.length > 0) {
+      console.log(`Creating ${missingFields.length} missing company field mappings:`, missingFields)
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const companyFieldMappingsToCreate = missingFields.map(fieldName => {
+          const fieldMap: Record<string, { source: string; path: string; display: string; description: string }> = {
+            companyName: { source: 'partner_profile', path: 'company_name', display: 'Company Name', description: 'Company name from UserProfiles' },
+            companyPhone: { source: 'partner_profile', path: 'phone', display: 'Company Phone', description: 'Company phone from UserProfiles' },
+            companyAddress: { source: 'partner_profile', path: 'address', display: 'Company Address', description: 'Company address from UserProfiles' },
+            companyPostcode: { source: 'partner_profile', path: 'postcode', display: 'Company Postcode', description: 'Company postcode from UserProfiles' },
+            companyWebsite: { source: 'partner_profile', path: 'website_url', display: 'Company Website', description: 'Company website URL from UserProfiles' },
+            logoUrl: { source: 'partner_profile', path: 'logo_url', display: 'Logo URL', description: 'Company logo URL from UserProfiles' },
+            companyColor: { source: 'partner_profile', path: 'company_color', display: 'Company Color', description: 'Company primary color from UserProfiles' },
+            privacyPolicy: { source: 'partner_profile', path: 'privacy_policy', display: 'Privacy Policy', description: 'Privacy policy from UserProfiles' },
+            termsConditions: { source: 'partner_profile', path: 'terms_conditions', display: 'Terms & Conditions', description: 'Terms and conditions from UserProfiles' }
+          }
+
+          const config = fieldMap[fieldName]
+          return {
+            partner_id: user.id,
+            service_category_id: selectedCategoryId,
+            email_type: selectedEmailType,
+            template_field_name: fieldName,
+            database_source: config.source,
+            database_path: { path: config.path },
+            template_type: 'simple',
+            html_template: '',
+            html_template_type: 'custom',
+            loop_config: {},
+            template_variables: {},
+            integration_types: ['email'],
+            display_name: config.display,
+            description: config.description,
+            field_category: 'Company Information',
+            is_required: false,
+            is_system: true,
+            is_active: true
+          }
+        })
+
+        const { error } = await supabase
+          .from('email_field_mappings')
+          .insert(companyFieldMappingsToCreate)
+
+        if (error) {
+          console.error('Error creating company field mappings:', error)
+        } else {
+          console.log('Company field mappings created successfully')
+        }
+      } catch (error) {
+        console.error('Error creating company field mappings:', error)
+      }
     }
   }
 
@@ -515,7 +589,9 @@ export default function NotificationsPage() {
       database_source: mapping.database_source,
       database_path: mapping.database_path,
       html_template: mapping.html_template,
-      html_template_type: mapping.html_template_type
+      html_template_type: mapping.html_template_type,
+      loop_config: mapping.loop_config,
+      template_variables: mapping.template_variables
     }))
   }
 
@@ -669,7 +745,7 @@ export default function NotificationsPage() {
     }
   }
 
-  // Template fields are now hardcoded in shared.ts - no database dependency needed
+  // Template fields are now loaded from database field mappings only
 
   const handleSaveTemplate = async (updatedTemplate: EmailTemplate) => {
     setSaving(true)
@@ -1118,7 +1194,7 @@ export default function NotificationsPage() {
       )}
 
       {/* Field Mappings Info */}
-      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && fieldMappings.length === 0 && (
+      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && templateFields.length === 0 && (
         <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start">
             <MapPin className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
@@ -1143,12 +1219,31 @@ export default function NotificationsPage() {
       )}
 
       {/* Template Content */}
-      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && (
+      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && templateFields.length > 0 && (
         <EmailTemplateEditor
           template={selectedTemplate}
           templateFields={templateFields}
           onChange={handleTemplateChange}
         />
+      )}
+
+      {/* No Field Mappings Message */}
+      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && templateFields.length === 0 && (
+        <div className="text-center py-12">
+          <MapPin className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900">No Field Mappings Available</h3>
+          <p className="mt-2 text-sm text-gray-500">
+            You need to create field mappings for this email type before you can customize the template.
+          </p>
+          <div className="mt-6">
+            <Button
+              onClick={() => window.open('/partner/field-mappings', '_blank')}
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              Create Field Mappings
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Leads Tab Content */}

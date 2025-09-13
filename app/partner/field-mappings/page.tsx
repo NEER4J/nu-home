@@ -394,9 +394,16 @@ export default function FieldMappingsPage() {
   const handleFieldSelect = (databaseSource: string, fieldPath: string, templateType?: string) => {
     if (!editingMapping) return
 
+    // Auto-generate template field name from the field path
+    const pathParts = fieldPath.split('.')
+    const lastPart = pathParts[pathParts.length - 1]
+    const templateFieldName = lastPart
+
     const updates: Partial<FieldMapping> = {
       database_source: databaseSource,
-      database_path: { path: fieldPath }
+      database_path: { path: fieldPath },
+      template_field_name: templateFieldName, // Auto-populate!
+      display_name: lastPart.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) // Auto-generate display name
     }
 
     // Set template type based on selection
@@ -692,7 +699,7 @@ export default function FieldMappingsPage() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
                 {/* Left Side - Form */}
                 <div className="space-y-6">
                 {/* Basic Information */}
@@ -902,7 +909,7 @@ export default function FieldMappingsPage() {
                 </div>
 
                 {/* Right Side - Data Browser */}
-                <div className="space-y-6">
+                <div className="space-y-6 sticky top-0 right-0">
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium text-gray-900">Browse Sample Data</h3>
                     <p className="text-sm text-gray-600">Click on any field to automatically populate the database path</p>
@@ -914,7 +921,7 @@ export default function FieldMappingsPage() {
                           <nav className="flex overflow-x-auto" aria-label="Data Sources">
                             {Object.entries(previewData)
                               .filter(([sourceKey]) => 
-                                ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data'].includes(sourceKey)
+                                ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data', 'form_submissions'].includes(sourceKey)
                               )
                               .map(([sourceKey, sourceData]) => (
                               <button
@@ -933,7 +940,7 @@ export default function FieldMappingsPage() {
                         </div>
                         
                         {/* Data Content */}
-                        <div className="p-4 max-h-[50vh] overflow-y-auto">
+                        <div className="p-4 max-h-[80vh] overflow-y-auto">
                           {activeDataTab && previewData[activeDataTab] ? (
                             <div>
                               <h4 className="text-sm font-medium text-gray-900 mb-3">

@@ -1,0 +1,76 @@
+
+> dev
+> next dev
+
+   ▲ Next.js 15.2.1
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.2.101:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ⚠ `devIndicators.buildActivity` is deprecated and no longer configurable. Please remove it from next.config.js.
+ ✓ Ready in 4.5s
+ ○ Compiling /api/email/boiler/quote-initial-v2 ...
+ ✓ Compiled /api/email/boiler/quote-initial-v2 in 2.4s (519 modules)
+ POST /api/email/boiler/quote-initial-v2 200 in 29695ms
+ ✓ Compiled in 686ms (519 modules)
+ ✓ Compiled /api/debug/submission in 295ms (475 modules)
+ GET /api/debug/submission?submissionId=91f24808-4362-45c6-a5a3-34114e910f90 200 in 2267ms
+ ✓ Compiled /api/email/boiler/quote-initial-v2 in 139ms (241 modules)
+ POST /api/email/boiler/quote-initial-v2 200 in 25573ms
+ ✓ Compiled in 333ms (519 modules)
+ ✓ Compiled /api/debug/field-mappings in 239ms (521 modules)
+ GET /api/debug/field-mappings?subdomain=origin 200 in 2620ms
+ ✓ Compiled in 91ms (196 modules)
+ ✓ Compiled /api/email/boiler/quote-initial-v2 in 145ms (239 modules)
+ POST /api/email/boiler/quote-initial-v2 200 in 22453ms
+ ✓ Compiled in 369ms (519 modules)
+ ✓ Compiled in 354ms (239 modules)
+ POST /api/email/boiler/quote-initial-v2 200 in 22311ms
+ ✓ Compiled in 25ms
+ ✓ Compiled in 238ms (280 modules)
+ ✓ Compiled /api/test/cross-column in 350ms (477 modules)
+ POST /api/test/cross-column 200 in 4959ms
+ POST /api/test/cross-column 200 in 2060ms
+ ✓ Compiled in 812ms (477 modules)
+ ✓ Compiled /api/test/update-field-mapping in 247ms (479 modules)
+ POST /api/test/update-field-mapping 200 in 4036ms
+ ○ Compiling /api/email/boiler/quote-initial-v2 ...
+ ✓ Compiled /api/email/boiler/quote-initial-v2 in 948ms (243 modules)
+ POST /api/email/boiler/quote-initial-v2 200 in 22194ms
+ ✓ Compiled in 95ms (239 modules)
+ ✓ Compiled in 187ms (519 modules)
+ ✓ Compiled in 20ms
+ ✓ Compiled in 297ms (280 modules)
+ ○ Compiling /api/partner/notifications/create-company-fields ...
+ ✓ Compiled /api/partner/notifications/create-company-fields in 653ms (476 modules)
+ POST /api/partner/notifications/create-company-fields 200 in 5179ms
+ ✓ Compiled /api/email/boiler/quote-initial-v2 in 134ms (241 modules)
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 718ms (253 modules)
+ ○ Compiling /partner/notifications ...
+ ✓ Compiled /partner/notifications in 10.1s (1589 modules)
+ ✓ Compiled in 1251ms (575 modules)
+ GET /partner/notifications 200 in 11777ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /api/ghl/integration in 1507ms (1016 modules)
+ ✓ Compiled in 941ms (561 modules)
+ GET /favicon.ico 200 in 3282ms
+ GET /api/ghl/integration 200 in 2731ms
+ ○ Compiling /api/ghl/custom-fields ...
+ ✓ Compiled /api/ghl/custom-fields in 959ms (1582 modules)
+ POST /api/email/boiler/quote-initial-v2 200 in 31578ms
+ GET /api/ghl/custom-fields 200 in 3377ms
+ ✓ Compiled /api/ghl/pipelines in 321ms (1584 modules)
+ GET /api/ghl/pipelines 200 in 1519ms
+ ✓ Compiled in 1886ms (1551 modules)
+ GET /partner/notifications 200 in 279ms
+ GET /favicon.ico 200 in 289ms
+ ✓ Compiled in 1002ms (1804 modules)
+ GET /partner/notifications 200 in 155ms
+ GET /partner/notifications 200 in 61ms
+ GET /favicon.ico 200 in 332ms
+ ✓ Compiled in 1100ms (1547 modules)
+ GET /partner/notifications 200 in 98ms
+ ✓ Compiled /api/email/boiler/quote-initial-v2 in 169ms (1014 modules)
+ POST /api/email/boiler/quote-initial-v2 200 in 23846ms

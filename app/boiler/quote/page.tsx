@@ -295,92 +295,51 @@ export default function HeatingQuotePage({
   };
 
   // Background email sending function (non-blocking with persistence)
-  const sendInitialEmailInBackground = async (
-    submissionId: string, 
-    contactDetails: any, 
-    filteredAnswers: any, 
-    selectedAddress: any, 
-    questions: any[]
-  ) => {
+  const sendInitialEmailInBackground = async (submissionId: string) => {
+    console.log('🚀 Starting sendInitialEmailInBackground with submissionId:', submissionId)
     try {
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
       const subdomain = hostname || null
 
-      // Format full address from selected address or contact details
-      let fullAddress = ''
-      if (selectedAddress) {
-        const addressParts = [
-          selectedAddress.address_line_1,
-          selectedAddress.address_line_2,
-          selectedAddress.street_name,
-          selectedAddress.county,
-          selectedAddress.postcode
-        ].filter(Boolean)
-        fullAddress = addressParts.join(', ')
-      } else if (contactDetails.postcode) {
-        fullAddress = contactDetails.postcode
-      }
-
-      // Format quote data for email template
-      const formattedQuoteData = Object.entries(filteredAnswers).map(([questionId, answer]) => {
-        const question = questions.find(q => q.question_id === questionId)
-        const questionText = question?.question_text || questionId
-        const formattedAnswer = Array.isArray(answer) ? answer.join(', ') : String(answer)
-        return `${questionText}: ${formattedAnswer}`
-      }).join('\n')
-
       const emailData = {
-        // User Information fields
-        firstName: contactDetails.firstName,
-        lastName: contactDetails.lastName,
-        email: contactDetails.email,
-        phone: contactDetails.phone,
-        postcode: contactDetails.postcode,
-        fullAddress: fullAddress,
         submissionId: submissionId,
-        submissionDate: new Date().toISOString(),
-        
-        // Quote Details
-        quoteData: formattedQuoteData,
-        quoteLink: `${window.location.origin}/boiler/products?submission=${submissionId}`,
-        
-        // Legacy fields for backward compatibility
-        first_name: contactDetails.firstName,
-        last_name: contactDetails.lastName,
-        quote_data: filteredAnswers,
-        address_data: selectedAddress,
-        questions: questions,
-        submission_id: submissionId,
         subdomain,
       }
+
+      console.log('📧 Email data to send:', emailData)
 
       // Use sendBeacon for critical email sending (persists through page navigation)
       if (typeof window !== 'undefined' && navigator.sendBeacon) {
         const blob = new Blob([JSON.stringify(emailData)], { type: 'application/json' })
-        const success = navigator.sendBeacon('/api/email/boiler/quote-initial', blob)
+        const success = navigator.sendBeacon('/api/email/boiler/quote-initial-v2', blob)
+        console.log('📡 sendBeacon result:', success)
         if (success) {
-          console.log('Initial quote email queued with sendBeacon')
+          console.log('✅ Initial quote email queued with sendBeacon')
         } else {
+          console.log('⚠️ sendBeacon failed, trying fetch fallback')
           // Fallback to fetch if sendBeacon fails
-          await fetch('/api/email/boiler/quote-initial', {
+          const response = await fetch('/api/email/boiler/quote-initial-v2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(emailData),
           })
+          console.log('📡 Fetch fallback response:', response.status, response.statusText)
         }
       } else {
+        console.log('📡 Using regular fetch (sendBeacon not available)')
         // Fallback to regular fetch
-        const emailRes = await fetch('/api/email/boiler/quote-initial', {
+        const emailRes = await fetch('/api/email/boiler/quote-initial-v2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(emailData),
         })
 
         const responseData = await emailRes.json().catch(() => ({}))
+        console.log('📡 Fetch response:', emailRes.status, responseData)
         if (!emailRes.ok) {
-          console.warn('Failed to send initial quote email:', responseData?.error || 'Unknown error')
+          console.error('❌ Failed to send initial quote email:', responseData?.error || 'Unknown error')
         } else {
-          console.log('Initial quote email sent successfully in background')
+          console.log('✅ Initial quote email sent successfully in background')
         }
       }
     } catch (err: any) {
@@ -754,25 +713,33 @@ export default function HeatingQuotePage({
       // Save initial quote data to lead_submission_data in background (non-blocking)
       const finalEffectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
       if (finalEffectivePartnerId) {
-        saveLeadSubmissionDataInBackground(
-          result.data.submission_id,
-          finalEffectivePartnerId,
-          String(categoryData.service_category_id),
-          filteredAnswers,
-          selectedAddress,
-          contactDetails,
-          questions,
-          effectivePartner?.otp || false,
-          pageStartTime
-        ).catch(err => 
-          console.warn('Failed to save lead submission data in background:', err)
-        );
-      }
-      
-      // Send email in background (non-blocking)
-      if (!emailSent) {
-        setEmailSent(true) // Mark email as sent to prevent duplicates
-        sendInitialEmailInBackground(result.data.submission_id, contactDetails, filteredAnswers, selectedAddress, questions)
+        try {
+          await saveLeadSubmissionDataInBackground(
+            result.data.submission_id,
+            finalEffectivePartnerId,
+            String(categoryData.service_category_id),
+            filteredAnswers,
+            selectedAddress,
+            contactDetails,
+            questions,
+            effectivePartner?.otp || false,
+            pageStartTime
+          )
+          console.log('✅ Lead submission data saved successfully')
+          
+          // Send email after data is saved
+          if (!emailSent) {
+            setEmailSent(true) // Mark email as sent to prevent duplicates
+            sendInitialEmailInBackground(result.data.submission_id)
+          }
+        } catch (err) {
+          console.warn('Failed to save lead submission data:', err)
+          // Still try to send email even if data saving fails
+          if (!emailSent) {
+            setEmailSent(true)
+            sendInitialEmailInBackground(result.data.submission_id)
+          }
+        }
       }
       
       // Trigger GTM event if event name is provided
