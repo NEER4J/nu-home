@@ -145,8 +145,7 @@ export default function FieldMappingsPage() {
   const [editingMapping, setEditingMapping] = useState<FieldMapping | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [previewData, setPreviewData] = useState<any>(null)
-  const [previewHtml, setPreviewHtml] = useState('')
-  const [activeTab, setActiveTab] = useState('mappings')
+  const [activeDataTab, setActiveDataTab] = useState<string>('')
 
   const supabase = createClient()
 
@@ -254,28 +253,6 @@ export default function FieldMappingsPage() {
     }
   }
 
-  const loadSampleData = async () => {
-    if (!selectedCategoryId) return
-
-    try {
-      // Load sample submission data for preview
-      const { data, error } = await supabase
-        .from('lead_submission_data')
-        .select('*')
-        .eq('service_category_id', selectedCategoryId)
-        .limit(1)
-        .single()
-
-      if (error) {
-        console.error('Error loading sample data:', error)
-        return
-      }
-
-      setPreviewData(data)
-    } catch (error) {
-      console.error('Error loading sample data:', error)
-    }
-  }
 
   const handleCreateMapping = () => {
     setEditingMapping({
@@ -413,27 +390,6 @@ export default function FieldMappingsPage() {
     }
   }
 
-  const generatePreview = () => {
-    if (!editingMapping || !previewData) return
-
-    // Simple preview generation - in real implementation, this would use the template engine
-    const sourceData = previewData[editingMapping.database_source]
-    const path = editingMapping.database_path.path
-    const value = path.split('.').reduce((obj: any, key: string) => obj?.[key], sourceData)
-
-    if (editingMapping.template_type === 'html_template' && editingMapping.html_template) {
-      // Basic template replacement for preview
-      let html = editingMapping.html_template
-      if (typeof value === 'object' && value !== null) {
-        Object.entries(value).forEach(([key, val]) => {
-          html = html.replace(new RegExp(`{{${key}}}`, 'g'), String(val || ''))
-        })
-      }
-      setPreviewHtml(html)
-    } else {
-      setPreviewHtml(`<div>${String(value || 'No data found')}</div>`)
-    }
-  }
 
   const handleFieldSelect = (databaseSource: string, fieldPath: string, templateType?: string) => {
     if (!editingMapping) return
@@ -456,10 +412,43 @@ export default function FieldMappingsPage() {
     })
   }
 
+  const loadSampleData = async () => {
+    if (!selectedCategoryId) return
+
+    try {
+      // Load sample submission data for data browser
+      const { data, error } = await supabase
+        .from('lead_submission_data')
+        .select('*')
+        .eq('service_category_id', selectedCategoryId)
+        .limit(1)
+        .single()
+
+      if (error) {
+        console.error('Error loading sample data:', error)
+        return
+      }
+
+      setPreviewData(data)
+      
+      // Set first available data source as active tab
+      if (data) {
+        const availableSources = Object.keys(data).filter(sourceKey => 
+          ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data'].includes(sourceKey)
+        )
+        if (availableSources.length > 0) {
+          setActiveDataTab(availableSources[0])
+        }
+      }
+    } catch (error) {
+      console.error('Error loading sample data:', error)
+    }
+  }
+
   const renderDataBrowser = (data: any, prefix: string = '', databaseSource: string = '') => {
     if (!data) return null
 
-    const items: JSX.Element[] = []
+    const items: React.ReactElement[] = []
 
     if (Array.isArray(data)) {
       data.forEach((item, index) => {
@@ -597,38 +586,9 @@ export default function FieldMappingsPage() {
         </div>
       )}
 
-      {/* Main Content Tabs */}
-      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
-        <div className="mb-6 border-b border-gray-200">
-          <nav className="flex space-x-8" aria-label="Tabs">
-            <button
-              onClick={() => setActiveTab('mappings')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'mappings'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <MapPin className="h-4 w-4 inline mr-2" />
-              Field Mappings
-            </button>
-            <button
-              onClick={() => setActiveTab('preview')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'preview'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <Eye className="h-4 w-4 inline mr-2" />
-              Preview
-            </button>
-          </nav>
-        </div>
-      )}
 
       {/* Field Mappings Content */}
-      {activeTab === 'mappings' && selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
+      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
         <div className="space-y-6">
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -717,40 +677,6 @@ export default function FieldMappingsPage() {
         </div>
       )}
 
-      {/* Preview Content */}
-      {activeTab === 'preview' && selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
-        <div className="space-y-6">
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Field Mapping Preview</h3>
-              <p className="text-sm text-gray-600">Preview how your field mappings will render with sample data</p>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Sample Data</h4>
-                  <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto max-h-96">
-                    {JSON.stringify(previewData, null, 2)}
-                  </pre>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Rendered Output</h4>
-                  <div 
-                    className="border border-gray-200 p-4 rounded max-h-96 overflow-auto"
-                    dangerouslySetInnerHTML={{ __html: previewHtml || '<p class="text-gray-500">Click "Generate Preview" to see rendered output</p>' }}
-                  />
-                </div>
-              </div>
-              <div className="mt-4">
-                <Button onClick={generatePreview}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Generate Preview
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Create/Edit Form Modal */}
       {showCreateForm && editingMapping && (
@@ -982,17 +908,46 @@ export default function FieldMappingsPage() {
                     <p className="text-sm text-gray-600">Click on any field to automatically populate the database path</p>
                     
                     {previewData ? (
-                      <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-                        {Object.entries(previewData).map(([sourceKey, sourceData]) => (
-                          <div key={sourceKey} className="border border-gray-200 rounded-lg p-4">
-                            <h4 className="text-md font-medium text-gray-900 mb-3 capitalize">
-                              {sourceKey.replace('_', ' ')} Data
-                            </h4>
-                            <div className="max-h-48 overflow-y-auto">
-                              {renderDataBrowser(sourceData, '', sourceKey)}
+                      <div className="border border-gray-200 rounded-lg">
+                        {/* Data Source Tabs */}
+                        <div className="border-b border-gray-200">
+                          <nav className="flex overflow-x-auto" aria-label="Data Sources">
+                            {Object.entries(previewData)
+                              .filter(([sourceKey]) => 
+                                ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data'].includes(sourceKey)
+                              )
+                              .map(([sourceKey, sourceData]) => (
+                              <button
+                                key={sourceKey}
+                                onClick={() => setActiveDataTab(sourceKey)}
+                                className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm ${
+                                  activeDataTab === sourceKey
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                              >
+                                {sourceKey.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </button>
+                            ))}
+                          </nav>
+                        </div>
+                        
+                        {/* Data Content */}
+                        <div className="p-4 max-h-[50vh] overflow-y-auto">
+                          {activeDataTab && previewData[activeDataTab] ? (
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 mb-3">
+                                {activeDataTab.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} Data
+                              </h4>
+                              {renderDataBrowser(previewData[activeDataTab], '', activeDataTab)}
                             </div>
-                          </div>
-                        ))}
+                          ) : (
+                            <div className="text-center py-8 text-gray-500">
+                              <Eye className="h-8 w-8 mx-auto mb-2" />
+                              <p>Select a data source to browse fields</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div className="text-center py-8 text-gray-500">
