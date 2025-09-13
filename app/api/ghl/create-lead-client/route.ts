@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { getGHLService } from '@/lib/ghl-api'
+import { FieldMappingEngine } from '@/lib/field-mapping-engine'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { 
+    const {
       partnerId,
+      submissionId,
       contactData,
       customFields,
       pipelineId,
@@ -19,6 +21,7 @@ export async function POST(req: NextRequest) {
     console.log('🌐 Client-visible GHL Create Lead API called')
     console.log('📋 Input data:', {
       partnerId,
+      submissionId,
       contactData,
       customFields,
       pipelineId,
@@ -28,9 +31,9 @@ export async function POST(req: NextRequest) {
       tags
     })
 
-    if (!partnerId || !contactData) {
+    if (!partnerId) {
       return NextResponse.json(
-        { error: 'Missing required fields: partnerId, contactData' },
+        { error: 'Missing required field: partnerId' },
         { status: 400 }
       )
     }
@@ -44,34 +47,55 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // If pipelineId and stageId are not provided, look up field mappings
+    const supabase = await createClient();
+
+    // Get service category ID for boiler
+    const { data: serviceCategory } = await supabase
+      .from('ServiceCategories')
+      .select('service_category_id')
+      .eq('slug', 'boiler')
+      .eq('is_active', true)
+      .single();
+
+    if (!serviceCategory) {
+      console.log('⚠️ Boiler service category not found');
+      return NextResponse.json(
+        { error: 'Service category not found' },
+        { status: 404 }
+      );
+    }
+
+    // Initialize field mapping engine
+    const fieldMappingEngine = new FieldMappingEngine(supabase, partnerId, serviceCategory.service_category_id);
+
+    let mappedGHLData: any = {};
     let finalPipelineId = pipelineId;
     let finalStageId = stageId;
     let finalCustomFields = customFields || {};
     let finalTags = tags || ['Quote API Lead'];
 
-    if (!pipelineId || !stageId) {
-      console.log('🔍 Looking up field mappings for partner:', partnerId);
-      
-      const supabase = await createClient();
-      
-      // First, get the service category ID for boiler
-      const { data: serviceCategory } = await supabase
-        .from('ServiceCategories')
-        .select('service_category_id')
-        .eq('slug', 'boiler')
-        .eq('is_active', true)
-        .single();
+    // If submissionId is provided, use field mapping engine to get data
+    if (submissionId) {
+      console.log('🔍 Using field mapping engine to process submission data:', submissionId);
 
-      if (!serviceCategory) {
-        console.log('⚠️ Boiler service category not found');
-        return NextResponse.json(
-          { error: 'Service category not found' },
-          { status: 404 }
-        );
+      try {
+        // Get mapped data using field mapping engine for GHL integration
+        mappedGHLData = await fieldMappingEngine.processSubmissionData(submissionId, 'quote-initial', 'ghl');
+        console.log('✅ Mapped GHL data:', mappedGHLData);
+
+        // Use the mapped data for contact fields and prepare custom fields for GHL
+        console.log('🔧 Mapped GHL data received:', mappedGHLData);
+      } catch (mappingError) {
+        console.error('❌ Field mapping error:', mappingError);
+        // Continue with hardcoded fallback
       }
+    }
 
-      const { data: fieldMappings } = await supabase
+    // If pipelineId and stageId are still not provided, look up GHL field mappings
+    if (!finalPipelineId || !finalStageId) {
+      console.log('🔍 Looking up GHL field mappings for partner:', partnerId);
+
+      const { data: ghlFieldMappings } = await supabase
         .from('ghl_field_mappings')
         .select('*')
         .eq('partner_id', partnerId)
@@ -81,22 +105,37 @@ export async function POST(req: NextRequest) {
         .eq('is_active', true)
         .single();
 
-      if (fieldMappings) {
-        finalPipelineId = fieldMappings.pipeline_id;
-        finalStageId = fieldMappings.opportunity_stage;
-        finalCustomFields = fieldMappings.field_mappings || {};
-        finalTags = Array.isArray(fieldMappings.tags) ? fieldMappings.tags : [];
-        console.log('✅ Found field mappings:', {
+      if (ghlFieldMappings) {
+        finalPipelineId = finalPipelineId || ghlFieldMappings.pipeline_id;
+        finalStageId = finalStageId || ghlFieldMappings.opportunity_stage;
+        finalTags = finalTags.length === 1 && finalTags[0] === 'Quote API Lead'
+          ? (Array.isArray(ghlFieldMappings.tags) ? ghlFieldMappings.tags : [])
+          : finalTags;
+
+        // Process GHL field mappings to map data to GHL custom field IDs
+        if (submissionId && Object.keys(mappedGHLData).length > 0 && ghlFieldMappings.field_mappings) {
+          console.log('🔧 Processing GHL field mappings:', ghlFieldMappings.field_mappings);
+
+          // Map our data fields to GHL custom field IDs
+          Object.entries(ghlFieldMappings.field_mappings).forEach(([templateFieldName, ghlFieldId]) => {
+            if (mappedGHLData[templateFieldName] !== undefined && ghlFieldId) {
+              finalCustomFields[ghlFieldId] = mappedGHLData[templateFieldName];
+              console.log(`🔧 Mapped ${templateFieldName} = "${mappedGHLData[templateFieldName]}" → GHL field ${ghlFieldId}`);
+            }
+          });
+        }
+
+        console.log('✅ Found GHL field mappings:', {
           pipelineId: finalPipelineId,
           stageId: finalStageId,
-          customFieldsCount: Object.keys(finalCustomFields).length,
           tagsCount: finalTags.length,
+          customFieldsMapped: Object.keys(finalCustomFields).length,
           serviceCategoryId: serviceCategory.service_category_id
         });
-      } else {
-        console.log('⚠️ No field mappings found for partner:', partnerId, 'and service category:', serviceCategory.service_category_id);
+      } else if (!pipelineId || !stageId) {
+        console.log('⚠️ No GHL field mappings found for partner:', partnerId, 'and service category:', serviceCategory.service_category_id);
         return NextResponse.json(
-          { error: 'No field mappings configured for this partner and service category' },
+          { error: 'No GHL field mappings configured for this partner and service category' },
           { status: 404 }
         );
       }
@@ -132,15 +171,15 @@ export async function POST(req: NextRequest) {
     try {
       console.log('👤 Step 1: Upserting contact with custom fields...')
       
-      // Prepare contact payload for upsert
+      // Prepare contact payload for upsert - use mapped data if available, fall back to contactData
       const contactPayload = {
-        firstName: contactData.firstName,
-        lastName: contactData.lastName,
-        email: contactData.email,
-        phone: contactData.phone,
-        address1: contactData.address1,
-        city: contactData.city,
-        country: contactData.country,
+        firstName: mappedGHLData.firstName || mappedGHLData.first_name || contactData?.firstName,
+        lastName: mappedGHLData.lastName || mappedGHLData.last_name || contactData?.lastName,
+        email: mappedGHLData.email || mappedGHLData.customer_email || contactData?.email,
+        phone: mappedGHLData.phone || contactData?.phone,
+        address1: mappedGHLData.address || mappedGHLData.formatted_address || contactData?.address1,
+        city: contactData?.city,
+        country: contactData?.country,
         locationId: ghlService.locationId,
         customFields: Object.entries(finalCustomFields).map(([key, value]) => ({
           id: key,
@@ -213,7 +252,7 @@ export async function POST(req: NextRequest) {
           pipelineId: finalPipelineId,
           locationId: ghlService.locationId,
           pipelineStageId: finalStageId,
-          name: opportunityName || `${contactData.firstName} ${contactData.lastName} - Lead`,
+          name: opportunityName || `${contactPayload.firstName} ${contactPayload.lastName} - Lead`,
           status: 'open',
           monetaryValue: monetaryValue,
           contactId: contactId // CRITICAL: Use the contact ID from step 1
@@ -296,7 +335,9 @@ export async function POST(req: NextRequest) {
       },
       debug: {
         partnerId,
+        submissionId,
         contactData,
+        mappedGHLData,
         customFields: finalCustomFields,
         pipelineId: finalPipelineId,
         stageId: finalStageId,

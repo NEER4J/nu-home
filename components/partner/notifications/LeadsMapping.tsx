@@ -24,6 +24,7 @@ interface TemplateField {
   field_name: string
   display_name: string
   description?: string
+  field_category?: string
 }
 
 interface GHLMapping {
@@ -364,7 +365,21 @@ export default function LeadsMapping({
                 <h4 className="text-sm font-semibold text-gray-900 flex items-center space-x-2">
                   <Settings className="h-4 w-4" />
                   <span>Field Mappings</span>
-                  
+                  <div className="flex items-center space-x-1">
+                    {getFieldMappingCount(mapping) > 0 ? (
+                      <>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-xs text-blue-600 font-medium">
+                          {getFieldMappingCount(mapping)} mapped
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        <span className="text-xs text-gray-500 font-medium">No mappings</span>
+                      </>
+                    )}
+                  </div>
                 </h4>
                 <button
                   onClick={() => toggleSection('fields')}
@@ -375,45 +390,122 @@ export default function LeadsMapping({
                   </div>
                 </button>
               </div>
-              
+
               {expandedSections.fields && (
                 <div className="space-y-3">
-                  {templateFields.map((field, index) => (
-                    <div key={field.field_name || index} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                       <div className="flex-1">
-                         <label className="block text-sm font-medium text-gray-900">
-                           {field.display_name}
-                         </label>
-                       </div>
-                      <div className="flex-1">
-                        <div className="relative">
-                          <select
-                            value={mapping.field_mappings[field.field_name] || ''}
-                            onChange={(e) => {
-                              const updatedFieldMappings = {
-                                ...mapping.field_mappings,
-                                [field.field_name]: e.target.value
-                              }
-                              onUpdateMapping(mapping.mapping_id, { 
-                                field_mappings: updatedFieldMappings 
-                              })
-                            }}
-                            className="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none cursor-pointer"
-                          >
-                            <option value="">Select GHL field</option>
-                            {ghlCustomFields.map((ghlField) => (
-                              <option key={ghlField.id} value={ghlField.id}>
-                                {ghlField.name} ({ghlField.fieldType})
-                              </option>
-                            ))}
-                          </select>
-                          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                            <ArrowRight className="h-4 w-4 text-gray-400" />
+                  <div className="text-xs text-gray-600 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    💡 <strong>How it works:</strong> Each GoHighLevel custom field is listed below. Select which database field should populate each GHL field when leads are created. You can use data from customer submissions, form answers, and company information.
+                  </div>
+
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-sm text-gray-700">
+                      <strong>{ghlCustomFields.length}</strong> GHL custom fields available
+                    </div>
+                    <Button onClick={onRefresh} variant="outline" size="sm">
+                      Refresh GHL Fields
+                    </Button>
+                  </div>
+
+                  {ghlCustomFields.length > 0 ? ghlCustomFields.map((ghlField, index) => {
+                    // Find which template field is mapped to this GHL field
+                    const mappedTemplateField = Object.keys(mapping.field_mappings).find(
+                      templateFieldName => mapping.field_mappings[templateFieldName] === ghlField.id
+                    )
+
+                    return (
+                      <div key={ghlField.id || index} className={`flex items-center space-x-4 p-4 border rounded-lg transition-colors ${
+                        mappedTemplateField
+                          ? 'border-green-200 bg-green-50 hover:bg-green-100'
+                          : 'border-gray-200 hover:bg-gray-50'
+                      }`}>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <label className="block text-sm font-medium text-gray-900">
+                              {ghlField.name}
+                            </label>
+                            {mappedTemplateField && (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            )}
                           </div>
+                          <span className="text-xs text-gray-500">
+                            Type: {ghlField.fieldType} • ID: {ghlField.id}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="relative">
+                            <select
+                              value={mappedTemplateField || ''}
+                              onChange={(e) => {
+                                const updatedFieldMappings = { ...mapping.field_mappings }
+
+                                // Remove any existing mapping to this GHL field
+                                Object.keys(updatedFieldMappings).forEach(templateFieldName => {
+                                  if (updatedFieldMappings[templateFieldName] === ghlField.id) {
+                                    delete updatedFieldMappings[templateFieldName]
+                                  }
+                                })
+
+                                // Add new mapping if a field is selected
+                                if (e.target.value) {
+                                  updatedFieldMappings[e.target.value] = ghlField.id
+                                }
+
+                                onUpdateMapping(mapping.mapping_id, {
+                                  field_mappings: updatedFieldMappings
+                                })
+                              }}
+                              className="block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none cursor-pointer"
+                            >
+                              <option value="">Select database field</option>
+
+                              {/* Group fields by category */}
+                              {(() => {
+                                const groupedFields = templateFields.reduce((acc, field) => {
+                                  const category = field.field_category || 'Other'
+                                  if (!acc[category]) acc[category] = []
+                                  acc[category].push(field)
+                                  return acc
+                                }, {} as Record<string, TemplateField[]>)
+
+                                return Object.entries(groupedFields).map(([category, fields]) => (
+                                  <optgroup key={category} label={category}>
+                                    {fields.map((templateField) => (
+                                      <option key={templateField.field_name} value={templateField.field_name}>
+                                        {templateField.display_name}
+                                        {templateField.description && ` - ${templateField.description}`}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                ))
+                              })()}
+                            </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                              <ArrowRight className="h-4 w-4 text-gray-400" />
+                            </div>
+                          </div>
+                          {mappedTemplateField && (
+                            <div className="mt-1 flex items-center space-x-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              <span className="text-xs text-green-600">
+                                Mapped to: {templateFields.find(f => f.field_name === mappedTemplateField)?.display_name}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
+                    )
+                  }) : (
+                    <div className="text-center py-8">
+                      <AlertCircle className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 mb-2">No GoHighLevel custom fields found</p>
+                      <p className="text-xs text-gray-500">
+                        Create custom fields in your GoHighLevel account first, then refresh this page.
+                      </p>
+                      <Button onClick={onRefresh} variant="outline" size="sm" className="mt-3">
+                        Refresh GHL Fields
+                      </Button>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>

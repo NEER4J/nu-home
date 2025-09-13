@@ -45,7 +45,7 @@ export class FieldMappingEngine {
   }
 
   /**
-   * Process submission data using field mappings
+   * Process submission data using field mappings for any integration type
    */
   async processSubmissionData(
     submissionId: string,
@@ -63,18 +63,40 @@ export class FieldMappingEngine {
       throw new Error('Submission data not found')
     }
 
+    // Get partner profile data for company information fields
+    const { data: partnerProfile } = await this.supabase
+      .from('UserProfiles')
+      .select('company_name, address, phone, postcode, website_url, logo_url, company_color, privacy_policy, terms_conditions')
+      .eq('user_id', this.partnerId)
+      .single()
+
+    // Create enhanced submission data with partner profile information
+    const enhancedSubmissionData = {
+      ...submissionData,
+      partner_profile: partnerProfile || {}
+    }
+
     // Get field mappings for this email type and integration
-    const { data: mappings, error: mappingsError } = await this.supabase
+    let { data: mappings, error: mappingsError } = await this.supabase
       .from('email_field_mappings')
       .select('*')
       .eq('partner_id', this.partnerId)
       .eq('service_category_id', this.serviceCategoryId)
       .eq('email_type', emailType)
       .eq('is_active', true)
-      .contains('integration_types', [integrationType])
+
+    // Filter mappings client-side for integration type if we have mappings
+    if (mappings && integrationType !== 'email') {
+      mappings = mappings.filter(mapping =>
+        mapping.integration_types &&
+        Array.isArray(mapping.integration_types) &&
+        mapping.integration_types.includes(integrationType)
+      )
+    }
 
     if (mappingsError) {
-      throw new Error('Failed to load field mappings')
+      console.error('❌ Field mappings error:', mappingsError)
+      throw new Error(`Failed to load field mappings: ${mappingsError.message}`)
     }
 
     const processedData: ProcessedFieldData = {}
@@ -82,7 +104,7 @@ export class FieldMappingEngine {
     // Process each mapping
     for (const mapping of mappings || []) {
       try {
-        const value = await this.processFieldMapping(submissionData, mapping)
+        const value = await this.processFieldMapping(enhancedSubmissionData, mapping)
         if (value !== undefined) {
           processedData[mapping.template_field_name] = value
         }

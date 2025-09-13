@@ -74,3 +74,106 @@
  GET /partner/notifications 200 in 98ms
  ✓ Compiled /api/email/boiler/quote-initial-v2 in 169ms (1014 modules)
  POST /api/email/boiler/quote-initial-v2 200 in 23846ms
+ POST /api/email/boiler/quote-initial-v2 200 in 16404ms
+ ○ Compiling /boiler/quote ...
+ ✓ Compiled /boiler/quote in 3.8s (2300 modules)
+ GET /boiler/quote 200 in 6037ms
+ ✓ Compiled in 741ms (965 modules)
+ GET /partner/notifications 200 in 92ms
+ GET /boiler/quote 200 in 54ms
+ ✓ Compiled in 468ms (965 modules)
+ GET /boiler/quote 200 in 34ms
+ GET /partner/notifications 200 in 46ms
+ ✓ Compiled in 980ms (965 modules)
+ GET /boiler/quote 200 in 40ms
+ GET /partner/notifications 200 in 38ms
+ ✓ Compiled in 637ms (965 modules)
+ GET /boiler/quote 200 in 51ms
+ GET /partner/notifications 200 in 33ms
+ ✓ Compiled in 593ms (965 modules)
+ GET /boiler/quote 200 in 45ms
+ GET /partner/notifications 200 in 35ms
+ ✓ Compiled in 756ms (965 modules)
+ GET /boiler/quote 200 in 34ms
+ GET /partner/notifications 200 in 499ms
+ ✓ Compiled in 2.6s (2314 modules)
+ GET /boiler/quote 200 in 236ms
+ GET /partner/notifications 200 in 63ms
+ ✓ Compiled in 1177ms (2553 modules)
+ GET /boiler/quote 200 in 213ms
+ GET /partner/notifications 200 in 53ms
+ GET /boiler/quote 200 in 58ms
+ GET /partner/notifications 200 in 38ms
+ ○ Compiling /api/test/update-field-mappings-ghl ...
+ ✓ Compiled /api/test/update-field-mappings-ghl in 848ms (2319 modules)
+ POST /api/test/update-field-mappings-ghl 200 in 3893ms
+ ✓ Compiled in 1499ms (2586 modules)
+ GET /boiler/quote 200 in 225ms
+ GET /boiler/quote 200 in 31ms
+ GET /partner/notifications 200 in 83ms
+ GET /partner/notifications 200 in 34ms
+ ○ Compiling /api/test/ghl-field-mapping ...
+ ✓ Compiled /api/test/ghl-field-mapping in 660ms (2322 modules)
+GHL field mapping test error: Error: Failed to load field mappings
+    at FieldMappingEngine.processSubmissionData (lib\field-mapping-engine.ts:90:12)
+    at async POST (app\api\test\ghl-field-mapping\route.ts:39:26)
+  88 |
+  89 |     if (mappingsError) {
+> 90 |       throw new Error('Failed to load field mappings')
+     |            ^
+  91 |     }
+  92 |
+  93 |     const processedData: ProcessedFieldData = {}
+ POST /api/test/ghl-field-mapping 500 in 3764ms
+ ✓ Compiled in 299ms (1371 modules)
+ GET /boiler/quote 200 in 117ms
+ GET /partner/notifications 200 in 91ms
+❌ Field mappings error: {
+  code: '22P02',
+  details: 'Token "ghl" is invalid.',
+  hint: null,
+  message: 'invalid input syntax for type json'
+}
+GHL field mapping test error: Error: Failed to load field mappings: invalid input syntax for type json
+    at FieldMappingEngine.processSubmissionData (lib\field-mapping-engine.ts:98:12)
+    at async POST (app\api\test\ghl-field-mapping\route.ts:39:26)
+   96 |     if (mappingsError) {
+   97 |       console.error('❌ Field mappings error:', mappingsError)
+>  98 |       throw new Error(`Failed to load field mappings: ${mappingsError.message}`)
+      |            ^
+   99 |     }
+  100 |
+  101 |     console.log('✅ Found field mappings:', mappings?.length || 0)
+ POST /api/test/ghl-field-mapping 500 in 2920ms
+ ✓ Compiled in 732ms (1369 modules)
+ GET /boiler/quote 200 in 268ms
+ GET /partner/notifications 200 in 61ms
+❌ Field mappings error: {
+  code: '42883',
+  details: null,
+  hint: 'No operator matches the given name and argument types. You might need to add explicit type casts.',
+  message: 'operator does not exist: jsonb && unknown'
+}
+GHL field mapping test error: Error: Failed to load field mappings: operator does not exist: jsonb && unknown
+    at FieldMappingEngine.processSubmissionData (lib\field-mapping-engine.ts:98:12)
+    at async POST (app\api\test\ghl-field-mapping\route.ts:39:26)
+   96 |     if (mappingsError) {
+   97 |       console.error('❌ Field mappings error:', mappingsError)
+>  98 |       throw new Error(`Failed to load field mappings: ${mappingsError.message}`)
+      |            ^
+   99 |     }
+  100 |
+  101 |     console.log('✅ Found field mappings:', mappings?.length || 0)
+ POST /api/test/ghl-field-mapping 500 in 2542ms
+ ✓ Compiled in 389ms (1369 modules)
+ GET /boiler/quote 200 in 105ms
+ GET /partner/notifications 200 in 52ms
+ POST /api/test/ghl-field-mapping 200 in 2758ms
+ ✓ Compiled in 2.6s (2567 modules)
+ GET /boiler/quote 200 in 950ms
+ GET /partner/notifications 200 in 69ms
+ GET /boiler/quote 200 in 113ms
+ GET /partner/notifications 200 in 107ms
+ GET /boiler/quote 200 in 36ms
+ GET /partner/notifications 200 in 418ms
+[?25h

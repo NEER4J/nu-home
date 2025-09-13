@@ -777,6 +777,7 @@ export default function HeatingQuotePage({
             },
             body: JSON.stringify({
               partnerId: effectivePartnerId,
+              submissionId: submissionId, // Pass submissionId for field mapping engine
               contactData: {
                 firstName: contactDetails.firstName,
                 lastName: contactDetails.lastName,
@@ -786,9 +787,9 @@ export default function HeatingQuotePage({
                 city: contactDetails.city || contactDetails.postcode,
                 country: selectedAddress?.country || 'United Kingdom'
               },
-              customFields: {}, // Will be populated by the API based on field mappings
-              pipelineId: null, // Will be determined by the API based on field mappings
-              stageId: null, // Will be determined by the API based on field mappings
+              customFields: {}, // Will be populated by the field mapping engine
+              pipelineId: null, // Will be determined by the API based on GHL field mappings
+              stageId: null, // Will be determined by the API based on GHL field mappings
               opportunityName: `${contactDetails.firstName} ${contactDetails.lastName} - Quote Request`,
               monetaryValue: 0,
               tags: []
