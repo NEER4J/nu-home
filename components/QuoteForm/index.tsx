@@ -424,19 +424,11 @@ export default function QuoteForm({
         const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
         const subdomain = hostname || null
 
-        const emailRes = await fetch('/api/email/boiler/quote-initial', {
+        const emailRes = await fetch('/api/email/boiler/quote-initial-v2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            first_name: contactDetails.firstName,
-            last_name: contactDetails.lastName,
-            email: contactDetails.email,
-            phone: contactDetails.phone,
-            postcode: contactDetails.postcode,
-            quote_data: filteredAnswers,
-            address_data: selectedAddress,
-            questions: questions,
-            submission_id: result.data.submission_id,
+            submissionId: result.data.submission_id,
             subdomain,
             is_iframe: isIframe,
           }),

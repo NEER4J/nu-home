@@ -58,7 +58,7 @@ function migrateSmtp(raw: any): NormalizedSmtp {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('🚀🚀🚀 quote-initial-v2 API called 🚀🚀🚀')
+  console.log('🚀🚀🚀 quote-verified-v2 API called 🚀🚀🚀')
   try {
     const body = await request.json().catch(() => ({}))
     console.log('📧📧📧 Request body:', JSON.stringify(body, null, 2))
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       .select('id')
       .eq('partner_id', partner.user_id)
       .eq('service_category_id', boilerCategory.service_category_id)
-      .eq('email_type', 'quote-initial')
+      .eq('email_type', 'quote-verified')
       .limit(1)
 
     if (!existingMappings || existingMappings.length === 0) {
@@ -155,18 +155,12 @@ export async function POST(request: NextRequest) {
     
     // Get template data using field mappings
     console.log('📊 Mapping customer template data...')
-    const customerTemplateData = await fieldMappingEngine.mapSubmissionToTemplateFields(submissionId, 'quote-initial', 'customer')
+    const customerTemplateData = await fieldMappingEngine.mapSubmissionToTemplateFields(submissionId, 'quote-verified', 'customer')
     console.log('📊 Customer template data keys:', Object.keys(customerTemplateData))
     console.log('📊 Customer template data values:', customerTemplateData)
     
-    // Debug: Check if form_answers is in the mapped data
-    console.log('📊 form_answers in mapped data:', !!customerTemplateData.form_answers)
-    if (customerTemplateData.form_answers) {
-      console.log('📊 form_answers data:', customerTemplateData.form_answers)
-    }
-    
     console.log('📊 Mapping admin template data...')
-    const adminTemplateData = await fieldMappingEngine.mapSubmissionToTemplateFields(submissionId, 'quote-initial', 'admin')
+    const adminTemplateData = await fieldMappingEngine.mapSubmissionToTemplateFields(submissionId, 'quote-verified', 'admin')
     console.log('📊 Admin template data keys:', Object.keys(adminTemplateData))
     console.log('📊 Admin template data values:', adminTemplateData)
 
@@ -191,7 +185,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('partner_id', partner.user_id)
       .eq('service_category_id', boilerCategory.service_category_id)
-      .eq('email_type', 'quote-initial')
+      .eq('email_type', 'quote-verified')
       .eq('recipient_type', 'customer')
       .eq('is_active', true)
       .single()
@@ -201,7 +195,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('partner_id', partner.user_id)
       .eq('service_category_id', boilerCategory.service_category_id)
-      .eq('email_type', 'quote-initial')
+      .eq('email_type', 'quote-verified')
       .eq('recipient_type', 'admin')
       .eq('is_active', true)
       .single()
@@ -313,7 +307,7 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error: any) {
-    console.error('Quote initial v2 email error:', error)
-    return NextResponse.json({ error: 'Failed to send quote initial email', details: error?.message || String(error) }, { status: 500 })
+    console.error('Quote verified v2 email error:', error)
+    return NextResponse.json({ error: 'Failed to send quote verified email', details: error?.message || String(error) }, { status: 500 })
   }
 }

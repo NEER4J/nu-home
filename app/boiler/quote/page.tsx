@@ -778,6 +778,7 @@ export default function HeatingQuotePage({
             body: JSON.stringify({
               partnerId: effectivePartnerId,
               submissionId: submissionId, // Pass submissionId for field mapping engine
+              emailType: 'quote-initial', // Explicitly set email type for initial quote
               contactData: {
                 firstName: contactDetails.firstName,
                 lastName: contactDetails.lastName,
@@ -792,7 +793,7 @@ export default function HeatingQuotePage({
               stageId: null, // Will be determined by the API based on GHL field mappings
               opportunityName: `${contactDetails.firstName} ${contactDetails.lastName} - Quote Request`,
               monetaryValue: 0,
-              tags: []
+              tags: ['Quote Request', 'Initial Submission']
             })
           });
 
