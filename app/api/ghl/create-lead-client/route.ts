@@ -156,15 +156,20 @@ export async function POST(req: NextRequest) {
         const defaultTags = ['Quote API Lead']
         finalTags = [...defaultTags, ...savedTags, ...finalTags].filter((tag, index, arr) => arr.indexOf(tag) === index) // Remove duplicates
 
-        // Process GHL field mappings to map data to GHL custom field IDs
-        if (submissionId && Object.keys(mappedGHLData).length > 0 && ghlFieldMappings.field_mappings) {
-          console.log('🔧 Processing GHL field mappings:', ghlFieldMappings.field_mappings);
+        // The field mapping engine already mapped template fields to GHL field IDs
+        // So we can directly use the GHL field IDs from mappedGHLData as custom fields
+        if (submissionId && Object.keys(mappedGHLData).length > 0) {
+          console.log('🔧 Using pre-mapped GHL field data as custom fields...');
 
-          // Map our data fields to GHL custom field IDs
-          Object.entries(ghlFieldMappings.field_mappings).forEach(([templateFieldName, ghlFieldId]) => {
-            if (mappedGHLData[templateFieldName] !== undefined && ghlFieldId) {
-              finalCustomFields[ghlFieldId as string] = mappedGHLData[templateFieldName];
-              console.log(`🔧 Mapped ${templateFieldName} = "${mappedGHLData[templateFieldName]}" → GHL field ${ghlFieldId}`);
+          // Filter out non-GHL-field-ID keys (system fields like currentYear, submissionId, etc.)
+          Object.entries(mappedGHLData).forEach(([key, value]) => {
+            // GHL field IDs are typically 20+ character alphanumeric strings
+            // Skip system fields like currentYear, submissionId, processedAt, etc.
+            if (key.length > 15 && /^[a-zA-Z0-9]+$/.test(key) && value !== undefined) {
+              finalCustomFields[key] = value;
+              console.log(`🔧 Added GHL custom field: ${key} = "${value}"`);
+            } else {
+              console.log(`🔧 Skipping system field: ${key} = "${value}"`);
             }
           });
         }

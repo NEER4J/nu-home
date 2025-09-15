@@ -777,7 +777,7 @@ export default function HeatingQuotePage({
             },
             body: JSON.stringify({
               partnerId: effectivePartnerId,
-              submissionId: submissionId, // Pass submissionId for field mapping engine
+              submissionId: result.data.submission_id, // Pass the newly created submissionId for field mapping engine
               emailType: 'quote-initial', // Explicitly set email type for initial quote
               contactData: {
                 firstName: contactDetails.firstName,

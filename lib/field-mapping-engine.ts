@@ -77,21 +77,49 @@ export class FieldMappingEngine {
     }
 
     // Get field mappings for this email type and integration
-    let { data: mappings, error: mappingsError } = await this.supabase
-      .from('email_field_mappings')
-      .select('*')
-      .eq('partner_id', this.partnerId)
-      .eq('service_category_id', this.serviceCategoryId)
-      .eq('email_type', emailType)
-      .eq('is_active', true)
+    let mappings: any[]
+    let mappingsError: any
 
-    // Filter mappings client-side for integration type if we have mappings
-    if (mappings && integrationType !== 'email') {
-      mappings = mappings.filter(mapping =>
-        mapping.integration_types &&
-        Array.isArray(mapping.integration_types) &&
-        mapping.integration_types.includes(integrationType)
-      )
+    if (integrationType === 'ghl') {
+      // For GHL integration, query the ghl_field_mappings table
+      console.log('🔍 Querying ghl_field_mappings table for GHL integration')
+      const ghlMappingsResult = await this.supabase
+        .from('ghl_field_mappings')
+        .select('*')
+        .eq('partner_id', this.partnerId)
+        .eq('service_category_id', this.serviceCategoryId)
+        .eq('email_type', emailType)
+        .eq('recipient_type', 'customer') // For GHL, we typically use customer mappings
+        .eq('is_active', true)
+
+      mappings = ghlMappingsResult.data
+      mappingsError = ghlMappingsResult.error
+
+      console.log('✅ GHL field mappings found:', mappings?.length || 0)
+      if (mappings && mappings.length > 0) {
+        console.log('📋 GHL field mappings structure:', mappings[0])
+      }
+    } else {
+      // For email and other integrations, use the existing email_field_mappings table
+      const emailMappingsResult = await this.supabase
+        .from('email_field_mappings')
+        .select('*')
+        .eq('partner_id', this.partnerId)
+        .eq('service_category_id', this.serviceCategoryId)
+        .eq('email_type', emailType)
+        .eq('is_active', true)
+
+      mappings = emailMappingsResult.data
+      mappingsError = emailMappingsResult.error
+
+      // Filter mappings client-side for integration type if we have mappings
+      if (mappings && integrationType !== 'email') {
+        mappings = mappings.filter(mapping =>
+          mapping.integration_types &&
+          Array.isArray(mapping.integration_types) &&
+          mapping.integration_types.includes(integrationType)
+        )
+      }
     }
 
     if (mappingsError) {
@@ -101,16 +129,49 @@ export class FieldMappingEngine {
 
     const processedData: ProcessedFieldData = {}
 
-    // Process each mapping
-    for (const mapping of mappings || []) {
-      try {
-        const value = await this.processFieldMapping(enhancedSubmissionData, mapping)
-        if (value !== undefined) {
-          processedData[mapping.template_field_name] = value
+    if (integrationType === 'ghl' && mappings && mappings.length > 0) {
+      // For GHL integration, we need to:
+      // 1. Extract the actual data values for template fields
+      // 2. Map them to GHL custom field IDs from field_mappings
+      console.log('🔧 Processing GHL field mappings...')
+
+      // First, extract common template field values from submission data
+      const templateFieldValues = this.extractTemplateFieldValues(enhancedSubmissionData)
+      console.log('📋 Extracted template field values:', Object.keys(templateFieldValues))
+
+      for (const ghlMapping of mappings) {
+        if (ghlMapping.field_mappings && typeof ghlMapping.field_mappings === 'object') {
+          console.log('📋 GHL field mappings:', Object.keys(ghlMapping.field_mappings))
+
+          // Map template field values to GHL custom field IDs
+          Object.entries(ghlMapping.field_mappings).forEach(([templateFieldName, ghlFieldId]) => {
+            try {
+              const templateValue = templateFieldValues[templateFieldName]
+              if (templateValue !== undefined) {
+                // Store the GHL field ID as the key and the template value as the value
+                processedData[ghlFieldId as string] = templateValue
+                console.log(`✅ GHL mapping: ${templateFieldName} = "${templateValue}" → GHL field ${ghlFieldId}`)
+              } else {
+                console.log(`⚠️ No value found for template field: ${templateFieldName}`)
+              }
+            } catch (error) {
+              console.error(`❌ Error processing GHL field mapping ${templateFieldName}:`, error)
+            }
+          })
         }
-      } catch (error) {
-        console.error(`Error processing field ${mapping.template_field_name}:`, error)
-        // Continue processing other fields even if one fails
+      }
+    } else {
+      // For email and other integrations, use the existing logic
+      for (const mapping of mappings || []) {
+        try {
+          const value = await this.processFieldMapping(enhancedSubmissionData, mapping)
+          if (value !== undefined) {
+            processedData[mapping.template_field_name] = value
+          }
+        } catch (error) {
+          console.error(`Error processing field ${mapping.template_field_name}:`, error)
+          // Continue processing other fields even if one fails
+        }
       }
     }
 
@@ -159,6 +220,89 @@ export class FieldMappingEngine {
     }
     
     console.log(`  ✅ Final result:`, result)
+    return result
+  }
+
+  /**
+   * Extract common template field values from submission data
+   * This maps common field names to their actual values from the submission
+   */
+  private extractTemplateFieldValues(submissionData: any): Record<string, any> {
+    const templateValues: Record<string, any> = {}
+
+    // Extract values from quote_data.contact_details
+    const contactDetails = submissionData.quote_data?.contact_details
+    if (contactDetails) {
+      templateValues.firstName = contactDetails.first_name
+      templateValues.first_name = contactDetails.first_name
+      templateValues.lastName = contactDetails.last_name
+      templateValues.last_name = contactDetails.last_name
+      templateValues.email = contactDetails.email
+      templateValues.phone = contactDetails.phone
+      templateValues.postcode = contactDetails.postcode
+      templateValues.city = contactDetails.city
+    }
+
+    // Extract submission_id
+    templateValues.submission_id = submissionData.submission_id
+
+    // Extract partner information
+    if (submissionData.partner_profile) {
+      templateValues.companyName = submissionData.partner_profile.company_name
+      templateValues.companyPostcode = submissionData.partner_profile.postcode
+      templateValues.companyPhone = submissionData.partner_profile.phone
+      templateValues.companyAddress = submissionData.partner_profile.address
+    }
+
+    // Extract other common fields
+    templateValues.serviceCategoryId = submissionData.service_category_id
+    templateValues.partnerId = submissionData.partner_id
+
+    // Extract form answers if needed
+    const formAnswers = submissionData.quote_data?.form_answers
+    if (formAnswers && typeof formAnswers === 'object') {
+      // You can add specific form field extractions here if needed
+      // For example, if you have specific questions you want to map:
+      Object.entries(formAnswers).forEach(([questionId, answerData]: [string, any]) => {
+        if (answerData && typeof answerData === 'object' && answerData.answer) {
+          // Create template fields based on question IDs
+          templateValues[`form_${questionId}`] = answerData.answer
+        }
+      })
+    }
+
+    console.log('🔧 Extracted template values:', templateValues)
+    return templateValues
+  }
+
+  /**
+   * Get nested value from path string (for GHL field mappings)
+   * Supports paths like "quote_data.contact_details.first_name"
+   */
+  private getNestedValueFromPath(obj: any, pathString: string): any {
+    if (!pathString || typeof pathString !== 'string') {
+      return obj
+    }
+
+    console.log(`    🔍 getNestedValueFromPath: ${pathString}`)
+
+    // Handle array access syntax: field[0] -> field.0
+    const normalizedPath = pathString.replace(/\[(\d+)\]/g, '.$1')
+    console.log(`    🔍 Normalized path: ${normalizedPath}`)
+
+    const result = normalizedPath.split('.').reduce((current, key) => {
+      console.log(`    🔍 Accessing key: "${key}" from:`, Array.isArray(current) ? `[Array length: ${current.length}]` : (current && typeof current === 'object' ? Object.keys(current) : current))
+
+      // Handle numeric keys for array access
+      if (Array.isArray(current) && /^\d+$/.test(key)) {
+        const index = parseInt(key, 10)
+        return current[index]
+      }
+
+      return current?.[key]
+    }, obj)
+
+    console.log(`    ✅ getNestedValueFromPath result:`, result)
     return result
   }
 
