@@ -4,6 +4,47 @@ import { getGHLService } from '@/lib/ghl-api'
 import { FieldMappingEngine } from '@/lib/field-mapping-engine'
 import { resolvePartnerByHostname } from '@/lib/partner'
 
+// Helper function to add tags to a contact without overwriting existing tags
+async function addTagsToContact(ghlService: any, contactId: string, tagsToAdd: string[]): Promise<void> {
+  try {
+    console.log('🏷️ Adding tags to contact:', contactId, 'Tags:', tagsToAdd)
+
+    // Add each tag individually using GHL's tag assignment API
+    for (const tag of tagsToAdd) {
+      try {
+        console.log(`🏷️ Adding tag: "${tag}" to contact: ${contactId}`)
+
+        const tagResponse = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}/tags`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${ghlService.accessToken}`,
+            'Version': '2021-07-28'
+          },
+          body: JSON.stringify({
+            tags: [tag]
+          })
+        })
+
+        if (tagResponse.ok) {
+          console.log(`✅ Successfully added tag: "${tag}"`)
+        } else {
+          const errorText = await tagResponse.text()
+          console.warn(`⚠️ Failed to add tag "${tag}":`, tagResponse.status, errorText)
+        }
+      } catch (tagError) {
+        console.warn(`⚠️ Error adding tag "${tag}":`, tagError)
+      }
+    }
+
+    console.log('✅ Finished adding tags to contact')
+  } catch (error) {
+    console.error('❌ Error in addTagsToContact:', error)
+    // Don't throw - tags are not critical enough to fail the entire operation
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -219,12 +260,15 @@ export async function POST(req: NextRequest) {
     // Step 1: Upsert Contact with custom fields
     try {
       console.log('👤 Step 1: Upserting contact with custom fields...')
-      
+
+      const email = mappedGHLData.email || mappedGHLData.customer_email || contactData?.email
+
       // Prepare contact payload for upsert - use mapped data if available, fall back to contactData
+      // NOTE: We'll handle tags separately to avoid overwriting
       const contactPayload = {
         firstName: mappedGHLData.firstName || mappedGHLData.first_name || contactData?.firstName,
         lastName: mappedGHLData.lastName || mappedGHLData.last_name || contactData?.lastName,
-        email: mappedGHLData.email || mappedGHLData.customer_email || contactData?.email,
+        email: email,
         phone: mappedGHLData.phone || contactData?.phone,
         address1: mappedGHLData.address || mappedGHLData.formatted_address || contactData?.address1,
         city: contactData?.city,
@@ -234,13 +278,14 @@ export async function POST(req: NextRequest) {
           id: key,
           key: key,
           field_value: value
-        })),
-        tags: finalTags
+        }))
+        // Removed tags from payload - we'll add them separately
       }
 
       console.log('📋 Contact upsert payload:', contactPayload)
       
-      // Use direct fetch to call the upsert endpoint
+      // Use upsert to create/update contact (without tags to avoid overwriting)
+      console.log('👤 Step 1a: Upserting contact data (without tags)...')
       const contactResponse = await fetch('https://services.leadconnectorhq.com/contacts/upsert', {
         method: 'POST',
         headers: {
@@ -285,13 +330,17 @@ export async function POST(req: NextRequest) {
         console.error('❌ Available fields in response:', Object.keys(contact));
         throw new Error('Contact upsert succeeded but returned no contact ID');
       }
-      
+
+      // Step 1b: Add tags separately to avoid overwriting existing tags
+      console.log('👤 Step 1b: Adding tags to contact...')
+      await addTagsToContact(ghlService, contactId, finalTags)
+
       results.contact = {
         success: true,
         contactId: contactId,
         data: contact
       }
-      results.steps.push('Contact upserted')
+      results.steps.push('Contact upserted', 'Tags added')
 
       // Step 2: Create Opportunity (using contact ID from step 1)
       try {
