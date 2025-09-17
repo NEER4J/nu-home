@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@/utils/supabase/server'
+import Handlebars from 'handlebars'
 
 export interface FieldMapping {
   id: string
@@ -840,34 +841,58 @@ export class FieldMappingEngine {
    * Render custom template with specific context
    */
   private renderCustomTemplateWithContext(value: any, template: string, fieldName: string): string {
-    console.log('🔧 renderCustomTemplateWithContext called')
-    console.log('🔧 Field name:', fieldName)
-    console.log('🔧 Value type:', typeof value)
-    console.log('🔧 Value:', value)
-    console.log('🔧 Template preview:', template.substring(0, 200))
+    this.log('🔧 renderCustomTemplateWithContext called')
+    this.log('🔧 Field name: ' + fieldName)
+    this.log('🔧 Value type: ' + typeof value)
+    this.log('🔧 Value: ' + JSON.stringify(value))
+    this.log('🔧 Template preview: ' + template.substring(0, 200))
 
     // Special handling for detailed_products_data from save_quote_data
     if (fieldName === 'detailed_products_data' && value && typeof value === 'object') {
-      console.log('🔧 Special processing for detailed_products_data')
+      this.log('🔧 Special processing for detailed_products_data')
 
       // If value has detailed_products_data property, use that directly
       if (value.detailed_products_data && Array.isArray(value.detailed_products_data)) {
-        console.log('🔧 Using value.detailed_products_data array:', value.detailed_products_data.length)
+        this.log('🔧 Using value.detailed_products_data array: ' + value.detailed_products_data.length)
         const context = { [fieldName]: value.detailed_products_data }
         return this.processHandlebarsTemplate(template, context)
       }
 
       // If value is already an array, use it directly
       if (Array.isArray(value)) {
-        console.log('🔧 Value is already an array:', value.length)
-        const context = { [fieldName]: value }
+        this.log('🔧 Value is already an array: ' + value.length)
+
+        // Enhance each product with nested field access for better template processing
+        const enhancedProducts = value.map(product => {
+          if (product && typeof product === 'object') {
+            // Create a flattened version that includes both direct fields and product_fields
+            const enhanced = { ...product }
+
+            // If product has product_fields, merge them at the top level for easier access
+            if (product.product_fields && typeof product.product_fields === 'object') {
+              this.log('🔧 Found product_fields, merging to top level')
+              // Don't overwrite existing fields, just add missing ones
+              Object.keys(product.product_fields).forEach(key => {
+                if (!(key in enhanced)) {
+                  enhanced[key] = product.product_fields[key]
+                }
+              })
+            }
+
+            return enhanced
+          }
+          return product
+        })
+
+        this.log('🔧 Enhanced products for template processing: ' + JSON.stringify(enhancedProducts))
+        const context = { [fieldName]: enhancedProducts }
         return this.processHandlebarsTemplate(template, context)
       }
     }
 
     // Create a context object where the field name maps to the actual value
     const context = { [fieldName]: value }
-    console.log('🔧 Context created:', context)
+    this.log('🔧 Context created: ' + JSON.stringify(context))
 
     // Use the Handlebars processing to handle loops
     return this.processHandlebarsTemplate(template, context)
@@ -1126,151 +1151,29 @@ export class FieldMappingEngine {
   private processHandlebarsTemplate(template: string, data: ProcessedFieldData): string {
     if (!template) return ''
 
-    console.log('🔧 Processing Handlebars template...')
-    console.log('🔧 Template contains {{#each}}:', template.includes('{{#each'))
-    console.log('🔧 Available data keys:', Object.keys(data))
+    this.log('🔧 Processing Handlebars template with real Handlebars library...')
+    this.log('🔧 Template contains {{#each}}: ' + template.includes('{{#each'))
+    this.log('🔧 Available data keys: ' + Object.keys(data).join(', '))
 
-    let result = template
+    try {
+      // Compile the template with Handlebars
+      const compiledTemplate = Handlebars.compile(template)
 
-    // Handle {{#each}} loops
-    result = this.processEachLoops(result, data)
+      // Render the template with data
+      const result = compiledTemplate(data)
 
-    // Handle simple {{variable}} replacements
-    Object.entries(data).forEach(([key, value]) => {
-      const regex = new RegExp(`{{${key}}}`, 'g')
-      const stringValue = String(value || '')
-      result = result.replace(regex, stringValue)
-    })
+      this.log('🔧 Handlebars processing successful')
+      this.log('🔧 Result preview: ' + result.substring(0, 200))
 
-    console.log('🔧 Final processed template (first 200 chars):', result.substring(0, 200))
-    return result
-  }
-
-  /**
-   * Process {{#each}} loops in templates
-   */
-  private processEachLoops(template: string, data: ProcessedFieldData): string {
-    let result = template
-
-    // Find all {{#each}} blocks
-    const eachRegex = /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g
-    let match
-
-    while ((match = eachRegex.exec(template)) !== null) {
-      const [fullMatch, arrayKey, loopTemplate] = match
-      console.log(`🔧 Processing {{#each ${arrayKey}}} loop`)
-      console.log(`🔧 Loop template:`, loopTemplate.substring(0, 200))
-
-      // Check if the array key exists in the data
-      let arrayData = data[arrayKey]
-
-      // If the arrayKey is the same as the data object key, use the data directly
-      // This handles cases where we want to loop over the main data object itself
-      if (!arrayData && arrayKey in data) {
-        arrayData = data[arrayKey]
-      }
-
-      console.log(`🔧 Array data for ${arrayKey}:`, arrayData)
-      console.log(`🔧 Array data type:`, typeof arrayData)
-      console.log(`🔧 Array data is array:`, Array.isArray(arrayData))
-      console.log(`🔧 Array data is object:`, arrayData && typeof arrayData === 'object')
-
-      if (Array.isArray(arrayData)) {
-        // Process array data
-        const loopResults = arrayData.map((item, index) => {
-          let itemTemplate = loopTemplate
-          console.log(`🔧 Processing array item ${index}:`, item)
-
-          // Replace variables within the loop
-          if (item && typeof item === 'object') {
-            Object.entries(item).forEach(([key, value]) => {
-              const regex = new RegExp(`{{${key}}}`, 'g')
-              const stringValue = String(value || '')
-              console.log(`🔧 Replacing {{${key}}} with:`, stringValue)
-              itemTemplate = itemTemplate.replace(regex, stringValue)
-            })
-
-            // Handle nested {{#each}} loops within product fields (for detailed_products_data)
-            if (arrayKey === 'detailed_products_data') {
-              // Handle nested arrays like what_s_included, highlighted_features, image_gallery
-              const nestedEachRegex = /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g
-              let nestedMatch
-
-              while ((nestedMatch = nestedEachRegex.exec(itemTemplate)) !== null) {
-                const [nestedFullMatch, nestedArrayKey, nestedLoopTemplate] = nestedMatch
-                console.log(`🔧 Processing nested {{#each ${nestedArrayKey}}} loop`)
-
-                // Get the nested array data from the current item
-                const nestedArrayData = item[nestedArrayKey]
-                console.log(`🔧 Nested array data for ${nestedArrayKey}:`, nestedArrayData)
-
-                if (Array.isArray(nestedArrayData)) {
-                  const nestedLoopResults = nestedArrayData.map((nestedItem, nestedIndex) => {
-                    let nestedItemTemplate = nestedLoopTemplate
-
-                    if (nestedItem && typeof nestedItem === 'object') {
-                      // Handle nested objects with items property (common in product data)
-                      if (nestedItem.items && typeof nestedItem.items === 'object') {
-                        Object.entries(nestedItem.items).forEach(([nestedKey, nestedValue]) => {
-                          const nestedRegex = new RegExp(`{{items\\.${nestedKey}}}`, 'g')
-                          nestedItemTemplate = nestedItemTemplate.replace(nestedRegex, String(nestedValue || ''))
-                        })
-                      }
-
-                      // Handle direct properties
-                      Object.entries(nestedItem).forEach(([nestedKey, nestedValue]) => {
-                        const nestedRegex = new RegExp(`{{${nestedKey}}}`, 'g')
-                        nestedItemTemplate = nestedItemTemplate.replace(nestedRegex, String(nestedValue || ''))
-                      })
-                    }
-
-                    return nestedItemTemplate
-                  })
-
-                  itemTemplate = itemTemplate.replace(nestedFullMatch, nestedLoopResults.join(''))
-                } else {
-                  itemTemplate = itemTemplate.replace(nestedFullMatch, '')
-                }
-              }
-            }
-          }
-
-          return itemTemplate
-        })
-
-        result = result.replace(fullMatch, loopResults.join(''))
-      } else if (arrayData && typeof arrayData === 'object') {
-        // Process object data (like form_answers)
-        const loopResults: string[] = []
-
-        console.log(`🔧 Processing object data for ${arrayKey}:`, Object.keys(arrayData))
-
-        Object.entries(arrayData).forEach(([key, item]) => {
-          if (typeof item === 'object' && item !== null) {
-            let itemTemplate = loopTemplate
-            console.log(`🔧 Processing item ${key}:`, item)
-
-            // Replace variables within the loop
-            Object.entries(item).forEach(([itemKey, value]) => {
-              const regex = new RegExp(`{{${itemKey}}}`, 'g')
-              const stringValue = String(value || '')
-              console.log(`🔧 Replacing {{${itemKey}}} with:`, stringValue)
-              itemTemplate = itemTemplate.replace(regex, stringValue)
-            })
-
-            loopResults.push(itemTemplate)
-          }
-        })
-
-        console.log(`🔧 Generated ${loopResults.length} loop results`)
-        result = result.replace(fullMatch, loopResults.join(''))
-      } else {
-        // No data or invalid data
-        console.log(`⚠️ No valid array/object data for ${arrayKey}:`, arrayData)
-        result = result.replace(fullMatch, '')
-      }
+      return result
+    } catch (error) {
+      this.log('❌ Handlebars processing error: ' + String(error))
+      this.log('❌ Template: ' + template.substring(0, 300))
+      this.log('❌ Data: ' + JSON.stringify(data))
+      this.log('❌ Falling back to original template')
+      return template
     }
-
-    return result
   }
+
+  // Note: Removed custom regex-based processing methods since we now use real Handlebars library
 }

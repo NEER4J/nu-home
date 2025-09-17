@@ -882,32 +882,195 @@ export default function FieldMappingsPage() {
                 {editingMapping.template_type === 'html_template' && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium text-gray-900">HTML Template</h3>
-                    
-                    {/* Template Examples */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Template Examples</h4>
-                      <div className="space-y-2 text-xs">
+
+                    {/* Comprehensive HTML Tutorial */}
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                      <h4 className="font-semibold text-gray-800 mb-4">📚 Complete Guide: Creating HTML Fields & Nested Data</h4>
+
+                      <div className="space-y-6 text-sm max-h-[60vh] overflow-y-auto">
+                        {/* Understanding Field Types */}
                         <div>
-                          <p className="text-gray-600 mb-1">For form_answers object:</p>
-                          <pre className="bg-white p-2 rounded border text-xs overflow-x-auto">
-{`<div class="qa-section">
-  {{#each form_answers}}
-    <div class="qa-item">
-      <div class="question">{{question_text}}</div>
-      <div class="answer">{{answer}}</div>
+                          <h5 className="font-semibold mb-2 text-green-700">🎯 Understanding Field Types</h5>
+                          <div className="space-y-2">
+                            <div className="p-3 bg-white rounded border-l-4 border-green-400">
+                              <strong>Text Fields:</strong> Use <code>{`{{fieldName}}`}</code> for simple text like names, emails, phone numbers
+                              <div className="mt-1 text-xs text-gray-600">Example: <code>{`{{firstName}}`}</code> → "John"</div>
+                            </div>
+                            <div className="p-3 bg-white rounded border-l-4 border-purple-400">
+                              <strong>HTML Fields:</strong> Use <code>{`{{{fieldName}}}`}</code> for complex HTML content like product lists
+                              <div className="mt-1 text-xs text-gray-600">Example: <code>{`{{{detailed_products_data}}}`}</code> → Renders full HTML product cards</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Working with Nested Data */}
+                        <div>
+                          <h5 className="font-semibold mb-2 text-indigo-700">🔗 Working with Nested Data</h5>
+                          <div className="space-y-3">
+                            <div className="p-3 bg-white rounded">
+                              <strong>Accessing Nested Fields</strong>
+                              <div className="text-xs text-gray-600 mt-2">
+                                Use dot notation to access nested data:<br/>
+                                • <code>user_info.first_name</code> → Customer's first name<br/>
+                                • <code>products[0].name</code> → First product name<br/>
+                                • <code>contact_details.postcode</code> → Customer postcode
+                              </div>
+                            </div>
+                            <div className="p-3 bg-white rounded">
+                              <strong>Cross-Column Access</strong>
+                              <div className="text-xs text-gray-600 mt-2">
+                                Use @ prefix to access different database columns:<br/>
+                                • <code>@save_quote_data.user_info.email</code><br/>
+                                • <code>@quote_data.contact_details.phone</code>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* HTML Template Examples */}
+                        <div>
+                          <h5 className="font-semibold mb-2 text-red-700">🎨 HTML Template Examples</h5>
+                          <div className="space-y-3">
+                            <div className="p-3 bg-white rounded">
+                              <strong>Simple Product Loop</strong>
+                              <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">
+{`<div class="products">
+  {{#each detailed_products_data}}
+    <div class="product">
+      <h3>{{name}}</h3>
+      <p>Price: £{{price}}</p>
+      <p>Power: {{power}}kW</p>
     </div>
   {{/each}}
 </div>`}
-                          </pre>
+                              </pre>
+                            </div>
+                            <div className="p-3 bg-white rounded">
+                              <strong>Advanced Product Card with Nested Fields</strong>
+                              <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">
+{`{{#each detailed_products_data}}
+  <div class="product-card" style="border:1px solid #ddd; padding:16px; margin:8px;">
+    <img src="{{image_url}}" alt="{{name}}" style="max-width:100%;" />
+    <h2>{{name}}</h2>
+    <p>{{description}}</p>
+    <p><strong>£{{price}}</strong> (Monthly: £{{monthly_price}})</p>
+
+    <!-- Access nested product_fields -->
+    <div class="specs">
+      <p>Power: {{power}}kW</p>
+      <p>Warranty: {{warranty}}</p>
+      <p>Flow Rate: {{flow_rate}} L/min</p>
+    </div>
+
+    <!-- Loop through what's included -->
+    {{#if what_s_included}}
+      <h4>What's Included:</h4>
+      <ul>
+        {{#each what_s_included}}
+          <li>
+            {{#if items.image}}<img src="{{items.image}}" style="width:20px;" />{{/if}}
+            {{items.title}} - {{items.subtitle}}
+          </li>
+        {{/each}}
+      </ul>
+    {{/if}}
+  </div>
+{{/each}}`}
+                              </pre>
+                            </div>
+                            <div className="p-3 bg-white rounded">
+                              <strong>Customer Q&A from Form</strong>
+                              <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">
+{`<table style="width:100%; border-collapse:collapse;">
+  {{#each form_answers}}
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:8px; font-weight:bold;">{{question_text}}:</td>
+      <td style="padding:8px;">{{answer}}</td>
+    </tr>
+  {{/each}}
+</table>`}
+                              </pre>
+                            </div>
+                          </div>
                         </div>
+
+                        {/* Common Patterns */}
                         <div>
-                          <p className="text-gray-600 mb-1">Available variables:</p>
-                          <ul className="text-gray-600 list-disc list-inside">
-                            <li><code>data</code> - The raw data from database path</li>
-                            <li><code>form_answers</code> - All form answers object</li>
-                            <li><code>contact_details</code> - Contact information</li>
-                            <li><code>selected_address</code> - Address details</li>
-                          </ul>
+                          <h5 className="font-semibold mb-2 text-teal-700">🔄 Common Patterns & Tips</h5>
+                          <div className="space-y-2">
+                            <div className="p-3 bg-white rounded">
+                              <strong>Conditional Content:</strong>
+                              <pre className="text-xs bg-gray-100 p-2 rounded mt-1">
+{`{{#if warranty}}
+  <p>Warranty: {{warranty}}</p>
+{{/if}}`}
+                              </pre>
+                            </div>
+                            <div className="p-3 bg-white rounded">
+                              <strong>Default Values:</strong>
+                              <pre className="text-xs bg-gray-100 p-2 rounded mt-1">
+{`<p>Power: {{power}}{{#unless power}}N/A{{/unless}}kW</p>`}
+                              </pre>
+                            </div>
+                            <div className="p-3 bg-white rounded">
+                              <strong>Styling Tips:</strong>
+                              <div className="text-xs text-gray-600 mt-1">
+                                • Use inline CSS for email compatibility<br/>
+                                • Test with different email clients<br/>
+                                • Keep HTML structure simple<br/>
+                                • Use tables for complex layouts
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Troubleshooting */}
+                        <div>
+                          <h5 className="font-semibold mb-2 text-orange-700">🐛 Troubleshooting</h5>
+                          <div className="space-y-2">
+                            <div className="p-3 bg-white rounded">
+                              <strong>Field not showing data?</strong>
+                              <div className="text-xs text-gray-600 mt-1">
+                                1. Check the field mapping path is correct<br/>
+                                2. Verify data exists in the database<br/>
+                                3. Ensure you're using the right column source<br/>
+                                4. Test with "Send Test" button in notifications
+                              </div>
+                            </div>
+                            <div className="p-3 bg-white rounded">
+                              <strong>HTML not rendering?</strong>
+                              <div className="text-xs text-gray-600 mt-1">
+                                1. Use triple braces <code>{`{{{field}}}`}</code> for HTML fields<br/>
+                                2. Check field type is set to "html_template"<br/>
+                                3. Validate your HTML syntax
+                              </div>
+                            </div>
+                            <div className="p-3 bg-white rounded">
+                              <strong>Loops not working?</strong>
+                              <div className="text-xs text-gray-600 mt-1">
+                                1. Ensure data is an array<br/>
+                                2. Use correct Handlebars syntax: <code>{`{{#each array}}`}</code><br/>
+                                3. Close with <code>{`{{/each}}`}</code>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Field Variable Reference */}
+                        <div>
+                          <h5 className="font-semibold mb-2 text-blue-700">📋 Available Template Variables</h5>
+                          <div className="p-3 bg-white rounded">
+                            <div className="text-xs text-gray-600">
+                              Common variables you can use in your HTML templates:<br/>
+                              • <code>{`{{data}}`}</code> - The raw data from database path<br/>
+                              • <code>{`{{form_answers}}`}</code> - All form answers object<br/>
+                              • <code>{`{{contact_details}}`}</code> - Contact information<br/>
+                              • <code>{`{{selected_address}}`}</code> - Address details<br/>
+                              • <code>{`{{detailed_products_data}}`}</code> - Product array with full details<br/>
+                              • <code>{`{{user_info}}`}</code> - User information from save quote<br/>
+                              • <code>{`{{products}}`}</code> - Basic product information
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
