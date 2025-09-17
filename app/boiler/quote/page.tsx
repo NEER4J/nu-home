@@ -300,10 +300,20 @@ export default function HeatingQuotePage({
     try {
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
       const subdomain = hostname || null
+      
+      // Detect if running in iframe
+      const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
+      
+      // Generate quote link for the customer
+      const quoteLink = typeof window !== 'undefined' 
+        ? `${window.location.origin}/boiler/products?submission=${submissionId}`
+        : null
 
       const emailData = {
         submissionId: submissionId,
         subdomain,
+        is_iframe: isIframe,
+        quoteLink: quoteLink,
       }
 
       console.log('📧 Email data to send:', emailData)

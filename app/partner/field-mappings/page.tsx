@@ -1068,8 +1068,35 @@ export default function FieldMappingsPage() {
                               • <code>{`{{selected_address}}`}</code> - Address details<br/>
                               • <code>{`{{detailed_products_data}}`}</code> - Product array with full details<br/>
                               • <code>{`{{user_info}}`}</code> - User information from save quote<br/>
-                              • <code>{`{{products}}`}</code> - Basic product information
+                              • <code>{`{{products}}`}</code> - Basic product information<br/>
+                              • <code>{`{{quote_link}}`}</code> - Quote link URL (always present)<br/>
+                              • <code>{`{{conditional_quote_link}}`}</code> - Quote link only if not in iframe<br/>
+                              • <code>{`{{show_quote_link}}`}</code> - Boolean: true if quote link should be shown<br/>
+                              • <code>{`{{is_iframe}}`}</code> - Boolean: true if submission was from iframe
                             </div>
+                          </div>
+                        </div>
+
+                        {/* Quote Link Example */}
+                        <div>
+                          <h5 className="font-semibold mb-2 text-purple-700">🔗 Conditional Quote Link Example</h5>
+                          <div className="p-3 bg-white rounded">
+                            <strong>Show quote link only when not in iframe:</strong>
+                            <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">
+{`{{#if show_quote_link}}
+  <div style="text-align: center; margin: 20px 0;">
+    <a href="{{conditional_quote_link}}"
+       style="background: #007cba; color: white; padding: 12px 24px;
+              text-decoration: none; border-radius: 4px; display: inline-block;">
+      View Your Quote
+    </a>
+  </div>
+{{else}}
+  <p style="color: #666; font-style: italic; text-align: center;">
+    Your quote has been saved and can be accessed through your account.
+  </p>
+{{/if}}`}
+                            </pre>
                           </div>
                         </div>
                       </div>

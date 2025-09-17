@@ -287,6 +287,7 @@ export class FieldMappingEngine {
       templateValues.total_products_viewed = latestSaveQuote.total_products_viewed
       templateValues.save_quote_opened_at = latestSaveQuote.save_quote_opened_at
       templateValues.action = latestSaveQuote.action
+
     }
 
     // Extract submission_id

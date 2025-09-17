@@ -182,6 +182,11 @@ export async function POST(request: NextRequest) {
     console.log('📊 Extracted user info:', userInfo)
     console.log('📊 Extracted products count:', Array.isArray(productsData) ? productsData.length : 0)
     console.log('📊 Extracted detailed products count:', Array.isArray(detailedProductsData) ? detailedProductsData.length : 0)
+    console.log('📧 Quote link info:', {
+      quoteLink: quoteLink || 'not provided',
+      is_iframe: is_iframe || false,
+      conditional_quote_link: (is_iframe === true || is_iframe === 'true') ? 'hidden (iframe)' : (quoteLink || 'not provided')
+    })
 
     // SAVE FORM SUBMISSION DATA TO DATABASE FIRST (before email processing)
     console.log('💾 Saving save quote data to lead_submission_data FIRST...')
@@ -228,7 +233,12 @@ export async function POST(request: NextRequest) {
           ? (detailedProductData ? 1 : 0)
           : (Array.isArray(detailedAllProductsData) ? detailedAllProductsData.length : (Array.isArray(productsData) ? productsData.length : 0)),
         save_quote_opened_at: new Date().toISOString(),
-        action: saveType === 'single_product' ? 'save_single_product_quote' : 'save_all_products_quote'
+        action: saveType === 'single_product' ? 'save_single_product_quote' : 'save_all_products_quote',
+        // Add quote link and iframe context for conditional email content
+        quote_link: quoteLink || null,
+        is_iframe: is_iframe || false,
+        // Conditional quote link - only include if not in iframe
+        conditional_quote_link: (is_iframe === true || is_iframe === 'true') ? null : (quoteLink || null)
       }
 
       // Add to existing arrays

@@ -324,6 +324,9 @@ export default function QuoteForm({
       setIsRedirecting(true);
       setError(null);
 
+      // Detect if running in iframe (used for both API calls)
+      const isIframe = window.self !== window.top;
+
       // Filter out non-question data from formValues
       const filteredAnswers = Object.entries(formValues).reduce((acc: Record<string, any>, [key, value]) => {
         // Skip special keys and empty values
@@ -399,8 +402,6 @@ export default function QuoteForm({
         apiUrl.searchParams.append('subdomain', subdomain);
       }
 
-      // Detect if running in iframe
-      const isIframe = window.self !== window.top;
       if (isIframe) {
         apiUrl.searchParams.append('is_iframe', 'true');
       }
@@ -424,19 +425,31 @@ export default function QuoteForm({
         const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
         const subdomain = hostname || null
 
+        // Generate quote link for the customer
+        const quoteLink = `${window.location.origin}/${serviceCategorySlug}/products?submission=${result.data.submission_id}`
+
+        const emailPayload = {
+          submissionId: result.data.submission_id,
+          subdomain,
+          is_iframe: isIframe,
+          quoteLink: quoteLink, // Add the quote link
+          // Test to verify frontend changes are working
+          test_frontend_update: 'FRONTEND_UPDATED_SUCCESS'
+        }
+
+
         const emailRes = await fetch('/api/email/boiler/quote-initial-v2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            submissionId: result.data.submission_id,
-            subdomain,
-            is_iframe: isIframe,
-          }),
+          body: JSON.stringify(emailPayload),
         })
 
         const emailData = await emailRes.json().catch(() => ({}))
         if (!emailRes.ok) {
           console.warn('Failed to send initial quote email:', emailData?.error || 'Unknown error')
+        } else {
+          // Log the email API response for debugging
+          console.log('📧 Email API Response:', emailData)
         }
       } catch (err: any) {
         console.warn('Failed to send initial quote email:', err?.message || 'Unknown error')
