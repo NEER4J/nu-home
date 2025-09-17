@@ -9,7 +9,7 @@ CREATE TABLE email_field_mappings (
   template_field_name VARCHAR(100) NOT NULL,
   
   -- Data source configuration
-  database_source VARCHAR(50) NOT NULL, -- 'quote_data', 'products_data', 'addons_data', 'checkout_data', 'survey_data', 'enquiry_data'
+  database_source VARCHAR(50) NOT NULL, -- 'quote_data', 'products_data', 'addons_data', 'checkout_data', 'survey_data', 'enquiry_data', 'save_quote_data'
   database_path JSONB NOT NULL, -- JSON path to the field
   
   -- Template configuration

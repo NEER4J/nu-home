@@ -1,0 +1,65 @@
+<div class="products" style="display: flex; flex-wrap: wrap; gap: 20px; font-family: Arial, sans-serif;">
+  {{#each detailed_products_data}}
+    <div class="product-card" style="border: 1px solid #ddd; border-radius: 10px; width: 320px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #fff;">
+
+      <!-- Product Image -->
+      <div class="product-image" style="text-align: center; margin-bottom: 12px;">
+        <img src="{{image_url}}" alt="{{name}}" style="max-width: 100%; height: auto; border-radius: 8px;" />
+      </div>
+
+      <!-- Product Info -->
+      <div class="product-info" style="margin-bottom: 12px;">
+        <h2 class="product-name" style="font-size: 18px; margin: 0 0 6px; color: #333;">{{name}}</h2>
+        <p class="product-description" style="font-size: 14px; color: #555; margin: 0 0 8px;">{{description}}</p>
+        <p class="product-price" style="font-weight: bold; font-size: 16px; margin: 0 0 4px; color: #222;">£{{price}}</p>
+        <p class="product-monthly" style="font-size: 13px; color: #666; margin: 0;">Monthly: £{{monthly_price}}</p>
+      </div>
+
+      <!-- Basic Product Fields (Available in save_quote_data) -->
+      <div class="product-fields" style="margin-bottom: 12px;">
+        <h3 style="font-size: 15px; margin: 0 0 6px; color: #222;">Key Specs</h3>
+        <p style="font-size: 13px; margin: 0 0 4px;"><strong>Power:</strong> {{power}}kW</p>
+        <p style="font-size: 13px; margin: 0 0 4px;"><strong>Warranty:</strong> {{warranty}}</p>
+        <p style="font-size: 13px; margin: 0 0 4px;"><strong>Flow Rate:</strong> {{flow_rate}} L/min</p>
+        <p style="font-size: 13px; margin: 0;"><strong>Brand:</strong> {{brand_image}}</p>
+      </div>
+
+      <!-- What's Included (if available) -->
+      {{#if what_s_included}}
+      <div class="product-included" style="margin-bottom: 12px;">
+        <h3 style="font-size: 15px; margin: 0 0 6px; color: #222;">What's Included</h3>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {{#each what_s_included}}
+            <li style="display: flex; align-items: center; margin-bottom: 8px;">
+              {{#if items.image}}
+              <img src="{{items.image}}" alt="{{items.title}}" style="width: 28px; height: 28px; object-fit: contain; margin-right: 8px;" />
+              {{/if}}
+              <div>
+                <strong style="font-size: 13px; color: #333;">{{items.title}}</strong><br>
+                <span style="font-size: 12px; color: #666;">{{items.subtitle}}</span>
+              </div>
+            </li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
+
+      <!-- Highlighted Features (if available) -->
+      {{#if highlighted_features}}
+      <div class="product-highlights">
+        <h3 style="font-size: 15px; margin: 0 0 6px; color: #222;">Highlights</h3>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {{#each highlighted_features}}
+            <li style="display: flex; align-items: center; margin-bottom: 6px;">
+              {{#if image}}
+              <img src="{{image}}" alt="{{name}}" style="width: 20px; height: 20px; margin-right: 6px;" />
+              {{/if}}
+              <span style="font-size: 13px; color: #555;">{{name}}</span>
+            </li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
+    </div>
+  {{/each}}
+</div>

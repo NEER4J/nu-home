@@ -37,11 +37,18 @@ export class FieldMappingEngine {
   private supabase: any
   private partnerId: string
   private serviceCategoryId: string
+  public debugLogs: string[] = []
 
   constructor(supabase: any, partnerId: string, serviceCategoryId: string) {
     this.supabase = supabase
     this.partnerId = partnerId
     this.serviceCategoryId = serviceCategoryId
+    this.debugLogs = []
+  }
+
+  private log(message: string) {
+    console.log(message)
+    this.debugLogs.push(message)
   }
 
   /**
@@ -190,12 +197,14 @@ export class FieldMappingEngine {
     submissionData: any,
     mapping: FieldMapping
   ): Promise<any> {
-    console.log(`  🔍 Getting source data from: ${mapping.database_source}`)
-    console.log(`  🔍 Database path:`, mapping.database_path)
+    this.log(`  🔍 Processing field: ${mapping.template_field_name}`)
+    this.log(`  🔍 Getting source data from: ${mapping.database_source}`)
+    this.log(`  🔍 Database path: ${JSON.stringify(mapping.database_path)}`)
 
     // Support cross-column access by checking if the path specifies a different column
     const rawValue = this.getNestedValueWithCrossColumnSupport(submissionData, mapping)
-    console.log(`  📊 Raw value extracted:`, rawValue)
+    this.log(`  📊 Raw value extracted for ${mapping.template_field_name}: ${JSON.stringify(rawValue)}`)
+    this.log(`  📊 Raw value type: ${typeof rawValue}`)
 
     let result: any
     switch (mapping.template_type) {
@@ -218,8 +227,8 @@ export class FieldMappingEngine {
       default:
         result = rawValue
     }
-    
-    console.log(`  ✅ Final result:`, result)
+
+    this.log(`  ✅ Final result for ${mapping.template_field_name}: ${JSON.stringify(result)}`)
     return result
   }
 
@@ -230,7 +239,7 @@ export class FieldMappingEngine {
   private extractTemplateFieldValues(submissionData: any): Record<string, any> {
     const templateValues: Record<string, any> = {}
 
-    // Extract values from quote_data.contact_details
+    // Extract values from quote_data.contact_details (for regular quote submissions)
     const contactDetails = submissionData.quote_data?.contact_details
     if (contactDetails) {
       templateValues.firstName = contactDetails.first_name
@@ -241,6 +250,42 @@ export class FieldMappingEngine {
       templateValues.phone = contactDetails.phone
       templateValues.postcode = contactDetails.postcode
       templateValues.city = contactDetails.city
+    }
+
+    // Extract values from save_quote_data (for save quote submissions)
+    const saveQuoteData = submissionData.save_quote_data
+    if (saveQuoteData && Array.isArray(saveQuoteData) && saveQuoteData.length > 0) {
+      // Get the most recent save quote entry
+      const latestSaveQuote = saveQuoteData[saveQuoteData.length - 1]
+      
+      if (latestSaveQuote.user_info) {
+        templateValues.firstName = latestSaveQuote.user_info.first_name
+        templateValues.first_name = latestSaveQuote.user_info.first_name
+        templateValues.lastName = latestSaveQuote.user_info.last_name
+        templateValues.last_name = latestSaveQuote.user_info.last_name
+        templateValues.email = latestSaveQuote.user_info.email
+        templateValues.phone = latestSaveQuote.user_info.phone
+        templateValues.postcode = latestSaveQuote.user_info.postcode
+        templateValues.city = latestSaveQuote.user_info.city
+      }
+
+      // Extract products data
+      if (latestSaveQuote.products && Array.isArray(latestSaveQuote.products)) {
+        templateValues.products = latestSaveQuote.products
+        templateValues.products_count = latestSaveQuote.products.length
+      }
+
+      // Extract detailed products data
+      if (latestSaveQuote.detailed_products_data && Array.isArray(latestSaveQuote.detailed_products_data)) {
+        templateValues.detailed_products = latestSaveQuote.detailed_products_data
+        templateValues.detailed_products_count = latestSaveQuote.detailed_products_data.length
+      }
+
+      // Extract save type and other metadata
+      templateValues.save_type = latestSaveQuote.save_type
+      templateValues.total_products_viewed = latestSaveQuote.total_products_viewed
+      templateValues.save_quote_opened_at = latestSaveQuote.save_quote_opened_at
+      templateValues.action = latestSaveQuote.action
     }
 
     // Extract submission_id
@@ -258,7 +303,7 @@ export class FieldMappingEngine {
     templateValues.serviceCategoryId = submissionData.service_category_id
     templateValues.partnerId = submissionData.partner_id
 
-    // Extract form answers if needed
+    // Extract form answers if needed (from quote_data)
     const formAnswers = submissionData.quote_data?.form_answers
     if (formAnswers && typeof formAnswers === 'object') {
       // You can add specific form field extractions here if needed
@@ -311,8 +356,8 @@ export class FieldMappingEngine {
    * Supports array access: "field[0].property" or "field.0.property"
    */
   private getNestedValue(obj: any, path: any): any {
-    console.log(`    🔍 getNestedValue called with path:`, path)
-    console.log(`    🔍 Object keys:`, obj ? (Array.isArray(obj) ? `[Array length: ${obj.length}]` : Object.keys(obj)) : 'null')
+    this.log(`    🔍 getNestedValue called with path: ${JSON.stringify(path)}`)
+    this.log(`    🔍 Object keys: ${obj ? (Array.isArray(obj) ? `[Array length: ${obj.length}]` : Object.keys(obj)) : 'null'}`)
 
     let result: any
     let pathString: string
@@ -322,29 +367,33 @@ export class FieldMappingEngine {
     } else if (path && typeof path === 'object' && path.path) {
       pathString = path.path
     } else {
-      console.log(`    🔍 Returning object as-is`)
+      this.log(`    🔍 Returning object as-is`)
       return obj
     }
 
-    console.log(`    🔍 Using path: ${pathString}`)
+    this.log(`    🔍 Using path: ${pathString}`)
 
     // Handle array access syntax: field[0] -> field.0
     const normalizedPath = pathString.replace(/\[(\d+)\]/g, '.$1')
-    console.log(`    🔍 Normalized path: ${normalizedPath}`)
+    this.log(`    🔍 Normalized path: ${normalizedPath}`)
 
     result = normalizedPath.split('.').reduce((current, key) => {
-      console.log(`    🔍 Accessing key: "${key}" from:`, Array.isArray(current) ? `[Array length: ${current.length}]` : (current && typeof current === 'object' ? Object.keys(current) : current))
+      this.log(`    🔍 Accessing key: "${key}" from: ${Array.isArray(current) ? `[Array length: ${current.length}]` : (current && typeof current === 'object' ? Object.keys(current) : current)}`)
 
       // Handle numeric keys for array access
       if (Array.isArray(current) && /^\d+$/.test(key)) {
         const index = parseInt(key, 10)
-        return current[index]
+        const result = current[index]
+        this.log(`    🔍 Array access [${index}] result: ${JSON.stringify(result)}`)
+        return result
       }
 
-      return current?.[key]
+      const result = current?.[key]
+      this.log(`    🔍 Object access [${key}] result: ${JSON.stringify(result)}`)
+      return result
     }, obj)
 
-    console.log(`    ✅ getNestedValue result:`, result)
+    this.log(`    ✅ getNestedValue final result: ${JSON.stringify(result)}`)
     return result
   }
 
@@ -356,6 +405,7 @@ export class FieldMappingEngine {
    * - "form_submissions[0].submission_id" (uses default database_source)
    * - "@form_submissions[0].submission_id" (cross-column: uses form_submissions column)
    * - "@enquiry_data.customer_name" (cross-column: uses enquiry_data column)
+   * - "@save_quote_data[0].user_info.email" (cross-column: uses save_quote_data column)
    */
   private getNestedValueWithCrossColumnSupport(submissionData: any, mapping: FieldMapping): any {
     let sourceData: any
@@ -369,6 +419,8 @@ export class FieldMappingEngine {
       pathString = mapping.database_path
     }
 
+    this.log(`    🔍 Path string extracted: ${pathString}`)
+
     // Check if the path starts with @ to indicate cross-column access
     if (pathString && pathString.startsWith('@')) {
       // Cross-column access: @column_name.field.path or @column_name[0].field
@@ -380,31 +432,51 @@ export class FieldMappingEngine {
       const columnName = pathParts[0]
       const fieldPathParts = pathParts.slice(1)
 
-      console.log(`    🔍 Cross-column access detected: ${columnName}`)
-      console.log(`    🔍 Field path: ${fieldPathParts.join('.')}`)
+      this.log(`    🔍 Cross-column access detected: ${columnName}`)
+      this.log(`    🔍 Field path: ${fieldPathParts.join('.')}`)
 
       sourceData = submissionData[columnName]
       pathToUse = fieldPathParts.length > 0 ? fieldPathParts.join('.') : null
 
-      console.log(`    📊 Cross-column source data available:`, !!sourceData)
+      this.log(`    📊 Cross-column source data available: ${!!sourceData}`)
       if (sourceData) {
-        console.log(`    📊 Cross-column source data type:`, Array.isArray(sourceData) ? `[Array length: ${sourceData.length}]` : typeof sourceData)
+        this.log(`    📊 Cross-column source data type: ${Array.isArray(sourceData) ? `[Array length: ${sourceData.length}]` : typeof sourceData}`)
+
+        // Special handling for save_quote_data array - get the latest entry
+        if (columnName === 'save_quote_data' && Array.isArray(sourceData) && sourceData.length > 0) {
+          this.log(`    🔍 Using latest save_quote_data entry (index ${sourceData.length - 1})`)
+          sourceData = sourceData[sourceData.length - 1]
+        }
       }
     } else {
       // Standard access using database_source
       sourceData = submissionData[mapping.database_source]
       pathToUse = pathString || mapping.database_path
 
-      console.log(`    📊 Standard source data from ${mapping.database_source}:`, !!sourceData)
+      this.log(`    📊 Standard source data from ${mapping.database_source}: ${!!sourceData}`)
       if (sourceData) {
-        console.log(`    📊 Standard source data type:`, Array.isArray(sourceData) ? `[Array length: ${sourceData.length}]` : typeof sourceData)
+        this.log(`    📊 Standard source data type: ${Array.isArray(sourceData) ? `[Array length: ${sourceData.length}]` : typeof sourceData}`)
+
+        // Special handling for save_quote_data as database source
+        if (mapping.database_source === 'save_quote_data' && Array.isArray(sourceData) && sourceData.length > 0) {
+          this.log(`    🔍 Using latest save_quote_data entry (index ${sourceData.length - 1})`)
+          const latestEntry = sourceData[sourceData.length - 1]
+          this.log(`    🔍 Latest entry data: ${JSON.stringify(latestEntry)}`)
+          sourceData = latestEntry
+        }
       }
     }
 
+    this.log(`    📊 Path to use: ${pathToUse}`)
+    this.log(`    📊 Source data after processing: ${JSON.stringify(sourceData)}`)
+
     // Get the nested value from the source data
     if (pathToUse) {
-      return this.getNestedValue(sourceData, pathToUse)
+      const result = this.getNestedValue(sourceData, pathToUse)
+      this.log(`    📊 Nested value result: ${JSON.stringify(result)}`)
+      return result
     } else {
+      this.log(`    📊 Returning source data as-is`)
       return sourceData
     }
   }
@@ -772,7 +844,26 @@ export class FieldMappingEngine {
     console.log('🔧 Field name:', fieldName)
     console.log('🔧 Value type:', typeof value)
     console.log('🔧 Value:', value)
-    console.log('🔧 Template:', template)
+    console.log('🔧 Template preview:', template.substring(0, 200))
+
+    // Special handling for detailed_products_data from save_quote_data
+    if (fieldName === 'detailed_products_data' && value && typeof value === 'object') {
+      console.log('🔧 Special processing for detailed_products_data')
+
+      // If value has detailed_products_data property, use that directly
+      if (value.detailed_products_data && Array.isArray(value.detailed_products_data)) {
+        console.log('🔧 Using value.detailed_products_data array:', value.detailed_products_data.length)
+        const context = { [fieldName]: value.detailed_products_data }
+        return this.processHandlebarsTemplate(template, context)
+      }
+
+      // If value is already an array, use it directly
+      if (Array.isArray(value)) {
+        console.log('🔧 Value is already an array:', value.length)
+        const context = { [fieldName]: value }
+        return this.processHandlebarsTemplate(template, context)
+      }
+    }
 
     // Create a context object where the field name maps to the actual value
     const context = { [fieldName]: value }
@@ -883,8 +974,29 @@ export class FieldMappingEngine {
     console.log(`🔍🔍🔍 Starting field mapping for ${emailType} (${recipientType}) 🔍🔍🔍`)
 
     // Get field mappings for this email type
-    const fieldMappings = await this.getFieldMappings(emailType)
-    console.log(`📋 Found ${fieldMappings.length} field mappings`)
+    const { data: fieldMappings, error: mappingsError } = await this.supabase
+      .from('email_field_mappings')
+      .select('*')
+      .eq('partner_id', this.partnerId)
+      .eq('service_category_id', this.serviceCategoryId)
+      .eq('email_type', emailType)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true })
+
+    if (mappingsError) {
+      console.error('❌ Field mappings query error:', mappingsError)
+      throw new Error('Failed to load field mappings')
+    }
+
+    console.log(`📋 Found ${fieldMappings?.length || 0} field mappings for ${recipientType}`)
+    if (fieldMappings && fieldMappings.length > 0) {
+      console.log(`📋 Field mappings:`, fieldMappings.map((m: any) => ({
+        template_field_name: m.template_field_name,
+        database_source: m.database_source,
+        database_path: m.database_path,
+        template_type: m.template_type
+      })))
+    }
 
     // Get submission data
     const { data: submissionData, error } = await this.supabase
@@ -925,7 +1037,7 @@ export class FieldMappingEngine {
     // Process field mappings
     const processedData: ProcessedFieldData = {}
 
-    for (const mapping of fieldMappings) {
+    for (const mapping of fieldMappings || []) {
       console.log(`🔧 Processing mapping: ${mapping.template_field_name}`)
       console.log(`🔧 Database source: ${mapping.database_source}`)
       console.log(`🔧 Database path:`, mapping.database_path)
@@ -1047,7 +1159,7 @@ export class FieldMappingEngine {
     while ((match = eachRegex.exec(template)) !== null) {
       const [fullMatch, arrayKey, loopTemplate] = match
       console.log(`🔧 Processing {{#each ${arrayKey}}} loop`)
-      console.log(`🔧 Loop template:`, loopTemplate)
+      console.log(`🔧 Loop template:`, loopTemplate.substring(0, 200))
 
       // Check if the array key exists in the data
       let arrayData = data[arrayKey]
@@ -1067,12 +1179,61 @@ export class FieldMappingEngine {
         // Process array data
         const loopResults = arrayData.map((item, index) => {
           let itemTemplate = loopTemplate
+          console.log(`🔧 Processing array item ${index}:`, item)
 
           // Replace variables within the loop
-          Object.entries(item).forEach(([key, value]) => {
-            const regex = new RegExp(`{{${key}}}`, 'g')
-            itemTemplate = itemTemplate.replace(regex, String(value || ''))
-          })
+          if (item && typeof item === 'object') {
+            Object.entries(item).forEach(([key, value]) => {
+              const regex = new RegExp(`{{${key}}}`, 'g')
+              const stringValue = String(value || '')
+              console.log(`🔧 Replacing {{${key}}} with:`, stringValue)
+              itemTemplate = itemTemplate.replace(regex, stringValue)
+            })
+
+            // Handle nested {{#each}} loops within product fields (for detailed_products_data)
+            if (arrayKey === 'detailed_products_data') {
+              // Handle nested arrays like what_s_included, highlighted_features, image_gallery
+              const nestedEachRegex = /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g
+              let nestedMatch
+
+              while ((nestedMatch = nestedEachRegex.exec(itemTemplate)) !== null) {
+                const [nestedFullMatch, nestedArrayKey, nestedLoopTemplate] = nestedMatch
+                console.log(`🔧 Processing nested {{#each ${nestedArrayKey}}} loop`)
+
+                // Get the nested array data from the current item
+                const nestedArrayData = item[nestedArrayKey]
+                console.log(`🔧 Nested array data for ${nestedArrayKey}:`, nestedArrayData)
+
+                if (Array.isArray(nestedArrayData)) {
+                  const nestedLoopResults = nestedArrayData.map((nestedItem, nestedIndex) => {
+                    let nestedItemTemplate = nestedLoopTemplate
+
+                    if (nestedItem && typeof nestedItem === 'object') {
+                      // Handle nested objects with items property (common in product data)
+                      if (nestedItem.items && typeof nestedItem.items === 'object') {
+                        Object.entries(nestedItem.items).forEach(([nestedKey, nestedValue]) => {
+                          const nestedRegex = new RegExp(`{{items\\.${nestedKey}}}`, 'g')
+                          nestedItemTemplate = nestedItemTemplate.replace(nestedRegex, String(nestedValue || ''))
+                        })
+                      }
+
+                      // Handle direct properties
+                      Object.entries(nestedItem).forEach(([nestedKey, nestedValue]) => {
+                        const nestedRegex = new RegExp(`{{${nestedKey}}}`, 'g')
+                        nestedItemTemplate = nestedItemTemplate.replace(nestedRegex, String(nestedValue || ''))
+                      })
+                    }
+
+                    return nestedItemTemplate
+                  })
+
+                  itemTemplate = itemTemplate.replace(nestedFullMatch, nestedLoopResults.join(''))
+                } else {
+                  itemTemplate = itemTemplate.replace(nestedFullMatch, '')
+                }
+              }
+            }
+          }
 
           return itemTemplate
         })

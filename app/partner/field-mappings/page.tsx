@@ -64,6 +64,7 @@ const DATABASE_SOURCES = [
   { value: 'checkout_data', label: 'Checkout Data', description: 'Payment, booking, order details' },
   { value: 'survey_data', label: 'Survey Data', description: 'Survey responses and images' },
   { value: 'enquiry_data', label: 'Enquiry Data', description: 'General enquiry information' },
+  { value: 'save_quote_data', label: 'Save Quote Data', description: 'User info, products, and metadata from save quote submissions' },
 ]
 
 const TEMPLATE_TYPES = [
@@ -394,16 +395,42 @@ export default function FieldMappingsPage() {
   const handleFieldSelect = (databaseSource: string, fieldPath: string, templateType?: string) => {
     if (!editingMapping) return
 
-    // Auto-generate template field name from the field path
-    const pathParts = fieldPath.split('.')
+    // Adjust path for save_quote_data source to remove [0] prefix since the field mapping engine
+    // automatically selects the latest entry from the save_quote_data array
+    let adjustedPath = fieldPath
+    if (databaseSource === 'save_quote_data' && fieldPath.startsWith('[0].')) {
+      adjustedPath = fieldPath.substring(4) // Remove '[0].' prefix
+      console.log(`Adjusted save_quote_data path from ${fieldPath} to ${adjustedPath}`)
+    }
+
+    // Auto-generate template field name with parent context
+    const pathParts = adjustedPath.split('.')
     const lastPart = pathParts[pathParts.length - 1]
-    const templateFieldName = lastPart
+
+    let templateFieldName = lastPart
+    let displayName = lastPart.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+
+    // Add parent context to make field names more descriptive
+    if (pathParts.length > 1) {
+      // Get the parent part (second to last)
+      const parentPart = pathParts[pathParts.length - 2]
+
+      // Skip array indices like [0], [1], etc.
+      if (!parentPart.match(/^\[\d+\]$/)) {
+        // Clean up parent part (remove array notation)
+        const cleanParent = parentPart.replace(/\[\d+\]/g, '').replace(/_/g, ' ')
+        const parentPrefix = cleanParent.replace(/\b\w/g, l => l.toUpperCase()).replace(/\s+/g, '')
+
+        templateFieldName = `${cleanParent.replace(/\s+/g, '_').toLowerCase()}_${lastPart}`
+        displayName = `${parentPrefix} ${displayName}`
+      }
+    }
 
     const updates: Partial<FieldMapping> = {
       database_source: databaseSource,
-      database_path: { path: fieldPath },
-      template_field_name: templateFieldName, // Auto-populate!
-      display_name: lastPart.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) // Auto-generate display name
+      database_path: { path: adjustedPath },
+      template_field_name: templateFieldName,
+      display_name: displayName
     }
 
     // Set template type based on selection
@@ -921,7 +948,7 @@ export default function FieldMappingsPage() {
                           <nav className="flex overflow-x-auto" aria-label="Data Sources">
                             {Object.entries(previewData)
                               .filter(([sourceKey]) => 
-                                ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data', 'form_submissions'].includes(sourceKey)
+                                ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data', 'form_submissions', 'save_quote_data'].includes(sourceKey)
                               )
                               .map(([sourceKey, sourceData]) => (
                               <button

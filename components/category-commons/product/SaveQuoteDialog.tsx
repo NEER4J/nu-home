@@ -73,15 +73,15 @@ export default function SaveQuoteDialog({
       // Detect if running in iframe
       const isIframe = window.self !== window.top;
 
-      const res = await fetch('/api/email/boiler/save-quote', {
+      const res = await fetch('/api/email/boiler/save-quote-v2', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          first_name: firstName,
-          last_name: lastName,
+          firstName,
+          lastName,
           email,
           phone,
-          submission_id: submissionId,
+          submissionId,
           postcode,
           products,
           subdomain,
