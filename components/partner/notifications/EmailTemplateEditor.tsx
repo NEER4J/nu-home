@@ -160,9 +160,10 @@ export default function EmailTemplateEditor({
     toast.success(`Field {{${fieldName}}} inserted`)
   }
 
-  const copyFieldTag = (fieldName: string) => {
-    navigator.clipboard.writeText(`{{${fieldName}}}`)
-    toast.success('Field tag copied to clipboard')
+  const copyFieldTag = (fieldName: string, isHtmlField: boolean = false) => {
+    const fieldTag = isHtmlField ? `{{{${fieldName}}}}` : `{{${fieldName}}}`
+    navigator.clipboard.writeText(fieldTag)
+    toast.success(`Field tag ${fieldTag} copied to clipboard`)
   }
 
   const sendTestEmail = async () => {
@@ -421,7 +422,7 @@ export default function EmailTemplateEditor({
               <div className="space-y-6 p-6 pt-0">
                 {/* How to Use */}
                 <div>
-                  <h3 className="font-semibold mb-3 text-blue-700">💡 How to Use</h3>
+                  <h3 className="font-semibold mb-3 text-blue-700">💡 Quick Start Guide</h3>
                   <div className="space-y-3 text-sm">
                     <div className="p-3 bg-blue-50 rounded-lg">
                       <strong>Step 1:</strong> Click copy button next to any field below
@@ -432,7 +433,11 @@ export default function EmailTemplateEditor({
                     <div className="p-3 bg-blue-50 rounded-lg">
                       <strong>Step 3:</strong> Use "Send Test" to see the result!
                     </div>
+                    <div className="p-3 bg-orange-50 rounded-lg border-l-4 border-orange-400">
+                      <strong>⚠️ Important:</strong> Fields marked with <Badge variant="outline" className="text-xs px-1 mx-1">HTML</Badge> use triple braces <code>{`{{{field}}}`}</code> to render HTML content. Regular text fields use double braces <code>{`{{field}}`}</code>.
+                    </div>
                   </div>
+
                 </div>
 
                 {/* Dynamic Fields from Database */}
@@ -452,7 +457,7 @@ export default function EmailTemplateEditor({
                               <div
                                 key={`${field.field_name}-${fieldIndex}`}
                                 className="p-2 border rounded hover:bg-gray-50 transition-colors cursor-pointer"
-                                onClick={() => copyFieldTag(field.field_name)}
+                                onClick={() => copyFieldTag(field.field_name, field.field_type === 'html_template')}
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1 min-w-0">
@@ -472,7 +477,7 @@ export default function EmailTemplateEditor({
                                       )}
                                     </div>
                                     <code className="text-xs text-blue-600 bg-blue-50 px-1 py-0.5 rounded">
-                                      {`{{${field.field_name}}}`}
+                                      {field.field_type === 'html_template' ? `{{{${field.field_name}}}}` : `{{${field.field_name}}}`}
                                     </code>
                                     {field.description && (
                                       <p className="text-xs text-gray-500 mt-1 truncate">
@@ -485,7 +490,7 @@ export default function EmailTemplateEditor({
                                     variant="ghost"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      copyFieldTag(field.field_name)
+                                      copyFieldTag(field.field_name, field.field_type === 'html_template')
                                     }}
                                     title="Copy field tag"
                                     className="h-6 w-6 p-0 shrink-0"

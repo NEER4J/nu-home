@@ -58,32 +58,33 @@ function migrateSmtp(raw: any): NormalizedSmtp {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('🚀🚀🚀 quote-initial-v2 API called 🚀🚀🚀')
   try {
     const body = await request.json().catch(() => ({}))
-    console.log('📧📧📧 Request body:', JSON.stringify(body, null, 2))
-    const { submissionId, subdomain: bodySubdomain } = body || {}
+    const {
+      submissionId,
+      subdomain: bodySubdomain,
+      is_iframe,
+      quoteLink,
+      // Accept quote link data for initial quote emails
+      quote_link
+    } = body || {}
+
+    // Use either quoteLink or quote_link (for backward compatibility)
+    const finalQuoteLink = quoteLink || quote_link
 
     if (!submissionId) {
-      console.error('❌ Missing submissionId')
       return NextResponse.json({ error: 'Missing submissionId' }, { status: 400 })
     }
 
-    console.log('✅ submissionId found:', submissionId)
-
     const hostname = parseHostname(request, bodySubdomain)
-    console.log('🌐 Parsed hostname:', hostname);
-    
+
     if (!hostname) {
-      console.error('❌ Missing hostname')
       return NextResponse.json({ error: 'Missing hostname' }, { status: 400 })
     }
 
     const supabase = await createClient()
     const partner = await resolvePartnerByHostname(supabase, hostname)
-    console.log('👤 Partner found:', partner ? 'Yes' : 'No')
     if (!partner) {
-      console.error('❌ Partner not found for hostname:', hostname)
       return NextResponse.json({ error: 'Partner not found for this domain' }, { status: 400 })
     }
 
@@ -117,14 +118,9 @@ export async function POST(request: NextRequest) {
       .eq('slug', 'boiler')
       .single()
 
-    console.log('🏢 Boiler category found:', boilerCategory ? 'Yes' : 'No')
     if (!boilerCategory) {
-      console.error('❌ Boiler service category not found')
       return NextResponse.json({ error: 'Boiler service category not found' }, { status: 400 })
     }
-
-    console.log('🔧 Partner ID:', partner.user_id)
-    console.log('🔧 Service Category ID:', boilerCategory.service_category_id)
 
     // Check if field mappings exist, if not, copy defaults
     const { data: existingMappings } = await supabase
@@ -136,54 +132,158 @@ export async function POST(request: NextRequest) {
       .limit(1)
 
     if (!existingMappings || existingMappings.length === 0) {
-      console.log('📋 No field mappings found, copying defaults...')
       const { error: copyError } = await supabase.rpc('copy_default_field_mappings', {
         p_partner_id: partner.user_id,
         p_service_category_id: boilerCategory.service_category_id
       })
-      
+
       if (copyError) {
-        console.error('❌ Failed to copy default field mappings:', copyError)
         return NextResponse.json({ error: 'Failed to setup field mappings' }, { status: 500 })
       }
-      console.log('✅ Default field mappings copied successfully')
     }
 
-    // Use the new field mapping engine
-    console.log('🔧 Initializing FieldMappingEngine...')
+    // IMPORTANT: Store quote link FIRST before field mapping
+    // Track quote link storage result
+    let quoteLinkStored = false
+    let quoteLinkError = null
+    let mainPageUrl = null
+    let effectiveQuoteLink = finalQuoteLink
+
+    // Store quote link information if provided
+    if (finalQuoteLink) {
+      try {
+        // Get partner's main_page_url for iframe context
+        if (is_iframe === true || is_iframe === 'true') {
+          const { data: partnerSettings } = await supabase
+            .from('PartnerSettings')
+            .select('main_page_url')
+            .eq('partner_id', partner.user_id)
+            .eq('service_category_id', boilerCategory.service_category_id)
+            .single()
+
+          mainPageUrl = partnerSettings?.main_page_url || null
+        }
+
+        // Determine the appropriate quote link based on iframe context
+        if (is_iframe === true || is_iframe === 'true') {
+          if (mainPageUrl) {
+            // Append submission ID to main_page_url for iframe context
+            const url = new URL(mainPageUrl)
+            url.searchParams.set('submission', submissionId)
+            effectiveQuoteLink = url.toString()
+          } else {
+            // Fallback to original link if no main_page_url
+            effectiveQuoteLink = finalQuoteLink
+          }
+        } else {
+          // Use original link if not in iframe
+          effectiveQuoteLink = finalQuoteLink
+        }
+
+        // Get existing lead_submission_data
+        const { data: existingSubmissionData } = await supabase
+          .from('lead_submission_data')
+          .select('quote_data')
+          .eq('submission_id', submissionId)
+          .single()
+
+        if (existingSubmissionData) {
+          // Update existing quote_data with quote link information
+          const updatedQuoteData = {
+            ...existingSubmissionData.quote_data,
+            quote_link: effectiveQuoteLink,
+            is_iframe: is_iframe || false,
+            main_page_url: mainPageUrl,
+            original_quote_link: finalQuoteLink,
+            conditional_quote_link: (is_iframe === true || is_iframe === 'true') ? effectiveQuoteLink : finalQuoteLink
+          }
+
+          const { error: updateError } = await supabase
+            .from('lead_submission_data')
+            .update({
+              quote_data: updatedQuoteData,
+              last_activity_at: new Date().toISOString()
+            })
+            .eq('submission_id', submissionId)
+
+          if (!updateError) {
+            quoteLinkStored = true
+          } else {
+            quoteLinkError = updateError.message
+          }
+        }
+      } catch (storeError: any) {
+        quoteLinkError = storeError.message
+      }
+    }
+
+    // NOW use the field mapping engine (after quote_link is stored)
     const fieldMappingEngine = new FieldMappingEngine(supabase, partner.user_id, boilerCategory.service_category_id)
-    
-    // Get template data using field mappings
-    console.log('📊 Mapping customer template data...')
-    const customerTemplateData = await fieldMappingEngine.mapSubmissionToTemplateFields(submissionId, 'quote-initial', 'customer')
-    console.log('📊 Customer template data keys:', Object.keys(customerTemplateData))
-    console.log('📊 Customer template data values:', customerTemplateData)
-    
-    // Debug: Check if form_answers is in the mapped data
-    console.log('📊 form_answers in mapped data:', !!customerTemplateData.form_answers)
-    if (customerTemplateData.form_answers) {
-      console.log('📊 form_answers data:', customerTemplateData.form_answers)
-    }
-    
-    console.log('📊 Mapping admin template data...')
-    const adminTemplateData = await fieldMappingEngine.mapSubmissionToTemplateFields(submissionId, 'quote-initial', 'admin')
-    console.log('📊 Admin template data keys:', Object.keys(adminTemplateData))
-    console.log('📊 Admin template data values:', adminTemplateData)
 
-    // Get raw submission data as fallback
-    const { data: rawSubmissionData } = await supabase
+    // Get template data using field mappings
+    const customerTemplateData = await fieldMappingEngine.mapSubmissionToTemplateFields(submissionId, 'quote-initial', 'customer')
+    const adminTemplateData = await fieldMappingEngine.mapSubmissionToTemplateFields(submissionId, 'quote-initial', 'admin')
+
+    // Get or create lead_submission_data record
+    let { data: rawSubmissionData } = await supabase
       .from('lead_submission_data')
       .select('*')
       .eq('submission_id', submissionId)
       .single()
-    
-    console.log('📊 Raw submission data available:', !!rawSubmissionData)
-    if (rawSubmissionData) {
-      console.log('📊 Raw submission data keys:', Object.keys(rawSubmissionData))
-      if (rawSubmissionData.quote_data) {
-        console.log('📊 Quote data structure:', JSON.stringify(rawSubmissionData.quote_data, null, 2))
+
+    // If no lead_submission_data exists, create it from partner_leads data
+    if (!rawSubmissionData) {
+      // Get partner_leads data
+      const { data: partnerLead } = await supabase
+        .from('partner_leads')
+        .select('*')
+        .eq('submission_id', submissionId)
+        .single()
+
+      if (partnerLead) {
+
+        // Create lead_submission_data record
+        const { data: newSubmissionData, error: createError } = await supabase
+          .from('lead_submission_data')
+          .insert({
+            submission_id: submissionId,
+            partner_id: partnerLead.assigned_partner_id,
+            service_category_id: partnerLead.service_category_id,
+            created_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+            quote_data: {
+              contact_details: {
+                first_name: partnerLead.first_name,
+                last_name: partnerLead.last_name,
+                email: partnerLead.email,
+                phone: partnerLead.phone,
+                postcode: partnerLead.postcode
+              },
+              selected_address: {
+                address_line_1: partnerLead.address_line_1,
+                address_line_2: partnerLead.address_line_2,
+                street_name: partnerLead.street_name,
+                street_number: partnerLead.street_number,
+                building_name: partnerLead.building_name,
+                sub_building: partnerLead.sub_building,
+                county: partnerLead.county,
+                country: partnerLead.country,
+                postcode: partnerLead.postcode,
+                formatted_address: partnerLead.formatted_address
+              },
+              form_answers: partnerLead.form_answers || {}
+            }
+          })
+          .select()
+          .single()
+
+        if (!createError) {
+          rawSubmissionData = newSubmissionData
+        }
       }
     }
+
+    // Quote link storage was moved earlier in the code before field mapping
 
     // Get email templates from database
     const { data: customerTemplate } = await supabase
@@ -207,38 +307,22 @@ export async function POST(request: NextRequest) {
       .single()
 
     // Process templates with mapped data
-    console.log('🔧 Processing customer template...')
-    const processedCustomerTemplate = customerTemplate ? 
+    const processedCustomerTemplate = customerTemplate ?
       await fieldMappingEngine.processEmailTemplate(customerTemplate, customerTemplateData) : null
-    
-    console.log('🔧 Processing admin template...')
-    const processedAdminTemplate = adminTemplate ? 
+
+    const processedAdminTemplate = adminTemplate ?
       await fieldMappingEngine.processEmailTemplate(adminTemplate, adminTemplateData) : null
 
-    // Debug: Show what fields were populated
-    console.log('📊 FINAL FIELD MAPPING RESULTS:')
-    console.log('📊 Customer Template Data:', JSON.stringify(customerTemplateData, null, 2))
-    console.log('📊 Admin Template Data:', JSON.stringify(adminTemplateData, null, 2))
-    
-    if (processedCustomerTemplate) {
-      console.log('📊 Processed Customer Template:')
-      console.log('📊 Subject:', processedCustomerTemplate.subject)
-      console.log('📊 HTML Preview (first 200 chars):', processedCustomerTemplate.html.substring(0, 200))
-    }
-    
-    if (processedAdminTemplate) {
-      console.log('📊 Processed Admin Template:')
-      console.log('📊 Subject:', processedAdminTemplate.subject)
-      console.log('📊 HTML Preview (first 200 chars):', processedAdminTemplate.html.substring(0, 200))
-    }
+    // Track email sending results
+    let customerEmailSent = false
+    let adminEmailSent = false
+    let emailErrors = []
 
     // Send customer email
     if (processedCustomerTemplate) {
       // Get customer email from mapped data only
       const customerEmail = customerTemplateData.email || customerTemplateData.customer_email
-      
-      console.log('📧 Customer email to send to:', customerEmail)
-      
+
       if (customerEmail) {
         try {
           await transporter.sendMail({
@@ -248,15 +332,13 @@ export async function POST(request: NextRequest) {
             text: processedCustomerTemplate.text,
             html: processedCustomerTemplate.html,
           })
-          console.log('✅ Customer email sent successfully to:', customerEmail)
+          customerEmailSent = true
         } catch (sendErr: any) {
-          console.error('❌ Failed to send customer email:', sendErr?.message || String(sendErr))
+          emailErrors.push(`Customer email failed: ${sendErr?.message || String(sendErr)}`)
         }
       } else {
-        console.error('❌ No customer email found in mapped data')
+        emailErrors.push('No customer email found in mapped data')
       }
-    } else {
-      console.log('⚠️ No customer template found, skipping customer email')
     }
 
     // Get admin email from partner settings
@@ -269,14 +351,7 @@ export async function POST(request: NextRequest) {
       .single()
     adminEmail = partnerSettings?.admin_email || undefined
 
-    console.log('📧 Admin email configured:', adminEmail)
-
     // Send admin email if admin template exists and admin email is configured
-    console.log('🔍 Admin email check:')
-    console.log('🔍 processedAdminTemplate exists:', !!processedAdminTemplate)
-    console.log('🔍 adminEmail exists:', !!adminEmail)
-    console.log('🔍 adminEmail value:', adminEmail)
-    
     if (processedAdminTemplate && adminEmail) {
       try {
         await transporter.sendMail({
@@ -286,29 +361,68 @@ export async function POST(request: NextRequest) {
           text: processedAdminTemplate.text,
           html: processedAdminTemplate.html,
         })
-        console.log('✅ Admin email sent successfully to:', adminEmail)
+        adminEmailSent = true
       } catch (sendErr: any) {
-        console.error('❌ Failed to send admin email:', sendErr?.message || String(sendErr))
+        emailErrors.push(`Admin email failed: ${sendErr?.message || String(sendErr)}`)
       }
-    } else {
-      console.log('⚠️ Admin email conditions not met:')
-      console.log('⚠️ - processedAdminTemplate:', !!processedAdminTemplate)
-      console.log('⚠️ - adminEmail:', !!adminEmail)
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       submissionId,
-      customerEmailSent: !!processedCustomerTemplate,
-      adminEmailSent: !!processedAdminTemplate,
+      customerEmailSent: customerEmailSent,
+      adminEmailSent: adminEmailSent,
       debug: {
-        customerTemplateDataKeys: Object.keys(customerTemplateData),
-        customerTemplateData: customerTemplateData, // Show ALL mapped data
-        adminTemplateData: adminTemplateData, // Show ALL admin mapped data
-        rawSubmissionDataKeys: rawSubmissionData ? Object.keys(rawSubmissionData) : [],
+        // Quote link debug info
+        quoteLink: finalQuoteLink,
+        quoteLinkProvided: !!finalQuoteLink,
+        quoteLinkStored: quoteLinkStored,
+        quoteLinkError: quoteLinkError,
+        is_iframe: is_iframe,
+        main_page_url: mainPageUrl,
+        effective_quote_link: effectiveQuoteLink,
+        conditional_quote_link: (is_iframe === true || is_iframe === 'true') ? mainPageUrl : finalQuoteLink,
+        rawSubmissionDataExists: !!rawSubmissionData,
+        quoteLinkStorageAttempted: !!finalQuoteLink,
+
+        // Submission data debug
+        rawSubmissionDataId: rawSubmissionData?.id,
+        currentQuoteData: rawSubmissionData?.quote_data,
+
+        // Email debug
         customerEmail: customerTemplateData.email || customerTemplateData.customer_email,
         adminEmail: adminEmail,
-        fieldMappingsCount: 'N/A' // Will be shown in console logs
+        emailErrors: emailErrors,
+
+        // Request debug
+        requestBody: body,
+        requestBodyKeys: Object.keys(body || {}),
+
+        // Frontend data debug
+        quoteLink_raw: quoteLink,
+        quote_link_raw: quote_link,
+        is_iframe_raw: is_iframe,
+        submissionId_raw: submissionId,
+        subdomain_raw: bodySubdomain,
+
+        // Environment debug
+        hostname: hostname,
+        partnerId: partner?.user_id,
+        serviceCategoryId: boilerCategory?.service_category_id,
+
+        // Field mapping debug
+        customerTemplateData: customerTemplateData,
+        customerTemplateDataKeys: Object.keys(customerTemplateData),
+        customerHasQuoteLink: 'quote_link' in customerTemplateData,
+        customerQuoteLinkValue: customerTemplateData.quote_link,
+
+        adminTemplateData: adminTemplateData,
+        adminTemplateDataKeys: Object.keys(adminTemplateData),
+        adminHasQuoteLink: 'quote_link' in adminTemplateData,
+        adminQuoteLinkValue: adminTemplateData.quote_link,
+
+        // Field mapping engine debug logs
+        fieldMappingEngineDebugLogs: fieldMappingEngine.debugLogs
       }
     })
   } catch (error: any) {

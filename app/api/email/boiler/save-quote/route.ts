@@ -807,8 +807,8 @@ export async function POST(request: NextRequest) {
           .eq('submission_id', finalSubmissionId)
           .single()
 
-        const existingFormSubmissions = existingData?.form_submissions || []
-        const existingSaveQuoteData = existingData?.save_quote_data || []
+        const existingFormSubmissions = Array.isArray(existingData?.form_submissions) ? existingData.form_submissions : []
+        const existingSaveQuoteData = Array.isArray(existingData?.save_quote_data) ? existingData.save_quote_data : []
         
         // Create simplified form submission entry (detailed data is in save_quote_data)
         const newFormSubmission = {

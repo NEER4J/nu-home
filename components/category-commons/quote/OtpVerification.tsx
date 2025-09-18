@@ -38,6 +38,7 @@ export default function OtpVerification({
   
   const [otp, setOtp] = useState(Array(otpConfig.codeLength).fill(''))
   const [loading, setLoading] = useState(false)
+  const [isCreatingLead, setIsCreatingLead] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
@@ -194,13 +195,28 @@ export default function OtpVerification({
       
       if (data.status === 'approved') {
         setSuccess(true)
-        // Send verification email in background (non-blocking)
-        sendVerifiedQuoteEmail().catch(err => 
-          console.warn('Failed to send verification email in background:', err)
-        )
-        // The OTP verification API already updated the submission in the database
-        // We just need to notify the parent to redirect - no additional submission needed
-        onVerificationComplete(submissionId)
+        
+        try {
+          // Send verification email in background (non-blocking)
+          sendVerifiedQuoteEmail().catch(err => 
+            console.warn('Failed to send verification email in background:', err)
+          )
+          
+          // Create GHL lead and wait for completion before redirecting
+          setIsCreatingLead(true)
+          await createGHLLead()
+          console.log('✅ GHL lead created successfully, proceeding with redirect')
+          
+          // The OTP verification API already updated the submission in the database
+          // We just need to notify the parent to redirect - no additional submission needed
+          onVerificationComplete(submissionId)
+        } catch (ghlError) {
+          console.error('❌ GHL lead creation failed:', ghlError)
+          // Still redirect even if GHL fails, but log the error
+          onVerificationComplete(submissionId)
+        } finally {
+          setIsCreatingLead(false)
+        }
       } else {
         throw new Error('Verification failed')
       }
@@ -228,15 +244,7 @@ export default function OtpVerification({
       const isIframe = window.self !== window.top;
 
       const emailData = {
-        first_name: userInfo.firstName,
-        last_name: userInfo.lastName,
-        email: userInfo.email,
-        phone: userInfo.phone,
-        postcode: formValues.postcode,
-        quote_data: formValues,
-        address_data: formValues.address,
-        questions: questions,
-        submission_id: submissionId,
+        submissionId: submissionId,
         subdomain,
         is_iframe: isIframe,
       }
@@ -244,12 +252,12 @@ export default function OtpVerification({
       // Use sendBeacon for critical email sending (persists through page navigation)
       if (typeof window !== 'undefined' && navigator.sendBeacon) {
         const blob = new Blob([JSON.stringify(emailData)], { type: 'application/json' })
-        const success = navigator.sendBeacon('/api/email/boiler/quote-verified', blob)
+        const success = navigator.sendBeacon('/api/email/boiler/quote-verified-v2', blob)
         if (success) {
           console.log('Verification email queued with sendBeacon')
         } else {
           // Fallback to fetch if sendBeacon fails
-          const res = await fetch('/api/email/boiler/quote-verified', {
+          const res = await fetch('/api/email/boiler/quote-verified-v2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(emailData),
@@ -261,7 +269,7 @@ export default function OtpVerification({
         }
       } else {
         // Fallback to regular fetch
-        const res = await fetch('/api/email/boiler/quote-verified', {
+        const res = await fetch('/api/email/boiler/quote-verified-v2', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(emailData),
@@ -274,6 +282,60 @@ export default function OtpVerification({
       }
     } catch (err: any) {
       console.warn('Failed to send verified quote email:', err?.message || 'Unknown error')
+    }
+  }
+
+  const createGHLLead = async () => {
+    if (!userInfo || !submissionId) return
+    
+    try {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+      const subdomain = hostname || null
+
+      console.log('🚀 Creating GHL lead after OTP verification...')
+      
+      // Pass contact data like the initial quote page does
+      // The GHL API will use field mapping engine for custom fields but needs contact data for basic lead creation
+      const ghlData = {
+        submissionId: submissionId,
+        subdomain,
+        emailType: 'quote-verified', // Use quote-verified email type for OTP verification
+        contactData: {
+          firstName: userInfo.firstName,
+          lastName: userInfo.lastName,
+          email: userInfo.email,
+          phone: userInfo.phone,
+          address1: formValues.postcode || '',
+          city: formValues.postcode || '',
+          country: 'United Kingdom'
+        },
+        customFields: {},
+        pipelineId: null,
+        stageId: null,
+        opportunityName: `${userInfo.firstName} ${userInfo.lastName} - Verified Quote`,
+        monetaryValue: 0,
+        tags: ['OTP Verified', 'Quote Verified']
+      }
+
+      console.log('📤 Sending GHL data:', ghlData)
+
+      const response = await fetch('/api/ghl/create-lead-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ghlData),
+      })
+
+      const result = await response.json()
+      
+      if (response.ok) {
+        console.log('✅ GHL lead created successfully after OTP verification:', result)
+      } else {
+        console.error('❌ GHL lead creation failed after OTP verification:', response.status, result)
+        throw new Error(result.error || `GHL API error: ${response.status}`)
+      }
+    } catch (err: any) {
+      console.error('❌ GHL lead creation error:', err)
+      throw err
     }
   }
 

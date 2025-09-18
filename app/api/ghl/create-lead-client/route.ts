@@ -2,6 +2,48 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { getGHLService } from '@/lib/ghl-api'
 import { FieldMappingEngine } from '@/lib/field-mapping-engine'
+import { resolvePartnerByHostname } from '@/lib/partner'
+
+// Helper function to add tags to a contact without overwriting existing tags
+async function addTagsToContact(ghlService: any, contactId: string, tagsToAdd: string[]): Promise<void> {
+  try {
+    console.log('🏷️ Adding tags to contact:', contactId, 'Tags:', tagsToAdd)
+
+    // Add each tag individually using GHL's tag assignment API
+    for (const tag of tagsToAdd) {
+      try {
+        console.log(`🏷️ Adding tag: "${tag}" to contact: ${contactId}`)
+
+        const tagResponse = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}/tags`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${ghlService.accessToken}`,
+            'Version': '2021-07-28'
+          },
+          body: JSON.stringify({
+            tags: [tag]
+          })
+        })
+
+        if (tagResponse.ok) {
+          console.log(`✅ Successfully added tag: "${tag}"`)
+        } else {
+          const errorText = await tagResponse.text()
+          console.warn(`⚠️ Failed to add tag "${tag}":`, tagResponse.status, errorText)
+        }
+      } catch (tagError) {
+        console.warn(`⚠️ Error adding tag "${tag}":`, tagError)
+      }
+    }
+
+    console.log('✅ Finished adding tags to contact')
+  } catch (error) {
+    console.error('❌ Error in addTagsToContact:', error)
+    // Don't throw - tags are not critical enough to fail the entire operation
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,19 +51,22 @@ export async function POST(req: NextRequest) {
     const {
       partnerId,
       submissionId,
+      subdomain,
       contactData,
       customFields,
       pipelineId,
       stageId,
       opportunityName,
       monetaryValue = 0,
-      tags = []
+      tags = [],
+      emailType = 'quote-initial' // Default to quote-initial, can be overridden
     } = body
 
     console.log('🌐 Client-visible GHL Create Lead API called')
     console.log('📋 Input data:', {
       partnerId,
       submissionId,
+      subdomain,
       contactData,
       customFields,
       pipelineId,
@@ -31,23 +76,34 @@ export async function POST(req: NextRequest) {
       tags
     })
 
-    if (!partnerId) {
+    const supabase = await createClient();
+
+    // Resolve partner ID from subdomain if not provided directly
+    let resolvedPartnerId = partnerId
+    if (!resolvedPartnerId && subdomain) {
+      console.log('🔍 Resolving partner from subdomain:', subdomain)
+      const partner = await resolvePartnerByHostname(supabase, subdomain)
+      if (partner) {
+        resolvedPartnerId = partner.user_id
+        console.log('✅ Partner resolved:', resolvedPartnerId)
+      }
+    }
+
+    if (!resolvedPartnerId) {
       return NextResponse.json(
-        { error: 'Missing required field: partnerId' },
+        { error: 'Missing required field: partnerId or subdomain' },
         { status: 400 }
       )
     }
 
     // Get GHL service instance
-    const ghlService = await getGHLService(partnerId)
+    const ghlService = await getGHLService(resolvedPartnerId)
     if (!ghlService) {
       return NextResponse.json(
         { error: 'GHL integration not found or expired for this partner' },
         { status: 404 }
       )
     }
-
-    const supabase = await createClient();
 
     // Get service category ID for boiler
     const { data: serviceCategory } = await supabase
@@ -66,7 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Initialize field mapping engine
-    const fieldMappingEngine = new FieldMappingEngine(supabase, partnerId, serviceCategory.service_category_id);
+    const fieldMappingEngine = new FieldMappingEngine(supabase, resolvedPartnerId, serviceCategory.service_category_id);
 
     let mappedGHLData: any = {};
     let finalPipelineId = pipelineId;
@@ -80,8 +136,8 @@ export async function POST(req: NextRequest) {
 
       try {
         // Get mapped data using field mapping engine for GHL integration
-        mappedGHLData = await fieldMappingEngine.processSubmissionData(submissionId, 'quote-initial', 'ghl');
-        console.log('✅ Mapped GHL data:', mappedGHLData);
+        mappedGHLData = await fieldMappingEngine.processSubmissionData(submissionId, emailType, 'ghl');
+        console.log('✅ Mapped GHL data for email type:', emailType, mappedGHLData);
 
         // Use the mapped data for contact fields and prepare custom fields for GHL
         console.log('🔧 Mapped GHL data received:', mappedGHLData);
@@ -91,16 +147,44 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // If field mapping didn't provide contact data, use provided contactData as fallback
+    // Only fill in missing fields, don't overwrite existing data
+    if (contactData) {
+      console.log('🔍 Merging provided contactData with mapped data...');
+      
+      mappedGHLData = {
+        ...mappedGHLData,
+        // Only add email if not already present
+        email: mappedGHLData.email || contactData.email,
+        phone: mappedGHLData.phone || contactData.phone,
+        number: mappedGHLData.number || contactData.phone,
+        firstName: mappedGHLData.firstName || contactData.firstName,
+        lastName: mappedGHLData.lastName || contactData.lastName,
+        address1: mappedGHLData.address1 || contactData.address1,
+        city: mappedGHLData.city || contactData.city,
+        country: mappedGHLData.country || contactData.country || 'United Kingdom'
+      };
+      
+      console.log('✅ Merged contact data (preserving existing):', {
+        email: mappedGHLData.email,
+        phone: mappedGHLData.phone,
+        firstName: mappedGHLData.firstName,
+        lastName: mappedGHLData.lastName,
+        address1: mappedGHLData.address1,
+        city: mappedGHLData.city
+      });
+    }
+
     // If pipelineId and stageId are still not provided, look up GHL field mappings
     if (!finalPipelineId || !finalStageId) {
-      console.log('🔍 Looking up GHL field mappings for partner:', partnerId);
+      console.log('🔍 Looking up GHL field mappings for partner:', resolvedPartnerId);
 
       const { data: ghlFieldMappings } = await supabase
         .from('ghl_field_mappings')
         .select('*')
-        .eq('partner_id', partnerId)
+        .eq('partner_id', resolvedPartnerId)
         .eq('service_category_id', serviceCategory.service_category_id)
-        .eq('email_type', 'quote-initial')
+        .eq('email_type', emailType)
         .eq('recipient_type', 'customer')
         .eq('is_active', true)
         .single();
@@ -108,19 +192,25 @@ export async function POST(req: NextRequest) {
       if (ghlFieldMappings) {
         finalPipelineId = finalPipelineId || ghlFieldMappings.pipeline_id;
         finalStageId = finalStageId || ghlFieldMappings.opportunity_stage;
-        finalTags = finalTags.length === 1 && finalTags[0] === 'Quote API Lead'
-          ? (Array.isArray(ghlFieldMappings.tags) ? ghlFieldMappings.tags : [])
-          : finalTags;
+        // Process tags - combine default tags with saved tags
+        const savedTags = Array.isArray(ghlFieldMappings.tags) ? ghlFieldMappings.tags : []
+        const defaultTags = ['Quote API Lead']
+        finalTags = [...defaultTags, ...savedTags, ...finalTags].filter((tag, index, arr) => arr.indexOf(tag) === index) // Remove duplicates
 
-        // Process GHL field mappings to map data to GHL custom field IDs
-        if (submissionId && Object.keys(mappedGHLData).length > 0 && ghlFieldMappings.field_mappings) {
-          console.log('🔧 Processing GHL field mappings:', ghlFieldMappings.field_mappings);
+        // The field mapping engine already mapped template fields to GHL field IDs
+        // So we can directly use the GHL field IDs from mappedGHLData as custom fields
+        if (submissionId && Object.keys(mappedGHLData).length > 0) {
+          console.log('🔧 Using pre-mapped GHL field data as custom fields...');
 
-          // Map our data fields to GHL custom field IDs
-          Object.entries(ghlFieldMappings.field_mappings).forEach(([templateFieldName, ghlFieldId]) => {
-            if (mappedGHLData[templateFieldName] !== undefined && ghlFieldId) {
-              finalCustomFields[ghlFieldId] = mappedGHLData[templateFieldName];
-              console.log(`🔧 Mapped ${templateFieldName} = "${mappedGHLData[templateFieldName]}" → GHL field ${ghlFieldId}`);
+          // Filter out non-GHL-field-ID keys (system fields like currentYear, submissionId, etc.)
+          Object.entries(mappedGHLData).forEach(([key, value]) => {
+            // GHL field IDs are typically 20+ character alphanumeric strings
+            // Skip system fields like currentYear, submissionId, processedAt, etc.
+            if (key.length > 15 && /^[a-zA-Z0-9]+$/.test(key) && value !== undefined) {
+              finalCustomFields[key] = value;
+              console.log(`🔧 Added GHL custom field: ${key} = "${value}"`);
+            } else {
+              console.log(`🔧 Skipping system field: ${key} = "${value}"`);
             }
           });
         }
@@ -170,12 +260,15 @@ export async function POST(req: NextRequest) {
     // Step 1: Upsert Contact with custom fields
     try {
       console.log('👤 Step 1: Upserting contact with custom fields...')
-      
+
+      const email = mappedGHLData.email || mappedGHLData.customer_email || contactData?.email
+
       // Prepare contact payload for upsert - use mapped data if available, fall back to contactData
+      // NOTE: We'll handle tags separately to avoid overwriting
       const contactPayload = {
         firstName: mappedGHLData.firstName || mappedGHLData.first_name || contactData?.firstName,
         lastName: mappedGHLData.lastName || mappedGHLData.last_name || contactData?.lastName,
-        email: mappedGHLData.email || mappedGHLData.customer_email || contactData?.email,
+        email: email,
         phone: mappedGHLData.phone || contactData?.phone,
         address1: mappedGHLData.address || mappedGHLData.formatted_address || contactData?.address1,
         city: contactData?.city,
@@ -185,13 +278,14 @@ export async function POST(req: NextRequest) {
           id: key,
           key: key,
           field_value: value
-        })),
-        tags: finalTags
+        }))
+        // Removed tags from payload - we'll add them separately
       }
 
       console.log('📋 Contact upsert payload:', contactPayload)
       
-      // Use direct fetch to call the upsert endpoint
+      // Use upsert to create/update contact (without tags to avoid overwriting)
+      console.log('👤 Step 1a: Upserting contact data (without tags)...')
       const contactResponse = await fetch('https://services.leadconnectorhq.com/contacts/upsert', {
         method: 'POST',
         headers: {
@@ -236,13 +330,17 @@ export async function POST(req: NextRequest) {
         console.error('❌ Available fields in response:', Object.keys(contact));
         throw new Error('Contact upsert succeeded but returned no contact ID');
       }
-      
+
+      // Step 1b: Add tags separately to avoid overwriting existing tags
+      console.log('👤 Step 1b: Adding tags to contact...')
+      await addTagsToContact(ghlService, contactId, finalTags)
+
       results.contact = {
         success: true,
         contactId: contactId,
         data: contact
       }
-      results.steps.push('Contact upserted')
+      results.steps.push('Contact upserted', 'Tags added')
 
       // Step 2: Create Opportunity (using contact ID from step 1)
       try {

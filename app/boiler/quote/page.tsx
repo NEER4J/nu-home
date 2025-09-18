@@ -300,10 +300,20 @@ export default function HeatingQuotePage({
     try {
       const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
       const subdomain = hostname || null
+      
+      // Detect if running in iframe
+      const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
+      
+      // Generate quote link for the customer
+      const quoteLink = typeof window !== 'undefined' 
+        ? `${window.location.origin}/boiler/products?submission=${submissionId}`
+        : null
 
       const emailData = {
         submissionId: submissionId,
         subdomain,
+        is_iframe: isIframe,
+        quoteLink: quoteLink,
       }
 
       console.log('📧 Email data to send:', emailData)
@@ -777,7 +787,8 @@ export default function HeatingQuotePage({
             },
             body: JSON.stringify({
               partnerId: effectivePartnerId,
-              submissionId: submissionId, // Pass submissionId for field mapping engine
+              submissionId: result.data.submission_id, // Pass the newly created submissionId for field mapping engine
+              emailType: 'quote-initial', // Explicitly set email type for initial quote
               contactData: {
                 firstName: contactDetails.firstName,
                 lastName: contactDetails.lastName,
@@ -792,7 +803,7 @@ export default function HeatingQuotePage({
               stageId: null, // Will be determined by the API based on GHL field mappings
               opportunityName: `${contactDetails.firstName} ${contactDetails.lastName} - Quote Request`,
               monetaryValue: 0,
-              tags: []
+              tags: ['Quote Request', 'Initial Submission']
             })
           });
 

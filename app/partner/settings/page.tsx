@@ -30,6 +30,7 @@ interface PartnerSettings {
   is_pay_after_installation_enabled?: boolean;
   admin_email?: string;
   gtm_event_name?: string;
+  main_page_url?: string;
 }
 
 interface APREntry {
@@ -135,6 +136,9 @@ export default function PartnerSettingsPage() {
   
   // GTM event name state
   const [gtmEventName, setGtmEventName] = useState('');
+
+  // Main page URL state
+  const [mainPageUrl, setMainPageUrl] = useState('');
 
   // GHL integration states
   const [ghlIntegration, setGhlIntegration] = useState<any>(null);
@@ -415,6 +419,7 @@ export default function PartnerSettingsPage() {
         setIsPayAfterInstallationEnabled(Boolean(result.data.is_pay_after_installation_enabled));
         setAdminEmail(result.data.admin_email || '');
         setGtmEventName(result.data.gtm_event_name || '');
+        setMainPageUrl(result.data.main_page_url || '');
       } else {
         setSettings(null);
         setAprEntries([{ months: 12, apr: 0 }]);
@@ -422,6 +427,7 @@ export default function PartnerSettingsPage() {
         setFaqs([{ question: '', answer: '' }]);
         setAdminEmail('');
         setGtmEventName('');
+        setMainPageUrl('');
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -451,7 +457,10 @@ export default function PartnerSettingsPage() {
         is_pay_after_installation_enabled: isPayAfterInstallationEnabled,
         admin_email: adminEmail.trim() || null,
         gtm_event_name: gtmEventName.trim() || null,
+        main_page_url: mainPageUrl.trim() || null,
       };
+
+      console.log('Frontend: Sending settings data:', JSON.stringify(settingsData, null, 2));
 
       // Use PUT if settings exist, POST if creating new
       const method = settings ? 'PUT' : 'POST';
@@ -463,7 +472,9 @@ export default function PartnerSettingsPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save settings');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Save settings error:', errorData);
+        throw new Error(errorData.error || 'Failed to save settings');
       }
 
       // Reload settings to show the updated data
@@ -1289,6 +1300,22 @@ export default function PartnerSettingsPage() {
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         Google Tag Manager event name to trigger on quote submission for this service category. This will be used with your GTM code in the header/body/footer sections.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                        Main Page URL
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://yourcompany.com"
+                        value={mainPageUrl}
+                        onChange={(e) => setMainPageUrl(e.target.value)}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        The main website URL for this service category. This will be used for redirects and linking back to your main site.
                       </p>
                     </div>
                   </div>
