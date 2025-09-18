@@ -165,9 +165,20 @@ export async function POST(request: NextRequest) {
         }
 
         // Determine the appropriate quote link based on iframe context
-        effectiveQuoteLink = (is_iframe === true || is_iframe === 'true')
-          ? (mainPageUrl || finalQuoteLink)  // Use main_page_url if in iframe, fallback to original link
-          : finalQuoteLink  // Use original link if not in iframe
+        if (is_iframe === true || is_iframe === 'true') {
+          if (mainPageUrl) {
+            // Append submission ID to main_page_url for iframe context
+            const url = new URL(mainPageUrl)
+            url.searchParams.set('submission', submissionId)
+            effectiveQuoteLink = url.toString()
+          } else {
+            // Fallback to original link if no main_page_url
+            effectiveQuoteLink = finalQuoteLink
+          }
+        } else {
+          // Use original link if not in iframe
+          effectiveQuoteLink = finalQuoteLink
+        }
 
         // Get existing lead_submission_data
         const { data: existingSubmissionData } = await supabase
@@ -184,7 +195,7 @@ export async function POST(request: NextRequest) {
             is_iframe: is_iframe || false,
             main_page_url: mainPageUrl,
             original_quote_link: finalQuoteLink,
-            conditional_quote_link: (is_iframe === true || is_iframe === 'true') ? mainPageUrl : finalQuoteLink
+            conditional_quote_link: (is_iframe === true || is_iframe === 'true') ? effectiveQuoteLink : finalQuoteLink
           }
 
           const { error: updateError } = await supabase

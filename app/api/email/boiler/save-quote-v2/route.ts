@@ -237,8 +237,25 @@ export async function POST(request: NextRequest) {
         // Add quote link and iframe context for conditional email content
         quote_link: quoteLink || null,
         is_iframe: is_iframe || false,
-        // Conditional quote link - only include if not in iframe
-        conditional_quote_link: (is_iframe === true || is_iframe === 'true') ? null : (quoteLink || null)
+        // Conditional quote link - append submission ID to main_page_url if iframe, otherwise use original
+        conditional_quote_link: (is_iframe === true || is_iframe === 'true') ?
+          (() => {
+            // If iframe and we have a quote link, try to append submission ID
+            if (quoteLink) {
+              try {
+                const url = new URL(quoteLink)
+                // Check if this looks like a main page URL (not already containing submission)
+                if (!url.searchParams.has('submission')) {
+                  url.searchParams.set('submission', finalSubmissionId)
+                  return url.toString()
+                }
+                return quoteLink
+              } catch {
+                return quoteLink
+              }
+            }
+            return null
+          })() : (quoteLink || null)
       }
 
       // Add to existing arrays
