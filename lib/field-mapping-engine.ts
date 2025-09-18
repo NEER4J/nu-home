@@ -305,6 +305,30 @@ export class FieldMappingEngine {
     templateValues.serviceCategoryId = submissionData.service_category_id
     templateValues.partnerId = submissionData.partner_id
 
+    // Extract ALL fields from quote_data (for initial quote emails)
+    if (submissionData.quote_data && typeof submissionData.quote_data === 'object') {
+      Object.keys(submissionData.quote_data).forEach(key => {
+        // Don't overwrite already extracted fields, but add new ones
+        if (!(key in templateValues)) {
+          templateValues[key] = submissionData.quote_data[key]
+        }
+      })
+    }
+
+    // Extract ALL fields from save_quote_data (for save quote emails)
+    if (saveQuoteData && Array.isArray(saveQuoteData) && saveQuoteData.length > 0) {
+      const latestSaveQuote = saveQuoteData[saveQuoteData.length - 1]
+      // Extract all fields from the latest save quote entry
+      if (latestSaveQuote && typeof latestSaveQuote === 'object') {
+        Object.keys(latestSaveQuote).forEach(key => {
+          // Don't overwrite already extracted fields, but add new ones
+          if (!(key in templateValues)) {
+            templateValues[key] = latestSaveQuote[key]
+          }
+        })
+      }
+    }
+
     // Extract form answers if needed (from quote_data)
     const formAnswers = submissionData.quote_data?.form_answers
     if (formAnswers && typeof formAnswers === 'object') {
@@ -319,6 +343,9 @@ export class FieldMappingEngine {
     }
 
     console.log('🔧 Extracted template values:', templateValues)
+    console.log('🔧 Template values keys:', Object.keys(templateValues))
+    console.log('🔧 quote_link in template values:', templateValues.quote_link)
+    console.log('🔧 is_iframe in template values:', templateValues.is_iframe)
     return templateValues
   }
 

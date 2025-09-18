@@ -142,7 +142,71 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Use the new field mapping engine
+    // IMPORTANT: Store quote link FIRST before field mapping
+    // Track quote link storage result
+    let quoteLinkStored = false
+    let quoteLinkError = null
+    let mainPageUrl = null
+    let effectiveQuoteLink = finalQuoteLink
+
+    // Store quote link information if provided
+    if (finalQuoteLink) {
+      try {
+        // Get partner's main_page_url for iframe context
+        if (is_iframe === true || is_iframe === 'true') {
+          const { data: partnerSettings } = await supabase
+            .from('PartnerSettings')
+            .select('main_page_url')
+            .eq('partner_id', partner.user_id)
+            .eq('service_category_id', boilerCategory.service_category_id)
+            .single()
+
+          mainPageUrl = partnerSettings?.main_page_url || null
+        }
+
+        // Determine the appropriate quote link based on iframe context
+        effectiveQuoteLink = (is_iframe === true || is_iframe === 'true')
+          ? (mainPageUrl || finalQuoteLink)  // Use main_page_url if in iframe, fallback to original link
+          : finalQuoteLink  // Use original link if not in iframe
+
+        // Get existing lead_submission_data
+        const { data: existingSubmissionData } = await supabase
+          .from('lead_submission_data')
+          .select('quote_data')
+          .eq('submission_id', submissionId)
+          .single()
+
+        if (existingSubmissionData) {
+          // Update existing quote_data with quote link information
+          const updatedQuoteData = {
+            ...existingSubmissionData.quote_data,
+            quote_link: effectiveQuoteLink,
+            is_iframe: is_iframe || false,
+            main_page_url: mainPageUrl,
+            original_quote_link: finalQuoteLink,
+            conditional_quote_link: (is_iframe === true || is_iframe === 'true') ? mainPageUrl : finalQuoteLink
+          }
+
+          const { error: updateError } = await supabase
+            .from('lead_submission_data')
+            .update({
+              quote_data: updatedQuoteData,
+              last_activity_at: new Date().toISOString()
+            })
+            .eq('submission_id', submissionId)
+
+          if (!updateError) {
+            quoteLinkStored = true
+          } else {
+            quoteLinkError = updateError.message
+          }
+        }
+      } catch (storeError: any) {
+        quoteLinkError = storeError.message
+      }
+    }
+
+    // NOW use the field mapping engine (after quote_link is stored)
     const fieldMappingEngine = new FieldMappingEngine(supabase, partner.user_id, boilerCategory.service_category_id)
 
     // Get template data using field mappings
@@ -208,95 +272,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Track quote link storage result
-    let quoteLinkStored = false
-    let quoteLinkError = null
-    let mainPageUrl = null
-    let effectiveQuoteLink = finalQuoteLink
-
-    // Store quote link information if provided
-    if (finalQuoteLink) {
-      try {
-        // Get partner's main_page_url for iframe context
-        if (is_iframe === true || is_iframe === 'true') {
-          const { data: partnerSettings } = await supabase
-            .from('PartnerSettings')
-            .select('main_page_url')
-            .eq('partner_id', partner.user_id)
-            .eq('service_category_id', boilerCategory.service_category_id)
-            .single()
-          
-          mainPageUrl = partnerSettings?.main_page_url || null
-        }
-
-        // Determine the appropriate quote link based on iframe context
-        effectiveQuoteLink = (is_iframe === true || is_iframe === 'true') 
-          ? (mainPageUrl || finalQuoteLink)  // Use main_page_url if in iframe, fallback to original link
-          : finalQuoteLink  // Use original link if not in iframe
-
-        // Get existing quote_data and add quote link information
-        const existingQuoteData = rawSubmissionData?.quote_data || {}
-        const updatedQuoteData = {
-          ...existingQuoteData,
-          // Add quote link data to quote_data
-          quote_link: effectiveQuoteLink,
-          is_iframe: is_iframe || false,
-          main_page_url: mainPageUrl,
-          original_quote_link: finalQuoteLink,
-          conditional_quote_link: (is_iframe === true || is_iframe === 'true') ? mainPageUrl : finalQuoteLink
-        }
-
-        // If rawSubmissionData doesn't exist, create it first
-        if (!rawSubmissionData) {
-          // Get partner_leads data to create lead_submission_data
-          const { data: partnerLead } = await supabase
-            .from('partner_leads')
-            .select('*')
-            .eq('submission_id', submissionId)
-            .single()
-
-          if (partnerLead) {
-            const { data: newSubmissionData, error: createError } = await supabase
-              .from('lead_submission_data')
-              .insert({
-                submission_id: submissionId,
-                partner_id: partnerLead.assigned_partner_id,
-                service_category_id: partnerLead.service_category_id,
-                quote_data: updatedQuoteData,
-                created_at: new Date().toISOString(),
-                last_activity_at: new Date().toISOString()
-              })
-              .select()
-              .single()
-
-            if (!createError) {
-              quoteLinkStored = true
-            } else {
-              quoteLinkError = createError.message
-            }
-          } else {
-            quoteLinkError = 'Partner lead not found for submission'
-          }
-        } else {
-          // Update the existing lead_submission_data record
-          const { error: updateError } = await supabase
-            .from('lead_submission_data')
-            .update({
-              quote_data: updatedQuoteData,
-              last_activity_at: new Date().toISOString()
-            })
-            .eq('submission_id', submissionId)
-
-          if (!updateError) {
-            quoteLinkStored = true
-          } else {
-            quoteLinkError = updateError.message
-          }
-        }
-      } catch (storeError: any) {
-        quoteLinkError = storeError.message
-      }
-    }
+    // Quote link storage was moved earlier in the code before field mapping
 
     // Get email templates from database
     const { data: customerTemplate } = await supabase
@@ -421,7 +397,21 @@ export async function POST(request: NextRequest) {
         // Environment debug
         hostname: hostname,
         partnerId: partner?.user_id,
-        serviceCategoryId: boilerCategory?.service_category_id
+        serviceCategoryId: boilerCategory?.service_category_id,
+
+        // Field mapping debug
+        customerTemplateData: customerTemplateData,
+        customerTemplateDataKeys: Object.keys(customerTemplateData),
+        customerHasQuoteLink: 'quote_link' in customerTemplateData,
+        customerQuoteLinkValue: customerTemplateData.quote_link,
+
+        adminTemplateData: adminTemplateData,
+        adminTemplateDataKeys: Object.keys(adminTemplateData),
+        adminHasQuoteLink: 'quote_link' in adminTemplateData,
+        adminQuoteLinkValue: adminTemplateData.quote_link,
+
+        // Field mapping engine debug logs
+        fieldMappingEngineDebugLogs: fieldMappingEngine.debugLogs
       }
     })
   } catch (error: any) {
