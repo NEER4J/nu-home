@@ -451,23 +451,38 @@ export default function FieldMappingsPage() {
 
     try {
       // Load sample submission data for data browser
+      // Try to find a record with actual data in different columns
       const { data, error } = await supabase
         .from('lead_submission_data')
         .select('*')
         .eq('service_category_id', selectedCategoryId)
+        .not('checkout_data', 'is', null)
         .limit(1)
         .single()
 
       if (error) {
-        console.error('Error loading sample data:', error)
-        return
-      }
+        console.log('No checkout data found, trying any record:', error.message)
+        // If no checkout data, try any record
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('lead_submission_data')
+          .select('*')
+          .eq('service_category_id', selectedCategoryId)
+          .limit(1)
+          .single()
 
-      setPreviewData(data)
+        if (fallbackError) {
+          console.error('Error loading sample data:', fallbackError)
+          return
+        }
+        setPreviewData(fallbackData)
+      } else {
+        setPreviewData(data)
+      }
       
       // Set first available data source as active tab
       if (data) {
-        const availableSources = Object.keys(data).filter(sourceKey => 
+        const recordData = data
+        const availableSources = Object.keys(recordData).filter(sourceKey => 
           ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data'].includes(sourceKey)
         )
         if (availableSources.length > 0) {
@@ -482,10 +497,21 @@ export default function FieldMappingsPage() {
   const renderDataBrowser = (data: any, prefix: string = '', databaseSource: string = '') => {
     if (!data) return null
 
+    // Handle JSON strings that might need parsing
+    let parsedData = data
+    if (typeof data === 'string' && data.startsWith('{')) {
+      try {
+        parsedData = JSON.parse(data)
+      } catch (e) {
+        // If parsing fails, use the original data
+        parsedData = data
+      }
+    }
+
     const items: React.ReactElement[] = []
 
-    if (Array.isArray(data)) {
-      data.forEach((item, index) => {
+    if (Array.isArray(parsedData)) {
+      parsedData.forEach((item, index) => {
         items.push(
           <div key={index} className="ml-4 border-l-2 border-gray-200 pl-4">
             <div className="text-sm text-gray-500 mb-2">Item {index}</div>
@@ -493,8 +519,8 @@ export default function FieldMappingsPage() {
           </div>
         )
       })
-    } else if (typeof data === 'object' && data !== null) {
-      Object.entries(data).forEach(([key, value]) => {
+    } else if (typeof parsedData === 'object' && parsedData !== null) {
+      Object.entries(parsedData).forEach(([key, value]) => {
         const currentPath = prefix ? `${prefix}.${key}` : key
         const isClickable = typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
         const isArray = Array.isArray(value)
@@ -1128,8 +1154,20 @@ export default function FieldMappingsPage() {
                 {/* Right Side - Data Browser */}
                 <div className="space-y-6 sticky top-0 right-0">
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-900">Browse Sample Data</h3>
-                    <p className="text-sm text-gray-600">Click on any field to automatically populate the database path</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">Browse Sample Data</h3>
+                        <p className="text-sm text-gray-600">Click on any field to automatically populate the database path</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadSampleData}
+                        disabled={loading}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      </Button>
+                    </div>
                     
                     {previewData ? (
                       <div className="border border-gray-200 rounded-lg">
@@ -1158,7 +1196,7 @@ export default function FieldMappingsPage() {
                         
                         {/* Data Content */}
                         <div className="p-4 max-h-[80vh] overflow-y-auto">
-                          {activeDataTab && previewData[activeDataTab] ? (
+                          {activeDataTab && previewData && previewData[activeDataTab] ? (
                             <div>
                               <h4 className="text-sm font-medium text-gray-900 mb-3">
                                 {activeDataTab.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} Data
@@ -1169,6 +1207,17 @@ export default function FieldMappingsPage() {
                             <div className="text-center py-8 text-gray-500">
                               <Eye className="h-8 w-8 mx-auto mb-2" />
                               <p>Select a data source to browse fields</p>
+                              {previewData && (
+                                <div className="text-xs text-gray-400 mt-2">
+                                  Available sources: {Object.keys(previewData).join(', ')}
+                                  <br />
+                                  Active tab: {activeDataTab || 'none'}
+                                  <br />
+                                  Checkout data type: {typeof previewData.checkout_data}
+                                  <br />
+                                  Checkout data value: {previewData.checkout_data ? JSON.stringify(previewData.checkout_data).substring(0, 100) + '...' : 'null/undefined'}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

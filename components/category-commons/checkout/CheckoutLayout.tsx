@@ -111,7 +111,7 @@ export interface CheckoutLayoutProps {
   onCalculatorPlanChange?: (plan: { months: number; apr: number }) => void
   onCalculatorDepositChange?: (deposit: number) => void
   onCalculatorMonthlyPaymentUpdate?: (monthlyPayment: number) => void
-  onSubmitBooking: (details: CustomerDetails & { date: string }) => void
+  onSubmitBooking: (details: CustomerDetails & { date: string; payment_method?: string; payment_details?: any }) => void
   onPaymentSuccess?: (paymentIntent: any) => void
   backHref?: string
   backLabel?: string
@@ -316,7 +316,7 @@ export default function CheckoutLayout({
       const apiEndpoints = {
         stripe: '/api/email/boiler/checkout-stripe-v2',
         monthly: '/api/email/boiler/checkout-monthly',
-        'pay-later': '/api/email/boiler/checkout-pay-later'
+        'pay-later': '/api/email/boiler/checkout-pay-later-v2'
       }
 
       const res = await fetch(apiEndpoints[paymentMethod], {
@@ -722,7 +722,15 @@ export default function CheckoutLayout({
                         onClick={async () => {
                           setLoadingPaymentMethod('monthly')
                           
-                          // Call onSubmitBooking to save form data and send email
+                          // Send checkout email first
+                          await sendCheckoutEmail('monthly', {
+                            payment_method: 'monthly',
+                            payment_details: {
+                              payment_method: 'monthly'
+                            }
+                          })
+                          
+                          // Then call onSubmitBooking to save form data
                           onSubmitBooking({ 
                             ...details, 
                             date: selectedDate,
@@ -806,7 +814,15 @@ export default function CheckoutLayout({
                         onClick={async () => {
                           setLoadingPaymentMethod('pay-later')
                           
-                          // Call onSubmitBooking to save form data and send email
+                          // Send checkout email first
+                          await sendCheckoutEmail('pay-later', {
+                            payment_method: 'pay_after_installation',
+                            payment_details: {
+                              payment_method: 'pay_after_installation'
+                            }
+                          })
+                          
+                          // Then call onSubmitBooking to save form data
                           onSubmitBooking({ 
                             ...details, 
                             date: selectedDate,

@@ -458,6 +458,7 @@ function BoilerCheckoutPageContent() {
                 calculator_settings: calculatorInfo ?? null,
                 selected_power: pInfo.selected_power ?? null,
               })
+              console.log('Checkout: Raw pInfo from database:', pInfo)
             }
           }
         }
@@ -628,6 +629,22 @@ function BoilerCheckoutPageContent() {
             console.log('=== VALIDATION PASSED - PROCEEDING WITH SAVE ===')
             const totalTimeOnPage = Date.now() - pageStartTime;
             
+            // Calculate the total amount using the same logic as CheckoutLayout
+            const basePrice = product?.selected_power?.price || (typeof product?.price === 'number' ? product.price : 0)
+            const calculatedTotalAmount = basePrice + 
+              selectedAddons.reduce((sum, a) => sum + (a.price * a.quantity), 0) + 
+              selectedBundles.reduce((sum, b) => sum + (b.unitPrice * b.quantity), 0)
+            
+            console.log('=== TOTAL AMOUNT CALCULATION DEBUG ===')
+            console.log('Product data:', product)
+            console.log('Product price:', product?.price)
+            console.log('Product selected_power:', product?.selected_power)
+            console.log('Base price calculated:', basePrice)
+            console.log('Selected addons:', selectedAddons)
+            console.log('Selected bundles:', selectedBundles)
+            console.log('Calculated total amount:', calculatedTotalAmount)
+            console.log('=== END TOTAL AMOUNT DEBUG ===')
+
             // Prepare checkout data for lead_submission_data
             const checkoutData = {
               booking_data: {
@@ -637,7 +654,7 @@ function BoilerCheckoutPageContent() {
                 preferred_installation_date: (payload as any).date || null,
                 special_requirements: (payload as any).special_requirements || '',
                 contact_preferences: (payload as any).contact_preferences || {},
-                total_amount: (payload as any).total_amount || 0,
+                total_amount: calculatedTotalAmount,
                 deposit_amount: (payload as any).deposit_amount || 0,
                 monthly_payment: (payload as any).monthly_payment || 0,
                 finance_terms: (payload as any).finance_terms || null,
@@ -719,7 +736,7 @@ function BoilerCheckoutPageContent() {
                   }))
                 },
                 calculator_settings: calculatorSettings,
-                total_amount: (product?.price || 0) + selectedAddons.reduce((sum, a) => sum + (a.price * a.quantity), 0) + selectedBundles.reduce((sum, b) => sum + (b.unitPrice * b.quantity), 0)
+                total_amount: calculatedTotalAmount
               },
               submission_metadata: {
                 page_url: typeof window !== 'undefined' ? window.location.href : '',
@@ -790,7 +807,7 @@ function BoilerCheckoutPageContent() {
                     quantity: bundle.quantity,
                     unitPrice: bundle.unitPrice || 0
                   })),
-                  total: (product?.price || 0) + selectedAddons.reduce((sum, a) => sum + (a.price * a.quantity), 0) + selectedBundles.reduce((sum, b) => sum + (b.unitPrice * b.quantity), 0)
+                  total: calculatedTotalAmount
                 },
                 installation_date: (payload as any).date,
                 submission_id: submissionId,
@@ -801,7 +818,7 @@ function BoilerCheckoutPageContent() {
               }
 
               // Determine API endpoint based on payment method
-              let apiEndpoint = '/api/email/boiler/checkout-pay-later' // default
+              let apiEndpoint = '/api/email/boiler/checkout-pay-later-v2' // default
               if ((payload as any).payment_method === 'stripe') {
                 apiEndpoint = '/api/email/boiler/checkout-stripe-v2'
               } else if ((payload as any).payment_method === 'monthly') {
