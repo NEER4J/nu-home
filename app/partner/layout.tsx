@@ -136,7 +136,7 @@ export default function PartnerLayout({
                 className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
               >
                 <Tag className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
-                Admin Products
+                Porudct Catalog
               </Link>
             </li>
             
@@ -150,25 +150,9 @@ export default function PartnerLayout({
               </Link>
             </li>
             
-            <li>
-              <Link 
-                href="/partner/integration" 
-                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
-              >
-                <Code className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
-                Integration
-              </Link>
-            </li>
+         
             
-            <li>
-              <Link 
-                href="/partner/field-mappings" 
-                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
-              >
-                <MapPin className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
-                Field Mappings
-              </Link>
-            </li>
+          
             
             <li className="pt-2">
               <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -201,6 +185,16 @@ export default function PartnerLayout({
                 Notifications
               </Link>
             </li>
+
+            <li>
+              <Link 
+                href="/partner/field-mappings" 
+                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+              >
+                <MapPin className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                Field Mappings
+              </Link>
+            </li>
             
             <li>
               <Link 
@@ -209,6 +203,16 @@ export default function PartnerLayout({
               >
                 <Settings className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
                 Settings
+              </Link>
+            </li>
+
+            <li>
+              <Link 
+                href="/partner/integration" 
+                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+              >
+                <Code className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                Integration
               </Link>
             </li>
             
