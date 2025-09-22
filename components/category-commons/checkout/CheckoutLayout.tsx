@@ -314,7 +314,7 @@ export default function CheckoutLayout({
       }
 
       const apiEndpoints = {
-        stripe: '/api/email/boiler/checkout-stripe',
+        stripe: '/api/email/boiler/checkout-stripe-v2',
         monthly: '/api/email/boiler/checkout-monthly',
         'pay-later': '/api/email/boiler/checkout-pay-later'
       }
@@ -550,12 +550,7 @@ export default function CheckoutLayout({
                                   }
                                 })
                                 
-                                // Redirect to success page
-                                if (submissionId) {
-                                  window.location.href = `/boiler/success?submission_id=${submissionId}`
-                                } else {
-                                  window.location.href = '/boiler/success'
-                                }
+                                // Note: Redirect is handled by the parent onSubmitBooking handler
                               }}
                               onPaymentError={(error) => {
                                 console.error('Payment failed:', error)

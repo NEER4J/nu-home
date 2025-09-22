@@ -1,0 +1,493 @@
+-- Create default field mappings for checkout-stripe email type
+-- This migration populates the email_field_mappings table with essential mappings for boiler checkout-stripe emails
+
+-- Insert default field mappings for checkout-stripe email type
+INSERT INTO email_field_mappings (
+  partner_id,
+  service_category_id,
+  email_type,
+  template_field_name,
+  database_source,
+  database_path,
+  template_type,
+  html_template,
+  html_template_type,
+  loop_config,
+  template_variables,
+  integration_types,
+  display_name,
+  description,
+  field_category,
+  is_required,
+  is_system,
+  is_active,
+  created_at,
+  updated_at
+) VALUES 
+-- Contact Information
+(
+  '00000000-0000-0000-0000-000000000000', -- System default (will be overridden per partner)
+  '00000000-0000-0000-0000-000000000000', -- System default (will be overridden per category)
+  'checkout-stripe',
+  'customer_name',
+  'checkout_data',
+  '{"path": "firstName"}',
+  'format',
+  NULL,
+  'name',
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Customer Name',
+  'Customer first name',
+  'Contact',
+  true,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'customer_full_name',
+  'checkout_data',
+  '{"path": "firstName", "lastName": "lastName"}',
+  'format',
+  NULL,
+  'full_name',
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Customer Full Name',
+  'Customer full name (first + last)',
+  'Contact',
+  true,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'customer_email',
+  'checkout_data',
+  '{"path": "email"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Customer Email',
+  'Customer email address',
+  'Contact',
+  true,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'customer_phone',
+  'checkout_data',
+  '{"path": "phone"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Customer Phone',
+  'Customer phone number',
+  'Contact',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'customer_postcode',
+  'checkout_data',
+  '{"path": "postcode"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Customer Postcode',
+  'Customer postcode',
+  'Contact',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'customer_address',
+  'checkout_data',
+  '{"path": "fullAddress"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Customer Address',
+  'Customer full address',
+  'Contact',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+
+-- Order Information
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'order_details',
+  'checkout_data',
+  '{"path": "orderDetails"}',
+  'html_template',
+  '<div class="order-summary">
+    <h3>Order Summary</h3>
+    {{#if orderDetails.product}}
+    <div class="product-item">
+      <strong>{{orderDetails.product.name}}</strong>
+      <span class="price">£{{orderDetails.product.price}}</span>
+    </div>
+    {{/if}}
+    {{#if orderDetails.addons}}
+    {{#each orderDetails.addons}}
+    <div class="addon-item">
+      <strong>{{title}} (x{{quantity}})</strong>
+      <span class="price">£{{price}}</span>
+    </div>
+    {{/each}}
+    {{/if}}
+    {{#if orderDetails.bundles}}
+    {{#each orderDetails.bundles}}
+    <div class="bundle-item">
+      <strong>{{title}} (x{{quantity}})</strong>
+      <span class="price">£{{unitPrice}}</span>
+    </div>
+    {{/each}}
+    {{/if}}
+    <div class="total">
+      <strong>Total: £{{orderDetails.total}}</strong>
+    </div>
+  </div>',
+  'order_summary',
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Order Details',
+  'Formatted order summary with products, addons, and total',
+  'Order',
+  true,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'payment_info',
+  'checkout_data',
+  '{"path": "paymentInfo"}',
+  'html_template',
+  '<div class="payment-info">
+    <h3>Payment Information</h3>
+    <p><strong>Payment Method:</strong> Stripe</p>
+    <p><strong>Status:</strong> Confirmed</p>
+    {{#if paymentInfo.amount}}
+    <p><strong>Amount Paid:</strong> £{{paymentInfo.amount}}</p>
+    {{/if}}
+    {{#if paymentInfo.transactionId}}
+    <p><strong>Transaction ID:</strong> {{paymentInfo.transactionId}}</p>
+    {{/if}}
+  </div>',
+  'payment_plan',
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Payment Information',
+  'Payment details and confirmation',
+  'Payment',
+  true,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'installation_info',
+  'checkout_data',
+  '{"path": "installationInfo"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Installation Information',
+  'Installation date and details',
+  'Installation',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+
+-- Submission Information
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'submission_id',
+  'checkout_data',
+  '{"path": "submissionId"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Submission ID',
+  'Unique submission identifier',
+  'System',
+  true,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'submission_date',
+  'checkout_data',
+  '{"path": "submissionDate"}',
+  'format',
+  NULL,
+  'date',
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Submission Date',
+  'Date and time of submission',
+  'System',
+  true,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+
+-- Partner Information (from partner profile)
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'company_name',
+  'partner_info',
+  '{"path": "company_name"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Company Name',
+  'Partner company name',
+  'Company',
+  true,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'company_phone',
+  'partner_info',
+  '{"path": "phone"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Company Phone',
+  'Partner company phone number',
+  'Company',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'company_address',
+  'partner_info',
+  '{"path": "address"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Company Address',
+  'Partner company address',
+  'Company',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'company_website',
+  'partner_info',
+  '{"path": "website_url"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Company Website',
+  'Partner company website URL',
+  'Company',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'company_logo',
+  'partner_info',
+  '{"path": "logo_url"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Company Logo',
+  'Partner company logo URL',
+  'Company',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'company_color',
+  'partner_info',
+  '{"path": "company_color"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Company Color',
+  'Partner company brand color',
+  'Company',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'privacy_policy',
+  'partner_info',
+  '{"path": "privacy_policy"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Privacy Policy',
+  'Partner privacy policy URL',
+  'Company',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+),
+(
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-000000000000',
+  'checkout-stripe',
+  'terms_conditions',
+  'partner_info',
+  '{"path": "terms_conditions"}',
+  'simple',
+  NULL,
+  NULL,
+  '{}',
+  '{}',
+  '["email", "ghl", "webhook"]',
+  'Terms & Conditions',
+  'Partner terms and conditions URL',
+  'Company',
+  false,
+  true,
+  true,
+  NOW(),
+  NOW()
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS email_field_mappings_checkout_stripe_idx 
+ON email_field_mappings(partner_id, service_category_id, email_type) 
+WHERE email_type = 'checkout-stripe' AND is_active = true;
