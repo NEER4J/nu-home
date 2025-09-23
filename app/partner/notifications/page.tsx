@@ -1012,7 +1012,7 @@ export default function NotificationsPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Email Notifications</h1>
-          <p className="mt-1 text-sm text-gray-600">Customize your email templates for different notifications</p>
+          <p className="mt-1 text-sm text-gray-600">Customise your email templates for different notifications</p>
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -1105,7 +1105,7 @@ export default function NotificationsPage() {
                   {availableEmailTypes.find(et => et.id === selectedEmailType)?.name || 'Email Templates'}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {availableEmailTypes.find(et => et.id === selectedEmailType)?.description || 'Customize your email templates for different notifications'}
+                  {availableEmailTypes.find(et => et.id === selectedEmailType)?.description || 'Customise your email templates for different notifications'}
                 </p>
                 {adminEmail && (
                   <p className="text-xs text-blue-600 mt-1">
@@ -1233,7 +1233,7 @@ export default function NotificationsPage() {
           <MapPin className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-4 text-lg font-medium text-gray-900">No Field Mappings Available</h3>
           <p className="mt-2 text-sm text-gray-500">
-            You need to create field mappings for this email type before you can customize the template.
+            You need to create field mappings for this email type before you can Customise the template.
           </p>
           <div className="mt-6">
             <Button

@@ -165,7 +165,7 @@ export default function ThankYouMessage({
             </div>
             <div>
               <h4 className="font-medium text-gray-700 text-sm">Quote Preparation</h4>
-              <p className="text-gray-500 text-sm mt-1">Our team will analyze your requirements and prepare a customized quote.</p>
+              <p className="text-gray-500 text-sm mt-1">Our team will analyze your requirements and prepare a Customised quote.</p>
             </div>
           </div>
           

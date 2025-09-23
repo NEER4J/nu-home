@@ -289,4 +289,4 @@ Quote Saved Successfully - {{companyName}}
 7. **Email sent** via SMTP to customer and/or admin
 8. **Template categorized** by email type for better organization in editor
 
-This system ensures consistent data flow and makes it easy to customize email templates while maintaining data integrity across all email types.
+This system ensures consistent data flow and makes it easy to Customise email templates while maintaining data integrity across all email types.
