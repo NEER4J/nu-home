@@ -508,62 +508,61 @@ function SurveyContent() {
 
         console.log('Survey data saved successfully');
 
-        // Send survey email in background
-        console.log('=== SCHEDULING SURVEY EMAIL IN BACKGROUND ===')
-        setTimeout(async () => {
-          try {
-            const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-            const subdomain = hostname || null
-            const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
+        // Send survey email and wait for completion before redirecting
+        console.log('=== SENDING SURVEY EMAIL ===')
+        try {
+          const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+          const subdomain = hostname || null
+          const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
 
-            const emailData = {
-              first_name: surveyDetails.firstName,
-              last_name: surveyDetails.lastName,
-              email: surveyDetails.email,
-              phone: surveyDetails.phone,
-              postcode: surveyDetails.postcode,
-              notes: surveyDetails.notes || '',
-              submission_id: submissionId,
-              subdomain,
-              is_iframe: isIframe,
-              order_details: {
-                product: selectedProduct ? {
-                  id: selectedProduct.partner_product_id,
-                  name: selectedProduct.name,
-                  price: selectedProduct.price || 0
-                } : null,
-                addons: selectedAddons && selectedAddons.length > 0 ? selectedAddons.map(addon => ({
-                  title: addon.title,
-                  quantity: addon.quantity,
-                  price: addon.price
-                })) : [],
-                bundles: selectedBundles && selectedBundles.length > 0 ? selectedBundles.map(bundle => ({
-                  title: bundle.bundle.title,
-                  quantity: bundle.quantity,
-                  unitPrice: bundle.unitPrice || 0
-                })) : [],
-                total: (selectedProduct?.price || 0) + (selectedAddons?.reduce((sum, a) => sum + (a.price * a.quantity), 0) || 0) + (selectedBundles?.reduce((sum, b) => sum + (b.unitPrice * b.quantity), 0) || 0)
-              }
-            };
-
-            console.log('Sending background survey email to: /api/email/boiler/survey-submitted')
-            const emailResponse = await fetch('/api/email/boiler/survey-submitted', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(emailData),
-            });
-
-            if (emailResponse.ok) {
-              console.log('Background survey email sent successfully')
-            } else {
-              console.warn('Failed to send background survey email:', await emailResponse.text())
+          const emailData = {
+            first_name: surveyDetails.firstName,
+            last_name: surveyDetails.lastName,
+            email: surveyDetails.email,
+            phone: surveyDetails.phone,
+            postcode: surveyDetails.postcode,
+            notes: surveyDetails.notes || '',
+            submission_id: submissionId,
+            subdomain,
+            is_iframe: isIframe,
+            order_details: {
+              product: selectedProduct ? {
+                id: selectedProduct.partner_product_id,
+                name: selectedProduct.name,
+                price: selectedProduct.price || 0
+              } : null,
+              addons: selectedAddons && selectedAddons.length > 0 ? selectedAddons.map(addon => ({
+                title: addon.title,
+                quantity: addon.quantity,
+                price: addon.price
+              })) : [],
+              bundles: selectedBundles && selectedBundles.length > 0 ? selectedBundles.map(bundle => ({
+                title: bundle.bundle.title,
+                quantity: bundle.quantity,
+                unitPrice: bundle.unitPrice || 0
+              })) : [],
+              total: (selectedProduct?.price || 0) + (selectedAddons?.reduce((sum, a) => sum + (a.price * a.quantity), 0) || 0) + (selectedBundles?.reduce((sum, b) => sum + (b.unitPrice * b.quantity), 0) || 0)
             }
-          } catch (emailError) {
-            console.warn('Error sending background survey email:', emailError)
-          }
-        }, 100);
+          };
 
-        // Redirect to enquiry page
+          console.log('Sending survey email to: /api/email/boiler/survey-submitted-v2')
+          const emailResponse = await fetch('/api/email/boiler/survey-submitted-v2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailData),
+          });
+
+          if (emailResponse.ok) {
+            console.log('Survey email sent successfully')
+          } else {
+            console.warn('Failed to send survey email:', await emailResponse.text())
+          }
+        } catch (emailError) {
+          console.warn('Error sending survey email:', emailError)
+        }
+
+        // Redirect to enquiry page after email is sent
+        console.log('=== REDIRECTING TO ENQUIRY PAGE ===')
         const url = new URL('/boiler/enquiry', window.location.origin);
         if (submissionId) url.searchParams.set('submission', submissionId);
         window.location.href = url.toString();

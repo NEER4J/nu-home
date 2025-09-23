@@ -37,7 +37,7 @@ export default function CategoryUrlSection({ slug, userId }: CategoryUrlSectionP
       // Generate subdomain URL
       if (profile.subdomain) {
         const isLocalhost = window.location.hostname === 'localhost';
-        const mainDomain = isLocalhost ? 'localhost:3000' : process.env.NEXT_PUBLIC_SITE_URL || 'nu-home.com';
+        const mainDomain = isLocalhost ? 'localhost:3000' : process.env.NEXT_PUBLIC_SITE_URL || 'aifortrades.co.uk';
         const protocol = window.location.protocol;
         const subdomainUrl = isLocalhost
           ? `${protocol}//${profile.subdomain}.${mainDomain}/${slug}/quote`

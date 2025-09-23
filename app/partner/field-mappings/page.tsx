@@ -64,6 +64,7 @@ const DATABASE_SOURCES = [
   { value: 'checkout_data', label: 'Checkout Data', description: 'Payment, booking, order details' },
   { value: 'survey_data', label: 'Survey Data', description: 'Survey responses and images' },
   { value: 'enquiry_data', label: 'Enquiry Data', description: 'General enquiry information' },
+  { value: 'form_submissions', label: 'Form Submissions', description: 'Form submissions' },
   { value: 'save_quote_data', label: 'Save Quote Data', description: 'User info, products, and metadata from save quote submissions' },
 ]
 
@@ -147,6 +148,8 @@ export default function FieldMappingsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [previewData, setPreviewData] = useState<any>(null)
   const [activeDataTab, setActiveDataTab] = useState<string>('')
+  const [showHtmlGuide, setShowHtmlGuide] = useState(false)
+  const [showTemplateGenerator, setShowTemplateGenerator] = useState(false)
 
   const supabase = createClient()
 
@@ -400,31 +403,15 @@ export default function FieldMappingsPage() {
     let adjustedPath = fieldPath
     if (databaseSource === 'save_quote_data' && fieldPath.startsWith('[0].')) {
       adjustedPath = fieldPath.substring(4) // Remove '[0].' prefix
-      console.log(`Adjusted save_quote_data path from ${fieldPath} to ${adjustedPath}`)
     }
 
-    // Auto-generate template field name with parent context
+    // Auto-generate simple template field name (just the last part of the path)
     const pathParts = adjustedPath.split('.')
     const lastPart = pathParts[pathParts.length - 1]
 
-    let templateFieldName = lastPart
-    let displayName = lastPart.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-
-    // Add parent context to make field names more descriptive
-    if (pathParts.length > 1) {
-      // Get the parent part (second to last)
-      const parentPart = pathParts[pathParts.length - 2]
-
-      // Skip array indices like [0], [1], etc.
-      if (!parentPart.match(/^\[\d+\]$/)) {
-        // Clean up parent part (remove array notation)
-        const cleanParent = parentPart.replace(/\[\d+\]/g, '').replace(/_/g, ' ')
-        const parentPrefix = cleanParent.replace(/\b\w/g, l => l.toUpperCase()).replace(/\s+/g, '')
-
-        templateFieldName = `${cleanParent.replace(/\s+/g, '_').toLowerCase()}_${lastPart}`
-        displayName = `${parentPrefix} ${displayName}`
-      }
-    }
+    // Use simple field name - just the last part of the path
+    const templateFieldName = lastPart
+    const displayName = lastPart.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
     const updates: Partial<FieldMapping> = {
       database_source: databaseSource,
@@ -436,6 +423,9 @@ export default function FieldMappingsPage() {
     // Set template type based on selection
     if (templateType === 'html') {
       updates.template_type = 'html_template'
+      // Auto-generate HTML template based on the selected data
+      const generatedTemplate = generateHtmlTemplate(databaseSource, adjustedPath, previewData)
+      updates.html_template = generatedTemplate
     } else {
       updates.template_type = 'simple'
     }
@@ -444,6 +434,150 @@ export default function FieldMappingsPage() {
       ...editingMapping,
       ...updates
     })
+  }
+
+  // Function to automatically generate HTML templates based on data structure
+  const generateHtmlTemplate = (databaseSource: string, fieldPath: string, sampleData: any) => {
+    if (!sampleData || !sampleData[databaseSource]) {
+      return `<!-- Auto-generated template for ${fieldPath} -->\n<div class="data-container">\n  <h3>{{${fieldPath.split('.').pop()}}}</h3>\n</div>`
+    }
+
+    const data = sampleData[databaseSource]
+    const pathParts = fieldPath.split('.')
+    let currentData = data
+
+    // Navigate to the specific field
+    for (const part of pathParts) {
+      if (currentData && typeof currentData === 'object') {
+        currentData = currentData[part]
+      } else {
+        break
+      }
+    }
+
+    if (!currentData) {
+      return `<!-- Auto-generated template for ${fieldPath} -->\n<div class="data-container">\n  <h3>{{${fieldPath.split('.').pop()}}}</h3>\n</div>`
+    }
+
+    // Generate template based on data type
+    if (Array.isArray(currentData)) {
+      return generateArrayTemplate(fieldPath, currentData)
+    } else if (typeof currentData === 'object' && currentData !== null) {
+      // Special handling for form_answers which is an object with UUID keys
+      if (fieldPath === 'form_answers') {
+        return generateFormAnswersTemplate(fieldPath, currentData)
+      }
+      return generateObjectTemplate(fieldPath, currentData)
+    } else {
+      return generateSimpleTemplate(fieldPath)
+    }
+  }
+
+  const generateArrayTemplate = (fieldPath: string, arrayData: any[]) => {
+    const fieldName = fieldPath.split('.').pop() || 'items'
+    const displayName = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    
+    if (arrayData.length === 0) {
+      return `<!-- Auto-generated template for ${fieldPath} -->\n<div class="${fieldName}-container" style="margin: 20px 0;">\n  <h3>${displayName}</h3>\n  <p>No items available</p>\n</div>`
+    }
+
+    // Analyze the first item to understand the structure
+    const firstItem = arrayData[0]
+    let itemFields: string[] = []
+    
+    if (typeof firstItem === 'object' && firstItem !== null) {
+      itemFields = Object.keys(firstItem).slice(0, 5) // Limit to first 5 fields
+    }
+
+    let template = `<!-- Auto-generated template for ${fieldPath} -->\n`
+    template += `<div class="${fieldName}-container" style="margin: 20px 0;">\n`
+    template += `  <h3 style="margin-bottom: 15px; color: #333;">${displayName}</h3>\n`
+    template += `  {{#each ${fieldName}}}\n`
+    template += `    <div class="${fieldName}-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 4px; background: #f9f9f9;">\n`
+
+    if (itemFields.length > 0) {
+      // Generate fields based on the object structure - use dynamic field names
+      itemFields.forEach(field => {
+        const fieldDisplayName = field.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+        template += `      <div class="field" style="margin: 5px 0;">\n`
+        template += `        <strong style="color: #555;">${fieldDisplayName}:</strong>\n`
+        template += `        <span style="margin-left: 8px;">{{${field}}}</span>\n`
+        template += `      </div>\n`
+      })
+    } else {
+      // Simple array items
+      template += `      <div class="item-content" style="padding: 10px;">\n`
+      template += `        {{this}}\n`
+      template += `      </div>\n`
+    }
+
+    template += `    </div>\n`
+    template += `  {{/each}}\n`
+    template += `</div>`
+
+    return template
+  }
+
+  const generateObjectTemplate = (fieldPath: string, objectData: any) => {
+    const fieldName = fieldPath.split('.').pop() || 'data'
+    const displayName = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    const fields = Object.keys(objectData).slice(0, 8) // Limit to first 8 fields
+
+    let template = `<!-- Auto-generated template for ${fieldPath} -->\n`
+    template += `<div class="${fieldName}-container" style="margin: 20px 0; border: 1px solid #ddd; padding: 20px; border-radius: 4px; background: #f9f9f9;">\n`
+    template += `  <h3 style="margin-bottom: 15px; color: #333;">${displayName}</h3>\n`
+
+    fields.forEach(field => {
+      const fieldDisplayName = field.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+      template += `  <div class="field" style="margin: 8px 0; padding: 5px 0; border-bottom: 1px solid #eee;">\n`
+      template += `    <strong style="color: #555; display: inline-block; width: 150px;">${fieldDisplayName}:</strong>\n`
+      template += `    <span style="color: #333;">{{${field}}}</span>\n`
+      template += `  </div>\n`
+    })
+
+    template += `</div>`
+
+    return template
+  }
+
+  const generateSimpleTemplate = (fieldPath: string) => {
+    const fieldName = fieldPath.split('.').pop() || 'value'
+    const displayName = fieldName.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+
+    return `<!-- Auto-generated template for ${fieldPath} -->\n<div class="${fieldName}-container" style="margin: 20px 0; padding: 15px; background: #f0f0f0; border-radius: 4px;">\n  <h3 style="margin: 0 0 10px 0; color: #333;">${displayName}</h3>\n  <p style="margin: 0; color: #666;">{{${fieldName}}}</p>\n</div>`
+  }
+
+  // Special template for form_answers which is an object with UUID keys
+  const generateFormAnswersTemplate = (fieldPath: string, formAnswersData: any) => {
+    const fieldName = fieldPath.split('.').pop() || 'form_answers'
+    const displayName = fieldName.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+    
+    // Get the first form answer to understand the structure
+    const firstAnswer = Object.values(formAnswersData)[0] as any
+    
+    let template = `<!-- Auto-generated template for ${fieldPath} -->\n`
+    template += `<div class="${fieldName}-container" style="margin: 20px 0;">\n`
+    template += `  <h3 style="margin-bottom: 15px; color: #333;">${displayName}</h3>\n`
+    template += `  {{#each ${fieldName}}}\n`
+    template += `    <div class="${fieldName}-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 4px; background: #f9f9f9;">\n`
+    
+    if (firstAnswer && typeof firstAnswer === 'object') {
+      // Generate fields based on the form answer structure
+      const answerFields = Object.keys(firstAnswer)
+      answerFields.forEach(field => {
+        const fieldDisplayName = field.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+        template += `      <div class="field" style="margin: 5px 0;">\n`
+        template += `        <strong style="color: #555;">${fieldDisplayName}:</strong>\n`
+        template += `        <span style="margin-left: 8px;">{{${field}}}</span>\n`
+        template += `      </div>\n`
+      })
+    }
+    
+    template += `    </div>\n`
+    template += `  {{/each}}\n`
+    template += `</div>`
+
+    return template
   }
 
   const loadSampleData = async () => {
@@ -738,10 +872,10 @@ export default function FieldMappingsPage() {
       )}
 
 
-      {/* Create/Edit Form Modal */}
+      {/* Create/Edit Form Modal - Fullscreen */}
       {showCreateForm && editingMapping && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-0 z-50">
+          <div className="bg-white w-[calc(100vw-4rem)] h-[calc(100vh-4rem)] overflow-y-auto p-4 rounded-lg"> 
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
@@ -752,9 +886,9 @@ export default function FieldMappingsPage() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
                 {/* Left Side - Form */}
-                <div className="space-y-6">
+                <div className="md:col-span-2 space-y-6">
                 {/* Basic Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
@@ -785,7 +919,7 @@ export default function FieldMappingsPage() {
                     </div>
                   </div>
 
-                  <div>
+                  <div className="hidden">
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
@@ -798,7 +932,7 @@ export default function FieldMappingsPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-4 hidden">
                     <div>
                       <Label htmlFor="field_category">Field Category</Label>
                       <Input
@@ -907,230 +1041,47 @@ export default function FieldMappingsPage() {
                 {/* HTML Template */}
                 {editingMapping.template_type === 'html_template' && (
                   <div className="space-y-4">
+                     <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-gray-900">HTML Template</h3>
-
-                    {/* Comprehensive HTML Tutorial */}
-                    <div className="bg-gray-50 p-4 rounded-lg border">
-                      <h4 className="font-semibold text-gray-800 mb-4">📚 Complete Guide: Creating HTML Fields & Nested Data</h4>
-
-                      <div className="space-y-6 text-sm max-h-[60vh] overflow-y-auto">
-                        {/* Understanding Field Types */}
-                        <div>
-                          <h5 className="font-semibold mb-2 text-green-700">🎯 Understanding Field Types</h5>
-                          <div className="space-y-2">
-                            <div className="p-3 bg-white rounded border-l-4 border-green-400">
-                              <strong>Text Fields:</strong> Use <code>{`{{fieldName}}`}</code> for simple text like names, emails, phone numbers
-                              <div className="mt-1 text-xs text-gray-600">Example: <code>{`{{firstName}}`}</code> → "John"</div>
-                            </div>
-                            <div className="p-3 bg-white rounded border-l-4 border-purple-400">
-                              <strong>HTML Fields:</strong> Use <code>{`{{{fieldName}}}`}</code> for complex HTML content like product lists
-                              <div className="mt-1 text-xs text-gray-600">Example: <code>{`{{{detailed_products_data}}}`}</code> → Renders full HTML product cards</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Working with Nested Data */}
-                        <div>
-                          <h5 className="font-semibold mb-2 text-indigo-700">🔗 Working with Nested Data</h5>
-                          <div className="space-y-3">
-                            <div className="p-3 bg-white rounded">
-                              <strong>Accessing Nested Fields</strong>
-                              <div className="text-xs text-gray-600 mt-2">
-                                Use dot notation to access nested data:<br/>
-                                • <code>user_info.first_name</code> → Customer's first name<br/>
-                                • <code>products[0].name</code> → First product name<br/>
-                                • <code>contact_details.postcode</code> → Customer postcode
-                              </div>
-                            </div>
-                            <div className="p-3 bg-white rounded">
-                              <strong>Cross-Column Access</strong>
-                              <div className="text-xs text-gray-600 mt-2">
-                                Use @ prefix to access different database columns:<br/>
-                                • <code>@save_quote_data.user_info.email</code><br/>
-                                • <code>@quote_data.contact_details.phone</code>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* HTML Template Examples */}
-                        <div>
-                          <h5 className="font-semibold mb-2 text-red-700">🎨 HTML Template Examples</h5>
-                          <div className="space-y-3">
-                            <div className="p-3 bg-white rounded">
-                              <strong>Simple Product Loop</strong>
-                              <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">
-{`<div class="products">
-  {{#each detailed_products_data}}
-    <div class="product">
-      <h3>{{name}}</h3>
-      <p>Price: £{{price}}</p>
-      <p>Power: {{power}}kW</p>
-    </div>
-  {{/each}}
-</div>`}
-                              </pre>
-                            </div>
-                            <div className="p-3 bg-white rounded">
-                              <strong>Advanced Product Card with Nested Fields</strong>
-                              <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">
-{`{{#each detailed_products_data}}
-  <div class="product-card" style="border:1px solid #ddd; padding:16px; margin:8px;">
-    <img src="{{image_url}}" alt="{{name}}" style="max-width:100%;" />
-    <h2>{{name}}</h2>
-    <p>{{description}}</p>
-    <p><strong>£{{price}}</strong> (Monthly: £{{monthly_price}})</p>
-
-    <!-- Access nested product_fields -->
-    <div class="specs">
-      <p>Power: {{power}}kW</p>
-      <p>Warranty: {{warranty}}</p>
-      <p>Flow Rate: {{flow_rate}} L/min</p>
-    </div>
-
-    <!-- Loop through what's included -->
-    {{#if what_s_included}}
-      <h4>What's Included:</h4>
-      <ul>
-        {{#each what_s_included}}
-          <li>
-            {{#if items.image}}<img src="{{items.image}}" style="width:20px;" />{{/if}}
-            {{items.title}} - {{items.subtitle}}
-          </li>
-        {{/each}}
-      </ul>
-    {{/if}}
-  </div>
-{{/each}}`}
-                              </pre>
-                            </div>
-                            <div className="p-3 bg-white rounded">
-                              <strong>Customer Q&A from Form</strong>
-                              <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">
-{`<table style="width:100%; border-collapse:collapse;">
-  {{#each form_answers}}
-    <tr style="border-bottom:1px solid #eee;">
-      <td style="padding:8px; font-weight:bold;">{{question_text}}:</td>
-      <td style="padding:8px;">{{answer}}</td>
-    </tr>
-  {{/each}}
-</table>`}
-                              </pre>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Common Patterns */}
-                        <div>
-                          <h5 className="font-semibold mb-2 text-teal-700">🔄 Common Patterns & Tips</h5>
-                          <div className="space-y-2">
-                            <div className="p-3 bg-white rounded">
-                              <strong>Conditional Content:</strong>
-                              <pre className="text-xs bg-gray-100 p-2 rounded mt-1">
-{`{{#if warranty}}
-  <p>Warranty: {{warranty}}</p>
-{{/if}}`}
-                              </pre>
-                            </div>
-                            <div className="p-3 bg-white rounded">
-                              <strong>Default Values:</strong>
-                              <pre className="text-xs bg-gray-100 p-2 rounded mt-1">
-{`<p>Power: {{power}}{{#unless power}}N/A{{/unless}}kW</p>`}
-                              </pre>
-                            </div>
-                            <div className="p-3 bg-white rounded">
-                              <strong>Styling Tips:</strong>
-                              <div className="text-xs text-gray-600 mt-1">
-                                • Use inline CSS for email compatibility<br/>
-                                • Test with different email clients<br/>
-                                • Keep HTML structure simple<br/>
-                                • Use tables for complex layouts
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Troubleshooting */}
-                        <div>
-                          <h5 className="font-semibold mb-2 text-orange-700">🐛 Troubleshooting</h5>
-                          <div className="space-y-2">
-                            <div className="p-3 bg-white rounded">
-                              <strong>Field not showing data?</strong>
-                              <div className="text-xs text-gray-600 mt-1">
-                                1. Check the field mapping path is correct<br/>
-                                2. Verify data exists in the database<br/>
-                                3. Ensure you're using the right column source<br/>
-                                4. Test with "Send Test" button in notifications
-                              </div>
-                            </div>
-                            <div className="p-3 bg-white rounded">
-                              <strong>HTML not rendering?</strong>
-                              <div className="text-xs text-gray-600 mt-1">
-                                1. Use triple braces <code>{`{{{field}}}`}</code> for HTML fields<br/>
-                                2. Check field type is set to "html_template"<br/>
-                                3. Validate your HTML syntax
-                              </div>
-                            </div>
-                            <div className="p-3 bg-white rounded">
-                              <strong>Loops not working?</strong>
-                              <div className="text-xs text-gray-600 mt-1">
-                                1. Ensure data is an array<br/>
-                                2. Use correct Handlebars syntax: <code>{`{{#each array}}`}</code><br/>
-                                3. Close with <code>{`{{/each}}`}</code>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Field Variable Reference */}
-                        <div>
-                          <h5 className="font-semibold mb-2 text-blue-700">📋 Available Template Variables</h5>
-                          <div className="p-3 bg-white rounded">
-                            <div className="text-xs text-gray-600">
-                              Common variables you can use in your HTML templates:<br/>
-                              • <code>{`{{data}}`}</code> - The raw data from database path<br/>
-                              • <code>{`{{form_answers}}`}</code> - All form answers object<br/>
-                              • <code>{`{{contact_details}}`}</code> - Contact information<br/>
-                              • <code>{`{{selected_address}}`}</code> - Address details<br/>
-                              • <code>{`{{detailed_products_data}}`}</code> - Product array with full details<br/>
-                              • <code>{`{{user_info}}`}</code> - User information from save quote<br/>
-                              • <code>{`{{products}}`}</code> - Basic product information<br/>
-                              • <code>{`{{quote_link}}`}</code> - Quote link URL (always present)<br/>
-                              • <code>{`{{conditional_quote_link}}`}</code> - Quote link only if not in iframe<br/>
-                              • <code>{`{{show_quote_link}}`}</code> - Boolean: true if quote link should be shown<br/>
-                              • <code>{`{{is_iframe}}`}</code> - Boolean: true if submission was from iframe
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Quote Link Example */}
-                        <div>
-                          <h5 className="font-semibold mb-2 text-purple-700">🔗 Conditional Quote Link Example</h5>
-                          <div className="p-3 bg-white rounded">
-                            <strong>Show quote link only when not in iframe:</strong>
-                            <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-x-auto">
-{`{{#if show_quote_link}}
-  <div style="text-align: center; margin: 20px 0;">
-    <a href="{{conditional_quote_link}}"
-       style="background: #007cba; color: white; padding: 12px 24px;
-              text-decoration: none; border-radius: 4px; display: inline-block;">
-      View Your Quote
-    </a>
-  </div>
-{{else}}
-  <p style="color: #666; font-style: italic; text-align: center;">
-    Your quote has been saved and can be accessed through your account.
-  </p>
-{{/if}}`}
-                            </pre>
-                          </div>
-                        </div>
+                       <div className="flex gap-2">
+                         <Button
+                           type="button"
+                           variant="outline"
+                           size="sm"
+                           onClick={() => {
+                             if (editingMapping && previewData) {
+                               const generatedTemplate = generateHtmlTemplate(
+                                 editingMapping.database_source, 
+                                 editingMapping.database_path.path, 
+                                 previewData
+                               )
+                               setEditingMapping({
+                                 ...editingMapping,
+                                 html_template: generatedTemplate
+                               })
+                               toast.success('HTML template auto-generated!')
+                             }
+                           }}
+                           className="text-sm"
+                         >
+                           🤖 Auto-Generate
+                         </Button>
+                         <Button
+                           type="button"
+                           variant="outline"
+                           size="sm"
+                           onClick={() => setShowHtmlGuide(true)}
+                           className="text-sm"
+                         >
+                           📖 Guide
+                         </Button>
                       </div>
                     </div>
 
                     <div>
                       <Label htmlFor="html_template">HTML Template</Label>
                       <Editor
+                        className="border border-gray-200"
                         height="300px"
                         language="html"
                         value={editingMapping.html_template || ''}
@@ -1152,13 +1103,14 @@ export default function FieldMappingsPage() {
                 </div>
 
                 {/* Right Side - Data Browser */}
-                <div className="space-y-6 sticky top-0 right-0">
+                 <div className="space-y-6 sticky top-6 self-start">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-lg font-medium text-gray-900">Browse Sample Data</h3>
                         <p className="text-sm text-gray-600">Click on any field to automatically populate the database path</p>
                       </div>
+                      <div className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -1166,11 +1118,14 @@ export default function FieldMappingsPage() {
                         disabled={loading}
                       >
                         <RefreshCw className="h-4 w-4 mr-2" />
+                          Refresh
                       </Button>
+                      </div>
                     </div>
                     
+                    
                     {previewData ? (
-                      <div className="border border-gray-200 rounded-lg">
+                      <div className="border border-gray-200">
                         {/* Data Source Tabs */}
                         <div className="border-b border-gray-200">
                           <nav className="flex overflow-x-auto" aria-label="Data Sources">
@@ -1195,7 +1150,7 @@ export default function FieldMappingsPage() {
                         </div>
                         
                         {/* Data Content */}
-                        <div className="p-4 max-h-[80vh] overflow-y-auto">
+                        <div className="p-4 max-h-[62vh] overflow-y-auto">
                           {activeDataTab && previewData && previewData[activeDataTab] ? (
                             <div>
                               <h4 className="text-sm font-medium text-gray-900 mb-3">
@@ -1245,6 +1200,171 @@ export default function FieldMappingsPage() {
                   )}
                   Save Mapping
                 </Button>
+              </div>
+            </div>
+          </div>
+         </div>
+       )}
+
+       {/* HTML Guide Popup */}
+       {showHtmlGuide && (
+         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+             <div className="p-6">
+               <div className="flex items-center justify-between mb-6">
+                 <h2 className="text-xl font-semibold text-gray-900">📝 HTML Template Guide</h2>
+                 <Button variant="outline" onClick={() => setShowHtmlGuide(false)}>
+                   Close
+                 </Button>
+               </div>
+
+               <div className="space-y-6">
+                 {/* Basic Usage */}
+                 <div>
+                   <h3 className="text-lg font-semibold text-gray-800 mb-4">Basic Usage</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                       <h4 className="font-semibold text-green-800 mb-2">Simple Text Fields</h4>
+                       <div className="space-y-2">
+                         <div className="text-sm">
+                           <strong>Syntax:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{fieldName}}`}</code>
+                         </div>
+                         <div className="text-sm">
+                           <strong>Example:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{firstName}}`}</code>
+                         </div>
+                         <div className="text-sm text-gray-600">
+                           Use for: Names, emails, phone numbers, simple text values
+                         </div>
+                       </div>
+                     </div>
+
+                     <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                       <h4 className="font-semibold text-purple-800 mb-2">HTML Content Fields</h4>
+                       <div className="space-y-2">
+                         <div className="text-sm">
+                           <strong>Syntax:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{{fieldName}}}`}</code>
+                         </div>
+                         <div className="text-sm">
+                           <strong>Example:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{{productList}}}`}</code>
+                         </div>
+                         <div className="text-sm text-gray-600">
+                           Use for: Complex HTML content, product lists, formatted data
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Common Patterns */}
+                 <div>
+                   <h3 className="text-lg font-semibold text-gray-800 mb-4">Common Patterns</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                       <h4 className="font-semibold text-blue-800 mb-2">Loops</h4>
+                       <pre className="text-sm bg-gray-100 p-3 rounded overflow-x-auto">
+{`{{#each products}}
+  <div class="product">
+    <h3>{{name}}</h3>
+    <p>Price: £{{price}}</p>
+  </div>
+{{/each}}`}
+                       </pre>
+                       <div className="text-sm text-gray-600 mt-2">
+                         Loop through arrays of data like products, images, or form answers
+                       </div>
+                     </div>
+
+                     <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                       <h4 className="font-semibold text-orange-800 mb-2">Conditionals</h4>
+                       <pre className="text-sm bg-gray-100 p-3 rounded overflow-x-auto">
+{`{{#if warranty}}
+  <p>Warranty: {{warranty}}</p>
+{{/if}}
+
+{{#unless warranty}}
+  <p>No warranty information</p>
+{{/unless}}`}
+                       </pre>
+                       <div className="text-sm text-gray-600 mt-2">
+                         Show content only when conditions are met
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Quick Examples */}
+                 <div>
+                   <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Examples</h3>
+                   <div className="space-y-4">
+                     <div className="p-4 bg-gray-50 rounded-lg border">
+                       <h4 className="font-semibold text-gray-800 mb-2">Uploaded Images</h4>
+                       <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
+{`{{#each uploaded_images}}
+  <div style="margin:10px 0;">
+    <strong>{{label}}:</strong>
+    <img src="{{url}}" style="max-width:200px; border:1px solid #ddd;" />
+  </div>
+{{/each}}`}
+                       </pre>
+                     </div>
+
+                     <div className="p-4 bg-gray-50 rounded-lg border">
+                       <h4 className="font-semibold text-gray-800 mb-2">Form Answers Table</h4>
+                       <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
+{`<table style="width:100%; border-collapse:collapse;">
+  {{#each form_answers}}
+    <tr style="border-bottom:1px solid #eee;">
+      <td style="padding:8px; font-weight:bold;">{{question_text}}:</td>
+      <td style="padding:8px;">{{answer}}</td>
+    </tr>
+  {{/each}}
+</table>`}
+                       </pre>
+                     </div>
+
+                     <div className="p-4 bg-gray-50 rounded-lg border">
+                       <h4 className="font-semibold text-gray-800 mb-2">Product Cards</h4>
+                       <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
+{`{{#each products}}
+  <div style="border:1px solid #ddd; padding:16px; margin:8px 0; border-radius:4px;">
+    <h3 style="margin:0 0 8px 0;">{{name}}</h3>
+    <p><strong>Price:</strong> £{{price}}</p>
+    <p><strong>Power:</strong> {{power}}kW</p>
+    {{#if warranty}}
+      <p><strong>Warranty:</strong> {{warranty}}</p>
+    {{/if}}
+  </div>
+{{/each}}`}
+                       </pre>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Tips */}
+                 <div>
+                   <h3 className="text-lg font-semibold text-gray-800 mb-4">💡 Tips & Best Practices</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                       <h4 className="font-semibold text-yellow-800 mb-2">Email Compatibility</h4>
+                       <ul className="text-sm text-gray-700 space-y-1">
+                         <li>• Use inline CSS for styling</li>
+                         <li>• Test with different email clients</li>
+                         <li>• Keep HTML structure simple</li>
+                         <li>• Use tables for complex layouts</li>
+                       </ul>
+                     </div>
+
+                     <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                       <h4 className="font-semibold text-green-800 mb-2">Testing & Debugging</h4>
+                       <ul className="text-sm text-gray-700 space-y-1">
+                         <li>• Use "Send Test" in notifications</li>
+                         <li>• Field name = template variable name</li>
+                         <li>• Use triple braces for HTML content</li>
+                         <li>• Check data exists in sample data</li>
+                       </ul>
+                     </div>
+                   </div>
+                 </div>
               </div>
             </div>
           </div>

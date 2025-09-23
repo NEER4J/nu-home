@@ -478,20 +478,58 @@ export class FieldMappingEngine {
         }
       }
     } else {
-      // Standard access using database_source
-      sourceData = submissionData[mapping.database_source]
-      pathToUse = pathString || mapping.database_path
+      // Auto-prepend database source to path if not already specified
+      let finalPath = pathString || mapping.database_path
+      
+      // If the path doesn't start with @ and we have a database_source, prepend it
+      if (mapping.database_source && !finalPath.startsWith('@')) {
+        // Handle array notation properly - don't add dot before [0]
+        if (finalPath.startsWith('[')) {
+          finalPath = `@${mapping.database_source}${finalPath}`
+        } else {
+          finalPath = `@${mapping.database_source}.${finalPath}`
+        }
+        this.log(`    🔍 Auto-prepending database source: ${finalPath}`)
+        
+        // Now process as cross-column access
+        const pathWithoutPrefix = finalPath.substring(1) // Remove @
+        const normalizedPath = pathWithoutPrefix.replace(/\[(\d+)\]/g, '.$1')
+        const pathParts = normalizedPath.split('.')
+        const columnName = pathParts[0]
+        const fieldPathParts = pathParts.slice(1)
 
-      this.log(`    📊 Standard source data from ${mapping.database_source}: ${!!sourceData}`)
-      if (sourceData) {
-        this.log(`    📊 Standard source data type: ${Array.isArray(sourceData) ? `[Array length: ${sourceData.length}]` : typeof sourceData}`)
+        this.log(`    🔍 Auto-generated cross-column access: ${columnName}`)
+        this.log(`    🔍 Auto-generated field path: ${fieldPathParts.join('.')}`)
 
-        // Special handling for save_quote_data as database source
-        if (mapping.database_source === 'save_quote_data' && Array.isArray(sourceData) && sourceData.length > 0) {
-          this.log(`    🔍 Using latest save_quote_data entry (index ${sourceData.length - 1})`)
-          const latestEntry = sourceData[sourceData.length - 1]
-          this.log(`    🔍 Latest entry data: ${JSON.stringify(latestEntry)}`)
-          sourceData = latestEntry
+        sourceData = submissionData[columnName]
+        pathToUse = fieldPathParts.length > 0 ? fieldPathParts.join('.') : null
+
+        this.log(`    📊 Auto-generated source data available: ${!!sourceData}`)
+        if (sourceData) {
+          this.log(`    📊 Auto-generated source data type: ${Array.isArray(sourceData) ? `[Array length: ${sourceData.length}]` : typeof sourceData}`)
+
+          // Special handling for save_quote_data array - get the latest entry
+          if (columnName === 'save_quote_data' && Array.isArray(sourceData) && sourceData.length > 0) {
+            this.log(`    🔍 Using latest save_quote_data entry (index ${sourceData.length - 1})`)
+            sourceData = sourceData[sourceData.length - 1]
+          }
+        }
+      } else {
+        // Standard access using database_source (fallback for legacy mappings)
+        sourceData = submissionData[mapping.database_source]
+        pathToUse = finalPath
+
+        this.log(`    📊 Standard source data from ${mapping.database_source}: ${!!sourceData}`)
+        if (sourceData) {
+          this.log(`    📊 Standard source data type: ${Array.isArray(sourceData) ? `[Array length: ${sourceData.length}]` : typeof sourceData}`)
+
+          // Special handling for save_quote_data as database source
+          if (mapping.database_source === 'save_quote_data' && Array.isArray(sourceData) && sourceData.length > 0) {
+            this.log(`    🔍 Using latest save_quote_data entry (index ${sourceData.length - 1})`)
+            const latestEntry = sourceData[sourceData.length - 1]
+            this.log(`    🔍 Latest entry data: ${JSON.stringify(latestEntry)}`)
+            sourceData = latestEntry
+          }
         }
       }
     }
@@ -602,6 +640,11 @@ export class FieldMappingEngine {
 
     let html = mapping.html_template
 
+    console.log('🔧 processHtmlTemplate called for field:', mapping.template_field_name)
+    console.log('🔧 html_template_type:', mapping.html_template_type)
+    console.log('🔧 value type:', Array.isArray(value) ? `Array with ${value.length} items` : typeof value)
+    console.log('🔧 template preview:', html.substring(0, 200))
+
     // Handle different template types
     switch (mapping.html_template_type) {
       case 'product_card':
@@ -622,6 +665,7 @@ export class FieldMappingEngine {
         // For custom templates, we need to create a context where the field name matches the template variable
         return this.renderCustomTemplateWithContext(value, html, mapping.template_field_name)
       default:
+        console.log('🔧 Using default case - renderCustomTemplate')
         return this.renderCustomTemplate(value, html)
     }
   }
@@ -858,12 +902,24 @@ export class FieldMappingEngine {
   private renderCustomTemplate(data: any, template: string): string {
     if (!data || typeof data !== 'object') return template
 
-    console.log('🔧 renderCustomTemplate called with data:', Object.keys(data))
+    console.log('🔧 renderCustomTemplate called with data:', Array.isArray(data) ? `Array with ${data.length} items` : Object.keys(data))
     console.log('🔧 Template contains {{#each}}:', template.includes('{{#each'))
+    console.log('🔧 Template contains {{#each uploaded_images}}:', template.includes('{{#each uploaded_images}}'))
+
+    // Special handling for arrays - if data is an array and template uses {{#each uploaded_images}},
+    // wrap the array in an object with the expected property name
+    if (Array.isArray(data) && template.includes('{{#each uploaded_images}}')) {
+      console.log('🔧 Wrapping array in object with uploaded_images property')
+      console.log('🔧 Array data:', JSON.stringify(data, null, 2))
+      const wrappedData = { uploaded_images: data }
+      console.log('🔧 Wrapped data:', JSON.stringify(wrappedData, null, 2))
+      return this.processHandlebarsTemplate(template, wrappedData)
+    }
 
     // Use the Handlebars processing to handle loops
     return this.processHandlebarsTemplate(template, data)
   }
+
 
   /**
    * Render custom template with specific context
@@ -1100,6 +1156,38 @@ export class FieldMappingEngine {
         const fieldData = await this.processFieldMapping(enhancedSubmissionData, mapping)
         processedData[mapping.template_field_name] = fieldData
         console.log(`✅ ${mapping.template_field_name} = ${fieldData}`)
+
+        // Special debugging for submission_id
+        if (mapping.template_field_name === 'submission_id') {
+          console.log(`🔍 submission_id field mapping details:`)
+          console.log(`🔍 - template_type: ${mapping.template_type}`)
+          console.log(`🔍 - html_template_type: ${mapping.html_template_type}`)
+          console.log(`🔍 - html_template: ${mapping.html_template}`)
+          console.log(`🔍 - database_source: ${mapping.database_source}`)
+          console.log(`🔍 - database_path: ${mapping.database_path}`)
+          console.log(`🔍 - raw data from database:`, submissionData[mapping.database_source])
+
+          // Check if submission_id exists in different sources
+          console.log(`🔍 Checking submission_id in all sources:`)
+          Object.keys(submissionData).forEach(key => {
+            if (submissionData[key] && typeof submissionData[key] === 'object') {
+              if (Array.isArray(submissionData[key])) {
+                console.log(`🔍 - ${key} (array):`, submissionData[key])
+                if (submissionData[key].length > 0) {
+                  console.log(`🔍 - ${key}[0]:`, submissionData[key][0])
+                  if (submissionData[key][0].submission_id) {
+                    console.log(`🔍 - ${key}[0].submission_id:`, submissionData[key][0].submission_id)
+                  }
+                }
+              } else {
+                console.log(`🔍 - ${key} (object):`, submissionData[key])
+                if (submissionData[key].submission_id) {
+                  console.log(`🔍 - ${key}.submission_id:`, submissionData[key].submission_id)
+                }
+              }
+            }
+          })
+        }
 
         // Special debugging for form_answers
         if (mapping.template_field_name === 'form_answers') {

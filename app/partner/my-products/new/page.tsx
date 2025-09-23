@@ -88,7 +88,7 @@ export default async function NewProductPage({ searchParams }: PageProps) {
         <div className="px-4 py-5 sm:px-6">
           <h1 className="text-lg font-medium leading-6 text-gray-900">
             {templateProduct 
-              ? `Customize Template: ${templateProduct.name}`
+              ? `Customise Template: ${templateProduct.name}`
               : "Add New Product"}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-gray-500">

@@ -183,9 +183,10 @@ export default function SurveyLayout({
           })
         }
 
-        // Send survey submission email
+        // Send survey submission email and wait for completion
         try {
-          await fetch('/api/email/boiler/survey-submitted', {
+          console.log('Sending survey email...')
+          const emailResponse = await fetch('/api/email/boiler/survey-submitted-v2', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -200,11 +201,18 @@ export default function SurveyLayout({
               submission_id: submissionId
             }),
           })
+          
+          if (emailResponse.ok) {
+            console.log('Survey email sent successfully')
+          } else {
+            console.warn('Failed to send survey email:', await emailResponse.text())
+          }
         } catch (emailError) {
           console.error('Failed to send survey email:', emailError)
         }
 
-        // Redirect to enquiry page
+        // Redirect to enquiry page after email is sent
+        console.log('Redirecting to enquiry page...')
         const enquiryUrl = new URL('/boiler/enquiry', window.location.origin)
         if (submissionId) {
           enquiryUrl.searchParams.set('submission', submissionId)

@@ -329,13 +329,14 @@ function EnquiryContent() {
               notes: customerDetails?.notes || ''
             },
             form_responses: formData,
-            uploaded_images: {
-              image_areas: Object.keys(uploadedImageUrls).map(areaIndex => ({
-                area_index: parseInt(areaIndex),
-                image_urls: uploadedImageUrls[parseInt(areaIndex)] || []
-              })),
-              total_images: Object.values(uploadedImageUrls).flat().length
-            },
+            uploaded_images: Object.keys(uploadedImageUrls).map(areaIndex => {
+              const imageUrls = uploadedImageUrls[parseInt(areaIndex)] || [];
+              const area = boilerImageUploadAreas[parseInt(areaIndex)];
+              return {
+                label: area?.title || `Image ${parseInt(areaIndex) + 1}`,
+                url: imageUrls[0] || null
+              };
+            }).filter(img => img.url), // Store image with label and URL
             enquiry_completed_at: new Date().toISOString(),
             total_time_on_page_ms: totalTimeOnPage
           }
@@ -355,13 +356,14 @@ function EnquiryContent() {
               notes: customerDetails?.notes || ''
             },
             form_responses: formData,
-            uploaded_images: {
-              image_areas: Object.keys(uploadedImageUrls).map(areaIndex => ({
-                area_index: parseInt(areaIndex),
-                image_urls: uploadedImageUrls[parseInt(areaIndex)] || []
-              })),
-              total_images: Object.values(uploadedImageUrls).flat().length
-            }
+            uploaded_images: Object.keys(uploadedImageUrls).map(areaIndex => {
+              const imageUrls = uploadedImageUrls[parseInt(areaIndex)] || [];
+              const area = boilerImageUploadAreas[parseInt(areaIndex)];
+              return {
+                label: area?.title || `Image ${parseInt(areaIndex) + 1}`,
+                url: imageUrls[0] || null
+              };
+            }).filter(img => img.url) // Store image with label and URL
           },
           submission_metadata: {
             page_url: typeof window !== 'undefined' ? window.location.href : '',
@@ -393,44 +395,42 @@ function EnquiryContent() {
 
         console.log('Enquiry data saved successfully');
 
-        // Send enquiry email in background
-        console.log('=== SCHEDULING ENQUIRY EMAIL IN BACKGROUND ===')
-        setTimeout(async () => {
-          try {
-            const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
-            const subdomain = hostname || null
-            const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
+        // Send enquiry email and wait for completion
+        console.log('=== SENDING ENQUIRY EMAIL ===')
+        try {
+          const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+          const subdomain = hostname || null
+          const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
 
-            const emailData = {
-              first_name: customerDetails?.first_name,
-              last_name: customerDetails?.last_name,
-              email: customerDetails?.email,
-              phone: customerDetails?.phone,
-              postcode: customerDetails?.postcode,
-              enquiry_details: formData,
-              submission_id: submissionId,
-              category: 'boiler',
-              uploaded_image_urls: uploadedImageUrls,
-              subdomain,
-              is_iframe: isIframe
-            };
+          const emailData = {
+            first_name: customerDetails?.first_name,
+            last_name: customerDetails?.last_name,
+            email: customerDetails?.email,
+            phone: customerDetails?.phone,
+            postcode: customerDetails?.postcode,
+            enquiry_details: formData,
+            submission_id: submissionId,
+            category: 'boiler',
+            uploaded_image_urls: uploadedImageUrls,
+            subdomain,
+            is_iframe: isIframe
+          };
 
-            console.log('Sending background enquiry email to: /api/email/boiler/enquiry-submitted')
-            const emailResponse = await fetch('/api/email/boiler/enquiry-submitted', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(emailData),
-            });
+          console.log('Sending enquiry email to: /api/email/boiler/enquiry-submitted-v2')
+          const emailResponse = await fetch('/api/email/boiler/enquiry-submitted-v2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailData),
+          });
 
-            if (emailResponse.ok) {
-              console.log('Background enquiry email sent successfully')
-            } else {
-              console.warn('Failed to send background enquiry email:', await emailResponse.text())
-            }
-          } catch (emailError) {
-            console.warn('Error sending background enquiry email:', emailError)
+          if (emailResponse.ok) {
+            console.log('Enquiry email sent successfully')
+          } else {
+            console.warn('Failed to send enquiry email:', await emailResponse.text())
           }
-        }, 100);
+        } catch (emailError) {
+          console.warn('Error sending enquiry email:', emailError)
+        }
 
         // Update partner_leads progress to enquiry_completed
         if (submissionId) {

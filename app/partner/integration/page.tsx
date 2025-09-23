@@ -24,7 +24,7 @@ interface EmbedCode {
 }
 
 function generateEmbedCodes(categories: ServiceCategory[], profile: PartnerProfile): EmbedCode[] {
-  const mainDomain = process.env.NEXT_PUBLIC_SITE_URL || 'nu-home.com';
+  const mainDomain = process.env.NEXT_PUBLIC_SITE_URL || 'aifortrades.co.uk';
   const protocol = 'https:';
 
   return categories.map(category => {
