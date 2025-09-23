@@ -822,7 +822,7 @@ function BoilerCheckoutPageContent() {
               if ((payload as any).payment_method === 'stripe') {
                 apiEndpoint = '/api/email/boiler/checkout-stripe-v2'
               } else if ((payload as any).payment_method === 'monthly') {
-                apiEndpoint = '/api/email/boiler/checkout-monthly'
+                apiEndpoint = '/api/email/boiler/checkout-monthly-v2'
               }
 
               console.log('Sending email to:', apiEndpoint)

@@ -315,7 +315,7 @@ export default function CheckoutLayout({
 
       const apiEndpoints = {
         stripe: '/api/email/boiler/checkout-stripe-v2',
-        monthly: '/api/email/boiler/checkout-monthly',
+        monthly: '/api/email/boiler/checkout-monthly-v2',
         'pay-later': '/api/email/boiler/checkout-pay-later-v2'
       }
 

@@ -64,6 +64,7 @@ const DATABASE_SOURCES = [
   { value: 'checkout_data', label: 'Checkout Data', description: 'Payment, booking, order details' },
   { value: 'survey_data', label: 'Survey Data', description: 'Survey responses and images' },
   { value: 'enquiry_data', label: 'Enquiry Data', description: 'General enquiry information' },
+  { value: 'form_submissions', label: 'Form Submissions', description: 'Form submissions' },
   { value: 'save_quote_data', label: 'Save Quote Data', description: 'User info, products, and metadata from save quote submissions' },
 ]
 
