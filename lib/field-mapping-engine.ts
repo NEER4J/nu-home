@@ -640,6 +640,11 @@ export class FieldMappingEngine {
 
     let html = mapping.html_template
 
+    console.log('🔧 processHtmlTemplate called for field:', mapping.template_field_name)
+    console.log('🔧 html_template_type:', mapping.html_template_type)
+    console.log('🔧 value type:', Array.isArray(value) ? `Array with ${value.length} items` : typeof value)
+    console.log('🔧 template preview:', html.substring(0, 200))
+
     // Handle different template types
     switch (mapping.html_template_type) {
       case 'product_card':
@@ -660,6 +665,7 @@ export class FieldMappingEngine {
         // For custom templates, we need to create a context where the field name matches the template variable
         return this.renderCustomTemplateWithContext(value, html, mapping.template_field_name)
       default:
+        console.log('🔧 Using default case - renderCustomTemplate')
         return this.renderCustomTemplate(value, html)
     }
   }
@@ -896,12 +902,24 @@ export class FieldMappingEngine {
   private renderCustomTemplate(data: any, template: string): string {
     if (!data || typeof data !== 'object') return template
 
-    console.log('🔧 renderCustomTemplate called with data:', Object.keys(data))
+    console.log('🔧 renderCustomTemplate called with data:', Array.isArray(data) ? `Array with ${data.length} items` : Object.keys(data))
     console.log('🔧 Template contains {{#each}}:', template.includes('{{#each'))
+    console.log('🔧 Template contains {{#each uploaded_images}}:', template.includes('{{#each uploaded_images}}'))
+
+    // Special handling for arrays - if data is an array and template uses {{#each uploaded_images}},
+    // wrap the array in an object with the expected property name
+    if (Array.isArray(data) && template.includes('{{#each uploaded_images}}')) {
+      console.log('🔧 Wrapping array in object with uploaded_images property')
+      console.log('🔧 Array data:', JSON.stringify(data, null, 2))
+      const wrappedData = { uploaded_images: data }
+      console.log('🔧 Wrapped data:', JSON.stringify(wrappedData, null, 2))
+      return this.processHandlebarsTemplate(template, wrappedData)
+    }
 
     // Use the Handlebars processing to handle loops
     return this.processHandlebarsTemplate(template, data)
   }
+
 
   /**
    * Render custom template with specific context

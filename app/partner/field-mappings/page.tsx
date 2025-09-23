@@ -396,6 +396,8 @@ export default function FieldMappingsPage() {
   const handleFieldSelect = (databaseSource: string, fieldPath: string, templateType?: string) => {
     if (!editingMapping) return
 
+    console.log('🔧 handleFieldSelect called with:', { databaseSource, fieldPath, templateType })
+
     // Adjust path for save_quote_data source to remove [0] prefix since the field mapping engine
     // automatically selects the latest entry from the save_quote_data array
     let adjustedPath = fieldPath
@@ -404,28 +406,19 @@ export default function FieldMappingsPage() {
       console.log(`Adjusted save_quote_data path from ${fieldPath} to ${adjustedPath}`)
     }
 
-    // Auto-generate template field name with parent context
+    // Auto-generate simple template field name (just the last part of the path)
     const pathParts = adjustedPath.split('.')
     const lastPart = pathParts[pathParts.length - 1]
 
-    let templateFieldName = lastPart
-    let displayName = lastPart.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    console.log('🔧 Path parts:', pathParts)
+    console.log('🔧 Last part:', lastPart)
 
-    // Add parent context to make field names more descriptive
-    if (pathParts.length > 1) {
-      // Get the parent part (second to last)
-      const parentPart = pathParts[pathParts.length - 2]
+    // Use simple field name - just the last part of the path
+    const templateFieldName = lastPart
+    const displayName = lastPart.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
-      // Skip array indices like [0], [1], etc.
-      if (!parentPart.match(/^\[\d+\]$/)) {
-        // Clean up parent part (remove array notation)
-        const cleanParent = parentPart.replace(/\[\d+\]/g, '').replace(/_/g, ' ')
-        const parentPrefix = cleanParent.replace(/\b\w/g, l => l.toUpperCase()).replace(/\s+/g, '')
-
-        templateFieldName = `${cleanParent.replace(/\s+/g, '_').toLowerCase()}_${lastPart}`
-        displayName = `${parentPrefix} ${displayName}`
-      }
-    }
+    console.log('🔧 Generated template field name:', templateFieldName)
+    console.log('🔧 Generated display name:', displayName)
 
     const updates: Partial<FieldMapping> = {
       database_source: databaseSource,
@@ -441,10 +434,16 @@ export default function FieldMappingsPage() {
       updates.template_type = 'simple'
     }
 
-    setEditingMapping({
+    const newMapping = {
       ...editingMapping,
       ...updates
-    })
+    }
+    
+    console.log('🔧 Setting new mapping:', newMapping)
+    console.log('🔧 Template field name in new mapping:', newMapping.template_field_name)
+    console.log('🔧 Display name in new mapping:', newMapping.display_name)
+
+    setEditingMapping(newMapping)
   }
 
   const loadSampleData = async () => {
