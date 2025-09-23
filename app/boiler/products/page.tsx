@@ -163,7 +163,7 @@ function BoilerProductsContent() {
   const [monthlyPayments, setMonthlyPayments] = useState<Record<string, number>>({})
   const [showWhatsIncluded, setShowWhatsIncluded] = useState(false)
   const [selectedProductForWhatsIncluded, setSelectedProductForWhatsIncluded] = useState<PartnerProduct | null>(null)
-  const [isContinuing, setIsContinuing] = useState(false)
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null)
   const [isHorizontalLayout, setIsHorizontalLayout] = useState(true)
   const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
 
@@ -463,7 +463,6 @@ function BoilerProductsContent() {
           .eq('partner_id', partnerInfo.user_id)
           .eq('service_category_id', category.service_category_id as string)
           .eq('is_active', true)
-          .order('created_at', { ascending: false })
 
         if (productsError) {
           throw productsError
@@ -706,7 +705,12 @@ function BoilerProductsContent() {
   }, [products, filterBoilerType, filterBedroom, filterBathroom])
 
   const displayProducts = useMemo(() => {
-    return filteredProducts
+    return filteredProducts.sort((a, b) => {
+      // Get current price for each product (considering power options)
+      const priceA = getCurrentPrice(a)
+      const priceB = getCurrentPrice(b)
+      return priceA - priceB
+    })
   }, [filteredProducts])
 
   const productsForEmail = useMemo(() => {
@@ -957,7 +961,7 @@ function BoilerProductsContent() {
 
   // Persist selected product (with snapshot) in partner_leads.cart_state and advance progress
   const persistProductAndGo = async (product: PartnerProduct) => {
-    setIsContinuing(true)
+    setLoadingProductId(product.partner_product_id)
     try {
       console.log('persistProductAndGo called with:', { submissionId, partnerInfo: partnerInfo?.user_id })
       
@@ -1128,6 +1132,7 @@ function BoilerProductsContent() {
       window.location.href = url.toString()
     } catch (e) {
       console.error('Failed to persist product selection:', e)
+      setLoadingProductId(null)
       const fallback = new URL('/boiler/addons', window.location.origin)
       if (submissionId) fallback.searchParams.set('submission', submissionId)
       fallback.searchParams.set('product', product.partner_product_id)
@@ -1137,7 +1142,7 @@ function BoilerProductsContent() {
 
   // Persist selected product (with snapshot) in partner_leads.cart_state and go to survey
   const persistProductAndGoToSurvey = async (product: PartnerProduct) => {
-    setIsContinuing(true)
+    setLoadingProductId(product.partner_product_id)
     try {
       console.log('persistProductAndGoToSurvey called with:', { 
         submissionId, 
@@ -1148,7 +1153,7 @@ function BoilerProductsContent() {
       
       if (!submissionId) {
         console.warn('No submissionId found - redirecting to survey without saving product data')
-        setIsContinuing(false)
+        setLoadingProductId(null)
         const url = new URL('/boiler/survey', window.location.origin)
         window.location.href = url.toString()
         return
@@ -1156,7 +1161,7 @@ function BoilerProductsContent() {
 
       if (!partnerInfo?.user_id) {
         console.warn('No partnerInfo.user_id found - redirecting to survey without saving product data')
-        setIsContinuing(false)
+        setLoadingProductId(null)
         const url = new URL('/boiler/survey', window.location.origin)
         url.searchParams.set('submission', submissionId)
         window.location.href = url.toString()
@@ -1321,11 +1326,12 @@ function BoilerProductsContent() {
       window.location.href = url.toString()
     } catch (e) {
       console.error('Failed to persist product selection for survey:', e)
+      setLoadingProductId(null)
       const fallback = new URL('/boiler/survey', window.location.origin)
       if (submissionId) fallback.searchParams.set('submission', submissionId)
       window.location.href = fallback.toString()
     } finally {
-      setIsContinuing(false)
+      setLoadingProductId(null)
     }
   }
 
@@ -1913,12 +1919,12 @@ function BoilerProductsContent() {
                       <div className="space-y-3">
                         {/* Primary Action Button */}
                         <Button
-                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${isContinuing ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
+                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
                           onClick={() => persistProductAndGo(product)}
-                          disabled={isContinuing}
+                          disabled={loadingProductId === product.partner_product_id}
                           style={{ backgroundColor: brandColor }}
                         >
-                          {isContinuing ? (
+                          {loadingProductId === product.partner_product_id ? (
                             <>
                               <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -1934,21 +1940,21 @@ function BoilerProductsContent() {
                         {/* Save Quote Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => handleSaveSingleProductQuote(product)}
-                          disabled={isContinuing}
+                          disabled={loadingProductId === product.partner_product_id}
                         >
-                          {isContinuing ? 'Loading...' : 'Save this quote'}
+                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'Save this quote'}
                         </Button>
 
                         {/* Survey Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => persistProductAndGoToSurvey(product)}
-                          disabled={isContinuing}
+                          disabled={loadingProductId === product.partner_product_id}
                         >
-                          {isContinuing ? 'Loading...' : 'or, book a call to discuss'}
+                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'or, book a call to discuss'}
                         </Button>
                       </div>
                     </div>
@@ -2228,12 +2234,12 @@ function BoilerProductsContent() {
                       <div className="space-y-3">
                         {/* Primary Action Button */}
                         <Button
-                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${isContinuing ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
+                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
                           onClick={() => persistProductAndGo(product)}
-                          disabled={isContinuing}
+                          disabled={loadingProductId === product.partner_product_id}
                           style={{ backgroundColor: brandColor }}
                         >
-                          {isContinuing ? (
+                          {loadingProductId === product.partner_product_id ? (
                             <>
                               <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -2249,21 +2255,21 @@ function BoilerProductsContent() {
                         {/* Save Quote Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => handleSaveSingleProductQuote(product)}
-                          disabled={isContinuing}
+                          disabled={loadingProductId === product.partner_product_id}
                         >
-                          {isContinuing ? 'Loading...' : 'Save this quote'}
+                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'Save this quote'}
                         </Button>
 
                         {/* Survey Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isContinuing ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => persistProductAndGoToSurvey(product)}
-                          disabled={isContinuing}
+                          disabled={loadingProductId === product.partner_product_id}
                         >
-                          {isContinuing ? 'Loading...' : 'or, book a call to discuss'}
+                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'or, book a call to discuss'}
                         </Button>
                       </div>
                     </div>
