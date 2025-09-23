@@ -25,7 +25,7 @@ export default async function RootLayout({
         <div className="flex flex-col md:flex-row min-h-screen bg-gray-50">
           {/* Sidebar - hidden on mobile by default */}
           {isLoggedIn && (
-            <div id="sidebar" className="hidden md:flex md:w-64 flex-col bg-white border-r border-gray-200 transition-all duration-300">
+            <div id="sidebar" className="hidden md:flex md:w-64 flex-col bg-white border-r border-gray-200 transition-all duration-300 mt-16">
               
               {/* User profile section */}
               <div className="p-4 border-b border-gray-200">
@@ -111,7 +111,7 @@ export default async function RootLayout({
           )}
 
           {/* Main content */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col mt-16">
             {/* Top header for mobile controls */}
          
 
