@@ -463,6 +463,7 @@ function BoilerProductsContent() {
           .eq('partner_id', partnerInfo.user_id)
           .eq('service_category_id', category.service_category_id as string)
           .eq('is_active', true)
+          .order('created_at', { ascending: false })
 
         if (productsError) {
           throw productsError
@@ -1919,9 +1920,9 @@ function BoilerProductsContent() {
                       <div className="space-y-3">
                         {/* Primary Action Button */}
                         <Button
-                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
+                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
                           onClick={() => persistProductAndGo(product)}
-                          disabled={loadingProductId === product.partner_product_id}
+                          disabled={!!loadingProductId}
                           style={{ backgroundColor: brandColor }}
                         >
                           {loadingProductId === product.partner_product_id ? (
@@ -1940,9 +1941,9 @@ function BoilerProductsContent() {
                         {/* Save Quote Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => handleSaveSingleProductQuote(product)}
-                          disabled={loadingProductId === product.partner_product_id}
+                          disabled={!!loadingProductId}
                         >
                           {loadingProductId === product.partner_product_id ? 'Loading...' : 'Save this quote'}
                         </Button>
@@ -1950,9 +1951,9 @@ function BoilerProductsContent() {
                         {/* Survey Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => persistProductAndGoToSurvey(product)}
-                          disabled={loadingProductId === product.partner_product_id}
+                          disabled={!!loadingProductId}
                         >
                           {loadingProductId === product.partner_product_id ? 'Loading...' : 'or, book a call to discuss'}
                         </Button>
@@ -2234,9 +2235,9 @@ function BoilerProductsContent() {
                       <div className="space-y-3">
                         {/* Primary Action Button */}
                         <Button
-                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
+                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
                           onClick={() => persistProductAndGo(product)}
-                          disabled={loadingProductId === product.partner_product_id}
+                          disabled={!!loadingProductId}
                           style={{ backgroundColor: brandColor }}
                         >
                           {loadingProductId === product.partner_product_id ? (
@@ -2255,9 +2256,9 @@ function BoilerProductsContent() {
                         {/* Save Quote Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => handleSaveSingleProductQuote(product)}
-                          disabled={loadingProductId === product.partner_product_id}
+                          disabled={!!loadingProductId}
                         >
                           {loadingProductId === product.partner_product_id ? 'Loading...' : 'Save this quote'}
                         </Button>
@@ -2265,9 +2266,9 @@ function BoilerProductsContent() {
                         {/* Survey Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => persistProductAndGoToSurvey(product)}
-                          disabled={loadingProductId === product.partner_product_id}
+                          disabled={!!loadingProductId}
                         >
                           {loadingProductId === product.partner_product_id ? 'Loading...' : 'or, book a call to discuss'}
                         </Button>

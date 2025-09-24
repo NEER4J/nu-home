@@ -119,7 +119,7 @@ export default function PartnerLayout({
                 Addons
               </Link>
             </li>
-            
+{/*             
             <li>
               <Link 
                 href="/partner/import" 
@@ -128,7 +128,7 @@ export default function PartnerLayout({
                 <Download className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
                 Import Products
               </Link>
-            </li>
+            </li> */}
             
             <li>
               <Link 
