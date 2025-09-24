@@ -434,6 +434,11 @@ export default function AddonsLayout({
                             <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full ${classes.badge}`}>Included in bundle</span>
                           </div>
                         )}
+
+                         
+                        {addon.allow_multiple && isInBundle && (
+                          <p className={`text-xs mt-2 ${classes.textColored}`}>You can add more.</p>
+                        )}
                         
                         <div className="flex items-center justify-between gap-2">
                           {/* Price */}
@@ -445,13 +450,13 @@ export default function AddonsLayout({
                           <div>
                             {!addon.allow_multiple ? (
                               <button
-                                className={`px-4 py-2 rounded-full transition-colors ${isSelected ? `${classes.bgLight} ${classes.textColored}` : (isInBundle ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${classes.button} ${classes.buttonText}`)}`}
+                                className={`px-4 py-2 rounded-full transition-colors ${isSelected ? `${classes.bgLight} ${classes.textColored}` : (isInBundle && !addon.allow_multiple ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${classes.button} ${classes.buttonText}`)}`}
                                 onClick={() => {
-                                  if (!isSelected && isInBundle) return
+                                  if (!isSelected && isInBundle && !addon.allow_multiple) return
                                   onChangeAddonQuantity(addon, isSelected ? -1 : 1)
                                 }}
-                                disabled={!isSelected && isInBundle}
-                                title={!isSelected && isInBundle ? 'Included in selected bundle' : undefined}
+                                disabled={!isSelected && isInBundle && !addon.allow_multiple}
+                                title={!isSelected && isInBundle && !addon.allow_multiple ? 'Included in selected bundle' : undefined}
                               >
                                 {isSelected ? 'Added' : (isInBundle ? 'Included' : 'Add')}
                               </button>
@@ -489,13 +494,13 @@ export default function AddonsLayout({
                                   </>
                                 ) : (
                                   <button
-                                    className={`px-4 py-2 rounded-full transition-colors ${isInBundle ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${classes.button} ${classes.buttonText}`}`}
+                                    className={`px-4 py-2 rounded-full transition-colors ${isInBundle && !addon.allow_multiple ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : `${classes.button} ${classes.buttonText}`}`}
                                     onClick={() => {
-                                      if (isInBundle) return
+                                      if (isInBundle && !addon.allow_multiple) return
                                       onChangeAddonQuantity(addon, 1)
                                     }}
-                                    disabled={isInBundle}
-                                    title={isInBundle ? 'Included in bundle' : 'Add to selection'}
+                                    disabled={isInBundle && !addon.allow_multiple}
+                                    title={isInBundle && !addon.allow_multiple ? 'Included in bundle' : 'Add to selection'}
                                   >
                                     Add
                                   </button>
@@ -505,9 +510,7 @@ export default function AddonsLayout({
                           </div>
                         </div>
                         
-                        {addon.allow_multiple && isInBundle && (
-                          <p className={`text-xs text-center mt-2 ${classes.textColored}`}>Included in bundle; you can add more.</p>
-                        )}
+                
                         
 
                       </div>

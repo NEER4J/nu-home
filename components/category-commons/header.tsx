@@ -36,6 +36,8 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
         const partner = await resolvePartnerByHost(supabase, hostname);
         
         if (partner) {
+          console.log('Header - Partner loaded:', partner);
+          console.log('Header - Company color:', partner.company_color);
           setPartnerInfo(partner);
         }
       } catch (error) {
@@ -50,7 +52,10 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
 
   // Get dynamic color based on partner info
   const getDynamicColor = () => {
-    return partnerInfo?.company_color || '#000000'; // Default to black if no company color
+    const color = partnerInfo?.company_color || '#2563eb'; // Default to blue if no company color
+    console.log('Header - Partner info:', partnerInfo);
+    console.log('Header - Dynamic color:', color);
+    return color;
   };
 
   return (
@@ -84,7 +89,10 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <button
                 className="inline-flex items-center px-4 py-2 text-white rounded-full text-sm font-medium hover:opacity-90 transition-colors"
-                style={{ backgroundColor: getDynamicColor() }}
+                style={{ 
+                  backgroundColor: getDynamicColor(),
+                  border: 'none'
+                }}
               >
                 Help
                 <ChevronDown className="ml-2 h-4 w-4" />
