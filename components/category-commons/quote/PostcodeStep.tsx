@@ -172,9 +172,9 @@ export default function PostcodeStep({
         return
       }
       
-      // Transform suggestions to include formatted postcodes
+      // Transform suggestions to include postcodes
       const suggestions = data.suggestions.map((suggestion: any) => ({
-        postcode: suggestion.postcode.replace(/(.{3,4})(.+)/, '$1 $2'),
+        postcode: suggestion.postcode,
         address: suggestion.address
       }))
       
@@ -278,8 +278,8 @@ export default function PostcodeStep({
         const street_number = streetMatch ? streetMatch[1] : undefined
         const street_name = streetMatch ? streetMatch[2] : summary.StreetAddress
 
-        // Format postcode with space
-        const formattedPostcode = summary.Postcode.replace(/(.{3,4})(.+)/, '$1 $2')
+        // Use postcode as-is without formatting
+        const formattedPostcode = summary.Postcode
 
         return {
           address_line_1: address_line_1.trim(),
@@ -536,16 +536,10 @@ export default function PostcodeStep({
     }
   }
 
-  const formatPostcode = (value: string) => {
-    // Basic UK postcode formatting
-    const cleaned = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
-    if (cleaned.length <= 4) return cleaned
-    return `${cleaned.slice(0, -3)} ${cleaned.slice(-3)}`
-  }
 
   const handlePostcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPostcode(e.target.value)
-    setPostcode(formatted)
+    const value = e.target.value
+    setPostcode(value)
     setError('')
     setSelectedAddress(null)
     
@@ -556,14 +550,14 @@ export default function PostcodeStep({
     
     // Set new timeout for live search
     const newTimeout = setTimeout(() => {
-      const cleanPostcode = formatted.replace(/\s+/g, '').toUpperCase()
+      const cleanPostcode = value.replace(/\s+/g, '').toUpperCase()
       
       if (cleanPostcode.length >= 2 && cleanPostcode.length < 7) {
         // Show suggestions for partial postcodes
         searchSuggestions(cleanPostcode)
       } else if (cleanPostcode.length >= 7) {
         // Search for addresses when postcode is complete
-        searchAddresses(formatted.trim(), true)
+        searchAddresses(value.trim(), true)
       } else {
         // Clear both dropdowns when input is too short
         setAddresses([])
@@ -627,11 +621,13 @@ export default function PostcodeStep({
 
   // Update selectedAddress when prop changes (for navigation back)
   useEffect(() => {
-    if (propSelectedAddress && propSelectedAddress !== selectedAddress) {
+    // Only sync from prop if it's not null and different from current state
+    // This allows us to clear the state without it being immediately reset
+    if (propSelectedAddress && JSON.stringify(propSelectedAddress) !== JSON.stringify(selectedAddress)) {
       setSelectedAddress(propSelectedAddress)
       setPostcode(propSelectedAddress.postcode)
     }
-  }, [propSelectedAddress, selectedAddress])
+  }, [propSelectedAddress])
 
   return (
     <motion.div 
@@ -899,8 +895,10 @@ export default function PostcodeStep({
                 <span className="text-sm font-medium text-green-800">Selected Address:</span>
               </div>
               <div className="flex space-x-2">
-                <motion.button
-                  onClick={() => {
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
                     // Set up manual editing with current address
                     setManualAddress({
                       address_line_1: selectedAddress.address_line_1 || '',
@@ -919,28 +917,37 @@ export default function PostcodeStep({
                   }}
                   className="text-sm underline hover:opacity-80 transition-opacity"
                   style={{ color: companyColor || '#2563eb' }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ duration: 0.05 }}
                 >
                   Edit
-                </motion.button>
-                <motion.button
-                  onClick={() => {
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    // Clear local state
                     setSelectedAddress(null)
                     setPostcode('')
                     setError('')
                     setShowDropdown(false)
                     setHighlightedIndex(-1)
-                    inputRef.current?.focus()
+                    setAddresses([])
+                    setSuggestions([])
+                    setShowSuggestions(false)
+                    setHighlightedSuggestionIndex(-1)
+                    // Notify parent to clear its state
+                    onValueChange('')
+                    if (onAddressSelect) {
+                      onAddressSelect(null as any)
+                    }
+                    // Focus input after a short delay
+                    setTimeout(() => {
+                      inputRef.current?.focus()
+                    }, 100)
                   }}
-                  className="text-sm text-green-700 hover:text-green-800 underline"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ duration: 0.05 }}
+                  className="text-sm text-green-700 hover:text-green-800 underline cursor-pointer"
                 >
                   Change
-                </motion.button>
+                </button>
               </div>
             </div>
             
