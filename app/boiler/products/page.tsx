@@ -166,6 +166,7 @@ function BoilerProductsContent() {
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null)
   const [isHorizontalLayout, setIsHorizontalLayout] = useState(true)
   const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
+  const [debugInfo, setDebugInfo] = useState<any>(null)
 
   // Filters
   const [filterBoilerType, setFilterBoilerType] = useState<string | null>(null)
@@ -593,12 +594,32 @@ function BoilerProductsContent() {
   // Normalization helpers for filtering
   const normalizeNumberToBucket = (value: any, cap: number): string | null => {
     if (value === null || value === undefined) return null
-    const raw = String(value).toLowerCase().trim()
+    
+    // Handle object format with text property
+    let raw: string
+    if (typeof value === 'object' && value.text) {
+      raw = String(value.text).toLowerCase().trim()
+    } else if (Array.isArray(value)) {
+      // Handle array of objects or strings
+      const firstItem = value[0]
+      if (typeof firstItem === 'object' && firstItem.text) {
+        raw = String(firstItem.text).toLowerCase().trim()
+      } else {
+        raw = String(firstItem).toLowerCase().trim()
+      }
+    } else {
+      raw = String(value).toLowerCase().trim()
+    }
+    
     if (!raw) return null
-    if (raw.includes('+')) {
+    
+    // Handle "plus" or "+" indicators
+    if (raw.includes('+') || raw.includes('plus')) {
       const n = parseInt(raw.replace(/[^0-9]/g, ''), 10)
       if (!Number.isNaN(n)) return `${n}+`
     }
+    
+    // Extract first number found
     const match = raw.match(/\d+/)
     if (match) {
       const n = parseInt(match[0], 10)
@@ -606,6 +627,19 @@ function BoilerProductsContent() {
         return n >= cap ? `${cap}+` : String(n)
       }
     }
+    
+    // Handle text representations of numbers
+    const textNumbers: { [key: string]: number } = {
+      'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6,
+      'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+    }
+    
+    for (const [text, num] of Object.entries(textNumbers)) {
+      if (raw.includes(text)) {
+        return num >= cap ? `${cap}+` : String(num)
+      }
+    }
+    
     return null
   }
 
@@ -643,12 +677,64 @@ function BoilerProductsContent() {
   }
 
   const normalizeBoilerTypeAnswer = (value: any): string | null => {
+    console.log('normalizeBoilerTypeAnswer input:', { value, type: typeof value, isArray: Array.isArray(value) })
+    
     if (value === null || value === undefined) return null
-    const raw = String(Array.isArray(value) ? value[0] : value).toLowerCase().trim()
-    if (!raw) return null
-    if (/(combi)/i.test(raw)) return 'combi'
-    if (/(regular|conventional|heat\s*only)/i.test(raw)) return 'regular'
-    if (/(system)/i.test(raw)) return 'system'
+    
+    // Handle object format with text property
+    let raw: string
+    if (typeof value === 'object' && value.text) {
+      raw = String(value.text).toLowerCase().trim()
+      console.log('normalizeBoilerTypeAnswer - object with text:', raw)
+    } else if (Array.isArray(value)) {
+      // Handle array of objects or strings
+      const firstItem = value[0]
+      if (typeof firstItem === 'object' && firstItem.text) {
+        raw = String(firstItem.text).toLowerCase().trim()
+        console.log('normalizeBoilerTypeAnswer - array with object:', raw)
+      } else {
+        raw = String(firstItem).toLowerCase().trim()
+        console.log('normalizeBoilerTypeAnswer - array with string:', raw)
+      }
+    } else {
+      raw = String(value).toLowerCase().trim()
+      console.log('normalizeBoilerTypeAnswer - simple string:', raw)
+    }
+    
+    if (!raw) {
+      console.log('normalizeBoilerTypeAnswer - empty raw value')
+      return null
+    }
+    
+    // More comprehensive matching for boiler types
+    if (/(combi|combination)/i.test(raw)) {
+      console.log('normalizeBoilerTypeAnswer - matched combi')
+      return 'combi'
+    }
+    if (/(regular|conventional|heat\s*only|heat-only|heat only)/i.test(raw)) {
+      console.log('normalizeBoilerTypeAnswer - matched regular')
+      return 'regular'
+    }
+    if (/(system)/i.test(raw)) {
+      console.log('normalizeBoilerTypeAnswer - matched system')
+      return 'system'
+    }
+    
+    // Try to match common variations
+    if (raw.includes('combi')) {
+      console.log('normalizeBoilerTypeAnswer - matched combi (includes)')
+      return 'combi'
+    }
+    if (raw.includes('regular') || raw.includes('conventional')) {
+      console.log('normalizeBoilerTypeAnswer - matched regular (includes)')
+      return 'regular'
+    }
+    if (raw.includes('system')) {
+      console.log('normalizeBoilerTypeAnswer - matched system (includes)')
+      return 'system'
+    }
+    
+    console.log('normalizeBoilerTypeAnswer - no match found for:', raw)
     return null
   }
 
@@ -667,24 +753,111 @@ function BoilerProductsContent() {
       ? answers 
       : Object.values(answers) as Array<{ question_id: string; question_text: string; answer: string | string[] }>
 
-    const BATHROOM_Q = 'c9b962d4-baa5-419e-99bf-933216d531e7'
-    const BEDROOM_Q = 'fc39112a-0d71-4766-845d-3fdec496d471'
-    const BOILER_TYPE_Q = 'bbe071af-72d0-4ce4-85a7-83d5f3c82180'
+    // Debug logging - show all available questions and answers
+    const allQuestions = answersArray.map(a => ({ 
+      question_id: a.question_id, 
+      question_text: a.question_text, 
+      answer: a.answer,
+      answerType: typeof a.answer,
+      isArray: Array.isArray(a.answer)
+    }))
+    console.log('Prefill Debug - All available questions:', allQuestions)
 
-    const bathroomAns = answersArray.find((a) => a.question_id === BATHROOM_Q)?.answer
-    const bedroomAns = answersArray.find((a) => a.question_id === BEDROOM_Q)?.answer
-    const typeAns = answersArray.find((a) => a.question_id === BOILER_TYPE_Q)?.answer
+    // Find questions by text content (more robust than hardcoded IDs)
+    const findQuestionByText = (searchTerms: string[]) => {
+      return answersArray.find((a) => 
+        searchTerms.some(term => 
+          a.question_text.toLowerCase().includes(term.toLowerCase())
+        )
+      )
+    }
 
-    setPrefillBathroom(normalizeNumberToBucket(bathroomAns, 4))
-    setPrefillBedroom(normalizeNumberToBucket(bedroomAns, 6))
-    setPrefillBoilerType(normalizeBoilerTypeAnswer(typeAns))
+    // Try multiple search terms for each question type
+    const bathroomQuestion = findQuestionByText(['bathroom', 'bath', 'shower', 'toilet'])
+    const bedroomQuestion = findQuestionByText(['bedroom', 'bed', 'room'])
+    
+    // More specific search for boiler type to avoid matching fuel question
+    const boilerTypeQuestion = findQuestionByText(['type of boiler', 'boiler type', 'currently have']) || 
+                              answersArray.find((a) => a.question_id === '87c7e2ea-0086-4721-92c0-781844271846')
+
+    const bathroomAns = bathroomQuestion?.answer
+    const bedroomAns = bedroomQuestion?.answer
+    const typeAns = boilerTypeQuestion?.answer
+
+    // Debug logging
+    const foundQuestions = {
+      bathroomQuestion: bathroomQuestion ? { 
+        question_id: bathroomQuestion.question_id,
+        question_text: bathroomQuestion.question_text, 
+        answer: bathroomQuestion.answer,
+        answerType: typeof bathroomQuestion.answer
+      } : null,
+      bedroomQuestion: bedroomQuestion ? { 
+        question_id: bedroomQuestion.question_id,
+        question_text: bedroomQuestion.question_text, 
+        answer: bedroomQuestion.answer,
+        answerType: typeof bedroomQuestion.answer
+      } : null,
+      boilerTypeQuestion: boilerTypeQuestion ? { 
+        question_id: boilerTypeQuestion.question_id,
+        question_text: boilerTypeQuestion.question_text, 
+        answer: boilerTypeQuestion.answer,
+        answerType: typeof boilerTypeQuestion.answer
+      } : null
+    }
+    console.log('Prefill Debug - Found questions:', foundQuestions)
+
+    const normalizedBathroom = normalizeNumberToBucket(bathroomAns, 4)
+    const normalizedBedroom = normalizeNumberToBucket(bedroomAns, 6)
+    const normalizedBoilerType = normalizeBoilerTypeAnswer(typeAns)
+
+    const normalizedValues = {
+      normalizedBathroom,
+      normalizedBedroom,
+      normalizedBoilerType
+    }
+    console.log('Prefill Debug - Normalized values:', normalizedValues)
+
+    // Store debug info for display
+    setDebugInfo({
+      allQuestions,
+      foundQuestions,
+      normalizedValues,
+      rawAnswers: {
+        bathroomAns,
+        bedroomAns,
+        typeAns
+      }
+    })
+
+    setPrefillBathroom(normalizedBathroom)
+    setPrefillBedroom(normalizedBedroom)
+    setPrefillBoilerType(normalizedBoilerType)
   }, [submissionInfo?.form_answers])
 
   // Apply prefill to filters initially (without overriding user changes later)
   useEffect(() => {
-    if (filterBathroom === null && prefillBathroom) setFilterBathroom(prefillBathroom)
-    if (filterBedroom === null && prefillBedroom) setFilterBedroom(prefillBedroom)
-    if (filterBoilerType === null && prefillBoilerType) setFilterBoilerType(prefillBoilerType)
+    console.log('Filter Application Debug:', {
+      filterBathroom,
+      filterBedroom,
+      filterBoilerType,
+      prefillBathroom,
+      prefillBedroom,
+      prefillBoilerType
+    })
+
+    if (filterBathroom === null && prefillBathroom) {
+      console.log('Setting bathroom filter to:', prefillBathroom)
+      setFilterBathroom(prefillBathroom)
+    }
+    if (filterBedroom === null && prefillBedroom) {
+      console.log('Setting bedroom filter to:', prefillBedroom)
+      setFilterBedroom(prefillBedroom)
+    }
+    if (filterBoilerType === null && prefillBoilerType) {
+      console.log('Setting boiler type filter to:', prefillBoilerType)
+      setFilterBoilerType(prefillBoilerType)
+    }
   }, [prefillBathroom, prefillBedroom, prefillBoilerType])
 
   const filteredProducts = useMemo(() => {
@@ -2399,6 +2572,68 @@ function BoilerProductsContent() {
             {/* FAQs at bottom */}
             <ProductFaqs faqs={partnerSettings?.faqs || null} />
 
+      {/* Debug Panel */}
+      {debugInfo && (
+        <div className="hidden fixed bottom-4 right-4 bg-white border-2 border-red-500 rounded-lg p-4 max-w-md max-h-96 overflow-y-auto shadow-lg z-50">
+          <div className="text-sm font-bold text-red-600 mb-2">🔍 DEBUG INFO</div>
+          
+          <div className="mb-3">
+            <div className="font-semibold text-gray-800">All Questions ({debugInfo.allQuestions?.length || 0}):</div>
+            <div className="text-xs text-gray-600 max-h-20 overflow-y-auto">
+              {debugInfo.allQuestions?.map((q: any, i: number) => (
+                <div key={i} className="mb-1">
+                  <strong>{q.question_text}</strong>: {JSON.stringify(q.answer)} ({q.answerType})
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <div className="font-semibold text-gray-800">Found Questions:</div>
+            <div className="text-xs text-gray-600">
+              <div><strong>Bathroom:</strong> {debugInfo.foundQuestions?.bathroomQuestion ? 
+                `${debugInfo.foundQuestions.bathroomQuestion.question_text} → ${JSON.stringify(debugInfo.foundQuestions.bathroomQuestion.answer)}` : 
+                'Not found'}
+              </div>
+              <div><strong>Bedroom:</strong> {debugInfo.foundQuestions?.bedroomQuestion ? 
+                `${debugInfo.foundQuestions.bedroomQuestion.question_text} → ${JSON.stringify(debugInfo.foundQuestions.bedroomQuestion.answer)}` : 
+                'Not found'}
+              </div>
+              <div><strong>Boiler Type:</strong> {debugInfo.foundQuestions?.boilerTypeQuestion ? 
+                `${debugInfo.foundQuestions.boilerTypeQuestion.question_text} → ${JSON.stringify(debugInfo.foundQuestions.boilerTypeQuestion.answer)}` : 
+                'Not found'}
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <div className="font-semibold text-gray-800">Normalized Values:</div>
+            <div className="text-xs text-gray-600">
+              <div>Bathroom: {debugInfo.normalizedValues?.normalizedBathroom || 'null'}</div>
+              <div>Bedroom: {debugInfo.normalizedValues?.normalizedBedroom || 'null'}</div>
+              <div>Boiler Type: {debugInfo.normalizedValues?.normalizedBoilerType || 'null'}</div>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <div className="font-semibold text-gray-800">Current Filters:</div>
+            <div className="text-xs text-gray-600">
+              <div>Filter Bathroom: {filterBathroom || 'null'}</div>
+              <div>Filter Bedroom: {filterBedroom || 'null'}</div>
+              <div>Filter Boiler Type: {filterBoilerType || 'null'}</div>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <div className="font-semibold text-gray-800">Prefill Values:</div>
+            <div className="text-xs text-gray-600">
+              <div>Prefill Bathroom: {prefillBathroom || 'null'}</div>
+              <div>Prefill Bedroom: {prefillBedroom || 'null'}</div>
+              <div>Prefill Boiler Type: {prefillBoilerType || 'null'}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
   
     </div>
