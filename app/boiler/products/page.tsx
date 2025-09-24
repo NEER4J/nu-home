@@ -1735,42 +1735,12 @@ function BoilerProductsContent() {
         productsForEmail={productsForEmail}
         onRestart={handleRestart}
         onSaveQuoteOpen={handleSaveQuoteOpen}
+        isHorizontalLayout={isHorizontalLayout}
+        onLayoutChange={setIsHorizontalLayout}
       />
 
       {/* Products Grid */}
       <main className="max-w-[1500px] mx-auto px-6 py-0">
-        {/* Layout Toggle Controls */}
-        <div className="flex justify-end hidden md:flex">
-          <div className="flex rounded-lg border border-gray-200 bg-white overflow-hidden">
-            <button
-              onClick={() => setIsHorizontalLayout(false)}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                !isHorizontalLayout 
-                  ? 'text-white' 
-                  : 'text-gray-700 hover:text-gray-900'
-              }`}
-              style={!isHorizontalLayout ? { backgroundColor: brandColor } : {}}
-            >
-             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => setIsHorizontalLayout(true)}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                isHorizontalLayout 
-                  ? 'text-white' 
-                  : 'text-gray-700 hover:text-gray-900'
-              }`}
-              style={isHorizontalLayout ? { backgroundColor: brandColor } : {}}
-            >
-              
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
 
         {displayProducts.length === 0 ? (
           <Card className="p-10 text-center text-gray-600">

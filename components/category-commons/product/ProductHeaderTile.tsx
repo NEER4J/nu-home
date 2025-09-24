@@ -42,6 +42,9 @@ interface ProductHeaderTileProps {
   productsForEmail?: ProductSummary[]
   onRestart?: () => void
   onSaveQuoteOpen?: () => void
+  // Layout controls
+  isHorizontalLayout?: boolean
+  onLayoutChange?: (isHorizontal: boolean) => void
 }
 
 function normalizeIncludedItem(entry: any) {
@@ -75,6 +78,8 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
     productsForEmail = [],
     onRestart,
     onSaveQuoteOpen,
+    isHorizontalLayout = true,
+    onLayoutChange,
   } = props
 
   const [showIncluded, setShowIncluded] = useState(false)
@@ -140,7 +145,14 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
 
   return (
     <div className="max-w-[1500px] mx-auto md:px-6 px-4 py-6 ">
-              <h2 className="md:text-3xl text-2xl font-semibold text-gray-900 md:mb-7 mb-4">{count} available installation packages</h2>
+              <div className="md:mb-7 mb-4">
+                <h1 className="md:text-2xl text-xl font-semibold text-gray-900 mb-2">
+                  Thank You for Sharing Your Boiler Needs With Us!
+                </h1>
+                <p className="md:text-lg text-base text-gray-700">
+                  We found <span className="font-semibold text-gray-900">{count}</span> boiler{count !== 1 ? 's' : ''} tailored for you. Find information, customer testimonials, and easy online purchase options all in one place.
+                </p>
+              </div>
 
       <div className="flex gap-4 justify-between flex-wrap">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full md:w-auto">
@@ -193,6 +205,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                             variant={filterBoilerType === type ? "default" : "outline"}
                             size="sm"
                             className="px-2 py-1 rounded-full text-xs font-medium"
+                            style={filterBoilerType === type ? { backgroundColor: brandColor } : {}}
                           >
                             {type.charAt(0).toUpperCase() + type.slice(1)}
                           </Button>
@@ -211,6 +224,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                             variant={filterBedroom === b ? "default" : "outline"}
                             size="sm"
                             className="px-2 py-1 rounded-full text-xs font-medium"
+                            style={filterBedroom === b ? { backgroundColor: brandColor } : {}}
                           >
                             {b}
                           </Button>
@@ -229,6 +243,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                             variant={filterBathroom === b ? "default" : "outline"}
                             size="sm"
                             className="px-2 py-1 rounded-full text-xs font-medium"
+                            style={filterBathroom === b ? { backgroundColor: brandColor } : {}}
                           >
                             {b}
                           </Button>
@@ -272,6 +287,40 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
           
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
+            {/* Layout Toggle Controls */}
+            {onLayoutChange && (
+              <div className="flex rounded-lg border border-gray-200 bg-white shadow-sm hidden md:flex">
+                <button
+                  onClick={() => onLayoutChange(false)}
+                  className={`px-3 py-2 text-sm font-medium transition-colors border-r border-gray-200 rounded-l-lg ${
+                    !isHorizontalLayout 
+                      ? 'text-white' 
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                  style={!isHorizontalLayout ? { backgroundColor: brandColor } : {}}
+                  title="Grid view"
+                >
+                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>
+                  </svg>
+                </button>
+                <button
+                  onClick={() => onLayoutChange(true)}
+                  className={`px-3 py-2 text-sm font-medium transition-colors rounded-r-lg ${
+                    isHorizontalLayout 
+                      ? 'text-white' 
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                  style={isHorizontalLayout ? { backgroundColor: brandColor } : {}}
+                  title="List view"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            
             <Button variant="outline" onClick={() => setShowIncluded(true)} className='bg-gray-200 text-gray-900 rounded-full'>
               What's included?
             </Button>
@@ -299,7 +348,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
             <CardContent className="">
               {Array.isArray(includedItems) && includedItems.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {includedItems.map((entry: any, idx: number) => {
+                  {includedItems?.map((entry: any, idx: number) => {
                     const normalized = normalizeIncludedItem(entry)
                     if (!normalized) return (
                       <div key={idx} className="p-3 bg-white rounded border text-sm text-gray-900">Invalid item</div>
