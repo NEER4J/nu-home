@@ -1,7 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { Code, Info } from 'lucide-react';
 import IntegrationTabs from './IntegrationTabs';
-import MainPageUrlManager from './MainPageUrlManager';
 
 interface PartnerProfile {
   subdomain: string | null;
@@ -115,6 +114,17 @@ export default async function IntegrationPage() {
 
   const categories = categoryAccess?.map(access => access.ServiceCategories).filter(Boolean) || [];
   
+  // Get main page URL settings for each category
+  const { data: partnerSettings } = await supabase
+    .from('PartnerSettings')
+    .select('service_category_id, main_page_url')
+    .eq('partner_id', user.id);
+
+  const mainPageUrls: Record<string, string> = {};
+  partnerSettings?.forEach(setting => {
+    mainPageUrls[setting.service_category_id] = setting.main_page_url || '';
+  });
+  
   // Generate embed codes for each category
   const embedCodes = profile ? generateEmbedCodes(categories as unknown as ServiceCategory[], profile) : [];
 
@@ -147,13 +157,8 @@ export default async function IntegrationPage() {
           </p>
         </div>
       ) : (
-        <IntegrationTabs embedCodes={embedCodes} />
+        <IntegrationTabs embedCodes={embedCodes} mainPageUrls={mainPageUrls} userId={user.id} />
       )}
-
-      {/* Main Page URL Management */}
-      <div className="mt-12">
-        <MainPageUrlManager categories={categories as unknown as ServiceCategory[]} userId={user.id} />
-      </div>
 
     
     </div>

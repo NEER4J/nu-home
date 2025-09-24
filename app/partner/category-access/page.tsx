@@ -67,33 +67,10 @@ export default async function CategoryAccessPage() {
         </p>
       </div>
 
-      {/* Intro/status card */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-8">
-        <h2 className="text-lg font-medium text-gray-900 mb-2">Your Category Status</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          You currently have access to {approvedCategories.length} service categories.
-          {pendingCategories.length > 0 && ` You have ${pendingCategories.length} pending category requests.`}
-        </p>
-
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="text-xl font-semibold text-green-600">{approvedCategories.length}</div>
-            <div className="text-sm text-green-700">Approved</div>
-          </div>
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <div className="text-xl font-semibold text-yellow-600">{pendingCategories.length}</div>
-            <div className="text-sm text-yellow-700">Pending</div>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg">
-            <div className="text-xl font-semibold text-red-600">{rejectedCategories.length}</div>
-            <div className="text-sm text-red-700">Rejected</div>
-          </div>
-        </div>
-      </div>
+   
 
       {/* Your current categories */}
       <div className="mb-8">
-        <h2 className="text-xl font-medium text-gray-900 mb-4">Your Categories</h2>
         
         {userCategoryAccess?.length === 0 ? (
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">

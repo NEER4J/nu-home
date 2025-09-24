@@ -18,9 +18,11 @@ interface EmbedCode {
 
 interface IntegrationTabsProps {
   embedCodes: EmbedCode[];
+  mainPageUrls: Record<string, string>;
+  userId: string;
 }
 
-export default function IntegrationTabs({ embedCodes }: IntegrationTabsProps) {
+export default function IntegrationTabs({ embedCodes, mainPageUrls, userId }: IntegrationTabsProps) {
   const [activeTab, setActiveTab] = useState(0);
 
   if (embedCodes.length === 0) {
@@ -63,7 +65,11 @@ export default function IntegrationTabs({ embedCodes }: IntegrationTabsProps) {
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.2 }}
         >
-          <EmbedCodeCard embedCode={embedCodes[activeTab]} />
+          <EmbedCodeCard 
+            embedCode={embedCodes[activeTab]} 
+            mainPageUrl={mainPageUrls[embedCodes[activeTab].category.service_category_id] || ''}
+            userId={userId}
+          />
         </motion.div>
       </AnimatePresence>
 

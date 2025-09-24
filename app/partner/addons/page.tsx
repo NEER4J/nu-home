@@ -6,6 +6,7 @@ import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
 import { Addon, Bundle, BundleDiscountType } from "@/types";
 import { Edit2, Trash2, ExternalLink } from "lucide-react";
+import AddonsDisplay from "@/components/partner/AddonsDisplay";
 
 export default function PartnerAddonsPage() {
   const router = useRouter();
@@ -337,48 +338,10 @@ export default function PartnerAddonsPage() {
             </nav>
           </div>
 
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Your Addons</h2>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {filteredAddons.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">No addons found. Click "Add New Addon" to create one.</div>
-            ) : (
-              <ul className="divide-y divide-gray-200">
-                {filteredAddons.map((addon) => (
-                  <li key={addon.addon_id}>
-                    <div className="px-6 py-4 flex items-center justify-between">
-                      <div className="flex items-center flex-1 min-w-0">
-                        {addon.image_link ? (
-                          <div className="flex-shrink-0 h-16 w-16 bg-gray-100 rounded-md overflow-hidden">
-                            <Image src={addon.image_link} alt={addon.title} width={64} height={64} className="h-full w-full object-cover" />
-                          </div>
-                        ) : (
-                          <div className="flex-shrink-0 h-16 w-16 bg-gray-100 rounded-md flex items-center justify-center">
-                            <span className="text-gray-400 text-xs">No image</span>
-                          </div>
-                        )}
-                        <div className="ml-4 flex-1 min-w-0">
-                          <h3 className="text-base font-medium text-gray-900 truncate">{addon.title}</h3>
-                          <p className="text-sm text-gray-500">{addon.ServiceCategories?.name || "Uncategorized"}</p>
-                          <p className="text-sm font-medium text-gray-900">£{addon.price.toFixed(2)}</p>
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 ml-4 space-x-2">
-                        <button onClick={() => router.push(`/partner/addons/${addon.addon_id}`)} className="text-blue-600 hover:text-blue-800" title="Edit">
-                          <Edit2 className="w-5 h-5" />
-                        </button>
-                        <button onClick={() => window.open(`/addons/${addon.addon_id}`, '_blank')} className="text-blue-600 hover:text-blue-800" title="View">
-                          <ExternalLink className="w-5 h-5" />
-                        </button>
-                        <button onClick={() => handleDelete(addon.addon_id)} className="text-red-600 hover:text-red-800" title="Delete">
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <AddonsDisplay 
+            addons={filteredAddons} 
+            onDelete={handleDelete}
+          />
         </>
       )}
 
