@@ -433,6 +433,15 @@ function SurveyContent() {
               postcode: surveyDetails.postcode,
               notes: surveyDetails.notes || ''
             },
+            preferred_schedule: {
+              date: surveyDetails.date || null,
+              time: surveyDetails.time || null,
+              formatted_date: surveyDetails.date ? new Date(surveyDetails.date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : null,
+              formatted_time: surveyDetails.time ? (() => {
+                const hour = parseInt(surveyDetails.time.split(':')[0])
+                return hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`
+              })() : null
+            },
             selected_items: {
               product_id: selectedProduct?.partner_product_id || null,
               addon_ids: selectedAddons && selectedAddons.length > 0 ? selectedAddons.map(addon => ({
@@ -463,6 +472,15 @@ function SurveyContent() {
               phone: surveyDetails.phone,
               postcode: surveyDetails.postcode,
               notes: surveyDetails.notes || ''
+            },
+            preferred_schedule: {
+              date: surveyDetails.date || null,
+              time: surveyDetails.time || null,
+              formatted_date: surveyDetails.date ? new Date(surveyDetails.date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : null,
+              formatted_time: surveyDetails.time ? (() => {
+                const hour = parseInt(surveyDetails.time.split(':')[0])
+                return hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`
+              })() : null
             },
             selected_items: {
               product_id: selectedProduct?.partner_product_id || null,
