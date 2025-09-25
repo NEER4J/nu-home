@@ -3,7 +3,7 @@ import Link from 'next/link';
 import NewCategoryForm from '@/components/admin/NewCategoryForm';
 
 export const metadata = {
-  title: 'Add New Service Category | Nu-Home Admin',
+  title: 'Add New Service Category | Quote AI Admin',
   description: 'Create a new service category'
 };
 

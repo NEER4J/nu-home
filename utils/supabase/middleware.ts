@@ -23,12 +23,21 @@ export const createClient = (request: NextRequest) => {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll();
+          try {
+            return request.cookies.getAll();
+          } catch (error) {
+            console.error('Error getting cookies:', error);
+            return [];
+          }
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
+          try {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value),
+            );
+          } catch (error) {
+            console.error('Error setting cookies:', error);
+          }
         },
       },
     },

@@ -75,7 +75,7 @@ interface LeadDetailData {
 }
 
 export const metadata = {
-  title: 'Lead Details | Nu-Home Partner',
+  title: 'Lead Details | Quote AI Partner',
   description: 'View detailed lead information'
 };
 

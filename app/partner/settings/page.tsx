@@ -31,11 +31,38 @@ interface PartnerSettings {
   admin_email?: string;
   gtm_event_name?: string;
   main_page_url?: string;
+  ghl_calendar_id?: string;
+  ghl_calendar_enabled?: boolean;
+  calendar_settings?: {
+    survey_booking?: {
+      enabled: boolean;
+      calendar_id?: string;
+      calendar_name?: string;
+    };
+    appointments?: {
+      enabled: boolean;
+      calendar_id?: string;
+      calendar_name?: string;
+    };
+    consultations?: {
+      enabled: boolean;
+      calendar_id?: string;
+      calendar_name?: string;
+    };
+  };
 }
 
 interface APREntry {
   months: number;
   apr: number;
+}
+
+interface GHLCalendar {
+  id: string;
+  name: string;
+  description?: string;
+  timezone: string;
+  isActive: boolean;
 }
 
 // SMTP fields (global)
@@ -136,6 +163,17 @@ export default function PartnerSettingsPage() {
   
   // GTM event name state
   const [gtmEventName, setGtmEventName] = useState('');
+  
+  // GHL Calendar states
+  const [ghlCalendars, setGhlCalendars] = useState<GHLCalendar[]>([]);
+  const [loadingGhlCalendars, setLoadingGhlCalendars] = useState(false);
+  
+  // Calendar settings for different purposes
+  const [calendarSettings, setCalendarSettings] = useState({
+    survey_booking: { enabled: false, calendar_id: '', calendar_name: '' },
+    appointments: { enabled: false, calendar_id: '', calendar_name: '' },
+    consultations: { enabled: false, calendar_id: '', calendar_name: '' }
+  });
 
   // Main page URL state
   const [mainPageUrl, setMainPageUrl] = useState('');
@@ -420,6 +458,19 @@ export default function PartnerSettingsPage() {
         setAdminEmail(result.data.admin_email || '');
         setGtmEventName(result.data.gtm_event_name || '');
         setMainPageUrl(result.data.main_page_url || '');
+        
+        // Load calendar settings
+        if (result.data.calendar_settings) {
+          setCalendarSettings({
+            survey_booking: result.data.calendar_settings.survey_booking || { enabled: false, calendar_id: '', calendar_name: '' },
+            appointments: result.data.calendar_settings.appointments || { enabled: false, calendar_id: '', calendar_name: '' },
+            consultations: result.data.calendar_settings.consultations || { enabled: false, calendar_id: '', calendar_name: '' }
+          });
+        }
+        
+        console.log('Frontend: Loaded Calendar settings:', {
+          calendar_settings: result.data.calendar_settings
+        });
       } else {
         setSettings(null);
         setAprEntries([{ months: 12, apr: 0 }]);
@@ -458,9 +509,11 @@ export default function PartnerSettingsPage() {
         admin_email: adminEmail.trim() || null,
         gtm_event_name: gtmEventName.trim() || null,
         main_page_url: mainPageUrl.trim() || null,
+        calendar_settings: calendarSettings,
       };
 
       console.log('Frontend: Sending settings data:', JSON.stringify(settingsData, null, 2));
+      console.log('Frontend: Calendar settings state:', JSON.stringify(calendarSettings, null, 2));
 
       // Use PUT if settings exist, POST if creating new
       const method = settings ? 'PUT' : 'POST';
@@ -543,11 +596,37 @@ export default function PartnerSettingsPage() {
       
       if (integration) {
         setGhlIntegration(integration);
+        // Load calendars when GHL integration is available
+        await loadGHLCalendars();
       }
     } catch (error) {
       console.error('Unexpected error loading GHL integration:', error);
     } finally {
       setGhlLoading(false);
+    }
+  };
+
+  const loadGHLCalendars = async () => {
+    setLoadingGhlCalendars(true);
+    try {
+      console.log('🔄 Fetching GHL calendars...');
+      const response = await fetch('/api/ghl/calendars');
+      console.log('📡 GHL calendars response status:', response.status);
+      
+      if (response.ok) {
+        const calendars = await response.json();
+        console.log('📅 GHL calendars received:', calendars);
+        setGhlCalendars(calendars || []);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to load GHL calendars:', response.status, errorText);
+        setGhlCalendars([]);
+      }
+    } catch (error) {
+      console.error('❌ Error loading GHL calendars:', error);
+      setGhlCalendars([]);
+    } finally {
+      setLoadingGhlCalendars(false);
     }
   };
 
@@ -1049,6 +1128,7 @@ export default function PartnerSettingsPage() {
             )}
           </div>
 
+
           <div className="mt-6">
             <button onClick={saveIntegrations} disabled={savingIntegrations || loadingIntegrations} className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-md font-medium">
               {savingIntegrations ? 'Saving...' : (loadingIntegrations ? 'Loading...' : 'Save Integrations')}
@@ -1320,6 +1400,185 @@ export default function PartnerSettingsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Calendar Settings */}
+                {ghlIntegration && (
+                  <div className="bg-gray-50 rounded-lg border p-4 mt-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                        <span className="text-white text-xs font-semibold">📅</span>
+                      </div>
+                      <h3 className="font-medium text-gray-900">Calendar Integration</h3>
+                    </div>
+                    
+                    <div className="space-y-6">
+                      {/* Fetch Calendars Button */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-700">Available Calendars</h4>
+                          <p className="text-xs text-gray-500">Fetch your GoHighLevel calendars to configure integrations</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={loadGHLCalendars}
+                          disabled={loadingGhlCalendars}
+                          className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded disabled:opacity-50"
+                        >
+                          {loadingGhlCalendars ? 'Loading...' : 'Fetch Calendars'}
+                        </button>
+                      </div>
+                      
+                      {loadingGhlCalendars && (
+                        <div className="flex items-center justify-center py-4">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                          <span className="ml-2 text-sm text-gray-600">Loading calendars...</span>
+                        </div>
+                      )}
+                      
+                      {ghlCalendars.length > 0 && (
+                        <div className="space-y-4">
+                          {/* Survey Booking Calendar */}
+                          <div className="border rounded-lg p-4 bg-white">
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-900">Survey Bookings</h4>
+                                <p className="text-xs text-gray-500">Calendar for survey appointment bookings</p>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={calendarSettings.survey_booking.enabled}
+                                onChange={(e) => setCalendarSettings(prev => ({
+                                  ...prev,
+                                  survey_booking: { ...prev.survey_booking, enabled: e.target.checked }
+                                }))}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </div>
+                            
+                            {calendarSettings.survey_booking.enabled && (
+                              <select
+                                value={calendarSettings.survey_booking.calendar_id}
+                                onChange={(e) => {
+                                  const selectedCalendar = ghlCalendars.find(c => c.id === e.target.value);
+                                  setCalendarSettings(prev => ({
+                                    ...prev,
+                                    survey_booking: {
+                                      ...prev.survey_booking,
+                                      calendar_id: e.target.value,
+                                      calendar_name: selectedCalendar?.name || ''
+                                    }
+                                  }));
+                                }}
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="">Select a calendar</option>
+                                {ghlCalendars.map((calendar) => (
+                                  <option key={calendar.id} value={calendar.id}>
+                                    {calendar.name} {calendar.timezone && `(${calendar.timezone})`}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                          
+                          {/* Appointments Calendar */}
+                          <div className="border rounded-lg p-4 bg-white">
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-900">Appointments</h4>
+                                <p className="text-xs text-gray-500">Calendar for general appointments</p>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={calendarSettings.appointments.enabled}
+                                onChange={(e) => setCalendarSettings(prev => ({
+                                  ...prev,
+                                  appointments: { ...prev.appointments, enabled: e.target.checked }
+                                }))}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </div>
+                            
+                            {calendarSettings.appointments.enabled && (
+                              <select
+                                value={calendarSettings.appointments.calendar_id}
+                                onChange={(e) => {
+                                  const selectedCalendar = ghlCalendars.find(c => c.id === e.target.value);
+                                  setCalendarSettings(prev => ({
+                                    ...prev,
+                                    appointments: {
+                                      ...prev.appointments,
+                                      calendar_id: e.target.value,
+                                      calendar_name: selectedCalendar?.name || ''
+                                    }
+                                  }));
+                                }}
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="">Select a calendar</option>
+                                {ghlCalendars.map((calendar) => (
+                                  <option key={calendar.id} value={calendar.id}>
+                                    {calendar.name} {calendar.timezone && `(${calendar.timezone})`}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                          
+                          {/* Consultations Calendar */}
+                          <div className="border rounded-lg p-4 bg-white">
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-900">Consultations</h4>
+                                <p className="text-xs text-gray-500">Calendar for consultation bookings</p>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={calendarSettings.consultations.enabled}
+                                onChange={(e) => setCalendarSettings(prev => ({
+                                  ...prev,
+                                  consultations: { ...prev.consultations, enabled: e.target.checked }
+                                }))}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </div>
+                            
+                            {calendarSettings.consultations.enabled && (
+                              <select
+                                value={calendarSettings.consultations.calendar_id}
+                                onChange={(e) => {
+                                  const selectedCalendar = ghlCalendars.find(c => c.id === e.target.value);
+                                  setCalendarSettings(prev => ({
+                                    ...prev,
+                                    consultations: {
+                                      ...prev.consultations,
+                                      calendar_id: e.target.value,
+                                      calendar_name: selectedCalendar?.name || ''
+                                    }
+                                  }));
+                                }}
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="">Select a calendar</option>
+                                {ghlCalendars.map((calendar) => (
+                                  <option key={calendar.id} value={calendar.id}>
+                                    {calendar.name} {calendar.timezone && `(${calendar.timezone})`}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {ghlCalendars.length === 0 && !loadingGhlCalendars && (
+                        <div className="text-sm text-gray-500 py-4 text-center">
+                          No calendars found. Click "Fetch Calendars" to load your GoHighLevel calendars.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

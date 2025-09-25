@@ -526,6 +526,37 @@ function SurveyContent() {
 
         console.log('Survey data saved successfully');
 
+        // Create GHL calendar event if survey booking calendar is enabled
+        if (surveyDetails.date && surveyDetails.time && partnerSettings?.calendar_settings?.survey_booking?.enabled && partnerSettings.calendar_settings.survey_booking.calendar_id) {
+          try {
+            console.log('=== CREATING GHL CALENDAR EVENT ===')
+            const calendarResponse = await fetch('/api/ghl/calendar-events', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                calendarId: partnerSettings.calendar_settings.survey_booking.calendar_id,
+                title: `Survey Booking - ${surveyDetails.firstName} ${surveyDetails.lastName}`,
+                description: `Survey booking for ${selectedProduct?.name || 'Product'}. Notes: ${surveyDetails.notes || 'No additional notes'}`,
+                startTime: new Date(`${surveyDetails.date}T${surveyDetails.time}:00`).toISOString(),
+                endTime: new Date(new Date(`${surveyDetails.date}T${surveyDetails.time}:00`).getTime() + 60 * 60 * 1000).toISOString(), // 1 hour duration
+                customerName: `${surveyDetails.firstName} ${surveyDetails.lastName}`,
+                customerEmail: surveyDetails.email,
+                customerPhone: surveyDetails.phone
+              })
+            });
+
+            if (calendarResponse.ok) {
+              console.log('GHL calendar event created successfully');
+            } else {
+              console.warn('Failed to create GHL calendar event:', await calendarResponse.text());
+            }
+          } catch (calendarError) {
+            console.error('Error creating GHL calendar event:', calendarError);
+          }
+        }
+
         // Send survey email and wait for completion before redirecting
         console.log('=== SENDING SURVEY EMAIL ===')
         try {

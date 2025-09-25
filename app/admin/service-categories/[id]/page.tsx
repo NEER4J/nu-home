@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import ServiceCategoryTabs from '@/components/admin/ServiceCategoryTabs';
 
 export const metadata = {
-  title: 'Edit Service Category | Nu-Home Admin',
+  title: 'Edit Service Category | Quote AI Admin',
   description: 'Edit a service category'
 };
 

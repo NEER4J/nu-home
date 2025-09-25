@@ -10,7 +10,7 @@ import { headers } from 'next/headers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Nu-Home',
+  title: 'Quote AI',
   description: 'Home services and products',
   metadataBase: new URL('http://localhost:3000'),
 };

@@ -6,7 +6,7 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Service Categories | Nu-Home Admin',
+  title: 'Service Categories | Quote AI Admin',
   description: 'Manage service categories'
 };
 

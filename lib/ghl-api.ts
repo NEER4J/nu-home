@@ -123,7 +123,7 @@ export class GHLAPIService {
       client_id: GHL_CLIENT_ID,
       redirect_uri: redirectUri,
       response_type: 'code',
-        scope: 'contacts.write contacts.readonly opportunities.readonly opportunities.write locations/customFields.readonly',
+      scope: 'contacts.write contacts.readonly opportunities.readonly opportunities.write locations/customFields.readonly calendars.readonly calendars.write calendars/events.readonly calendars/events.write calendars/groups.readonly calendars/groups.write calendars/resources.readonly calendars/resources.write invoices.write users.write users.readonly oauth.readonly oauth.write locations/templates.readonly locations/tags.write locations/tags.readonly locations/tasks.write locations/tasks.readonly locations/customValues.write locations/customValues.readonly locations.write locations/customFields.write',
       ...(state && { state }),
     })
 
@@ -147,7 +147,7 @@ export class GHLAPIService {
         client_secret: GHL_CLIENT_SECRET,
         grant_type: 'authorization_code',
         code,
-        user_type: 'Company', // We'll start with Company level access
+        user_type: 'Location', // Use Location level access for calendar operations
         redirect_uri: redirectUri,
       }),
     })
@@ -321,8 +321,8 @@ export class GHLAPIService {
       postalCode: contact.postalCode,
       country: contact.country || 'United Kingdom',
       customFields: contact.customFields || [],
-      source: contact.source || 'NU-Home Website',
-      tags: contact.tags || ['NU-Home Lead'],
+      source: contact.source || 'Quote AI Website',
+      tags: contact.tags || ['Quote AI Lead'],
     }
     
     // Only include address2 if it has a value (GHL may not support it)
@@ -387,7 +387,7 @@ export class GHLAPIService {
       pipelineId,
       locationId: this.locationId,
       pipelineStageId: stageId,
-      name: opportunityName || 'New Lead from NU-Home',
+      name: opportunityName || 'New Lead from Quote AI',
       status: 'open',
       monetaryValue: 0 // Adding this field from your working example
     }
