@@ -113,17 +113,17 @@ export default async function EditProductPage({
         </div>
         
         <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6">
-          <h1 className="text-lg font-medium text-red-600 mb-2">Category Access Required</h1>
+          <h1 className="text-lg font-medium text-red-600 mb-2">Services Access Required</h1>
           <p className="text-gray-700">
-            You no longer have access to the category "{product.ServiceCategories?.name}".
-            Please request access to this category before editing this product.
+            You no longer have access to the service "{product.ServiceCategories?.name}".
+            Please request access to this service before editing this product.
           </p>
           <div className="mt-4">
             <Link
               href="/partner/category-access"
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
             >
-              Request Category Access
+              Request Services Access
             </Link>
           </div>
         </div>

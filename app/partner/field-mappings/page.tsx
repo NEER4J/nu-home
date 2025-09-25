@@ -707,7 +707,7 @@ export default function FieldMappingsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Field Mappings</h1>
           <p className="mt-1 text-sm text-gray-600">Map database fields to template fields for various integrations</p>
         </div>
-        <Button onClick={handleCreateMapping}>
+        <Button onClick={handleCreateMapping} className="bg-blue-600 hover:bg-blue-700">
           <Plus className="h-4 w-4 mr-2" />
           Create Mapping
         </Button>
@@ -811,11 +811,11 @@ export default function FieldMappingsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <h4 className="font-medium text-gray-900">{mapping.display_name}</h4>
-                        <Badge variant={mapping.is_active ? 'default' : 'secondary'}>
+                        <Badge variant={mapping.is_active ? 'default' : 'secondary'} className="bg-blue-600 hover:bg-blue-700">
                           {mapping.template_type}
                         </Badge>
                         {mapping.is_system && (
-                          <Badge variant="outline">System</Badge>
+                          <Badge variant="outline">Company</Badge>
                         )}
                         {mapping.is_required && (
                           <Badge variant="destructive">Required</Badge>
@@ -852,7 +852,7 @@ export default function FieldMappingsPage() {
                     <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No field mappings found</h3>
                     <p className="text-gray-600 mb-4">Create your first field mapping to get started</p>
-                    <Button onClick={handleCreateMapping}>
+                    <Button onClick={handleCreateMapping} className="bg-blue-600 hover:bg-blue-700">
                       <Plus className="h-4 w-4 mr-2" />
                       Create First Mapping
                     </Button>

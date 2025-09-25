@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Mail, Edit, Eye, Save, RotateCcw, Users, Settings, MapPin } from 'lucide-react'
 import EmailTemplateEditor from '@/components/partner/notifications/EmailTemplateEditor'
 import LeadsMapping from '@/components/partner/notifications/LeadsMapping'
@@ -1051,26 +1052,34 @@ export default function NotificationsPage() {
 
       {/* Email Type Selection */}
       {selectedCategoryId && (
-        <div className="mb-6 border-b border-gray-200">
+        <div className="mb-6">
           {availableEmailTypes.length > 0 ? (
-            <nav className="flex space-x-8" aria-label="Email Types">
-              {availableEmailTypes.map((emailType) => (
-                <button
-                  key={emailType.id}
-                  onClick={() => {
-                    setSelectedEmailType(emailType.id)
-                    setSelectedTemplate(null)
-                  }}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    selectedEmailType === emailType.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {emailType.name}
-                </button>
-              ))}
-            </nav>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-medium text-gray-900">Email Type</h2>
+                <p className="text-sm text-gray-600">Select the email type to manage templates for</p>
+              </div>
+              <div className="w-80">
+                <Select value={selectedEmailType} onValueChange={(value) => {
+                  setSelectedEmailType(value)
+                  setSelectedTemplate(null)
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select email type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableEmailTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        <div>
+                          <div className="font-medium">{type.name}</div>
+                          <div className="text-xs text-gray-500">{type.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           ) : (
             <div className="py-8 text-center">
               <div className="bg-gray-50 rounded-lg p-6">
@@ -1092,7 +1101,6 @@ export default function NotificationsPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4">
-              <Mail className="h-5 w-5 text-gray-400" />
               <div>
                 <h2 className="text-lg font-medium text-gray-900">
                   {availableEmailTypes.find(et => et.id === selectedEmailType)?.name || 'Email Templates'}
@@ -1126,6 +1134,7 @@ export default function NotificationsPage() {
                 size="sm"
                 onClick={() => selectedTemplate && handleSaveTemplate(selectedTemplate)}
                 disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

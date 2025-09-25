@@ -94,13 +94,13 @@ export default async function AdminPartners({
     },
     active: {
       icon: <CheckCircle className="h-5 w-5 text-green-500" />,
-      badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>,
+      badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Activated</span>,
       bg: "bg-green-50",
       border: "border-green-200"
     },
     suspended: {
       icon: <XCircle className="h-5 w-5 text-red-500" />,
-      badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">Suspended</span>,
+      badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">Disabled</span>,
       bg: "bg-red-50",
       border: "border-red-200"
     }
@@ -158,7 +158,7 @@ export default async function AdminPartners({
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Active ({counts.active})
+            Activated ({counts.active})
           </Link>
           <Link
             href="/admin/partners?status=suspended"
@@ -168,7 +168,7 @@ export default async function AdminPartners({
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Suspended ({counts.suspended})
+            Disabled ({counts.suspended})
           </Link>
         </nav>
       </div>
@@ -262,7 +262,7 @@ export default async function AdminPartners({
                             type="submit"
                             className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                           >
-                            Approve
+                            Activate
                           </button>
                         </form>
                       )}
@@ -275,7 +275,7 @@ export default async function AdminPartners({
                             type="submit"
                             className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                           >
-                            Suspend
+                            Disable
                           </button>
                         </form>
                       )}
@@ -288,7 +288,7 @@ export default async function AdminPartners({
                             type="submit"
                             className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                           >
-                            Reactivate
+                            Reactive
                           </button>
                         </form>
                       )}

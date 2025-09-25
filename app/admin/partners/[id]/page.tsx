@@ -237,32 +237,32 @@ export default async function PartnerDetails({
           </div>
         </div>
         
-        {/* Right column - Category Access Management */}
+        {/* Right column - Services Access Management */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Category Access</h2>
+              <h2 className="text-lg font-medium text-gray-900">Services Access</h2>
               <div className="text-sm text-gray-500">
-                {approvedCategories.length} Approved / {pendingCategories.length} Pending / {rejectedCategories.length} Rejected
+                {approvedCategories.length} Activated / {pendingCategories.length} Pending / {rejectedCategories.length} Disabled
               </div>
             </div>
             
-            {/* Pending Category Requests */}
+            {/* Pending Services Requests */}
             {pendingCategories.length > 0 && (
               <PendingCategorySection categories={pendingCategories} partnerId={partnerId} />
             )}
             
-            {/* Approved Categories */}
+            {/* Activated Services */}
             {approvedCategories.length > 0 && (
               <ApprovedCategorySection categories={approvedCategories} partnerId={partnerId} />
             )}
             
-            {/* Rejected Categories */}
+            {/* Disabled Services */}
             {rejectedCategories.length > 0 && (
               <RejectedCategorySection categories={rejectedCategories} partnerId={partnerId} />
             )}
             
-            {/* Add new category access */}
+            {/* Add new services access */}
             {availableCategories.length > 0 && (
               <AddCategorySection categories={availableCategories} partnerId={partnerId} />
             )}

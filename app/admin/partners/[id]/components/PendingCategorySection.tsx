@@ -21,7 +21,7 @@ interface PendingCategorySectionProps {
 export default function PendingCategorySection({ categories, partnerId }: PendingCategorySectionProps) {
   return (
     <div className="mb-8">
-      <h3 className="text-md font-medium text-gray-700 mb-3">Pending Requests</h3>
+      <h3 className="text-md font-medium text-gray-700 mb-3">Pending Services</h3>
       <div className="space-y-4">
         {categories.map(category => (
           <CategoryItem 
@@ -81,7 +81,7 @@ function CategoryItem({ category, partnerId }: { category: any; partnerId: strin
               value="approved"
               className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
             >
-              Approve
+              Activate
             </button>
             
             <button
@@ -89,21 +89,21 @@ function CategoryItem({ category, partnerId }: { category: any; partnerId: strin
               onClick={() => setShowRejectForm(!showRejectForm)}
               className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
             >
-              Reject
+              Disable
             </button>
           </div>
           
           {showRejectForm && (
             <div className="mt-3">
               <label htmlFor={`notes-${category.access_id}`} className="block text-sm font-medium text-gray-700 mb-1">
-                Rejection Reason:
+                Disable Reason:
               </label>
               <textarea
                 id={`notes-${category.access_id}`}
                 name="notes"
                 rows={2}
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Provide a reason for rejection"
+                placeholder="Provide a reason for disabling"
               ></textarea>
               <button
                 type="submit"
@@ -111,7 +111,7 @@ function CategoryItem({ category, partnerId }: { category: any; partnerId: strin
                 value="rejected"
                 className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
               >
-                Confirm Rejection
+                Confirm Disable
               </button>
             </div>
           )}

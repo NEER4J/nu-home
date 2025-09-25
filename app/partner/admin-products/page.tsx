@@ -1,8 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import Link from "next/link";
-import Image from "next/image";
-import { Package, AlertTriangle } from "lucide-react";
-import AddToMyProductsButton from "@/components/partner/AddToMyProductsButton";
+import { AlertTriangle, Package } from "lucide-react";
+import AdminProductsDisplay from "@/components/partner/AdminProductsDisplay";
 import { addAdminProductToMyList } from "./actions";
 
 interface PageProps {
@@ -151,66 +150,12 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
             </div>
           </div>
         </div>
-      ) : adminProducts?.length === 0 ? (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md p-6 text-center">
-          <Package className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No products available</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            There are no products available in the selected category.
-          </p>
-        </div>
       ) : (
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {adminProducts.map((product) => {
-            const isAlreadyAdded = addedProductIds.has(product.product_id);
-            
-            return (
-              <div key={product.product_id} className="bg-white shadow overflow-hidden rounded-lg border border-gray-200">
-                <div className="h-48 w-full relative bg-gray-100">
-                  {product.image_url ? (
-                    <Image
-                      src={product.image_url}
-                      alt={product.name}
-                      fill
-                      className="object-contain p-5"
-                    />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center">
-                      <Package className="h-10 w-10 text-gray-300" />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900">{product.name}</h3>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {product.ServiceCategories?.name}
-                    </span>
-                  </div>
-                  
-                  <p className="mt-2 text-sm text-gray-500 line-clamp-3">
-                    {product.description}
-                  </p>
-                  
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-900">
-                      {product.price ? `£${product.price}` : 'Price on request'}
-                    </span>
-                    
-                    {isAlreadyAdded ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-green-100 text-green-800">
-                        Added to your products
-                      </span>
-                    ) : (
-                      <AddToMyProductsButton productId={product.product_id} onAdd={addAdminProductToMyList} />
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <AdminProductsDisplay 
+          products={adminProducts || []} 
+          addedProductIds={addedProductIds}
+          onAddProduct={addAdminProductToMyList}
+        />
       )}
     </div>
   );

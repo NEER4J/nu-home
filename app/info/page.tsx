@@ -116,10 +116,10 @@ export default function InfoPage() {
                 </ul>
               </div>
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 p-6">
-                <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Category Access</h4>
+                <h4 className="font-semibold text-slate-900 dark:text-white mb-4">Services Access</h4>
                 <ul className="space-y-2 text-slate-600 dark:text-slate-400">
-                  <li>• Request access to new categories</li>
-                  <li>• Manage existing category access</li>
+                  <li>• Request access to new services</li>
+                  <li>• Manage existing services access</li>
                   <li>• View access status</li>
                 </ul>
               </div>
