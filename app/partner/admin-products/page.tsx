@@ -172,7 +172,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                       src={product.image_url}
                       alt={product.name}
                       fill
-                      className="object-cover"
+                      className="object-contain p-5"
                     />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center">

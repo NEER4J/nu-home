@@ -116,7 +116,11 @@ export default async function RootLayout({
          
 
             {/* Main content area */}
-            <main> <Loader /> {children}</main>
+            <main className="flex-1 p-6 relative">
+              {children}
+              {/* Content area loader */}
+              <Loader minDisplayTime={0} />
+            </main>
 
            
           </div>

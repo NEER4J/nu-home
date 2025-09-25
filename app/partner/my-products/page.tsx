@@ -152,7 +152,7 @@ export default async function PartnerProductsPage({
                       src={template.image_url}
                       alt={template.name}
                       fill
-                      className="object-cover"
+                      className="object-contain p-5"
                     />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center">

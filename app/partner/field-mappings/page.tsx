@@ -138,7 +138,7 @@ const EMAIL_TYPES_BY_CATEGORY = {
 }
 
 export default function FieldMappingsPage() {
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [mappings, setMappings] = useState<FieldMapping[]>([])
   const [categories, setCategories] = useState<ServiceCategory[]>([])
@@ -699,13 +699,6 @@ export default function FieldMappingsPage() {
     return <div>{items}</div>
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
 
   return (
     <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
