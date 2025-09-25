@@ -1011,7 +1011,7 @@ export default function NotificationsPage() {
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
-            onClick={() => window.open('/partner/field-mappings', '_blank')}
+            onClick={() => window.open('/admin/field-mappings', '_blank')}
           >
             <MapPin className="h-4 w-4 mr-2" />
             Manage Field Mappings
@@ -1050,34 +1050,61 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {/* Email Type Selection */}
+      {/* Consolidated Email Type & Template Section */}
       {selectedCategoryId && (
         <div className="mb-6">
           {availableEmailTypes.length > 0 ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-medium text-gray-900">Email Type</h2>
-                <p className="text-sm text-gray-600">Select the email type to manage templates for</p>
-              </div>
-              <div className="w-80">
-                <Select value={selectedEmailType} onValueChange={(value) => {
-                  setSelectedEmailType(value)
-                  setSelectedTemplate(null)
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select email type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableEmailTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        <div>
-                          <div className="font-medium">{type.name}</div>
-                          <div className="text-xs text-gray-500">{type.description}</div>
+            <div className="">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Select Email Type</label>
+                      <Select value={selectedEmailType} onValueChange={(value) => {
+                        setSelectedEmailType(value)
+                        setSelectedTemplate(null)
+                      }}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select email type">
+                            {selectedEmailType && availableEmailTypes.find(et => et.id === selectedEmailType) && (
+                              <div>
+                                <span className="font-medium">
+                                  {availableEmailTypes.find(et => et.id === selectedEmailType)?.name}
+                                </span>
+                                <span className="text-gray-500 ml-2">
+                                  ({availableEmailTypes.find(et => et.id === selectedEmailType)?.description})
+                                </span>
+                              </div>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableEmailTypes.map((type) => (
+                            <SelectItem key={type.id} value={type.id}>
+                              <div>
+                                <div className="font-medium">{type.name}</div>
+                                <div className="text-xs text-gray-500">{type.description}</div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedEmailType && (
+                        <div className="mt-2">
+                          {adminEmail ? (
+                            <p className="text-xs text-blue-600">
+                              Admin notifications: {adminEmail}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-amber-600">
+                              No admin email configured
+                            </p>
+                          )}
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
@@ -1096,30 +1123,51 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {/* Email Template Section */}
-      {availableEmailTypes.length > 0 && selectedEmailType && (
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-              <div>
-                <h2 className="text-lg font-medium text-gray-900">
-                  {availableEmailTypes.find(et => et.id === selectedEmailType)?.name || 'Email Templates'}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {availableEmailTypes.find(et => et.id === selectedEmailType)?.description || 'Customise your email templates for different notifications'}
-                </p>
-                {adminEmail && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    Admin notifications will be sent to: {adminEmail}
-                  </p>
-                )}
-                {!adminEmail && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    No admin email configured. Configure in Settings → General Settings → Admin Email Settings
-                  </p>
-                )}
-              </div>
-            </div>
+      {/* Customer/Admin Email Tabs */}
+      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
+        <div className="mb-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <nav className="flex space-x-8" aria-label="Email Types">
+              <button
+                onClick={() => {
+                  setActiveTab('customer')
+                  selectTemplateByType('customer')
+                }}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'customer'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Customer Email
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('admin')
+                  selectTemplateByType('admin')
+                }}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'admin'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Admin Email
+              </button>
+              {ghlIntegration && (
+                <button
+                  onClick={() => setActiveTab('leads')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                    activeTab === 'leads'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Users className="h-4 w-4" />
+                  <span>Leads</span>
+                </button>
+              )}
+            </nav>
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
@@ -1148,53 +1196,6 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {/* Customer/Admin Email Tabs */}
-      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
-        <div className="mb-6 border-b border-gray-200">
-          <nav className="flex space-x-8" aria-label="Email Types">
-            <button
-              onClick={() => {
-                setActiveTab('customer')
-                selectTemplateByType('customer')
-              }}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'customer'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Customer Email
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('admin')
-                selectTemplateByType('admin')
-              }}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'admin'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Admin Email
-            </button>
-            {ghlIntegration && (
-              <button
-                onClick={() => setActiveTab('leads')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                  activeTab === 'leads'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Users className="h-4 w-4" />
-                <span>Leads</span>
-              </button>
-            )}
-          </nav>
-        </div>
-      )}
-
       {/* Field Mappings Info */}
       {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && templateFields.length === 0 && (
         <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1209,7 +1210,7 @@ export default function NotificationsPage() {
               <div className="mt-3">
                 <Button
                   size="sm"
-                  onClick={() => window.open('/partner/field-mappings', '_blank')}
+                  onClick={() => window.open('/admin/field-mappings', '_blank')}
                 >
                   <MapPin className="h-4 w-4 mr-2" />
                   Create Field Mappings
@@ -1239,7 +1240,7 @@ export default function NotificationsPage() {
           </p>
           <div className="mt-6">
             <Button
-              onClick={() => window.open('/partner/field-mappings', '_blank')}
+              onClick={() => window.open('/admin/field-mappings', '_blank')}
             >
               <MapPin className="h-4 w-4 mr-2" />
               Create Field Mappings
