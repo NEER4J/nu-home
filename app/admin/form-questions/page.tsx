@@ -4,7 +4,7 @@ import Link from 'next/link';
 import SimpleFormQuestionsEditor from '@/components/admin/SimpleFormQuestionsEditor';
 
 export const metadata = {
-  title: 'Form Question Management | Nu-Home Admin',
+  title: 'Form Question Management | Quote AI Admin',
   description: 'Manage form questions with an interactive visual editor'
 };
 

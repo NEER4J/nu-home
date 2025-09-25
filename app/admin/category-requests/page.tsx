@@ -48,9 +48,9 @@ export default async function CategoryRequestsPage() {
   return (
     <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Category Access Requests</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Services Access Requests</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Review and manage partner requests for category access.
+          Review and manage partner requests for services access.
         </p>
       </div>
       
@@ -59,7 +59,7 @@ export default async function CategoryRequestsPage() {
           <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-2" />
           <h3 className="text-lg font-medium text-gray-900 mb-1">No Pending Requests</h3>
           <p className="text-sm text-gray-500">
-            All category access requests have been processed.
+            All services access requests have been processed.
           </p>
         </div>
       ) : (
@@ -115,7 +115,7 @@ export default async function CategoryRequestsPage() {
                         className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
+                        Activate
                       </button>
                     </form>
                     
@@ -129,7 +129,7 @@ export default async function CategoryRequestsPage() {
                         className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
                       >
                         <XCircle className="h-4 w-4 mr-1" />
-                        Reject
+                        Disable
                       </button>
                     </form>
                   </div>

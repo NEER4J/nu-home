@@ -482,7 +482,7 @@ export function ProductForm({ product, categories, isEditing = false }: ProductF
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 required
               >
-                <option value="" disabled>Select a category</option>
+                <option value="" disabled>Select a service</option>
                 {categories.map((category) => (
                   <option key={category.service_category_id} value={category.service_category_id}>
                     {category.name}

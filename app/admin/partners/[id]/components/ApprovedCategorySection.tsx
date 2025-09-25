@@ -6,7 +6,7 @@ import { updateCategoryAccess } from '../../../actions';
 // Category status style
 const categoryStyle = {
   icon: <CheckCircle className="h-5 w-5 text-green-500" />,
-  badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Approved</span>,
+  badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Activated</span>,
   bgColor: "bg-green-50", 
   borderColor: "border-green-200",
   textColor: "text-green-800"
@@ -20,7 +20,7 @@ interface ApprovedCategorySectionProps {
 export default function ApprovedCategorySection({ categories, partnerId }: ApprovedCategorySectionProps) {
   return (
     <div className="mb-8">
-      <h3 className="text-md font-medium text-gray-700 mb-3">Approved Categories</h3>
+      <h3 className="text-md font-medium text-gray-700 mb-3">Activated Services</h3>
       <div className="space-y-3">
         {categories.map(category => (
           <div 
@@ -46,7 +46,7 @@ export default function ApprovedCategorySection({ categories, partnerId }: Appro
                     {categoryStyle.badge}
                     {category.is_primary && (
                       <span className="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                        Primary Category
+                        Primary Service
                       </span>
                     )}
                   </div>
@@ -58,12 +58,12 @@ export default function ApprovedCategorySection({ categories, partnerId }: Appro
                 <input type="hidden" name="partner_id" value={partnerId} />
                 <input type="hidden" name="category_id" value={category.service_category_id} />
                 <input type="hidden" name="status" value="rejected" />
-                <input type="hidden" name="notes" value="Access revoked by admin" />
+                <input type="hidden" name="notes" value="Access disabled by admin" />
                 <button
                   type="submit"
                   className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 >
-                  Revoke Access
+                  Disable Access
                 </button>
               </form>
             </div>

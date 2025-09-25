@@ -2,7 +2,6 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { createClient } from '@/utils/supabase/server';
-import Loader from '@/components/Loader';
 import { Metadata } from 'next';
 import MainHeader from '@/components/MainHeader';
 import { headers } from 'next/headers';
@@ -10,7 +9,7 @@ import { headers } from 'next/headers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Nu-Home',
+  title: 'Quote AI',
   description: 'Home services and products',
   metadataBase: new URL('http://localhost:3000'),
 };
@@ -60,7 +59,6 @@ export default async function RootLayout({
 
               {/* Main content area */}
               <main className="">
-                <Loader />
                 {children}
               </main>
              

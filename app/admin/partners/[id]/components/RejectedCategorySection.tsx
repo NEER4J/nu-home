@@ -6,7 +6,7 @@ import { updateCategoryAccess } from '../../../actions';
 // Category status style
 const categoryStyle = {
   icon: <XCircle className="h-5 w-5 text-red-500" />,
-  badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">Rejected</span>,
+  badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">Disabled</span>,
   bgColor: "bg-red-50",
   borderColor: "border-red-200",
   textColor: "text-red-800"
@@ -20,7 +20,7 @@ interface RejectedCategorySectionProps {
 export default function RejectedCategorySection({ categories, partnerId }: RejectedCategorySectionProps) {
   return (
     <div className="mb-8">
-      <h3 className="text-md font-medium text-gray-700 mb-3">Rejected Categories</h3>
+      <h3 className="text-md font-medium text-gray-700 mb-3">Disabled Services</h3>
       <div className="space-y-3">
         {categories.map(category => (
           <div 
@@ -45,7 +45,7 @@ export default function RejectedCategorySection({ categories, partnerId }: Rejec
                   <div className="flex items-center mt-1">
                     {categoryStyle.badge}
                     <span className="ml-2 text-xs text-gray-500">
-                      Rejected: {category.rejected_at ? new Date(category.rejected_at).toLocaleDateString() : 'Unknown'}
+                      Disabled: {category.rejected_at ? new Date(category.rejected_at).toLocaleDateString() : 'Unknown'}
                     </span>
                   </div>
                   {category.admin_notes && (
@@ -65,7 +65,7 @@ export default function RejectedCategorySection({ categories, partnerId }: Rejec
                   type="submit"
                   className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                 >
-                  Approve Now
+                  Activate Now
                 </button>
               </form>
             </div>

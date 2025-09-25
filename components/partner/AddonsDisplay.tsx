@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Package } from "lucide-react";
 import LayoutSwitcher from "@/components/partner/LayoutSwitcher";
+import SearchBar from "@/components/shared/SearchBar";
 
 interface Addon {
   addon_id: string;
@@ -23,7 +24,75 @@ interface AddonsDisplayProps {
 
 export default function AddonsDisplay({ addons, onDelete }: AddonsDisplayProps) {
   const router = useRouter();
-  const [layout, setLayout] = useState<'list' | 'grid'>('list');
+  const [layout, setLayout] = useState<'grid' | 'table'>('table');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Recursive function to search through nested JSON data
+  const searchInObject = (obj: any, query: string): boolean => {
+    if (obj === null || obj === undefined) return false;
+    
+    if (typeof obj === 'string') {
+      return obj.toLowerCase().includes(query);
+    }
+    
+    if (typeof obj === 'number') {
+      return String(obj).toLowerCase().includes(query);
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.some(item => searchInObject(item, query));
+    }
+    
+    if (typeof obj === 'object') {
+      return Object.entries(obj).some(([key, value]) => {
+        const keyMatch = key.toLowerCase().includes(query);
+        const valueMatch = searchInObject(value, query);
+        return keyMatch || valueMatch;
+      });
+    }
+    
+    return false;
+  };
+
+  const filteredAddons = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return addons;
+    }
+    
+    // Split search query by comma and trim each term
+    const searchTerms = searchQuery.split(',').map(term => term.trim().toLowerCase()).filter(term => term.length > 0);
+    
+    if (searchTerms.length === 0) {
+      return addons;
+    }
+    
+    return addons.filter(addon => {
+      // Check if ANY search terms match (OR logic)
+      return searchTerms.some(term => {
+        // Search in basic fields
+        const basicMatch = 
+          addon.title.toLowerCase().includes(term) ||
+          addon.ServiceCategories?.name.toLowerCase().includes(term) ||
+          String(addon.price).includes(term);
+        
+        return basicMatch;
+      });
+    });
+  }, [addons, searchQuery]);
+
+  // Handle search with loading state
+  const handleSearch = async (query: string) => {
+    setIsSearching(true);
+    setSearchQuery(query);
+    
+    // Simulate search delay for large datasets
+    if (addons.length > 100) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    
+    setIsSearching(false);
+  };
 
   if (addons.length === 0) {
     return (
@@ -33,49 +102,135 @@ export default function AddonsDisplay({ addons, onDelete }: AddonsDisplayProps) 
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+        <div className="flex flex-col">
         <h2 className="text-xl font-semibold text-gray-900">Your Addons</h2>
-        <LayoutSwitcher currentLayout={layout} onLayoutChange={setLayout} />
+           {/* Status text below search bar */}
+           <div className="">
+          {isSearching && (
+            <div className="flex items-center text-sm text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+              Searching through {addons.length} addons...
+            </div>
+          )}
+          {!isSearching && (
+            <div className="text-sm text-gray-500">
+              Showing {filteredAddons.length} of {addons.length} addons
+              {searchQuery && (
+                <span className="ml-1 text-blue-600">
+                  (filtered by "{searchQuery}")
+                  {searchQuery.includes(',') && (
+                    <span className="ml-1 text-xs text-gray-500">
+                      • Multi-term search (OR)
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        </div>
+        <div className="">
+          <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+
+          <div className="w-full sm:w-96 lg:w-[500px]">
+            {/* Search Bar */}
+            <SearchBar 
+              placeholder="Search addons (use commas for multiple terms)..." 
+              onSearch={handleSearch}
+            />
+          </div>
+          <LayoutSwitcher currentLayout={layout} onLayoutChange={setLayout} />
+          </div>
+        
+          
+        </div>
+        
+       
       </div>
 
-      {layout === 'list' ? (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <ul className="divide-y divide-gray-200">
-            {addons.map((addon) => (
-              <li key={addon.addon_id}>
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <div className="flex items-center flex-1 min-w-0">
-                    {addon.image_link ? (
-                      <div className="flex-shrink-0 h-16 w-16 bg-gray-100 rounded-md overflow-hidden">
-                        <Image src={addon.image_link} alt={addon.title} width={64} height={64} className="h-full w-full object-cover" />
+      {filteredAddons.length === 0 && searchQuery ? (
+        <div className="bg-white shadow overflow-hidden sm:rounded-md p-6 text-center">
+          <Package className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No addons found</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Try adjusting your search terms.
+          </p>
+        </div>
+      ) : layout === 'table' ? (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr className="bg-gray-50">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Addon
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Category
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Price
+                </th>
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredAddons.map((addon) => (
+                <tr key={addon.addon_id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10 relative">
+                        {addon.image_link ? (
+                          <Image
+                            src={addon.image_link}
+                            alt={addon.title}
+                            fill
+                            className="object-cover rounded-md"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-gray-100 rounded-md flex items-center justify-center">
+                            <Package className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="flex-shrink-0 h-16 w-16 bg-gray-100 rounded-md flex items-center justify-center">
-                        <span className="text-gray-400 text-xs">No image</span>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{addon.title}</div>
                       </div>
-                    )}
-                    <div className="ml-4 flex-1 min-w-0">
-                      <h3 className="text-base font-medium text-gray-900 truncate">{addon.title}</h3>
-                      <p className="text-sm text-gray-500">{addon.ServiceCategories?.name || "Uncategorized"}</p>
-                      <p className="text-sm font-medium text-gray-900">£{addon.price.toFixed(2)}</p>
                     </div>
-                  </div>
-                  <div className="flex shrink-0 ml-4 space-x-2">
-                    <button onClick={() => router.push(`/partner/addons/${addon.addon_id}`)} className="text-blue-600 hover:text-blue-800" title="Edit">
-                      <Edit2 className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => onDelete(addon.addon_id)} className="text-red-600 hover:text-red-800" title="Delete">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {addon.ServiceCategories?.name || "Uncategorized"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    £{addon.price.toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        onClick={() => router.push(`/partner/addons/${addon.addon_id}`)}
+                        className="text-blue-600 hover:text-blue-900 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        onClick={() => onDelete(addon.addon_id)}
+                        className="text-red-600 hover:text-red-900 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {addons.map((addon) => (
+          {filteredAddons.map((addon) => (
             <div key={addon.addon_id} className="bg-white shadow overflow-hidden rounded-lg border border-gray-200">
               <div className="h-48 w-full relative bg-gray-100">
                 {addon.image_link ? (

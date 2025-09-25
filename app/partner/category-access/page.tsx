@@ -40,7 +40,7 @@ export default async function CategoryAccessPage() {
   const statusInfo = {
     approved: {
       icon: <CheckCircle className="h-5 w-5 text-green-500" />,
-      badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Approved</span>,
+      badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Activated</span>,
       bgColor: "bg-green-50",
       borderColor: "border-green-200"
     },
@@ -52,7 +52,7 @@ export default async function CategoryAccessPage() {
     },
     rejected: {
       icon: <XCircle className="h-5 w-5 text-red-500" />,
-      badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">Rejected</span>,
+      badge: <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">Disabled</span>,
       bgColor: "bg-red-50",
       borderColor: "border-red-200"
     }
@@ -61,9 +61,9 @@ export default async function CategoryAccessPage() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Category Access</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Services Access</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Manage your service categories and request access to new ones.
+          Manage your services and request access to new ones.
         </p>
       </div>
 
@@ -75,22 +75,22 @@ export default async function CategoryAccessPage() {
         {userCategoryAccess?.length === 0 ? (
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">
             <Grid className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No Categories Yet</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">No Services Yet</h3>
             <p className="text-sm text-gray-500 mb-4">
-              You haven't requested access to any service categories yet.
+              You haven't requested access to any services yet.
             </p>
             <a 
               href="#request-category" 
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
             >
-              Request Your First Category
+              Request Your First Service
             </a>
           </div>
         ) : (
           <div className="space-y-6">
             {approvedCategories.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-3">Approved Categories</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-3">Activated Services</h3>
                 <div className="space-y-3">
                   {approvedCategories.map((category) => (
                     <div 
@@ -136,7 +136,7 @@ export default async function CategoryAccessPage() {
             
             {pendingCategories.length > 0 && (
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-3">Pending Categories</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-3">Pending Services</h3>
                 <div className="space-y-3">
                   {pendingCategories.map((category) => (
                     <div 
@@ -177,8 +177,8 @@ export default async function CategoryAccessPage() {
             )}
             
             {rejectedCategories.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-3">Rejected Categories</h3>
+              <div className="hidden">
+                <h3 className="text-sm font-medium text-gray-500 mb-3">Disabled Services</h3>
                 <div className="space-y-3">
                   {rejectedCategories.map((category) => (
                     <div 
@@ -202,7 +202,7 @@ export default async function CategoryAccessPage() {
                           <div className="flex items-center mt-1">
                             {statusInfo.rejected.badge}
                             <span className="ml-2 text-xs text-gray-500">
-                              Rejected on {new Date(category.rejected_at).toLocaleDateString()}
+                              Disabled on {new Date(category.rejected_at).toLocaleDateString()}
                             </span>
                           </div>
                         </div>
@@ -225,16 +225,16 @@ export default async function CategoryAccessPage() {
       {/* Request new categories */}
       <div id="request-category">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-medium text-gray-900">Request New Categories</h2>
-          <span className="text-sm text-gray-500">{availableCategories.length} categories available</span>
+          <h2 className="text-xl font-medium text-gray-900">Request New Services</h2>
+          <span className="text-sm text-gray-500">{availableCategories.length} services available</span>
         </div>
 
         {availableCategories.length === 0 ? (
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">
             <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-2" />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">All Categories Requested</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">All Services Requested</h3>
             <p className="text-sm text-gray-500">
-              You have already requested access to all available service categories.
+              You have already requested access to all available services.
             </p>
           </div>
         ) : (
@@ -242,7 +242,7 @@ export default async function CategoryAccessPage() {
             <form action={requestCategoryAccess} className="space-y-4">
               <div>
                 <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Category
+                  Select Service
                 </label>
                 <select
                   id="categoryId"
@@ -250,7 +250,7 @@ export default async function CategoryAccessPage() {
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   required
                 >
-                  <option value="">Choose a category...</option>
+                  <option value="">Choose a service...</option>
                   {availableCategories.map((category) => (
                     <option key={category.service_category_id} value={category.service_category_id}>
                       {category.name}

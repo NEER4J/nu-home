@@ -5,7 +5,7 @@ import { PartnerCodeWrapper } from '@/components/PartnerCodeWrapper';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Boiler Services | Nu-Home',
+  title: 'Boiler Services | Quote AI',
   description: 'Get expert boiler installation, repair, and maintenance services. Compare quotes from trusted local engineers.',
 };
 

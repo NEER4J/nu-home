@@ -133,7 +133,7 @@ export async function createGHLContact(leadData: LeadData): Promise<boolean> {
         })
 
         // Prepare tags - use database saved tags if available, otherwise use defaults
-        const defaultTags = ['NU-Home Lead', `Email Type: ${leadData.emailType}`, `Recipient: ${mapping.recipient_type}`]
+        const defaultTags = ['Quote AI Lead', `Email Type: ${leadData.emailType}`, `Recipient: ${mapping.recipient_type}`]
         const savedTags = Array.isArray(mapping.tags) ? mapping.tags : []
         const allTags = [...defaultTags, ...savedTags]
         
@@ -157,7 +157,7 @@ export async function createGHLContact(leadData: LeadData): Promise<boolean> {
           postalCode: leadData.postalCode || leadData.postcode,
           country: leadData.country || 'United Kingdom',
           customFields,
-          source: 'NU-Home Website',
+          source: 'Quote AI Website',
           tags: allTags
         }
 

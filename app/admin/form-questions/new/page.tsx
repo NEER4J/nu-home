@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server';
 import { QuestionForm } from '@/components/admin/QuestionForm';
 
 export const metadata = {
-  title: 'Create New Question | Nu-Home Admin',
+  title: 'Create New Question | Quote AI Admin',
   description: 'Create a new form question for quote submission forms'
 };
 

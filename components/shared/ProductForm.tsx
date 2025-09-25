@@ -667,7 +667,7 @@ export function ProductForm({
             {/* Service Category */}
             <div>
               <label htmlFor="service_category_id" className="block text-sm font-medium text-gray-700 mb-2">
-                Service Category <span className="text-red-500">*</span>
+                Select Service <span className="text-red-500">*</span>
               </label>
               <select
                 id="service_category_id"
@@ -677,7 +677,7 @@ export function ProductForm({
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 required
               >
-                <option value="" disabled>Select a category</option>
+                <option value="" disabled>Select a service</option>
                 {categories.map((category) => (
                   <option key={category.service_category_id} value={category.service_category_id}>
                     {category.name}

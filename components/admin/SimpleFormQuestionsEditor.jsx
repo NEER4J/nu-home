@@ -631,7 +631,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-start">
                   <span className="inline-flex items-center justify-center rounded-full bg-blue-100 text-blue-600 h-5 w-5 text-xs mr-2 mt-0.5">1</span>
-                  <span><strong>Select a category</strong> using the tabs at the top to edit questions for that form type.</span>
+                  <span><strong>Select a service</strong> using the tabs at the top to edit questions for that form type.</span>
                 </li>
                 <li className="flex items-start">
                   <span className="inline-flex items-center justify-center rounded-full bg-blue-100 text-blue-600 h-5 w-5 text-xs mr-2 mt-0.5">2</span>

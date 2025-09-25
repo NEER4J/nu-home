@@ -82,15 +82,15 @@ export default function FeatureLayout({ product, categorySlug, isPopular = false
             {product.description}
           </p>
           
-          {/* Specifications */}
-          {Object.keys(product.specifications || {}).length > 0 && (
+          {/* Product Fields */}
+          {Object.keys(product.product_fields || {}).length > 0 && (
             <div className="mb-6">
               <h4 className="text-sm font-medium text-gray-900 mb-2">Key Features</h4>
               <ul className="space-y-2">
-                {Object.entries(product.specifications).map(([key, value]) => (
+                {Object.entries(product.product_fields).map(([key, value]) => (
                   <li key={key} className="flex items-start gap-2 text-sm">
                     <span className="text-gray-600">{key}:</span>
-                    <span className="text-gray-900">{value}</span>
+                    <span className="text-gray-900">{String(value)}</span>
                   </li>
                 ))}
               </ul>

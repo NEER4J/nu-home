@@ -6,7 +6,7 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Service Categories | Nu-Home Admin',
+  title: 'Service Categories | Quote AI Admin',
   description: 'Manage service categories'
 };
 
@@ -69,7 +69,7 @@ export default async function ServiceCategoriesPage() {
             href="/admin/service-categories/new"
             className="inline-flex items-center px-4 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
           >
-            Add New Category
+            Add New Service
           </Link>
             </div>
         </div>

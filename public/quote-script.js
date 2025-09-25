@@ -65,7 +65,7 @@
     // const allowedOrigins = window.allowedIframeOrigins || [
     //   'http://origin.localhost:3000',
     //   'https://quote.itsneeraj.com',
-    //   'https://origin.nu-home.com'
+    //   'https://origin.Quote AI.com'
     // ];
     
     // if (!allowedOrigins.includes(event.origin)) {

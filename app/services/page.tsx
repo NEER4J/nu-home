@@ -19,7 +19,7 @@ export async function generateMetadata({
   const supabase = await createClient();
 
   // Get partner info if profile_id is provided
-  let title = 'Product Categories | Nu-Home';
+  let title = 'Product Categories | Quote AI';
   let description = 'Browse product categories from our partners';
 
   if (searchParams.profile_id) {

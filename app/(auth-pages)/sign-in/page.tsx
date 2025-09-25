@@ -12,16 +12,29 @@ import { redirect } from 'next/navigation';
 export default async function Login(props: { searchParams: Promise<Message> }) {
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
+  
+  // Only redirect if there's a valid session and no redirect_to parameter
   if (session) {
     const { data: profile } = await supabase
       .from('UserProfiles')
       .select('role')
       .eq('user_id', session.user.id)
       .single();
-    if (profile?.role === 'admin') {
-      redirect('/admin');
-    } else if (profile?.role === 'partner') {
-      redirect('/partner');
+    
+    // Check if there's a redirect_to parameter in the URL
+    const searchParams = await props.searchParams;
+    const redirectTo = searchParams && 'redirect_to' in searchParams ? searchParams.redirect_to : null;
+    
+    if (redirectTo && typeof redirectTo === 'string') {
+      // If there's a redirect_to parameter, go there instead
+      redirect(redirectTo);
+    } else {
+      // Default redirects based on role
+      if (profile?.role === 'admin') {
+        redirect('/admin');
+      } else if (profile?.role === 'partner') {
+        redirect('/partner');
+      }
     }
   }
 

@@ -447,7 +447,7 @@ export default function ImportPage() {
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border p-2"
                 >
-                  <option value="">Select a category</option>
+                  <option value="">Select a service</option>
                   {serviceCategories.map((category) => (
                     <option key={category.service_category_id} value={category.service_category_id}>
                       {category.name}

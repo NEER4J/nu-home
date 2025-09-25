@@ -135,7 +135,7 @@ export default function LeadsMapping({
                     Lead Mapping
                   </h3>
                   <p className="text-sm text-gray-500">
-                    Configure how leads are processed in GoHighLevel
+                    Configure how leads are processed in Leads Hub
                   </p>
                 </div>
               </div>

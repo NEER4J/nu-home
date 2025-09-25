@@ -243,7 +243,7 @@ export default async function Signup(props: {
                       required
                       className="w-full h-12 px-4 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
                     >
-                      <option value="">Select a category</option>
+                      <option value="">Select a service</option>
                       {categories?.map((category) => (
                         <option key={category.service_category_id} value={category.service_category_id}>
                           {category.name}

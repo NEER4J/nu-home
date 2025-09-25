@@ -1,7 +1,6 @@
 import { createClient } from '@/utils/supabase/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 // Helper to force domain from NEXT_PUBLIC_SITE_URL
 function forceDomain(url: URL) {
@@ -214,7 +213,7 @@ export async function middleware(request: NextRequest) {
         }
       }
 
-      // For partner routes, check if user has partner role
+      // For partner routes, check if user has partner role or admin access
       if (path.startsWith('/partner') && user) {
         const { data: profile } = await supabase
           .from('UserProfiles')
@@ -222,9 +221,36 @@ export async function middleware(request: NextRequest) {
           .eq('user_id', user.id)
           .single();
 
-        if (!profile || profile.role !== 'partner') {
-          return NextResponse.redirect(forceDomain(new URL('/', request.url)));
+        // Allow access if user is a partner
+        if (profile?.role === 'partner') {
+          return NextResponse.next();
         }
+        
+        // Allow access if user is admin and has active admin access
+        if (profile?.role === 'admin') {
+          const adminAccessParam = requestUrl.searchParams.get('admin_access');
+          if (adminAccessParam) {
+            // Verify the admin access session is valid
+            const { data: adminAccess } = await supabase
+              .from('superadmin_access')
+              .select('session_id, is_active, partner_user_id')
+              .eq('admin_user_id', user.id)
+              .eq('session_id', adminAccessParam)
+              .eq('is_active', true)
+              .single();
+              
+            if (adminAccess) {
+              // Add partner user ID to headers for the partner dashboard to use
+              const response = NextResponse.next();
+              response.headers.set('x-admin-access', 'true');
+              response.headers.set('x-partner-user-id', adminAccess.partner_user_id);
+              return response;
+            }
+          }
+        }
+
+        // If neither partner nor admin with valid access, redirect
+        return NextResponse.redirect(forceDomain(new URL('/', request.url)));
       }
 
       return NextResponse.next();
@@ -251,8 +277,12 @@ export async function middleware(request: NextRequest) {
   response.headers.set('x-pathname', pathname)
 
   // Refresh session if expired - required for Server Components
-  const supabase = createMiddlewareClient({ req: request, res: response })
-  await supabase.auth.getSession()
+  try {
+    const supabase = createClient(request);
+    await supabase.auth.getSession();
+  } catch (error) {
+    console.error('Session refresh error:', error);
+  }
 
   return response
 }

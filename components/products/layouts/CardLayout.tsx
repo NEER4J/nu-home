@@ -69,7 +69,7 @@ export default function CardLayout({ product, categorySlug, partner }: CardLayou
             </span>
           ) : (
             <span className="text-sm text-gray-500 italic">
-              Price on request
+              
             </span>
           )}
           <Link

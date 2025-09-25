@@ -344,7 +344,7 @@ export default async function PartnerDashboard() {
                 className="flex items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100"
               >
                 <ShoppingCart className="h-5 w-5 text-green-500 mr-3" />
-                <span className="text-sm font-medium text-gray-900">Request Category Access</span>
+                <span className="text-sm font-medium text-gray-900">Request Services Access</span>
               </Link>
             </div>
           </div>

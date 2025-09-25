@@ -474,7 +474,7 @@ export default function FormFlowEditor({ initialCategories }) {
                 onChange={handleCategoryChange}
                 className="block w-64 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
               >
-                <option value="">Select a category</option>
+                <option value="">Select a service</option>
                 {categories.map((category) => (
                   <option key={category.service_category_id} value={category.service_category_id}>
                     {category.name}
@@ -529,7 +529,7 @@ export default function FormFlowEditor({ initialCategories }) {
         {!selectedCategory ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <h3 className="mt-2 text-lg font-medium text-gray-900">Select a category to begin</h3>
+              <h3 className="mt-2 text-lg font-medium text-gray-900">Select a service to begin</h3>
               <p className="mt-1 text-sm text-gray-500">
                 Choose a service category to view and edit its questions
               </p>

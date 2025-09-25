@@ -10,7 +10,7 @@ interface AddCategorySectionProps {
 export default function AddCategorySection({ categories, partnerId }: AddCategorySectionProps) {
   return (
     <div>
-      <h3 className="text-md font-medium text-gray-700 mb-3">Add New Category Access</h3>
+      <h3 className="text-md font-medium text-gray-700 mb-3">Add New Services Access</h3>
       <form action={updateCategoryAccess} className="space-y-4">
         <input type="hidden" name="partner_id" value={partnerId} />
         <input type="hidden" name="status" value="approved" />
@@ -26,7 +26,7 @@ export default function AddCategorySection({ categories, partnerId }: AddCategor
               className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               required
             >
-              <option value="">Select a category...</option>
+              <option value="">Select a service...</option>
               {categories.map(category => (
                 <option key={category.service_category_id} value={category.service_category_id}>
                   {category.name}

@@ -70,7 +70,7 @@ export default function CategoryLayout({
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <span className="text-blue-600 font-semibold text-xl">
-                {partnerProfile?.company_name || 'Nu-Home'}
+                {partnerProfile?.company_name || 'Quote AI'}
               </span>
             </Link>
 

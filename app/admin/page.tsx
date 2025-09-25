@@ -3,8 +3,8 @@ import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Admin Dashboard | Nu-Home',
-  description: 'Manage Nu-Home quote form system',
+  title: 'Admin Dashboard | Quote AI',
+  description: 'Manage Quote AI quote form system',
 };
 
 export default async function AdminDashboard() {
