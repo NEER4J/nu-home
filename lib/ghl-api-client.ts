@@ -38,6 +38,12 @@ export interface GHLCustomField {
   options?: Array<{ id: string; name: string }>
 }
 
+export interface GHLTag {
+  id: string
+  name: string
+  color?: string
+}
+
 // Get GHL integration status
 export async function getGHLIntegration(): Promise<GHLIntegration | null> {
   try {
@@ -102,6 +108,23 @@ export async function getGHLPipelines(): Promise<any[]> {
     return data
   } catch (error) {
     console.error('Error fetching GHL pipelines:', error)
+    return []
+  }
+}
+
+// Get GHL tags
+export async function getGHLTags(): Promise<GHLTag[]> {
+  try {
+    const response = await fetch('/api/ghl/tags')
+    
+    if (!response.ok) {
+      return []
+    }
+    
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error fetching GHL tags:', error)
     return []
   }
 }

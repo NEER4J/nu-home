@@ -308,6 +308,33 @@ export class GHLAPIService {
     }
   }
 
+  // Get tags
+  async getTags(): Promise<any[]> {
+    try {
+      let endpoint = '/tags'
+      
+      // Use location-specific endpoint if we have a location token
+      if (this.userType === 'Location' && this.locationId) {
+        endpoint = `/locations/${this.locationId}/tags`
+      }
+      
+      const response = await this.makeRequest(endpoint)
+      return response.tags || []
+    } catch (error) {
+      console.warn('Could not fetch tags:', error)
+      // If location-specific endpoint fails, try global endpoint as fallback
+      if (this.userType === 'Location' && this.locationId) {
+        try {
+          const fallbackResponse = await this.makeRequest('/tags')
+          return fallbackResponse.tags || []
+        } catch (fallbackError) {
+          console.warn('Fallback tags request also failed:', fallbackError)
+        }
+      }
+      return []
+    }
+  }
+
   // Create contact
   async createContact(contact: GHLContact): Promise<any> {
     const contactData: any = {
