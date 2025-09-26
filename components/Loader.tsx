@@ -91,7 +91,7 @@ const Loader: React.FC<LoaderProps> = ({ minDisplayTime = 0 }) => {
   if (!loading) return null;
 
   return (
-    <div className="fixed inset-0 bg-white flex items-center justify-center z-50 md:left-[235px] top-[65px]">
+    <div className="fixed inset-0 bg-white flex items-center justify-center z-50 md:left-[240px] top-[0px]">
       <div className="flex flex-col items-center space-y-4">
         <div className="loader"></div>
         <p className="text-gray-600 text-sm">Loading...</p>

@@ -197,7 +197,7 @@ export default function QuestionsStep({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className={`
-                    bg-white p-6 rounded-lg border-2 ${isSelected 
+                    bg-white p-6 rounded-lg border border-2 ${isSelected 
                       ? 'border-blue-500 ring-4 ring-blue-100' 
                       : 'border-gray-200 hover:border-blue-300'} 
                     cursor-pointer transition-all shadow-sm hover:shadow-md text-center relative overflow-hidden

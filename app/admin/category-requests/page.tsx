@@ -55,7 +55,7 @@ export default async function CategoryRequestsPage() {
       </div>
       
       {pendingRequests?.length === 0 ? (
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">
+        <div className="bg-white p-6 rounded-lg border text-center">
           <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-2" />
           <h3 className="text-lg font-medium text-gray-900 mb-1">No Pending Requests</h3>
           <p className="text-sm text-gray-500">

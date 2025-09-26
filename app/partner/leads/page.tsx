@@ -73,6 +73,7 @@ export default async function PartnerLeadsPage({
     // Get filter parameters
     const statusFilter = searchParams.status as string || '';
     const categoryFilter = searchParams.category as string || '';
+    const searchQuery = searchParams.search as string || '';
     const page = parseInt(searchParams.page as string || '1', 10);
     const pageSize = 10;
     
@@ -117,6 +118,11 @@ export default async function PartnerLeadsPage({
       countQuery = countQuery.eq('service_category_id', categoryFilter);
     }
     
+    // Apply search filter to count query
+    if (searchQuery) {
+      countQuery = countQuery.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,postcode.ilike.%${searchQuery}%`);
+    }
+    
     // Get count separately first
     const { count } = await countQuery;
     
@@ -154,6 +160,11 @@ export default async function PartnerLeadsPage({
       dataQuery = dataQuery.eq('service_category_id', categoryFilter);
     }
     
+    // Apply search filter to data query
+    if (searchQuery) {
+      dataQuery = dataQuery.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,postcode.ilike.%${searchQuery}%`);
+    }
+    
     // Apply pagination
     const { data: leads, error } = await dataQuery
       .range((page - 1) * pageSize, page * pageSize - 1);
@@ -178,12 +189,13 @@ export default async function PartnerLeadsPage({
           </div>
         </div>
 
-        <div className='flex-grow overflow-auto bg-gray-50 p-6'>
+        <div className='flex-grow overflow-auto bg-gray-50 p-6 max-w-[1500px] mx-auto'>
           {/* Filters */}
           <div className="mb-6">
             <LeadFilters 
               statusFilter={statusFilter}
               categoryFilter={categoryFilter}
+              searchQuery={searchQuery}
               categories={categories}
             />
           </div>
@@ -212,13 +224,13 @@ export default async function PartnerLeadsPage({
             <div className="mt-8 flex items-center justify-between">
               <div className="flex-1 flex justify-between sm:hidden">
                 <Link
-                  href={`/partner/leads?page=${page > 1 ? page - 1 : 1}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}`}
+                  href={`/partner/leads?page=${page > 1 ? page - 1 : 1}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`}
                   className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${page <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   Previous
                 </Link>
                 <Link
-                  href={`/partner/leads?page=${page < totalPages ? page + 1 : totalPages}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}`}
+                  href={`/partner/leads?page=${page < totalPages ? page + 1 : totalPages}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`}
                   className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 ${page >= totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   Next
@@ -234,7 +246,7 @@ export default async function PartnerLeadsPage({
                 <div>
                   <nav className="relative z-0 inline-flex rounded-md -space-x-px" aria-label="Pagination">
                     <Link
-                      href={`/partner/leads?page=${page > 1 ? page - 1 : 1}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}`}
+                      href={`/partner/leads?page=${page > 1 ? page - 1 : 1}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`}
                       className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${page <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <span className="sr-only">Previous</span>
@@ -257,7 +269,7 @@ export default async function PartnerLeadsPage({
                         return (
                           <Link
                             key={pageNum}
-                            href={`/partner/leads?page=${pageNum}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}`}
+                            href={`/partner/leads?page=${pageNum}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`}
                             className={`relative inline-flex items-center px-4 py-2 border ${
                               page === pageNum ? 'bg-blue-50 border-blue-500 text-blue-600 z-10' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                             } text-sm font-medium`}
@@ -271,7 +283,7 @@ export default async function PartnerLeadsPage({
                     })}
                     
                     <Link
-                      href={`/partner/leads?page=${page < totalPages ? page + 1 : totalPages}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}`}
+                      href={`/partner/leads?page=${page < totalPages ? page + 1 : totalPages}${statusFilter ? `&status=${statusFilter}` : ''}${categoryFilter ? `&category=${categoryFilter}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`}
                       className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 ${page >= totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <span className="sr-only">Next</span>

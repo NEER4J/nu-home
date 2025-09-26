@@ -46,6 +46,14 @@ interface ServiceCategory {
   is_active: boolean
 }
 
+interface Partner {
+  id: string
+  email: string
+  full_name: string
+  company_name?: string
+  is_active: boolean
+}
+
 const EMAIL_TYPES = [
   { id: 'quote-initial', name: 'Initial Quote Request', description: 'Sent when a customer submits a quote request' },
   { id: 'quote-verified', name: 'Quote Verified', description: 'Sent when a customer completes phone verification' },
@@ -142,6 +150,8 @@ export default function FieldMappingsPage() {
   const [saving, setSaving] = useState(false)
   const [mappings, setMappings] = useState<FieldMapping[]>([])
   const [categories, setCategories] = useState<ServiceCategory[]>([])
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [selectedEmailType, setSelectedEmailType] = useState('quote-initial')
   const [editingMapping, setEditingMapping] = useState<FieldMapping | null>(null)
@@ -163,11 +173,17 @@ export default function FieldMappingsPage() {
     : []
 
   useEffect(() => {
-    loadCategories()
+    loadPartners()
   }, [])
 
   useEffect(() => {
-    if (selectedCategoryId) {
+    if (selectedPartnerId) {
+      loadCategories()
+    }
+  }, [selectedPartnerId])
+
+  useEffect(() => {
+    if (selectedPartnerId && selectedCategoryId) {
       const categorySlug = categories.find(c => c.service_category_id === selectedCategoryId)?.slug || ''
       const categoryEmailTypes = getEmailTypesForCategory(categorySlug)
       
@@ -184,14 +200,51 @@ export default function FieldMappingsPage() {
       loadMappings()
       loadSampleData()
     }
-  }, [selectedCategoryId, selectedEmailType, categories])
+  }, [selectedPartnerId, selectedCategoryId, selectedEmailType, categories])
+
+  const loadPartners = async () => {
+    try {
+      console.log('Loading partners...')
+      const { data, error } = await supabase
+        .from('UserProfiles')
+        .select('*')
+        .eq('role', 'partner')
+        .eq('status', 'active')
+        .order('contact_person')
+
+      console.log('Partners query result:', { data, error })
+
+      if (error) {
+        console.error('Error loading partners:', error)
+        toast.error('Failed to load partners')
+        return
+      }
+
+      // Transform the data to match our interface
+      const transformedData = data?.map(profile => ({
+        id: profile.user_id,
+        email: profile.email || 'No email',
+        full_name: profile.contact_person,
+        company_name: profile.company_name,
+        is_active: profile.status === 'active'
+      })) || []
+
+      console.log('Setting partners:', transformedData)
+      setPartners(transformedData)
+      if (transformedData.length > 0 && !selectedPartnerId) {
+        setSelectedPartnerId(transformedData[0].id)
+      }
+    } catch (error) {
+      console.error('Error loading partners:', error)
+      toast.error('Failed to load partners')
+    }
+  }
 
   const loadCategories = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+    if (!selectedPartnerId) return
 
-      const { data: approvedCategories, error } = await supabase
+    try {
+      const { data, error } = await supabase
         .from('UserCategoryAccess')
         .select(`
           *,
@@ -204,7 +257,7 @@ export default function FieldMappingsPage() {
             is_active
           )
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', selectedPartnerId)
         .eq('status', 'approved')
 
       if (error) {
@@ -213,7 +266,7 @@ export default function FieldMappingsPage() {
         return
       }
 
-      const categories = approvedCategories
+      const categories = data
         ?.map(ac => ac.ServiceCategories)
         .filter(cat => cat && cat.is_active) as ServiceCategory[]
 
@@ -230,16 +283,13 @@ export default function FieldMappingsPage() {
   }
 
   const loadMappings = async () => {
-    if (!selectedCategoryId) return
+    if (!selectedPartnerId || !selectedCategoryId) return
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
       const { data, error } = await supabase
         .from('email_field_mappings')
         .select('*')
-        .eq('partner_id', user.id)
+        .eq('partner_id', selectedPartnerId)
         .eq('service_category_id', selectedCategoryId)
         .eq('email_type', selectedEmailType)
         .order('created_at', { ascending: false })
@@ -259,9 +309,14 @@ export default function FieldMappingsPage() {
 
 
   const handleCreateMapping = () => {
+    if (!selectedPartnerId) {
+      toast.error('Please select a partner first')
+      return
+    }
+    
     setEditingMapping({
       id: '',
-      partner_id: '',
+      partner_id: selectedPartnerId,
       service_category_id: selectedCategoryId || '',
       email_type: selectedEmailType,
       template_field_name: '',
@@ -294,6 +349,10 @@ export default function FieldMappingsPage() {
     if (!editingMapping) return
 
     // Validate required fields
+    if (!selectedPartnerId) {
+      toast.error('Please select a partner')
+      return
+    }
     if (!selectedCategoryId) {
       toast.error('Please select a service category')
       return
@@ -301,12 +360,9 @@ export default function FieldMappingsPage() {
 
     setSaving(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
       const mappingData = {
         ...editingMapping,
-        partner_id: user.id,
+        partner_id: selectedPartnerId,
         service_category_id: selectedCategoryId,
         email_type: selectedEmailType
       }
@@ -369,16 +425,13 @@ export default function FieldMappingsPage() {
   }
 
   const copyDefaultMappings = async () => {
-    if (!selectedCategoryId || !selectedEmailType) return
+    if (!selectedPartnerId || !selectedCategoryId || !selectedEmailType) return
 
     setSaving(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
       // Call the copy function
       const { error } = await supabase.rpc('copy_default_field_mappings', {
-        p_partner_id: user.id,
+        p_partner_id: selectedPartnerId,
         p_service_category_id: selectedCategoryId
       })
 
@@ -707,14 +760,45 @@ export default function FieldMappingsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Field Mappings</h1>
           <p className="mt-1 text-sm text-gray-600">Map database fields to template fields for various integrations</p>
         </div>
-        <Button onClick={handleCreateMapping} className="bg-blue-600 hover:bg-blue-700">
+        <Button onClick={handleCreateMapping} className="bg-blue-600 hover:bg-blue-700" disabled={!selectedPartnerId}>
           <Plus className="h-4 w-4 mr-2" />
           Create Mapping
         </Button>
       </div>
 
+      {/* Partner Selection */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-medium text-gray-900">Select Partner</h2>
+            <p className="text-sm text-gray-600">Choose which partner to manage field mappings for</p>
+            <p className="text-xs text-gray-500 mt-1">Partners loaded: {partners.length}</p>
+          </div>
+          <div className="w-80">
+            <Select value={selectedPartnerId || ''} onValueChange={setSelectedPartnerId}>
+              <SelectTrigger>
+                <SelectValue placeholder={partners.length > 0 ? "Select a partner" : "Loading partners..."} />
+              </SelectTrigger>
+              <SelectContent>
+                {partners.length > 0 ? (
+                  partners.map((partner) => (
+                    <SelectItem key={partner.id} value={partner.id}>
+                      {partner.company_name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-partners" disabled>
+                    No partners found
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
       {/* Category filter tabs */}
-      {categories.length > 0 && (
+      {selectedPartnerId && categories.length > 0 && (
         <div className="mb-6 border-b border-gray-200">
           <nav className="flex overflow-x-auto pb-px" aria-label="Categories">
             {categories.map((category) => (
@@ -745,7 +829,7 @@ export default function FieldMappingsPage() {
       )}
 
       {/* Email Type Selection */}
-      {selectedCategoryId && availableEmailTypes.length > 0 && (
+      {selectedPartnerId && selectedCategoryId && availableEmailTypes.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
@@ -775,7 +859,7 @@ export default function FieldMappingsPage() {
 
 
       {/* Field Mappings Content */}
-      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
+      {selectedPartnerId && selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
         <div className="space-y-6">
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -864,6 +948,14 @@ export default function FieldMappingsPage() {
         </div>
       )}
 
+      {/* No Partner Selected Message */}
+      {!selectedPartnerId && (
+        <div className="text-center py-12">
+          <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Partner</h3>
+          <p className="text-gray-600 mb-4">Choose a partner from the dropdown above to manage their field mappings</p>
+        </div>
+      )}
 
       {/* Create/Edit Form Modal - Fullscreen */}
       {showCreateForm && editingMapping && (

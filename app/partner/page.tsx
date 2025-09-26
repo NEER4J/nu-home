@@ -152,7 +152,7 @@ export default async function PartnerDashboard() {
             </div>
             {!customDomainVerified && (
               <Link 
-                href="/partner/profile" 
+                href="/partner/configuration" 
                 className="text-sm font-medium text-yellow-700 hover:text-yellow-600"
               >
                 Verify Domain
@@ -164,7 +164,7 @@ export default async function PartnerDashboard() {
 
       {/* Dashboard stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-lg border">
           <div className="flex items-center mb-4">
             <div className="p-2 bg-blue-50 rounded-md">
               <Package className="h-6 w-6 text-blue-500" />
@@ -185,17 +185,17 @@ export default async function PartnerDashboard() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-lg border">
           <div className="flex items-center mb-4">
             <div className="p-2 bg-green-50 rounded-md">
               <Users className="h-6 w-6 text-green-500" />
             </div>
-            <h3 className="ml-3 text-lg font-medium text-gray-900">Categories</h3>
+            <h3 className="ml-3 text-lg font-medium text-gray-900">Services</h3>
           </div>
           <div className="flex items-end justify-between">
             <div>
               <p className="text-3xl font-semibold text-gray-900">{approvedCategories.length}</p>
-              <p className="text-sm text-gray-500">Approved categories</p>
+              <p className="text-sm text-gray-500">Approved services</p>
             </div>
             <Link 
               href="/partner/category-access" 
@@ -206,7 +206,7 @@ export default async function PartnerDashboard() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-lg border">
           <div className="flex items-center mb-4">
             <div className="p-2 bg-purple-50 rounded-md">
               <ShoppingCart className="h-6 w-6 text-purple-500" />
@@ -233,9 +233,9 @@ export default async function PartnerDashboard() {
         {/* Left column */}
         <div className="lg:col-span-2 space-y-6">
           {/* Categories */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+          <div className="bg-white p-6 rounded-lg border">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Your Categories</h2>
+              <h2 className="text-lg font-medium text-gray-900">Your Services</h2>
               <Link 
                 href="/partner/category-access" 
                 className="text-sm font-medium text-blue-600 hover:text-blue-500"
@@ -246,7 +246,7 @@ export default async function PartnerDashboard() {
             
             {approvedCategories.length === 0 && pendingCategories.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                <p>You don't have any categories yet.</p>
+                <p>You don't have any services yet.</p>
                 <Link 
                   href="/partner/category-access" 
                   className="mt-2 inline-block px-4 py-2 bg-blue-50 text-blue-600 rounded-md text-sm font-medium"
@@ -327,7 +327,7 @@ export default async function PartnerDashboard() {
             )}
           </div>
              {/* Quick actions */}
-             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+             <div className="bg-white p-6 rounded-lg border">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
             
             <div className="space-y-2">
@@ -357,7 +357,7 @@ export default async function PartnerDashboard() {
         
           
           {/* Latest Leads */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+          <div className="bg-white p-6 rounded-lg border">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-medium text-gray-900">Latest Leads</h2>
               <Link 

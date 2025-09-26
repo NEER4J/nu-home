@@ -3,8 +3,8 @@ import './globals.css';
 import { Inter } from 'next/font/google';
 import { createClient } from '@/utils/supabase/server';
 import { Metadata } from 'next';
-import MainHeader from '@/components/MainHeader';
 import { headers } from 'next/headers';
+import { Toaster } from '@/components/ui/sonner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -55,7 +55,6 @@ export default async function RootLayout({
           <div className="flex flex-col h-screen bg-gray-50">
             {/* Main content */}
             <div className="flex-1 flex flex-col">
-              <MainHeader isLoggedIn={isLoggedIn} companyName={companyName} logoUrl={logoUrl} />
 
               {/* Main content area */}
               <main className="">
@@ -65,6 +64,7 @@ export default async function RootLayout({
             </div>
           </div>
         )}
+        <Toaster />
       </body>
     </html>
   );

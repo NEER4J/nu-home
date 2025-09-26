@@ -377,7 +377,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
                   const stepQuestions = questionsByStep[step];
                   
                   return (
-                    <div key={step} id={`step-${step}`} className="bg-white p-6 rounded-lg -sm border border-gray-200">
+                    <div key={step} id={`step-${step}`} className="bg-white p-6 rounded-lg border -sm border border-gray-200">
                       <div className="flex justify-between items-center mb-4">
                         <h2 className="text-lg font-medium text-gray-900">
                           Step {step}

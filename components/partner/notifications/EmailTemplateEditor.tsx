@@ -13,7 +13,8 @@ import {
   Hash, 
   Copy,
   Send,
-  Mail
+  Mail,
+  Search
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/utils/supabase/client'
@@ -57,6 +58,8 @@ export default function EmailTemplateEditor({
   const [renderedHtml, setRenderedHtml] = useState('')
   const [activeEditorTab, setActiveEditorTab] = useState('editor')
   const [partnerProfile, setPartnerProfile] = useState<any>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -164,6 +167,10 @@ export default function EmailTemplateEditor({
     const fieldTag = isHtmlField ? `{{{${fieldName}}}}` : `{{${fieldName}}}`
     navigator.clipboard.writeText(fieldTag)
     toast.success(`Field tag ${fieldTag} copied to clipboard`)
+    
+    // Show visual feedback
+    setCopiedField(fieldName)
+    setTimeout(() => setCopiedField(null), 2000) // Clear after 2 seconds
   }
 
   const sendTestEmail = async () => {
@@ -231,8 +238,14 @@ export default function EmailTemplateEditor({
     }
   }
 
-  // Group template fields by category
-  const categorizedFields = templateFields.reduce((acc, field) => {
+  // Filter and group template fields by category
+  const filteredFields = templateFields.filter(field => 
+    field.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    field.field_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    field.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const categorizedFields = filteredFields.reduce((acc, field) => {
     const categoryName = field.category || 'General'
     const existingCategory = acc.find(cat => cat.name === categoryName)
     
@@ -369,7 +382,7 @@ export default function EmailTemplateEditor({
             )}
 
             {/* Test Email Section */}
-            <div className="border rounded-lg p-4 bg-blue-50">
+            <div className="border rounded-lg p-4 bg-blue-50 hidden">
               <h3 className="text-base font-semibold mb-3 flex items-center">
                 <Mail className="h-4 w-4 mr-2" />
                 Test Your Email
@@ -423,21 +436,32 @@ export default function EmailTemplateEditor({
                 {/* How to Use */}
                 <div>
                   <h3 className="font-semibold mb-3 text-blue-700">💡 Quick Start Guide</h3>
-                  <div className="space-y-3 text-sm">
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <strong>Step 1:</strong> Click copy button next to any field below
-                    </div>
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <strong>Step 2:</strong> Paste it in your email content where you want customer data to appear
-                    </div>
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <strong>Step 3:</strong> Use "Send Test" to see the result!
-                    </div>
-                    <div className="p-3 bg-orange-50 rounded-lg border-l-4 border-orange-400">
-                      <strong>⚠️ Important:</strong> Fields marked with <Badge variant="outline" className="text-xs px-1 mx-1">HTML</Badge> use triple braces <code>{`{{{field}}}`}</code> to render HTML content. Regular text fields use double braces <code>{`{{field}}`}</code>.
-                    </div>
+                  <div className="text-sm text-gray-600">
+                    Click copy button next to any field, paste in your email content, then use "Send Test" to see the result!
                   </div>
+                </div>
 
+                {/* Search Bar with Admin Notifications */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="field-search" className="text-sm font-medium">Search Fields</Label>
+                    {partnerProfile && (
+                      <div className="text-xs text-blue-600">
+                        Admin: {partnerProfile.contact_person ? `info@${partnerProfile.company_name?.toLowerCase().replace(/\s+/g, '')}.com` : 'info@yourcompany.com'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="field-search"
+                      type="text"
+                      placeholder="Search fields by name or description..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
 
                 {/* Dynamic Fields from Database */}
@@ -493,9 +517,13 @@ export default function EmailTemplateEditor({
                                       copyFieldTag(field.field_name, field.field_type === 'html_template')
                                     }}
                                     title="Copy field tag"
-                                    className="h-6 w-6 p-0 shrink-0"
+                                    className="h-6 w-6 p-0 shrink-0 text-gray-500 hover:text-gray-700"
                                   >
-                                    <Copy className="h-3 w-3" />
+                                    {copiedField === field.field_name ? (
+                                      <span className="text-xs font-medium text-green-600 pr-5">Copied!</span>
+                                    ) : (
+                                      <Copy className="h-3 w-3" />
+                                    )}
                                   </Button>
                                 </div>
                               </div>
@@ -508,16 +536,23 @@ export default function EmailTemplateEditor({
                 ) : (
                   <div className="text-center py-8">
                     <Hash className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                    <h3 className="text-sm font-medium text-gray-900 mb-1">No Fields Available</h3>
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">
+                      {searchQuery ? 'No Fields Found' : 'No Fields Available'}
+                    </h3>
                     <p className="text-xs text-gray-500 mb-4">
-                      No field mappings have been configured for this email type yet.
+                      {searchQuery 
+                        ? `No fields match "${searchQuery}". Try a different search term.`
+                        : 'No field mappings have been configured for this email type yet.'
+                      }
                     </p>
-                    <Button
-                      size="sm"
-                      onClick={() => window.open('/partner/field-mappings', '_blank')}
-                    >
-                      Create Field Mappings
-                    </Button>
+                    {!searchQuery && (
+                      <Button
+                        size="sm"
+                        onClick={() => window.open('/partner/field-mappings', '_blank')}
+                      >
+                        Create Field Mappings
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

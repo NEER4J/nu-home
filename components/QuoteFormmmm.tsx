@@ -211,7 +211,7 @@ export default function QuoteForm({
   }
   
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white p-6 rounded-lg -md">
+    <div className="w-full max-w-2xl mx-auto bg-white p-6 rounded-lg border -md">
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
           {error}
