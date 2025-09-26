@@ -38,16 +38,24 @@ interface GHLMapping {
   is_default: boolean
 }
 
+interface GHLTag {
+  id: string
+  name: string
+  color?: string
+}
+
 interface LeadsMappingProps {
   ghlIntegration: any
   ghlFieldMappings: GHLMapping[]
   ghlPipelines: GHLPipeline[]
   ghlCustomFields: GHLField[]
+  ghlTags?: GHLTag[]
   templateFields: TemplateField[]
   ghlLoading: boolean
   ghlSaving: boolean
   onSaveMapping: (mapping: GHLMapping) => Promise<void>
   onRefresh: () => void
+  onRefreshTags: () => void
   onUpdateMapping: (mappingId: string, updates: Partial<GHLMapping>) => void
 }
 
@@ -56,11 +64,13 @@ export default function LeadsMapping({
   ghlFieldMappings,
   ghlPipelines,
   ghlCustomFields,
+  ghlTags = [],
   templateFields,
   ghlLoading,
   ghlSaving,
   onSaveMapping,
   onRefresh,
+  onRefreshTags,
   onUpdateMapping
 }: LeadsMappingProps) {
   const [activeMapping, setActiveMapping] = useState<string | null>(null)
@@ -283,18 +293,24 @@ export default function LeadsMapping({
                     )}
                   </div>
                 </h4>
-                <button
-                  onClick={() => toggleSection('tags')}
-                  className="text-gray-400 hover:text-gray-600 transition-all duration-200 hover:bg-gray-100 rounded-full p-1"
-                >
-                  <div className={`transform transition-transform duration-200 ${expandedSections.tags ? 'rotate-0' : 'rotate-90'}`}>
-                    {expandedSections.tags ? '−' : '+'}
-                  </div>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <Button onClick={onRefreshTags} variant="outline" size="sm">
+                    Refresh Tags
+                  </Button>
+                  <button
+                    onClick={() => toggleSection('tags')}
+                    className="text-gray-400 hover:text-gray-600 transition-all duration-200 hover:bg-gray-100 rounded-full p-1"
+                  >
+                    <div className={`transform transition-transform duration-200 ${expandedSections.tags ? 'rotate-0' : 'rotate-90'}`}>
+                      {expandedSections.tags ? '−' : '+'}
+                    </div>
+                  </button>
+                </div>
               </div>
               
               {expandedSections.tags && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Selected Tags Display */}
                   <div className="flex flex-wrap items-center gap-2 p-4 border border-gray-200 rounded-lg bg-gray-50 min-h-[60px]">
                     {Array.isArray(mapping.tags) && mapping.tags.length > 0 ? (
                       <>
@@ -324,37 +340,102 @@ export default function LeadsMapping({
                       <span className="text-gray-500 text-sm">No tags added yet</span>
                     )}
                   </div>
-                  
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={newTag}
-                      onChange={(e) => setNewTag(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
+
+                  {/* GHL Tags Selection */}
+                  {ghlTags && ghlTags.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-sm font-medium text-gray-700">
+                          Available GoHighLevel Tags ({ghlTags.length})
+                        </h5>
+                        <Button onClick={onRefreshTags} variant="outline" size="sm">
+                          Refresh
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[120px] overflow-y-auto border border-gray-200 rounded-lg p-2">
+                        {ghlTags.map((ghlTag) => {
+                          const isSelected = Array.isArray(mapping.tags) && mapping.tags.includes(ghlTag.name)
+                          return (
+                            <button
+                              key={ghlTag.id}
+                              onClick={() => {
+                                if (isSelected) {
+                                  const currentTags = Array.isArray(mapping.tags) ? mapping.tags : []
+                                  const updatedTags = currentTags.filter(tag => tag !== ghlTag.name)
+                                  onUpdateMapping(mapping.mapping_id, { tags: updatedTags })
+                                } else {
+                                  const currentTags = Array.isArray(mapping.tags) ? mapping.tags : []
+                                  if (!currentTags.includes(ghlTag.name)) {
+                                    onUpdateMapping(mapping.mapping_id, { tags: [...currentTags, ghlTag.name] })
+                                  }
+                                }
+                              }}
+                              className={`flex items-center space-x-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                                isSelected
+                                  ? 'bg-blue-100 border-blue-300 text-blue-800'
+                                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: ghlTag.color || '#6B7280' }}
+                              />
+                              <span className="truncate">{ghlTag.name}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom Tag Input */}
+                  <div className="space-y-3">
+                    <h5 className="text-sm font-medium text-gray-700">Add Custom Tags</h5>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={newTag}
+                        onChange={(e) => setNewTag(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            addTag(mapping.mapping_id, newTag)
+                            setNewTag('')
+                          }
+                        }}
+                        placeholder="Type custom tag and press Enter"
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <Button
+                        onClick={() => {
                           addTag(mapping.mapping_id, newTag)
                           setNewTag('')
-                        }
-                      }}
-                      placeholder="Type tag and press Enter"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <Button
-                      onClick={() => {
-                        addTag(mapping.mapping_id, newTag)
-                        setNewTag('')
-                      }}
-                      disabled={!newTag.trim()}
-                      size="sm"
-                      variant="outline"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                        }}
+                        disabled={!newTag.trim()}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Press Enter to add custom tags. These will be applied to {mapping.recipient_type} leads in GoHighLevel.
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    Press Enter to add tags. These will be applied to {mapping.recipient_type} leads in GoHighLevel.
-                  </p>
+
+                  {/* Empty State for GHL Tags */}
+                  {(!ghlTags || ghlTags.length === 0) && (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
+                      <Tag className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 mb-2">No GoHighLevel tags found</p>
+                      <p className="text-xs text-gray-500 mb-3">
+                        Create tags in your GoHighLevel account or add custom tags below.
+                      </p>
+                      <Button onClick={onRefreshTags} variant="outline" size="sm">
+                        Refresh Tags
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

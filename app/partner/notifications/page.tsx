@@ -243,6 +243,7 @@ export default function NotificationsPage() {
   const [ghlOpportunities, setGhlOpportunities] = useState<any[]>([])
   const [ghlCustomFields, setGhlCustomFields] = useState<any[]>([])
   const [ghlPipelines, setGhlPipelines] = useState<any[]>([])
+  const [ghlTags, setGhlTags] = useState<any[]>([])
   const [ghlLoading, setGhlLoading] = useState(false)
   const [ghlSaving, setGhlSaving] = useState(false)
   const [loadingStages, setLoadingStages] = useState<string | null>(null)
@@ -868,6 +869,14 @@ export default function NotificationsPage() {
           setGhlPipelines([])
         }
         
+        // Load GHL tags
+        try {
+          await loadGHLTags()
+        } catch (tagsError) {
+          console.error('Error loading GHL tags:', tagsError)
+          setGhlTags([])
+        }
+        
         // Load field mappings for current category and email type
         await loadGHLFieldMappings()
       } else {
@@ -879,6 +888,18 @@ export default function NotificationsPage() {
       console.error('Error loading GHL integration:', error)
     } finally {
       setGhlLoading(false)
+    }
+  }
+
+  const loadGHLTags = async () => {
+    try {
+      const { getGHLTags } = await import('@/lib/ghl-api-client')
+      const tags = await getGHLTags()
+      console.log('🏷️ GHL Tags loaded:', tags)
+      setGhlTags(tags || [])
+    } catch (error) {
+      console.error('Error loading GHL tags:', error)
+      setGhlTags([])
     }
   }
 
@@ -1168,30 +1189,32 @@ export default function NotificationsPage() {
                 </button>
               )}
             </nav>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResetTemplate}
-                disabled={saving}
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset to Default
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => selectedTemplate && handleSaveTemplate(selectedTemplate)}
-                disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Save Changes
-              </Button>
-            </div>
+            {activeTab !== 'leads' && (
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetTemplate}
+                  disabled={saving}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset to Default
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => selectedTemplate && handleSaveTemplate(selectedTemplate)}
+                  disabled={saving}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  Save Changes
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1256,11 +1279,13 @@ export default function NotificationsPage() {
           ghlFieldMappings={ghlFieldMappings}
           ghlPipelines={ghlPipelines}
           ghlCustomFields={ghlCustomFields}
+          ghlTags={ghlTags}
           templateFields={templateFields}
           ghlLoading={ghlLoading}
           ghlSaving={ghlSaving}
           onSaveMapping={saveGHLFieldMappings}
           onRefresh={loadGHLIntegration}
+          onRefreshTags={loadGHLTags}
           onUpdateMapping={updateGHLFieldMapping}
         />
       )}
