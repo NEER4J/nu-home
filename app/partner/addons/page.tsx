@@ -278,12 +278,20 @@ export default function PartnerAddonsPage() {
         <h1 className="text-2xl font-semibold text-gray-900">My Addons</h1>
         <div className="flex gap-2">
           {activeTab === 'addons' && (
-            <button 
-              onClick={() => router.push("/partner/addons/new")}
-              className="inline-flex justify-center py-2 px-4 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Add New Addon
-            </button>
+            <>
+              <button 
+                onClick={() => router.push("/partner/admin-addons")}
+                className="inline-flex justify-center py-2 px-4 border border-gray-300 bg-white text-gray-700 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Browse Catalogue
+              </button>
+              <button 
+                onClick={() => router.push("/partner/addons/new")}
+                className="inline-flex justify-center py-2 px-4 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Add New Addon
+              </button>
+            </>
           )}
           {activeTab === 'bundles' && (
             <button 

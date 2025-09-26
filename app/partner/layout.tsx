@@ -142,13 +142,14 @@ export default function PartnerLayout({
             
             <li>
               <Link 
-                href="/partner/category-access" 
+                href="/partner/admin-addons" 
                 className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
               >
-                <Grid className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
-                Services
+                <Gift className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                Addon Catalogue
               </Link>
             </li>
+          
             
          
             
@@ -174,6 +175,17 @@ export default function PartnerLayout({
               <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Account
               </div>
+            </li>
+
+  
+            <li>
+              <Link 
+                href="/partner/category-access" 
+                className="flex items-center px-4 py-2 text-sm text-gray-700 rounded-md hover:bg-blue-50 hover:text-blue-600 group"
+              >
+                <Grid className="mr-3 h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                Services
+              </Link>
             </li>
 
             <li>

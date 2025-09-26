@@ -9,9 +9,81 @@ import Image from "next/image";
 interface AddonFormProps {
   initialData?: Addon | null;
   onSuccess?: () => void;
+  customSubmitHandler?: (formData: any) => Promise<void>;
+  isAdminMode?: boolean;
 }
 
-export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
+// Helper function to validate URLs
+const isValidUrl = (string: string): boolean => {
+  try {
+    new URL(string);
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
+
+// Image preview component with fallback
+const ImagePreview = ({ src, alt }: { src: string; alt: string }) => {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [useNextImage, setUseNextImage] = useState(false); // Start with false to avoid config issues
+
+  // Try to use regular img first, then optionally Next.js Image after server restart
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    console.error('Failed to load image:', src);
+    setImageError(true);
+    setImageLoaded(true);
+  };
+
+  return (
+    <div className="relative w-full h-full">
+      {useNextImage && !imageError ? (
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          className="object-cover"
+          onLoad={handleImageLoad}
+          onError={() => {
+            console.warn('Next.js Image failed, falling back to regular img for:', src);
+            setUseNextImage(false);
+            setImageError(false);
+            setImageLoaded(false);
+          }}
+        />
+      ) : !imageError ? (
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-cover"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs text-center p-2">
+          <div>
+            <div className="text-gray-300 mb-1">⚠️</div>
+            <div>Image failed to load</div>
+          </div>
+        </div>
+      )}
+      
+      {!imageLoaded && !imageError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default function AddonForm({ initialData, onSuccess, customSubmitHandler, isAdminMode = false }: AddonFormProps) {
   const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
@@ -80,30 +152,36 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
-
-      const addonData = {
-        ...formData,
-        partner_id: user.id,
-        max_count: formData.allow_multiple ? formData.max_count : null,
-      };
-
-      if (initialData) {
-        // Update existing addon
-        const { error } = await supabase
-          .from("Addons")
-          .update(addonData)
-          .eq("addon_id", initialData.addon_id);
-
-        if (error) throw error;
+      // If custom submit handler is provided (for admin mode), use it
+      if (customSubmitHandler) {
+        await customSubmitHandler(formData);
       } else {
-        // Create new addon
-        const { error } = await supabase
-          .from("Addons")
-          .insert([addonData]);
+        // Default partner addon submission
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No authenticated user");
 
-        if (error) throw error;
+        const addonData = {
+          ...formData,
+          partner_id: user.id,
+          max_count: formData.allow_multiple ? formData.max_count : null,
+        };
+
+        if (initialData) {
+          // Update existing addon
+          const { error } = await supabase
+            .from("Addons")
+            .update(addonData)
+            .eq("addon_id", initialData.addon_id);
+
+          if (error) throw error;
+        } else {
+          // Create new addon
+          const { error } = await supabase
+            .from("Addons")
+            .insert([addonData]);
+
+          if (error) throw error;
+        }
       }
 
       if (onSuccess) {
@@ -113,6 +191,7 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
       }
     } catch (error) {
       console.error("Error saving addon:", error);
+      alert("Failed to save addon. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -260,17 +339,22 @@ export default function AddonForm({ initialData, onSuccess }: AddonFormProps) {
                   id="image_link"
                   value={formData.image_link}
                   onChange={(e) => setFormData(prev => ({ ...prev, image_link: e.target.value }))}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter image URL"
+                  className={`w-full px-3 py-2 bg-white border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:border-transparent ${
+                    formData.image_link && !isValidUrl(formData.image_link)
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-200 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
+                  placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
                 />
+                {formData.image_link && !isValidUrl(formData.image_link) && (
+                  <p className="mt-1 text-sm text-red-600">Please enter a valid URL</p>
+                )}
               </div>
-              {formData.image_link && (
+              {formData.image_link && isValidUrl(formData.image_link) && (
                 <div className="relative h-24 w-24 rounded-lg overflow-hidden border border-gray-200">
-                  <Image
-                    src={formData.image_link}
-                    alt="Addon preview"
-                    fill
-                    className="object-cover"
+                  <ImagePreview 
+                    src={formData.image_link} 
+                    alt="Addon preview" 
                   />
                 </div>
               )}

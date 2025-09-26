@@ -2,9 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { exportLeadsToCSV } from '@/app/partner/actions';
+import { convertLeadsToCSV, downloadCSV } from '@/lib/csv-utils';
 
 interface Category {
   service_category_id: string;
@@ -28,6 +30,7 @@ export default function LeadFilters({
   const [status, setStatus] = useState(statusFilter || '');
   const [category, setCategory] = useState(categoryFilter || '');
   const [search, setSearch] = useState(searchQuery || '');
+  const [isExporting, setIsExporting] = useState(false);
 
   // Apply filters when they change
   const applyFilters = () => {
@@ -80,6 +83,30 @@ export default function LeadFilters({
     setSearch('');
   };
 
+  // Export leads to CSV
+  const handleExportCSV = async () => {
+    try {
+      setIsExporting(true);
+      
+      const leads = await exportLeadsToCSV({
+        statusFilter: status,
+        categoryFilter: category,
+        searchQuery: search.trim()
+      });
+      
+      const csvContent = convertLeadsToCSV(leads);
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `leads-export-${timestamp}.csv`;
+      
+      downloadCSV(csvContent, filename);
+    } catch (error) {
+      console.error('Error exporting leads:', error);
+      alert('Failed to export leads. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Apply filters when status or category changes
   useEffect(() => {
     // Only apply filters when values change from default
@@ -101,7 +128,7 @@ export default function LeadFilters({
 
   return (
     <div className="mb-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {/* Search */}
         <div>
           <label htmlFor="search-filter" className="block text-sm font-medium text-gray-700 mb-1">
@@ -173,6 +200,19 @@ export default function LeadFilters({
           </select>
         </div>
         
+        {/* Export CSV Button */}
+        <div className="flex items-end">
+          <Button
+            type="button"
+            onClick={handleExportCSV}
+            disabled={isExporting}
+            className="bg-blue-600 hover:bg-blue-700 text-white py-4 px-4 rounded-full shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {isExporting ? 'Exporting...' : 'Export CSV'}
+          </Button>
+        </div>
+
         {/* Clear Filters Button */}
         <div className="flex items-end">
           <button
