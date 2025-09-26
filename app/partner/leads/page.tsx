@@ -189,7 +189,7 @@ export default async function PartnerLeadsPage({
           </div>
         </div>
 
-        <div className='flex-grow overflow-auto bg-gray-50 pt-6'>
+        <div className='flex-grow overflow-auto bg-gray-50 p-6 max-w-[1500px] mx-auto'>
           {/* Filters */}
           <div className="mb-6">
             <LeadFilters 

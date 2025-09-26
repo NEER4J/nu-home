@@ -75,7 +75,7 @@ export default async function AdminAddonsPage({ searchParams }: PageProps) {
   const addedAddonIds = new Set(partnerAddons?.map(a => a.base_admin_addon_id).filter(Boolean) || []);
   
   return (
-    <div className="max-w-[1500px] mx-auto">
+    <div className="mx-auto max-w-[1500px] p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Addons Catalogue</h1>

@@ -113,7 +113,7 @@ export default function ProductFilters({
   if (filterFields.length === 0) return null
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm">
+    <div className="bg-white p-6 rounded-lg border shadow-sm">
       <h2 className="text-lg font-semibold mb-4">Filters</h2>
       
       <div className="space-y-6">

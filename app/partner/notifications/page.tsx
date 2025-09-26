@@ -1275,7 +1275,7 @@ export default function NotificationsPage() {
           </p>
           <div className="mt-6">
             <Button
-              onClick={() => window.open('/partner/settings', '_blank')}
+              onClick={() => window.open('/partner/configuration', '_blank')}
               variant="outline"
             >
               Go to Settings

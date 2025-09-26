@@ -57,7 +57,7 @@ export default function MainHeader({ isLoggedIn, companyName, logoUrl }: { isLog
                           Profile
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
+                      <DropdownMenuItem asChild> 
                         <form action={signOutAction} className="w-full">
                           <button
                             type="submit"

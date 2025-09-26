@@ -50,7 +50,7 @@ export default async function PartnerPendingPage() {
               While waiting, you can complete your profile information.
             </p>
             <Link
-              href="/partner/settings"
+              href="/partner/configuration"
               className="inline-flex items-center text-blue-600 font-medium hover:text-blue-500"
             >
               Update profile <ArrowRight className="ml-1 h-4 w-4" />

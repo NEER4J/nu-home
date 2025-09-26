@@ -59,7 +59,7 @@ export default async function CategoryAccessPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="mx-auto max-w-[1500px] p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Services Access</h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -73,7 +73,7 @@ export default async function CategoryAccessPage() {
       <div className="mb-8">
         
         {userCategoryAccess?.length === 0 ? (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">
+          <div className="bg-white p-6 rounded-lg border text-center">
             <Grid className="h-10 w-10 text-gray-400 mx-auto mb-2" />
             <h3 className="text-lg font-medium text-gray-900 mb-1">No Services Yet</h3>
             <p className="text-sm text-gray-500 mb-4">
@@ -230,7 +230,7 @@ export default async function CategoryAccessPage() {
         </div>
 
         {availableCategories.length === 0 ? (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center">
+          <div className="bg-white p-6 rounded-lg border text-center">
             <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-2" />
             <h3 className="text-lg font-medium text-gray-900 mb-1">All Services Requested</h3>
             <p className="text-sm text-gray-500">
@@ -238,7 +238,7 @@ export default async function CategoryAccessPage() {
             </p>
           </div>
         ) : (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+          <div className="bg-white p-6 rounded-lg border">
             <form action={requestCategoryAccess} className="space-y-4">
               <div>
                 <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700 mb-1">
