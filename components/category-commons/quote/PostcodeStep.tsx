@@ -47,9 +47,6 @@ export default function PostcodeStep({
   const [showDropdown, setShowDropdown] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
-  const [suggestions, setSuggestions] = useState<{postcode: string, address: string}[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [highlightedSuggestionIndex, setHighlightedSuggestionIndex] = useState(-1)
   const [showManualEntry, setShowManualEntry] = useState(false)
   const [manualAddress, setManualAddress] = useState({
     address_line_1: '',
@@ -64,10 +61,8 @@ export default function PostcodeStep({
     country: 'United Kingdom'
   })
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const suggestionsRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const suggestionRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   // Animation variants
   const containerVariants = {
@@ -129,72 +124,6 @@ export default function PostcodeStep({
     }
   };
 
-  // Search postcode suggestions using direct Webuild API call
-  const searchSuggestions = async (partial: string) => {
-    if (!partial.trim() || partial.trim().length < 2) {
-      setSuggestions([])
-      setShowSuggestions(false)
-      setHighlightedSuggestionIndex(-1)
-      return
-    }
-
-    try {
-      // Check if API key is available
-      if (!process.env.NEXT_PUBLIC_WEBUILD_API_KEY) {
-        console.error('NEXT_PUBLIC_WEBUILD_API_KEY is not configured')
-        setSuggestions([])
-        setShowSuggestions(false)
-        setHighlightedSuggestionIndex(-1)
-        return
-      }
-
-      // Clean partial postcode - remove spaces and convert to uppercase
-      const cleanPartial = partial.replace(/\s+/g, '').toUpperCase()
-      
-      // Call postcode server directly
-      const response = await fetch(`https://webuildapi.com/post-code-lookup/api/suggestions/${cleanPartial}`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_WEBUILD_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      
-      if (!data.suggestions || data.suggestions.length === 0) {
-        setSuggestions([])
-        setShowSuggestions(false)
-        setHighlightedSuggestionIndex(-1)
-        return
-      }
-      
-      // Transform suggestions to include postcodes
-      const suggestions = data.suggestions.map((suggestion: any) => ({
-        postcode: suggestion.postcode,
-        address: suggestion.address
-      }))
-      
-      // Clear address dropdown when showing suggestions
-      setAddresses([])
-      setShowDropdown(false)
-      setHighlightedIndex(-1)
-      
-      setSuggestions(suggestions)
-      setShowSuggestions(true)
-      setHighlightedSuggestionIndex(-1)
-      // Reset refs array for new suggestions
-      suggestionRefs.current = new Array(suggestions.length).fill(null)
-    } catch (err) {
-      console.error('Postcode suggestions error:', err)
-      setSuggestions([])
-      setShowSuggestions(false)
-      setHighlightedSuggestionIndex(-1)
-    }
-  }
 
   // Search addresses using direct Webuild API call
   const searchAddresses = async (postcode: string, isLiveSearch = false) => {
@@ -308,10 +237,6 @@ export default function PostcodeStep({
         return
       }
       
-      // Clear suggestions when showing addresses
-      setSuggestions([])
-      setShowSuggestions(false)
-      setHighlightedSuggestionIndex(-1)
       
       setAddresses(addresses)
       setShowDropdown(true)
@@ -331,14 +256,6 @@ export default function PostcodeStep({
     }
   }
 
-  const handleSuggestionSelect = (suggestion: {postcode: string, address: string}) => {
-    setPostcode(suggestion.postcode)
-    setShowSuggestions(false)
-    setHighlightedSuggestionIndex(-1)
-    setSuggestions([])
-    // Trigger address search with the selected postcode
-    searchAddresses(suggestion.postcode)
-  }
 
   // Save address data to database
   const saveAddressToDatabase = async (address: Address) => {
@@ -380,9 +297,6 @@ export default function PostcodeStep({
     setSelectedAddress(address)
     setShowDropdown(false)
     setHighlightedIndex(-1)
-    setShowSuggestions(false)
-    setHighlightedSuggestionIndex(-1)
-    setSuggestions([])
     setPostcode(address.postcode)
     onValueChange(address.postcode)
     
@@ -458,38 +372,6 @@ export default function PostcodeStep({
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Handle suggestions dropdown
-    if (showSuggestions && suggestions.length > 0) {
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault()
-          setHighlightedSuggestionIndex(prev => {
-            const newIndex = prev < suggestions.length - 1 ? prev + 1 : 0
-            return newIndex
-          })
-          return
-        case 'ArrowUp':
-          e.preventDefault()
-          setHighlightedSuggestionIndex(prev => {
-            const newIndex = prev > 0 ? prev - 1 : suggestions.length - 1
-            return newIndex
-          })
-          return
-        case 'Enter':
-          e.preventDefault()
-          if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestions.length) {
-            handleSuggestionSelect(suggestions[highlightedSuggestionIndex])
-          }
-          return
-        case 'Escape':
-          setShowSuggestions(false)
-          setHighlightedSuggestionIndex(-1)
-          setSuggestions([])
-          inputRef.current?.blur()
-          return
-      }
-    }
-
     // Handle addresses dropdown
     if (showDropdown && addresses.length > 0) {
       switch (e.key) {
@@ -552,22 +434,16 @@ export default function PostcodeStep({
     const newTimeout = setTimeout(() => {
       const cleanPostcode = value.replace(/\s+/g, '').toUpperCase()
       
-      if (cleanPostcode.length >= 2 && cleanPostcode.length < 7) {
-        // Show suggestions for partial postcodes
-        searchSuggestions(cleanPostcode)
-      } else if (cleanPostcode.length >= 7) {
+      if (cleanPostcode.length >= 7) {
         // Search for addresses when postcode is complete
         searchAddresses(value.trim(), true)
       } else {
-        // Clear both dropdowns when input is too short
+        // Clear dropdown when input is too short
         setAddresses([])
         setShowDropdown(false)
         setHighlightedIndex(-1)
-        setSuggestions([])
-        setShowSuggestions(false)
-        setHighlightedSuggestionIndex(-1)
       }
-    }, 300) // 300ms delay for live search
+    }, 500) // 500ms delay for live search
     
     setSearchTimeout(newTimeout)
   }
@@ -581,13 +457,6 @@ export default function PostcodeStep({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Only hide suggestions dropdown on outside click
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false)
-        setHighlightedSuggestionIndex(-1)
-        setSuggestions([])
-      }
-      
       // For address dropdown, only hide if clicking outside AND no address is selected
       // This allows the dropdown to persist until an address is actually selected
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -668,7 +537,6 @@ export default function PostcodeStep({
               }}
               maxLength={8}
               autoComplete="postal-code"
-              whileFocus={{ scale: 1.02 }}
               transition={{ duration: 0.1 }}
             />
                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2">
@@ -684,8 +552,6 @@ export default function PostcodeStep({
                    type="button"
                    onClick={handleSearchClick}
                    className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-                   whileHover={{ scale: 1.1 }}
-                   whileTap={{ scale: 0.9 }}
                    transition={{ duration: 0.1 }}
                  >
                    <Search size={20} className="text-gray-400 hover:text-gray-600" />
@@ -694,61 +560,6 @@ export default function PostcodeStep({
              </div>
           </div>
           
-                     {/* Postcode Suggestions Dropdown */}
-           <div className="relative" ref={suggestionsRef}>
-             <AnimatePresence>
-               {showSuggestions && suggestions.length > 0 && !showDropdown && (
-                 <motion.div
-                   variants={dropdownVariants}
-                   initial="hidden"
-                   animate="visible"
-                   exit="exit"
-                   className="absolute top-0 left-0 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                 >
-                   <div className="p-2">
-                     <motion.p 
-                       className="text-sm text-gray-600 px-3 py-2 border-b"
-                       variants={addressItemVariants}
-                     >
-                       Postcode suggestions (use ↑↓ arrow keys and Enter):
-                     </motion.p>
-                     <div>
-                       {suggestions.map((suggestion, index) => (
-                         <motion.button
-                           key={index}
-                           ref={(el) => { suggestionRefs.current[index] = el }}
-                           onClick={() => handleSuggestionSelect(suggestion)}
-                           className={`w-full text-left p-3 rounded-md flex items-start space-x-3 transition-colors ${
-                             index === highlightedSuggestionIndex 
-                               ? 'border-l-4' 
-                               : 'hover:bg-gray-50'
-                           }`}
-                           style={index === highlightedSuggestionIndex ? {
-                             backgroundColor: companyColor ? `${companyColor}10` : '#dbeafe',
-                             borderLeftColor: companyColor || '#3b82f6'
-                           } : {}}
-                           variants={addressItemVariants}
-                           whileHover={{ scale: 1.01 }}
-                           whileTap={{ scale: 0.99 }}
-                           transition={{ duration: 0.05 }}
-                         >
-                           <MapPin size={16} className={`mt-1 flex-shrink-0 ${
-                             index === highlightedSuggestionIndex ? '' : 'text-gray-400'
-                           }`} style={index === highlightedSuggestionIndex ? { color: companyColor || '#3b82f6' } : {}} />
-                           <div className="flex-1 min-w-0">
-                             <div className="flex items-center space-x-2 mb-1">
-                               <p className="font-medium text-gray-900">{suggestion.postcode}</p>
-                             </div>
-                             <p className="text-sm text-gray-600">{suggestion.address}</p>
-                           </div>
-                         </motion.button>
-                       ))}
-                     </div>
-                   </div>
-                 </motion.div>
-               )}
-             </AnimatePresence>
-           </div>
           
           <AnimatePresence>
             {error && (
@@ -770,7 +581,7 @@ export default function PostcodeStep({
        {!showManualEntry && (
          <div className="relative" ref={dropdownRef}>
            <AnimatePresence>
-             {showDropdown && addresses.length > 0 && !showSuggestions && (
+             {showDropdown && addresses.length > 0 && (
               <motion.div
                 variants={dropdownVariants}
                 initial="hidden"
@@ -778,30 +589,22 @@ export default function PostcodeStep({
                 exit="exit"
                 className="absolute top-0 left-0 right-0 z-50 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"
               >
-                <div className="p-2">
+                <div className="p-0">
                   <motion.p 
                     className="text-sm text-gray-600 px-3 py-2 border-b"
                     variants={addressItemVariants}
                   >
                     Select your address (use ↑↓ arrow keys and Enter):
                   </motion.p>
-                  {!selectedAddress && (
-                    <motion.p 
-                      className="text-xs text-blue-600 px-3 py-1 bg-blue-50 border-b"
-                      variants={addressItemVariants}
-                    >
-                      💡 Click on an address below to select it
-                    </motion.p>
-                  )}
                   <div>
                     {addresses.map((address, index) => (
                       <motion.button
                         key={index}
                         ref={(el) => { itemRefs.current[index] = el }}
                         onClick={() => handleAddressSelect(address)}
-                        className={`w-full text-left p-3 rounded-md flex items-start space-x-3 transition-colors ${
+                        className={`w-full text-left p-3 border-b border-gray-300 transition-colors ${
                           index === highlightedIndex 
-                            ? 'border-l-4' 
+                            ? 'border-l-2 bg-blue-50' 
                             : 'hover:bg-gray-50'
                         }`}
                         style={index === highlightedIndex ? {
@@ -809,46 +612,28 @@ export default function PostcodeStep({
                           borderLeftColor: companyColor || '#3b82f6'
                         } : {}}
                         variants={addressItemVariants}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
                         transition={{ duration: 0.05 }}
                       >
-                        <MapPin size={16} className={`mt-1 flex-shrink-0 ${
-                          index === highlightedIndex ? '' : 'text-gray-400'
-                        }`} style={index === highlightedIndex ? { color: companyColor || '#3b82f6' } : {}} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2 mb-1">
                             <p className="font-medium text-gray-900 truncate">{address.address_line_1}</p>
-                            {address.street_number && (
-                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                                #{address.street_number}
-                              </span>
-                            )}
-                          </div>
-                          
-                          {address.address_line_2 && (
+                            {address.address_line_2 && (
                             <p className="text-sm text-gray-600 mb-1">{address.address_line_2}</p>
                           )}
-                          
-                          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                            <span>{address.town_or_city}</span>
+
+                          <p className="text-sm text-gray-600">{address.town_or_city}</p>
                             {address.county && (
                               <>
-                                <span>•</span>
-                                <span>{address.county}</span>
+                                <p className="text-sm text-gray-600">{address.county}</p>
                               </>
                             )}
-                            <span>•</span>
-                            <span className="font-medium">{address.postcode}</span>
                           </div>
+                          
                           
                           {(address.building_name || address.sub_building) && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {address.building_name && (
-                                <span className="text-xs px-2 py-1 rounded" style={{
-                                  backgroundColor: companyColor ? `${companyColor}20` : '#dbeafe',
-                                  color: companyColor || '#1d4ed8'
-                                }}>
+                                <span className="text-xs text-gray-600">
                                   {address.building_name}
                                 </span>
                               )}
@@ -872,6 +657,22 @@ export default function PostcodeStep({
                       Showing {addresses.length} addresses • Use arrow keys to navigate
                     </motion.p>
                   )}
+                  
+                  {/* Manual Entry Option */}
+                  <motion.div 
+                    className="border-t border-gray-200"
+                    variants={addressItemVariants}
+                  >
+                    <motion.button
+                      type="button"
+                      onClick={() => setShowManualEntry(true)}
+                      className="w-full text-left p-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-between"
+                      transition={{ duration: 0.05 }}
+                    >
+                      <span>Can't find your address?</span>
+                      <span className="text-blue-600 font-medium">Enter manually</span>
+                    </motion.button>
+                  </motion.div>
                 </div>
               </motion.div>
             )}
@@ -887,12 +688,12 @@ export default function PostcodeStep({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="bg-green-50 border border-green-200 rounded-lg p-4"
+            className="bg-gray-50 border border-gray-200 rounded-lg p-4"
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
-                <MapPin size={16} className="text-green-600" />
-                <span className="text-sm font-medium text-green-800">Selected Address:</span>
+                <MapPin size={16} className="text-gray-600" />
+                <span className="text-sm font-medium text-gray-800">Selected Address:</span>
               </div>
               <div className="flex space-x-2">
                 <button
@@ -931,9 +732,6 @@ export default function PostcodeStep({
                     setShowDropdown(false)
                     setHighlightedIndex(-1)
                     setAddresses([])
-                    setSuggestions([])
-                    setShowSuggestions(false)
-                    setHighlightedSuggestionIndex(-1)
                     // Notify parent to clear its state
                     onValueChange('')
                     if (onAddressSelect) {
@@ -944,7 +742,7 @@ export default function PostcodeStep({
                       inputRef.current?.focus()
                     }, 100)
                   }}
-                  className="text-sm text-green-700 hover:text-green-800 underline cursor-pointer"
+                  className="text-sm text-gray-700 hover:text-gray-800 underline cursor-pointer"
                 >
                   Change
                 </button>
@@ -971,7 +769,7 @@ export default function PostcodeStep({
               </div>
               
               {(selectedAddress.building_name || selectedAddress.sub_building || selectedAddress.street_name) && (
-                <div className="pt-2 border-t border-green-200">
+                <div className="pt-2 border-t border-gray-200">
                   <p className="text-xs font-medium text-green-800 mb-1">Additional Details:</p>
                   <div className="flex flex-wrap gap-2">
                     {selectedAddress.street_name && (
@@ -980,16 +778,12 @@ export default function PostcodeStep({
                       </span>
                     )}
                     {selectedAddress.building_name && (
-                      <span className="text-xs px-2 py-1 rounded border" style={{
-                        backgroundColor: companyColor ? `${companyColor}20` : '#dbeafe',
-                        color: companyColor || '#1d4ed8',
-                        borderColor: companyColor ? `${companyColor}40` : '#93c5fd'
-                      }}>
+                      <span className="text-xs px-2 py-1 rounded border bg-gray-50 text-gray-700" >
                         Building: {selectedAddress.building_name}
                       </span>
                     )}
                     {selectedAddress.sub_building && (
-                      <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-200">
+                      <span className="text-xs bg-gray-50 text-gray-700 px-2 py-1 rounded border border-gray-200">
                         Unit: {selectedAddress.sub_building}
                       </span>
                     )}
@@ -1001,25 +795,6 @@ export default function PostcodeStep({
         )}
       </AnimatePresence>
 
-      {/* Manual Address Input Option */}
-      {!selectedAddress && !showManualEntry && (
-        <motion.div 
-          className="text-center"
-          variants={itemVariants}
-        >
-          <p className="text-sm text-gray-600 mb-2">Can't find your address?</p>
-          <motion.button
-            type="button"
-            onClick={() => setShowManualEntry(true)}
-            className="hover:underline text-sm font-medium transition-opacity hover:opacity-80 company-text"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ duration: 0.05 }}
-          >
-            Enter address manually
-          </motion.button>
-        </motion.div>
-      )}
 
       {/* Manual Address Entry Form */}
       <AnimatePresence>
@@ -1037,8 +812,6 @@ export default function PostcodeStep({
                 type="button"
                 onClick={() => setShowManualEntry(false)}
                 className="text-gray-400 hover:text-gray-600"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
                 transition={{ duration: 0.05 }}
               >
                 ✕
@@ -1068,7 +841,6 @@ export default function PostcodeStep({
                     onBlur={(e) => {
                       e.target.style.boxShadow = '';
                     }}
-                    whileFocus={{ scale: 1.02 }}
                     transition={{ duration: 0.1 }}
                   />
                 </div>
@@ -1093,7 +865,6 @@ export default function PostcodeStep({
                     onBlur={(e) => {
                       e.target.style.boxShadow = '';
                     }}
-                    whileFocus={{ scale: 1.02 }}
                     transition={{ duration: 0.1 }}
                   />
                 </div>
@@ -1121,7 +892,6 @@ export default function PostcodeStep({
                     onBlur={(e) => {
                       e.target.style.boxShadow = '';
                     }}
-                    whileFocus={{ scale: 1.02 }}
                     transition={{ duration: 0.1 }}
                   />
                 </div>
@@ -1146,7 +916,6 @@ export default function PostcodeStep({
                     onBlur={(e) => {
                       e.target.style.boxShadow = '';
                     }}
-                    whileFocus={{ scale: 1.02 }}
                     transition={{ duration: 0.1 }}
                   />
                 </div>
@@ -1225,7 +994,6 @@ export default function PostcodeStep({
                     onBlur={(e) => {
                       e.target.style.boxShadow = '';
                     }}
-                    whileFocus={{ scale: 1.02 }}
                     transition={{ duration: 0.1 }}
                   />
                 </div>
@@ -1250,7 +1018,6 @@ export default function PostcodeStep({
                     onBlur={(e) => {
                       e.target.style.boxShadow = '';
                     }}
-                    whileFocus={{ scale: 1.02 }}
                     transition={{ duration: 0.1 }}
                   />
                 </div>
@@ -1269,7 +1036,6 @@ export default function PostcodeStep({
                     onChange={(e) => handleManualInputChange('postcode', e.target.value.toUpperCase())}
                     placeholder="Postcode"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    whileFocus={{ scale: 1.02 }}
                     transition={{ duration: 0.1 }}
                   />
                 </div>
@@ -1283,7 +1049,6 @@ export default function PostcodeStep({
                     value={manualAddress.country}
                     onChange={(e) => handleManualInputChange('country', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    whileFocus={{ scale: 1.02 }}
                     transition={{ duration: 0.1 }}
                   >
                     <option value="United Kingdom">United Kingdom</option>
@@ -1315,8 +1080,6 @@ export default function PostcodeStep({
                 type="button"
                 onClick={() => setShowManualEntry(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.05 }}
               >
                 Cancel
@@ -1326,8 +1089,6 @@ export default function PostcodeStep({
                 onClick={handleManualAddressSubmit}
                 className="flex-1 px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors"
                 style={{ backgroundColor: companyColor }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.05 }}
               >
                 Use this address
@@ -1358,8 +1119,6 @@ export default function PostcodeStep({
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
           style={selectedAddress ? { backgroundColor: companyColor } : {}}
-          whileHover={selectedAddress ? { scale: 1.02 } : {}}
-          whileTap={selectedAddress ? { scale: 0.98 } : {}}
           transition={{ duration: 0.05 }}
         >
           Next
