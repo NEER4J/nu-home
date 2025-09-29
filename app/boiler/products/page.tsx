@@ -7,10 +7,11 @@ import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import ProductHeaderTile from '@/components/category-commons/product/ProductHeaderTile'
 import ProductFaqs from '@/components/category-commons/product/ProductFaqs'
 import UserInfoSection from '@/components/category-commons/product/UserInfoSection'
+import ReviewSection from '@/components/category-commons/product/ReviewSection'
+import MainCTA from '@/components/category-commons/product/MainCTA'
 import FinanceCalculator from '@/components/FinanceCalculator'
 import ImageGallery from '@/components/ImageGallery'
 import { resolvePartnerByHost } from '@/lib/partner'
-import { ProductsLoader } from '@/components/category-commons/Loader'
 import ProductLoadingSteps from '@/components/category-commons/product/ProductLoadingSteps'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +19,56 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Check, ShieldCheck, Droplets, Flame, Box, ChevronDown } from 'lucide-react'
 import IframeNavigationTracker from '@/components/IframeNavigationTracker'
+
+// Number formatting utility
+const formatPrice = (price: number, showDecimals: boolean = true): string => {
+  if (showDecimals) {
+    return new Intl.NumberFormat('en-GB', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(price)
+  } else {
+    return new Intl.NumberFormat('en-GB', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(price)
+  }
+}
+
+// Specifications Dropdown Component
+const SpecificationsDropdown = ({ specs }: { specs: any[] }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  
+  return (
+    <div className="mb-2 mt-2">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Check className="w-5 h-5 text-green-500" strokeWidth={2} />
+          <span className="text-sm font-medium text-gray-700">
+            Specifications ({specs.length})
+          </span>
+        </div>
+        <ChevronDown 
+          className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        />
+      </button>
+      
+      {isOpen && (
+        <div className="mt-2 space-y-1 border border-gray-200 rounded-lg bg-white p-3">
+          {specs.map((spec: any, index: number) => (
+            <div key={index} className="flex items-center gap-2 text-sm text-gray-700">
+              <Check className="w-4 h-4 text-green-500 flex-shrink-0" strokeWidth={2} />
+              <span>{spec.items}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // Helper function to save data to lead_submission_data table
 const saveLeadSubmissionData = async (
@@ -111,7 +162,31 @@ interface PartnerSettings {
   apr_settings: Record<number, number> | null
   otp_enabled: boolean | null
   included_items: Array<any> | null
+  non_included_items: Array<any> | null
   faqs: Array<any> | null
+  review_section?: {
+    enabled: boolean
+    title: string
+    subtitle?: string
+    reviews: {
+      id: string
+      name: string
+      rating: number
+      text: string
+    }[]
+    buttonText?: string
+    buttonUrl?: string
+    buttonDescription?: string
+  }
+  main_cta?: {
+    enabled: boolean
+    title: string
+    subtitle?: string
+    button_text: string
+    button_url?: string
+    background_color?: string
+    text_color?: string
+  }
   created_at?: string | null
   updated_at?: string | null
 }
@@ -167,6 +242,10 @@ function BoilerProductsContent() {
   const [isHorizontalLayout, setIsHorizontalLayout] = useState(true)
   const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
   const [debugInfo, setDebugInfo] = useState<any>(null)
+  
+  // Product pagination states
+  const [visibleProductsCount, setVisibleProductsCount] = useState(6)
+  const productsPerBatch = 6
 
   // Filters
   const [filterBoilerType, setFilterBoilerType] = useState<string | null>(null)
@@ -887,11 +966,30 @@ function BoilerProductsContent() {
     })
   }, [filteredProducts])
 
+  // Get visible products based on pagination
+  const visibleProducts = useMemo(() => {
+    return displayProducts.slice(0, visibleProductsCount)
+  }, [displayProducts, visibleProductsCount])
+
+  // Calculate remaining products
+  const remainingProducts = displayProducts.length - visibleProductsCount
+  const hasMoreProducts = remainingProducts > 0
+
+  // Helper function to check if review section is enabled
+  const isReviewSectionEnabled = () => {
+    return partnerSettings?.review_section?.enabled && partnerSettings.review_section.reviews.length > 0
+  }
+
+  // Helper function to check if main CTA is enabled
+  const isMainCtaEnabled = () => {
+    return partnerSettings?.main_cta?.enabled && partnerSettings.main_cta.title && partnerSettings.main_cta.button_text
+  }
+
   const productsForEmail = useMemo(() => {
     return displayProducts.map((p) => ({
       id: p.partner_product_id,
       name: p.name,
-      priceLabel: (p as any).priceLabel as string,
+      priceLabel: `£${formatPrice(getCurrentPrice(p))}`,
     }))
   }, [displayProducts])
 
@@ -906,6 +1004,22 @@ function BoilerProductsContent() {
     setFilterBedroom(prefillBedroom)
     setFilterBathroom(prefillBathroom)
   }
+
+  // Handle showing more products
+  const showMoreProducts = () => {
+    const nextBatch = Math.min(visibleProductsCount + productsPerBatch, displayProducts.length)
+    setVisibleProductsCount(nextBatch)
+  }
+
+  // Handle showing all products
+  const showAllProducts = () => {
+    setVisibleProductsCount(displayProducts.length)
+  }
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleProductsCount(6)
+  }, [filterBoilerType, filterBedroom, filterBathroom])
 
   const handleRestart = () => {
     // Redirect to the boiler quote page to restart the journey
@@ -1020,7 +1134,7 @@ function BoilerProductsContent() {
     const singleProductForEmail = [{
       id: product.partner_product_id,
       name: product.name,
-      priceLabel: `£${getCurrentPrice(product).toFixed(2)}`
+      priceLabel: `£${formatPrice(getCurrentPrice(product))}`
     }];
 
     // Trigger the save quote dialog with single product
@@ -1726,6 +1840,7 @@ function BoilerProductsContent() {
         clearFilters={clearFilters}
         resetFiltersToSubmission={resetFiltersToSubmission}
         includedItems={partnerSettings?.included_items || null}
+        nonIncludedItems={partnerSettings?.non_included_items || null}
         brandColor={brandColor}
         defaultFirstName={submissionInfo?.first_name || null}
         defaultLastName={submissionInfo?.last_name || null}
@@ -1747,17 +1862,45 @@ function BoilerProductsContent() {
             No products match your filters.
           </Card>
         ) : (
-          <div className={isHorizontalLayout ? "space-y-8" : "grid gap-10 lg:grid-cols-3"}>
-            {displayProducts.map((product) => {
-              const highlight = getProductHighlight(product)
-              const cardClasses = highlight 
-                ? `bg-white rounded-2xl relative !mt-16 md:!mt-12 ${isHorizontalLayout ? 'border-0' : ''}` 
-                : `bg-white rounded-2xl border-2 border-gray-200 md:!mt-12 ${isHorizontalLayout ? '' : ''}`
+          <>
+            <div className={isHorizontalLayout ? "space-y-8 mb-10 md:mb-20" : "grid gap-10 lg:grid-cols-3"}>
+              {visibleProducts.map((product, index) => {
+              const showMainCta = isMainCtaEnabled()
+              
+              // Calculate positions for content sections
+              const totalProducts = displayProducts.length
+              const middlePosition = Math.floor(totalProducts / 2)
+              const isMiddle = index === middlePosition
               
               return (
-                <div 
-                  key={product.partner_product_id} 
-                  className={cardClasses}
+                <div key={product.partner_product_id}>
+                  {/* Main CTA in the middle */}
+                  {isMiddle && showMainCta && (
+                    <div className="col-span-full">
+                      <MainCTA
+                        title={partnerSettings?.main_cta?.title || ''}
+                        subtitle={partnerSettings?.main_cta?.subtitle}
+                        buttonText={partnerSettings?.main_cta?.button_text || ''}
+                        buttonUrl={partnerSettings?.main_cta?.button_url}
+                        backgroundColor={partnerSettings?.main_cta?.background_color}
+                        textColor={partnerSettings?.main_cta?.text_color}
+                        brandColor={brandColor}
+                      />
+                    </div>
+                  )}
+                  
+                  
+                  {/* Product Card */}
+                  {(() => {
+                    const highlight = getProductHighlight(product)
+                    const cardClasses = highlight 
+                      ? `bg-white rounded-2xl relative !mt-16 md:!mt-12 ${isHorizontalLayout ? 'border-0' : ''}` 
+                      : `bg-white rounded-2xl border-2 border-gray-200 md:!mt-12 ${isHorizontalLayout ? '' : ''}`
+              
+                    return (
+                      <div 
+                        key={product.partner_product_id} 
+                        className={cardClasses}
                   style={highlight ? { borderColor: brandColor } : {}}
                 >
                   {/* Product Highlight Title for Vertical Layout */}
@@ -1786,49 +1929,13 @@ function BoilerProductsContent() {
                   <div className="grid grid-cols-1 md:grid-cols-12 relative bg-white relative p-0 bg-white rounded-2xl m-[4px]">
                     {/* Column 1: Image Gallery, Brand Logo, Highlighted Features */}
                     <div className="col-span-4 h-full ">
-                      {/* Product Image Gallery */}
-                      <ImageGallery
-                        images={(() => {
-                          const gallery = (product.product_fields as any)?.image_gallery
-                          if (Array.isArray(gallery) && gallery.length > 0) {
-                            return gallery
-                          }
-                          return product.image_url ? [{ image: product.image_url }] : []
-                        })()}
-                        productName={product.name}
-                        className="bg-gray-100 p-2 md:pt-5 pt-10 rounded-2xl rounded-r-none mb-4 h-full flex items-center justify-center"
-                      />
 
-                      <div className="flex justify-center absolute top-0 left-0 w-full p-4 max-w-[500px] flex-col-reverse md:flex-col gap-3">
-                      
-                      {/* Brand Logo */}
-                      {(() => {
-                        const brandImage = (product.product_fields as any)?.brand_image
-                        if (brandImage) {
-                          return (
-                            <div className="mb-4">
-                              <img 
-                                src={brandImage} 
-                                alt="Brand Logo"
-                                className="md:h-8 h-5 object-contain"
-                              />
-                            </div>
-                          )
-                        } else {
-                          return (
-                            <div className="text-sm font-semibold text-gray-600 mb-4">
-                              {product.name.split(' ')[0].toUpperCase()}
-                            </div>
-                          )
-                        }
-                      })()}
-
-                      {/* Highlighted Features as Badges */}
-                      {(() => {
+  {/* Highlighted Features as Badges */}
+  {(() => {
                         const highlightedFeatures = (product.product_fields as any)?.highlighted_features
                         if (Array.isArray(highlightedFeatures) && highlightedFeatures.length > 0) {
                           return (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 absolute top-0 left-0 p-5 z-20">
                               {highlightedFeatures.map((feature: any, index: number) => {
                                 const featureText = typeof feature === 'string' ? feature : feature.name || JSON.stringify(feature)
                                 const featureImage = feature.image
@@ -1858,6 +1965,45 @@ function BoilerProductsContent() {
                         }
                         return null
                       })()}
+
+                      {/* Product Image Gallery */}
+                      <ImageGallery
+                        images={(() => {
+                          const gallery = (product.product_fields as any)?.image_gallery
+                          if (Array.isArray(gallery) && gallery.length > 0) {
+                            return gallery
+                          }
+                          return product.image_url ? [{ image: product.image_url }] : []
+                        })()}
+                        productName={product.name}
+                        className="bg-gray-100 p-2 md:pt-5 pt-10 rounded-2xl rounded-r-none mb-4 h-full flex items-center justify-center"
+                      />
+
+                      <div className="flex justify-center absolute bottom-0 left-0 w-full p-4 max-w-[500px] flex-col-reverse md:flex-col gap-3">
+                      
+                      {/* Brand Logo */}
+                      {(() => {
+                        const brandImage = (product.product_fields as any)?.brand_image
+                        if (brandImage) {
+                          return (
+                            <div className="mb-4">
+                              <img 
+                                src={brandImage} 
+                                alt="Brand Logo"
+                                className="md:h-8 h-5 object-contain"
+                              />
+                            </div>
+                          )
+                        } else {
+                          return (
+                            <div className="text-sm font-semibold text-gray-600 mb-4">
+                              {product.name.split(' ')[0].toUpperCase()}
+                            </div>
+                          )
+                        }
+                      })()}
+
+                    
                       </div>
                     </div>
 
@@ -2027,8 +2173,8 @@ function BoilerProductsContent() {
                                 <div className="text-center border-r border-gray-200 pr-4">
                                   <p className="text-xs text-gray-600 mb-1 text-left">Fixed price (inc. VAT)</p>
                                   <div className="flex items-end gap-2 justify-center">
-                                    <span className="text-xl font-medium text-gray-900">£{currentPrice.toFixed(2)}</span>
-                                    <span className="text-xs text-red-500 line-through">£{(currentPrice + 250).toFixed(2)}</span>
+                                    <span className="text-xl font-medium text-gray-900">£{formatPrice(currentPrice)}</span>
+                                    <span className="text-xs text-red-500 line-through">£{formatPrice(currentPrice + 250)}</span>
                                   </div>
                                 </div>
                                 
@@ -2036,7 +2182,7 @@ function BoilerProductsContent() {
                                 <div className="text-center">
                                   <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
                                   <div className="flex items-center gap-2 justify-center">
-                                    <span className="text-xl font-medium text-gray-900">£{monthlyPayment.toFixed(0)}</span>
+                                    <span className="text-xl font-medium text-gray-900">£{formatPrice(monthlyPayment)}</span>
                                     <button
                                       onClick={() => openFinanceCalculator(product)}
                                       className="p-1 hover:bg-gray-100 rounded transition-colors"
@@ -2117,8 +2263,11 @@ function BoilerProductsContent() {
                         return product.image_url ? [{ image: product.image_url }] : []
                       })()}
                       productName={product.name}
-                      className="bg-gray-100 p-2 pt-5 rounded-2xl"
+                      className="bg-gray-100 p-6 pt-10 rounded-2xl"
+                      height="h-[250px]"
                     />
+
+                    
 
                     <div className="p-5">
                       {/* Highlighted Features as Badges */}
@@ -2164,18 +2313,12 @@ function BoilerProductsContent() {
                         const brandImage = (product.product_fields as any)?.brand_image
                         if (brandImage) {
                           return (
-                            <div className="mb-2">
+                            <div className="mb-2 absolute top-20 left-0 p-5">
                               <img 
                                 src={brandImage} 
                                 alt="Brand Logo"
                                 className="h-8 object-contain"
                               />
-                            </div>
-                          )
-                        } else {
-                          return (
-                            <div className="text-sm font-semibold text-gray-600 mb-2">
-                              {product.name.split(' ')[0].toUpperCase()}
                             </div>
                           )
                         }
@@ -2186,26 +2329,139 @@ function BoilerProductsContent() {
                         <h3 className="text-2xl font-semibold text-gray-900">{product.name}</h3>
                       </div>
 
-                      {/* Description */}
-                      {product.description && (
-                        <p className="text-base text-gray-700 mb-4">{product.description}</p>
-                      )}
+                     
+                            {/* Power Selection */}
+                            {(() => {
+                        const powerOptions = getPowerAndPriceOptions(product)
+                        if (powerOptions.length > 0) {
+                          const selectedPower = getSelectedPowerOption(product)
+                          return (
+                            <div className="mb-4">
+                              <div className="flex gap-2">
+                                {powerOptions.map((option) => {
+                                  const isSelected = selectedPower?.power === option.power
+                                  const selectedPrice = selectedPower ? selectedPower.price : powerOptions[0].price
+                                  const priceDifference = option.price - selectedPrice
+                                  return (
+                                    <Button
+                                      key={option.power}
+                                      onClick={() => selectPowerOption(product, option)}
+                                      variant={isSelected ? "default" : "outline"}
+                                      className="flex-1 px-3 py-2 rounded-lg text-sm font-medium"
+                                    >
+                                      <div className="text-center">
+                                        <div>{option.power}kW</div>
+                                        {!isSelected && priceDifference !== 0 && (
+                                          <div className={`text-xs ${priceDifference > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                            {priceDifference > 0 ? '+' : '-'}£{Math.abs(priceDifference)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </Button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Pricing Section */}
+                      {(() => {
+                        const powerOptions = getPowerAndPriceOptions(product)
+                        const currentPrice = powerOptions.length > 0 ? getCurrentPrice(product) : (typeof product.price === 'number' ? product.price : 0)
+                        const monthlyPayment = getMonthlyPayment(product) || (currentPrice / 12)
+                        
+                        if (currentPrice > 0) {
+                          return (
+                            <div className="mb-6 border border-gray-200 rounded-lg bg-gray-100">
+                              <div className="flex items-end justify-between p-4 bg-white">
+                                {/* Left Section - Fixed Price */}
+                                <div className="border-r border-gray-200 pr-4 w-1/2 flex flex-col items-center justify-center">
+                                  <p className="text-xs text-gray-600 mb-1">Fixed price (inc. VAT)</p>
+                                  <div className="flex items-end gap-2">
+                                    <span className="text-xl font-medium text-gray-900">£{formatPrice(currentPrice)}</span>
+                                    <span className="text-xs text-red-500 line-through">£{formatPrice(currentPrice + 250)}</span>
+                                  </div>
+                                </div>
+                                
+                                {/* Right Section - Monthly Price */}
+                                <div className="text-left w-1/2 flex flex-col items-center justify-center">
+                                  <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xl font-medium text-gray-900">£{formatPrice(monthlyPayment)}</span>
+                                    <button
+                                      onClick={() => openFinanceCalculator(product)}
+                                      className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                      title="Open Finance Calculator"
+                                    >
+                                      <ChevronDown size={16} className="text-gray-600" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              <span 
+                                onClick={() => openWhatsIncluded(product)}
+                                className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer"
+                              >
+                                What's included in my installation?
+                              </span>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Action Buttons */}
+                      <div className="space-y-3">
+                        {/* Primary Action Button */}
+                        <Button
+                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
+                          onClick={() => persistProductAndGo(product)}
+                          disabled={!!loadingProductId}
+                          style={{ backgroundColor: brandColor }}
+                        >
+                          {loadingProductId === product.partner_product_id ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Loading...
+                            </>
+                          ) : (
+                            'Book and pick install date'
+                          )}
+                        </Button>
+
+                        {/* Save Quote Button */}
+                        <Button
+                          variant="outline"
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          onClick={() => handleSaveSingleProductQuote(product)}
+                          disabled={!!loadingProductId}
+                        >
+                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'Save this quote'}
+                        </Button>
+
+                        {/* Survey Button */}
+                        <Button
+                          variant="outline"
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          onClick={() => persistProductAndGoToSurvey(product)}
+                          disabled={!!loadingProductId}
+                        >
+                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'or, book a call to discuss'}
+                        </Button>
+                      </div>
 
                       {/* Specifications Section */}
                       {(() => {
                         const specs = (product.product_fields as any)?.specs
                         if (Array.isArray(specs) && specs.length > 0) {
                           return (
-                            <div className="mb-4">
-                              <div className="space-y-1">
-                                {specs.map((spec: any, index: number) => (
-                                  <div key={index} className="flex items-center gap-2 text-base text-gray-700">
-                                    <Check className="w-5 h-5 text-green-500 flex-shrink-0 bg-gray-100 rounded-full p-1" strokeWidth={4} />
-                                    <span>{spec.items}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                            <SpecificationsDropdown specs={specs} />
                           )
                         }
                         return null
@@ -2291,140 +2547,92 @@ function BoilerProductsContent() {
                         return null
                       })()}
 
-                      {/* Power Selection */}
-                      {(() => {
-                        const powerOptions = getPowerAndPriceOptions(product)
-                        if (powerOptions.length > 0) {
-                          const selectedPower = getSelectedPowerOption(product)
-                          return (
-                            <div className="mb-4">
-                              <div className="flex gap-2">
-                                {powerOptions.map((option) => {
-                                  const isSelected = selectedPower?.power === option.power
-                                  const selectedPrice = selectedPower ? selectedPower.price : powerOptions[0].price
-                                  const priceDifference = option.price - selectedPrice
-                                  return (
-                                    <Button
-                                      key={option.power}
-                                      onClick={() => selectPowerOption(product, option)}
-                                      variant={isSelected ? "default" : "outline"}
-                                      className="flex-1 px-3 py-2 rounded-lg text-sm font-medium"
-                                    >
-                                      <div className="text-center">
-                                        <div>{option.power}kW</div>
-                                        {!isSelected && priceDifference !== 0 && (
-                                          <div className={`text-xs ${priceDifference > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                            {priceDifference > 0 ? '+' : '-'}£{Math.abs(priceDifference)}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </Button>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )
-                        }
-                        return null
-                      })()}
-
-                      {/* Pricing Section */}
-                      {(() => {
-                        const powerOptions = getPowerAndPriceOptions(product)
-                        const currentPrice = powerOptions.length > 0 ? getCurrentPrice(product) : (typeof product.price === 'number' ? product.price : 0)
-                        const monthlyPayment = getMonthlyPayment(product) || (currentPrice / 12)
-                        
-                        if (currentPrice > 0) {
-                          return (
-                            <div className="mb-6 border border-gray-200 rounded-lg bg-gray-100">
-                              <div className="flex items-end justify-between p-4 bg-white">
-                                {/* Left Section - Fixed Price */}
-                                <div className="border-r border-gray-200 pr-4 w-1/2 flex flex-col items-center justify-center">
-                                  <p className="text-xs text-gray-600 mb-1">Fixed price (inc. VAT)</p>
-                                  <div className="flex items-end gap-2">
-                                    <span className="text-xl font-medium text-gray-900">£{currentPrice.toFixed(2)}</span>
-                                    <span className="text-xs text-red-500 line-through">£{(currentPrice + 250).toFixed(2)}</span>
-                                  </div>
-                                </div>
-                                
-                                {/* Right Section - Monthly Price */}
-                                <div className="text-left w-1/2 flex flex-col items-center justify-center">
-                                  <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xl font-medium text-gray-900">£{monthlyPayment.toFixed(0)}</span>
-                                    <button
-                                      onClick={() => openFinanceCalculator(product)}
-                                      className="p-1 hover:bg-gray-100 rounded transition-colors"
-                                      title="Open Finance Calculator"
-                                    >
-                                      <ChevronDown size={16} className="text-gray-600" />
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                              <span 
-                                onClick={() => openWhatsIncluded(product)}
-                                className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer"
-                              >
-                                What's included in my installation?
-                              </span>
-                            </div>
-                          )
-                        }
-                        return null
-                      })()}
-
-                      {/* Action Buttons */}
-                      <div className="space-y-3">
-                        {/* Primary Action Button */}
-                        <Button
-                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
-                          onClick={() => persistProductAndGo(product)}
-                          disabled={!!loadingProductId}
-                          style={{ backgroundColor: brandColor }}
-                        >
-                          {loadingProductId === product.partner_product_id ? (
-                            <>
-                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Loading...
-                            </>
-                          ) : (
-                            'Book and pick install date'
-                          )}
-                        </Button>
-
-                        {/* Save Quote Button */}
-                        <Button
-                          variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
-                          onClick={() => handleSaveSingleProductQuote(product)}
-                          disabled={!!loadingProductId}
-                        >
-                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'Save this quote'}
-                        </Button>
-
-                        {/* Survey Button */}
-                        <Button
-                          variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
-                          onClick={() => persistProductAndGoToSurvey(product)}
-                          disabled={!!loadingProductId}
-                        >
-                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'or, book a call to discuss'}
-                        </Button>
-                      </div>
+                
                     </div>
                   </div>
                 )}
+                
+                
+                      </div>
+                    )
+                  })()}
                 </div>
               )
-            })}
-          </div>
+              })}
+            </div>
+
+            {/* Show More Products Section */}
+            {hasMoreProducts && (
+              <div className="text-center py-8">
+                <div className="p-8 mx-auto max-w-3xl">
+                  <div className="text-2xl md:text-4xl font-semibold text-gray-900 mb-4">
+                    There are {remainingProducts} more installation packages suitable for your home
+                  </div>
+               
+                  
+                  <div className="space-y-3 max-w-[300px] mx-auto">
+                    {remainingProducts > productsPerBatch ? (
+                      <Button
+                        onClick={showMoreProducts}
+                        className="w-full py-3 px-6 font-medium transition-colors flex items-center justify-center gap-2"
+                        style={{ backgroundColor: brandColor }}
+                      >
+                        Show more results
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={showAllProducts}
+                        className="w-full py-3 px-6 font-medium transition-colors flex items-center justify-center gap-2"
+                        style={{ backgroundColor: brandColor }}
+                      >
+                        Show More Results
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
+
       </main>
+
+      {/* End sections - Review section and Main CTA at the end (outside main section for full width) */}
+      {displayProducts.length > 0 && (
+        <>
+          {/* Review section at the end */}
+          {isReviewSectionEnabled() && (
+            <div className="w-full">
+              <ReviewSection
+                title={partnerSettings?.review_section?.title || ''}
+                subtitle={partnerSettings?.review_section?.subtitle}
+                reviews={partnerSettings?.review_section?.reviews || []}
+                buttonText={partnerSettings?.review_section?.buttonText}
+                buttonUrl={partnerSettings?.review_section?.buttonUrl}
+                buttonDescription={partnerSettings?.review_section?.buttonDescription}
+                brandColor={brandColor}
+              />
+            </div>
+          )}
+          
+          {/* Main CTA at the end */}
+          {isMainCtaEnabled() && (
+            <div className="w-full">
+              <MainCTA
+                title={partnerSettings?.main_cta?.title || ''}
+                subtitle={partnerSettings?.main_cta?.subtitle}
+                buttonText={partnerSettings?.main_cta?.button_text || ''}
+                buttonUrl={partnerSettings?.main_cta?.button_url}
+                backgroundColor={partnerSettings?.main_cta?.background_color}
+                textColor={partnerSettings?.main_cta?.text_color}
+                brandColor={brandColor}
+              />
+            </div>
+          )}
+        </>
+      )}
 
 
 

@@ -56,6 +56,7 @@ export interface PartnerSettings {
   apr_settings: any;
   otp_enabled?: boolean;
   included_items: any[];
+  non_included_items?: any[] | null;
   faqs: any[];
   created_at: string;
   updated_at: string;

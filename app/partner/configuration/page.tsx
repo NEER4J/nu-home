@@ -50,6 +50,29 @@ interface PartnerSettings {
       calendar_name?: string;
     };
   };
+  review_sections?: {
+    id: string;
+    title: string;
+    subtitle?: string;
+    reviews: {
+      id: string;
+      name: string;
+      rating: number;
+      text: string;
+      location?: string;
+      date?: string;
+    }[];
+    enabled: boolean;
+  }[];
+  main_cta?: {
+    enabled: boolean;
+    title: string;
+    subtitle?: string;
+    button_text: string;
+    button_url?: string;
+    background_color?: string;
+    text_color?: string;
+  };
 }
 
 interface APREntry {
@@ -149,6 +172,7 @@ export default function PartnerSettingsPage() {
   // Category form states
   const [aprEntries, setAprEntries] = useState<APREntry[]>([{ months: 12, apr: 0 }]);
   const [includedItems, setIncludedItems] = useState<string[]>(['']);
+  const [nonIncludedItems, setNonIncludedItems] = useState<string[]>(['']);
   const [faqs, setFaqs] = useState<{question: string; answer: string}[]>([{ question: '', answer: '' }]);
   
   // Payment settings states
@@ -176,6 +200,63 @@ export default function PartnerSettingsPage() {
 
   // Main page URL state
   const [mainPageUrl, setMainPageUrl] = useState('');
+
+  // Content sections states
+  const [reviewSection, setReviewSection] = useState<{
+    enabled: boolean;
+    title: string;
+    subtitle?: string;
+    reviews: {
+      id: string;
+      name: string;
+      rating: number;
+      text: string;
+    }[];
+    buttonText?: string;
+    buttonUrl?: string;
+    buttonDescription?: string;
+  }>({
+    enabled: false,
+    title: '',
+    subtitle: '',
+    reviews: [],
+    buttonText: '',
+    buttonUrl: '',
+    buttonDescription: ''
+  });
+  
+  const [mainCta, setMainCta] = useState<{
+    enabled: boolean;
+    title: string;
+    subtitle?: string;
+    button_text: string;
+    button_url?: string;
+    background_color?: string;
+    text_color?: string;
+  }>({
+    enabled: false,
+    title: '',
+    subtitle: '',
+    button_text: '',
+    button_url: '',
+    background_color: '#3B82F6',
+    text_color: '#FFFFFF'
+  });
+
+  // Google Reviews import states
+  const [googleReviewLink, setGoogleReviewLink] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
+
+  // Review pagination states
+  const [currentReviewPage, setCurrentReviewPage] = useState(1);
+  const reviewsPerPage = 10;
+
+  // Calculate pagination for reviews
+  const totalReviewPages = Math.ceil((reviewSection.reviews?.length || 0) / reviewsPerPage);
+  const startReviewIndex = (currentReviewPage - 1) * reviewsPerPage;
+  const endReviewIndex = startReviewIndex + reviewsPerPage;
+  const currentReviews = reviewSection.reviews?.slice(startReviewIndex, endReviewIndex) || [];
 
   // GHL integration states
   const [ghlIntegration, setGhlIntegration] = useState<any>(null);
@@ -448,6 +529,7 @@ export default function PartnerSettingsPage() {
         setAprEntries(aprArray.length > 0 ? aprArray : [{ months: 12, apr: 0 }]);
         
         setIncludedItems(result.data.included_items?.length > 0 ? result.data.included_items : ['']);
+        setNonIncludedItems(result.data.non_included_items?.length > 0 ? result.data.non_included_items : ['']);
         setFaqs(result.data.faqs?.length > 0 ? result.data.faqs : [{ question: '', answer: '' }]);
         
         setIsStripeEnabled(Boolean(result.data.is_stripe_enabled));
@@ -467,6 +549,26 @@ export default function PartnerSettingsPage() {
           });
         }
         
+        // Load content sections
+        setReviewSection(result.data.review_section || {
+          enabled: false,
+          title: '',
+          subtitle: '',
+          reviews: [],
+          buttonText: '',
+          buttonUrl: '',
+          buttonDescription: ''
+        });
+        setMainCta(result.data.main_cta || {
+          enabled: false,
+          title: '',
+          subtitle: '',
+          button_text: '',
+          button_url: '',
+          background_color: '#3B82F6',
+          text_color: '#FFFFFF'
+        });
+        
         console.log('Frontend: Loaded Calendar settings:', {
           calendar_settings: result.data.calendar_settings
         });
@@ -474,6 +576,7 @@ export default function PartnerSettingsPage() {
         setSettings(null);
         setAprEntries([{ months: 12, apr: 0 }]);
         setIncludedItems(['']);
+        setNonIncludedItems(['']);
         setFaqs([{ question: '', answer: '' }]);
         setAdminEmail('');
         setGtmEventName('');
@@ -483,6 +586,66 @@ export default function PartnerSettingsPage() {
       console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const importGoogleReviews = async () => {
+    if (!googleReviewLink.trim()) {
+      setImportMessage('Please enter a Google review link');
+      return;
+    }
+
+    setIsImporting(true);
+    setImportMessage('');
+
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        setImportMessage('Please log in to import reviews');
+        return;
+      }
+
+      const response = await fetch('/api/google-reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          googleReviewLink: googleReviewLink.trim(),
+          partnerId: user.id,
+          serviceCategoryId: selectedCategory
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setImportMessage(`Successfully imported ${result.reviews_count} reviews! The review section has been updated.`);
+        // Reload settings to show the new reviews
+        await loadSettings();
+        // Clear the input
+        setGoogleReviewLink('');
+        // Reset to first page
+        setCurrentReviewPage(1);
+      } else {
+        setImportMessage(result.message || 'Failed to import reviews');
+      }
+    } catch (error) {
+      console.error('Error importing reviews:', error);
+      setImportMessage('Failed to import reviews. Please try again.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Reset pagination when reviews change
+  const handleReviewChange = (updatedReviews: any[]) => {
+    setReviewSection({...reviewSection, reviews: updatedReviews});
+    // Reset to first page if current page would be empty
+    const newTotalPages = Math.ceil(updatedReviews.length / reviewsPerPage);
+    if (currentReviewPage > newTotalPages && newTotalPages > 0) {
+      setCurrentReviewPage(1);
     }
   };
 
@@ -500,6 +663,7 @@ export default function PartnerSettingsPage() {
         service_category_id: selectedCategory,
         apr_settings: aprSettings,
         included_items: includedItems.filter(item => item.trim() !== ''),
+        non_included_items: nonIncludedItems.filter(item => item.trim() !== ''),
         faqs: faqs.filter(faq => faq.question.trim() !== '' && faq.answer.trim() !== ''),
         is_stripe_enabled: isStripeEnabled,
         is_kanda_enabled: isKandaEnabled,
@@ -509,6 +673,8 @@ export default function PartnerSettingsPage() {
         gtm_event_name: gtmEventName.trim() || null,
         main_page_url: mainPageUrl.trim() || null,
         calendar_settings: calendarSettings,
+        review_section: reviewSection,
+        main_cta: mainCta,
       };
 
       console.log('Frontend: Sending settings data:', JSON.stringify(settingsData, null, 2));
@@ -568,6 +734,22 @@ export default function PartnerSettingsPage() {
     const updated = [...includedItems];
     updated[index] = value;
     setIncludedItems(updated);
+  };
+
+  const addNonIncludedItem = () => {
+    setNonIncludedItems([...nonIncludedItems, '']);
+  };
+
+  const removeNonIncludedItem = (index: number) => {
+    if (nonIncludedItems.length > 1) {
+      setNonIncludedItems(nonIncludedItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateNonIncludedItem = (index: number, value: string) => {
+    const updated = [...nonIncludedItems];
+    updated[index] = value;
+    setNonIncludedItems(updated);
   };
 
   const addFaq = () => {
@@ -734,7 +916,7 @@ export default function PartnerSettingsPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                What's Included
+                Service Details
               </button>
               <button
                 onClick={() => setActiveTab('faqs')}
@@ -745,6 +927,16 @@ export default function PartnerSettingsPage() {
                 }`}
               >
                 FAQs
+              </button>
+              <button
+                onClick={() => setActiveTab('content')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'content'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Content Sections
               </button>
             </nav>
           </div>
@@ -1131,48 +1323,103 @@ export default function PartnerSettingsPage() {
             )}
 
             {activeTab === 'included' && (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">What's Included Items</h3>
-                  <p className="text-sm text-gray-600 mt-1">Add items that are included in your service to display to customers</p>
+                  <h3 className="text-lg font-medium text-gray-900">Service Details</h3>
+                  <p className="text-sm text-gray-600 mt-1">Define what's included and what's not included in your service</p>
                 </div>
                 
-                <div className="space-y-3">
-                  {includedItems.map((item, index) => (
-                    <div key={index} className="bg-gray-50 p-3 rounded-lg border">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0">
-                          <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-medium text-blue-700 bg-blue-100 rounded-full">
-                            {index + 1}
-                          </span>
+                {/* What's Included Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <h4 className="text-md font-medium text-gray-900">What's Included</h4>
+                  </div>
+                  <p className="text-sm text-gray-600">Add items that are included in your service to display to customers</p>
+                  
+                  <div className="space-y-3">
+                    {includedItems.map((item, index) => (
+                      <div key={index} className="bg-green-50 p-3 rounded-lg border border-green-200">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0">
+                            <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-medium text-green-700 bg-green-100 rounded-full">
+                              {index + 1}
+                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              placeholder="e.g., Free consultation, 12-month warranty, Installation included"
+                              value={item}
+                              onChange={(e) => updateIncludedItem(index, e.target.value)}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                            />
+                          </div>
+                          <button
+                            onClick={() => removeIncludedItem(index)}
+                            disabled={includedItems.length === 1}
+                            className="px-2 py-1 text-sm text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          >
+                            Remove
+                          </button>
                         </div>
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            placeholder="e.g., Free consultation, 12-month warranty, Installation included"
-                            value={item}
-                            onChange={(e) => updateIncludedItem(index, e.target.value)}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <button
-                          onClick={() => removeIncludedItem(index)}
-                          disabled={includedItems.length === 1}
-                          className="px-2 py-1 text-sm text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
-                        >
-                          Remove
-                        </button>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={addIncludedItem}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    + Add Included Item
+                  </button>
                 </div>
-                
-                <button
-                  onClick={addIncludedItem}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  + Add Item
-                </button>
+
+                {/* What's Not Included Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <h4 className="text-md font-medium text-gray-900">What's Not Included</h4>
+                  </div>
+                  <p className="text-sm text-gray-600">Add items that are not included in your service to set clear expectations</p>
+                  
+                  <div className="space-y-3">
+                    {nonIncludedItems.map((item, index) => (
+                      <div key={index} className="bg-red-50 p-3 rounded-lg border border-red-200">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0">
+                            <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-medium text-red-700 bg-red-100 rounded-full">
+                              {index + 1}
+                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              placeholder="e.g., Electrical upgrades, Permits, Disposal fees"
+                              value={item}
+                              onChange={(e) => updateNonIncludedItem(index, e.target.value)}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                            />
+                          </div>
+                          <button
+                            onClick={() => removeNonIncludedItem(index)}
+                            disabled={nonIncludedItems.length === 1}
+                            className="px-2 py-1 text-sm text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={addNonIncludedItem}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  >
+                    + Add Non-Included Item
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1234,6 +1481,410 @@ export default function PartnerSettingsPage() {
                 >
                   + Add FAQ
                 </button>
+              </div>
+            )}
+
+            {activeTab === 'content' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Content Sections</h3>
+                  <p className="text-sm text-gray-600 mt-1">Configure review section and main call-to-action for your products page</p>
+                </div>
+
+                {/* Review Section */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <h4 className="text-md font-medium text-gray-900">Review Section</h4>
+                  </div>
+                  <p className="text-sm text-gray-600">Add a review section that will appear in the middle and end of your products list</p>
+                  
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <input
+                        type="checkbox"
+                        checked={reviewSection.enabled}
+                        onChange={(e) => setReviewSection({...reviewSection, enabled: e.target.checked})}
+                        className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-900">Enable Review Section</span>
+                    </div>
+                    
+                    {reviewSection.enabled && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              Section Title
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g., What Our Customers Say"
+                              value={reviewSection.title}
+                              onChange={(e) => setReviewSection({...reviewSection, title: e.target.value})}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              Section Subtitle (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g., Real reviews from real customers"
+                              value={reviewSection.subtitle || ''}
+                              onChange={(e) => setReviewSection({...reviewSection, subtitle: e.target.value})}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              Reviews ({reviewSection.reviews?.length || 0} total)
+                            </label>
+                            {totalReviewPages > 1 && (
+                              <div className="text-xs text-gray-500">
+                                Page {currentReviewPage} of {totalReviewPages}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-3">
+                            {currentReviews.length === 0 ? (
+                              <div className="text-center py-8 text-gray-500">
+                                <p>No reviews yet. Add your first review below!</p>
+                              </div>
+                            ) : (
+                              currentReviews.map((review, reviewIndex) => {
+                              const actualIndex = startReviewIndex + reviewIndex;
+                              return (
+                                <div key={review.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-gray-600">Review #{actualIndex + 1}</span>
+                                  <button
+                                    onClick={() => {
+                                      const updatedReviews = reviewSection.reviews.filter((_, i) => i !== actualIndex);
+                                      handleReviewChange(updatedReviews);
+                                    }}
+                                    className="text-red-600 hover:text-red-800 text-xs"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  <div>
+                                    <input
+                                      type="text"
+                                      placeholder="Customer Name"
+                                      value={review.name}
+                                      onChange={(e) => {
+                                        const updated = {...reviewSection};
+                                        updated.reviews[actualIndex].name = e.target.value;
+                                        setReviewSection(updated);
+                                      }}
+                                      className="block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="5"
+                                      placeholder="Rating (1-5)"
+                                      value={review.rating}
+                                      onChange={(e) => {
+                                        const updated = {...reviewSection};
+                                        updated.reviews[actualIndex].rating = parseInt(e.target.value) || 5;
+                                        setReviewSection(updated);
+                                      }}
+                                      className="block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <textarea
+                                      rows={2}
+                                      placeholder="Review text..."
+                                      value={review.text}
+                                      onChange={(e) => {
+                                        const updated = {...reviewSection};
+                                        updated.reviews[actualIndex].text = e.target.value;
+                                        setReviewSection(updated);
+                                      }}
+                                      className="block w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              );
+                              })
+                            )}
+                            
+                            {/* Pagination Controls */}
+                            {totalReviewPages > 1 && (
+                              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => setCurrentReviewPage(Math.max(1, currentReviewPage - 1))}
+                                    disabled={currentReviewPage === 1}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Previous
+                                  </button>
+                                  <span className="text-sm text-gray-600">
+                                    {startReviewIndex + 1}-{Math.min(endReviewIndex, reviewSection.reviews?.length || 0)} of {reviewSection.reviews?.length || 0}
+                                  </span>
+                                  <button
+                                    onClick={() => setCurrentReviewPage(Math.min(totalReviewPages, currentReviewPage + 1))}
+                                    disabled={currentReviewPage === totalReviewPages}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                                
+                                <div className="flex items-center space-x-1">
+                                  {Array.from({ length: totalReviewPages }, (_, i) => (
+                                    <button
+                                      key={i + 1}
+                                      onClick={() => setCurrentReviewPage(i + 1)}
+                                      className={`w-8 h-8 text-sm rounded ${
+                                        currentReviewPage === i + 1
+                                          ? 'bg-yellow-500 text-white'
+                                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      {i + 1}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            <button
+                              onClick={() => {
+                                const newReview = {
+                                  id: `review_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                  name: '',
+                                  rating: 5,
+                                  text: ''
+                                };
+                                const updatedReviews = [...reviewSection.reviews, newReview];
+                                handleReviewChange(updatedReviews);
+                              }}
+                              className="text-sm text-yellow-700 bg-yellow-100 hover:bg-yellow-200 px-3 py-1 rounded"
+                            >
+                              + Add Review
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Button Configuration */}
+                        <div className="border-t border-yellow-200 pt-4">
+                          <h5 className="text-sm font-medium text-gray-900 mb-3">Button Configuration (Optional)</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                                Button Text
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g., Read More Reviews"
+                                value={reviewSection.buttonText || ''}
+                                onChange={(e) => setReviewSection({...reviewSection, buttonText: e.target.value})}
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                                Button URL
+                              </label>
+                              <input
+                                type="url"
+                                placeholder="https://yourcompany.com/reviews"
+                                value={reviewSection.buttonUrl || ''}
+                                onChange={(e) => setReviewSection({...reviewSection, buttonUrl: e.target.value})}
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-4">
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              Button Description (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g., See what our customers are saying about us"
+                              value={reviewSection.buttonDescription || ''}
+                              onChange={(e) => setReviewSection({...reviewSection, buttonDescription: e.target.value})}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Google Reviews Import Section */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <h4 className="text-md font-medium text-gray-900">Import Google Reviews</h4>
+                  </div>
+                  <p className="text-sm text-gray-600">Import reviews from your Google Business profile to automatically populate the review section</p>
+                  
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                          Google Review Link
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://maps.google.com/maps/place/Your+Business+Name/@lat,lng,zoom/data=..."
+                          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
+                          onChange={(e) => setGoogleReviewLink(e.target.value)}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Paste your Google Maps business URL that contains reviews. Importing all reviews may take 2-5 minutes.
+                        </p>
+                      </div>
+                      
+                      <button
+                        onClick={importGoogleReviews}
+                        disabled={!googleReviewLink || isImporting}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isImporting ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Importing Reviews...
+                          </>
+                        ) : (
+                          'Import Google Reviews'
+                        )}
+                      </button>
+                      
+                      {importMessage && (
+                        <div className={`text-sm p-3 rounded-md ${
+                          importMessage.includes('Successfully') 
+                            ? 'bg-green-100 text-green-800 border border-green-200' 
+                            : 'bg-red-100 text-red-800 border border-red-200'
+                        }`}>
+                          {importMessage}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main CTA Section */}
+                <div className="space-y-4 hidden">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <h4 className="text-md font-medium text-gray-900">Main Call-to-Action</h4>
+                  </div>
+                  <p className="text-sm text-gray-600">Configure the main CTA that will appear between products</p>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <input
+                        type="checkbox"
+                        checked={mainCta.enabled}
+                        onChange={(e) => setMainCta({...mainCta, enabled: e.target.checked})}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-900">Enable Main CTA</span>
+                    </div>
+                    
+                    {mainCta.enabled && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              CTA Title
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g., Ready to Get Started?"
+                              value={mainCta.title}
+                              onChange={(e) => setMainCta({...mainCta, title: e.target.value})}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              CTA Subtitle (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g., Contact us today for a free quote"
+                              value={mainCta.subtitle || ''}
+                              onChange={(e) => setMainCta({...mainCta, subtitle: e.target.value})}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              Button Text
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g., Get Free Quote"
+                              value={mainCta.button_text}
+                              onChange={(e) => setMainCta({...mainCta, button_text: e.target.value})}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              Button URL (Optional)
+                            </label>
+                            <input
+                              type="url"
+                              placeholder="https://yourcompany.com/contact"
+                              value={mainCta.button_url || ''}
+                              onChange={(e) => setMainCta({...mainCta, button_url: e.target.value})}
+                              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              Background Color
+                            </label>
+                            <input
+                              type="color"
+                              value={mainCta.background_color || '#3B82F6'}
+                              onChange={(e) => setMainCta({...mainCta, background_color: e.target.value})}
+                              className="block w-full h-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                              Text Color
+                            </label>
+                            <input
+                              type="color"
+                              value={mainCta.text_color || '#FFFFFF'}
+                              onChange={(e) => setMainCta({...mainCta, text_color: e.target.value})}
+                              className="block w-full h-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
