@@ -72,14 +72,9 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
                   className="h-8 w-auto"
                 />
               ) : (
-                <div className="bg-black text-white px-3 py-1 rounded-md font-semibold text-lg">
-                  {partnerInfo?.company_name}
+                <div className="animate-pulse">
+                  <div className="h-8 w-24 bg-gray-200 rounded-md"></div>
                 </div>
-              )}
-              {partnerInfo && !partnerInfo.logo_url && (
-                <span className="text-gray-600 text-sm">
-                  {partnerInfo.company_name}
-                </span>
               )}
             </Link>
           </div>

@@ -1,5 +1,6 @@
 import { Inter } from 'next/font/google';
 import Header from '@/components/category-commons/header';
+import Footer from '@/components/category-commons/footer';
 import { PartnerCodeWrapper } from '@/components/PartnerCodeWrapper';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -15,11 +16,12 @@ export default function BoilerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       <Header />
-      <main>
+      <main className="flex-1">
         {children}
       </main>
+      <Footer hideOnPages={['/quote']} />
       <PartnerCodeWrapper />
     </div>
   );

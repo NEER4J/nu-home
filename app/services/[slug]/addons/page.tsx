@@ -219,7 +219,7 @@ export default function AddonsPage({
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 pb-32 lg:pb-8 lg:flex lg:gap-8">
+      <div className="container mx-auto px-4 py-8 lg:pb-8 lg:flex lg:gap-8">
         <div className="flex-1">
           {/* Back button skeleton */}
           <div className="mb-6">
@@ -335,7 +335,7 @@ export default function AddonsPage({
   const itemsCount = selectedAddonsList.reduce((count, addon) => count + addon.quantity, 0)
 
   return (
-    <div className="container mx-auto px-4 py-8 pb-32 lg:pb-8 lg:flex lg:gap-8">
+    <div className="container mx-auto px-4 py-8 lg:pb-8 lg:flex lg:gap-8">
       <div className="flex-1">
         {/* Back button */}
         <div className="mb-6">

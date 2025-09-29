@@ -270,7 +270,7 @@ export default function AddonsLayout({
   }
 
   return (
-    <div className="container mx-auto pb-32 lg:flex lg:gap-8 p-0">
+    <div className="container mx-auto lg:flex lg:gap-8 p-0">
       <div className="flex-1">
         {showBack && (
           <div className="mb-6">
