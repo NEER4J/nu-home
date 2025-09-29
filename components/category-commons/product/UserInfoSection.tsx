@@ -141,8 +141,8 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
             <CardContent>
               <div className="space-y-0">
                 {submissionInfo.form_answers && (Array.isArray(submissionInfo.form_answers) ? submissionInfo.form_answers.length > 0 : Object.keys(submissionInfo.form_answers).length > 0) ? (
-                  (Array.isArray(submissionInfo.form_answers) ? submissionInfo.form_answers : Object.values(submissionInfo.form_answers)).map((answer, index) => (
-                    <div key={index} className="flex md:flex-row flex-col justify-between items-start py-2 border-b border-gray-100 last:border-b-0">
+                  (Array.isArray(submissionInfo.form_answers) ? submissionInfo.form_answers : Object.values(submissionInfo.form_answers)).map((answer: any, index) => (
+                    <div key={index} className="flex md:flex-row flex-col justify-between items-start py-2 border-b border-gray-200 last:border-b-0">
                       <div className="flex-1 pr-4">
                         <p className="text-sm text-gray-700">{answer.question_text}</p>
                       </div>

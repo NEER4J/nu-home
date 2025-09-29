@@ -270,7 +270,7 @@ export default function AddonsLayout({
   }
 
   return (
-    <div className="container mx-auto pb-32 lg:flex lg:gap-8 p-0">
+    <div className="container mx-auto lg:flex lg:gap-8 p-0">
       <div className="flex-1">
         {showBack && (
           <div className="mb-6">
@@ -284,7 +284,7 @@ export default function AddonsLayout({
         )}
 
         {bundles.length > 0 && (
-          <div className="mb-10">
+          <div className="mb-8 border-b pb-8 border-gray-200 last:border-b-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Bundles</h2>
             </div>
@@ -377,7 +377,7 @@ export default function AddonsLayout({
           const typeAddons = addonsByType[type.id] || []
           if (typeAddons.length === 0) return null
           return (
-            <div key={type.id} className="mb-12">
+            <div key={type.id} className="mb-8 border-b pb-8 border-gray-200 last:border-b-0">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-medium text-gray-900">{type.name}</h2>
