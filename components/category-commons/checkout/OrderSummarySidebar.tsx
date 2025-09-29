@@ -223,7 +223,7 @@ function MobileCartPopup({
 
             {/* Main Product */}
             {selectedProduct && (
-              <div>
+              <div className="border-b pb-5 border-gray-200 last:border-b-0">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">Your package</h3>
                 <div className="flex items-center gap-4">
                   <div className="relative h-12 w-12 flex-shrink-0 bg-gray-200 rounded-md p-2">
@@ -241,7 +241,7 @@ function MobileCartPopup({
             
             {/* Bundles */}
             {selectedBundles.length > 0 && (
-              <div>
+              <div className="border-b pb-5 border-gray-200 last:border-b-0">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">Your bundles</h3>
                 <div className="space-y-3">
                   {selectedBundles.map(({ bundle }) => (
@@ -287,7 +287,7 @@ function MobileCartPopup({
             
             {/* Addons */}
             {selectedAddons.length > 0 && (
-              <div>
+              <div className="border-b pb-5 border-gray-200 last:border-b-0">
                 <h3 className="text-sm font-medium text-gray-900 mb-3">Your add-ons</h3>
                 <div className="space-y-3">
                   {selectedAddons.map(addon => (
@@ -329,7 +329,7 @@ function MobileCartPopup({
               Array.isArray((selectedProduct?.product_fields as any).what_s_included) &&
               ((selectedProduct?.product_fields as any).what_s_included as any[]).length > 0
             ) && (
-              <div>
+              <div className='border-b pb-5 border-gray-200 last:border-b-0'>
                 <h3 className="text-sm font-medium text-gray-900 mb-3">What's Included in Your Installation</h3>
                 <div className="space-y-3">
                   {(selectedProduct?.product_fields as any).what_s_included.map((item: any, index: number) => {
@@ -557,9 +557,9 @@ export default function OrderSummarySidebar({
               )}
             </div>
 
-            <div className="space-y-6 mt-3">
+            <div className="space-y-4 mt-3">
               {selectedProduct && (
-                <div>
+                <div  className="border-b pb-5 border-gray-200 last:border-b-0">
                   <h3 className="text-lg font-medium text-gray-900 mb-3">Your package</h3>
                   <div className="flex items-center gap-4">
                     <div className="relative h-12 w-12 flex-shrink-0 bg-gray-200 rounded-md p-2">
@@ -576,7 +576,7 @@ export default function OrderSummarySidebar({
               )}
 
               {selectedBundles.map(({ bundle, quantity, unitPrice }) => (
-                <div key={bundle.bundle_id}>
+                <div key={bundle.bundle_id} className="border-b pb-5 border-gray-200 last:border-b-0">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex-grow min-w-0">
                       <h3 className="text-lg font-medium text-gray-900">{bundle.title}</h3>
@@ -609,7 +609,7 @@ export default function OrderSummarySidebar({
               ))}
 
               {selectedAddons.length > 0 && (
-                <div>
+                <div className="border-b pb-5 border-gray-200 last:border-b-0">
                   <h3 className="text-lg font-medium text-gray-900 mb-3">Your add-ons</h3>
                   <div className="space-y-2">
                                       {selectedAddons.map(addon => (
@@ -652,7 +652,7 @@ export default function OrderSummarySidebar({
                 
                 if (Array.isArray(includedItems) && includedItems.length > 0) {
                   return (
-                    <div>
+                    <div className="border-b pb-5 border-gray-200 last:border-b-0">
                       <h3 className="text-lg font-medium text-gray-900 mb-3">What's Included in Your Installation</h3>
                       <div className="space-y-2">
                         {includedItems.map((item: any, index: number) => {

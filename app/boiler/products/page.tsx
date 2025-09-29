@@ -239,6 +239,7 @@ function BoilerProductsContent() {
   const [showWhatsIncluded, setShowWhatsIncluded] = useState(false)
   const [selectedProductForWhatsIncluded, setSelectedProductForWhatsIncluded] = useState<PartnerProduct | null>(null)
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null)
+  const [loadingAction, setLoadingAction] = useState<string | null>(null)
   const [isHorizontalLayout, setIsHorizontalLayout] = useState(true)
   const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
   const [debugInfo, setDebugInfo] = useState<any>(null)
@@ -1111,6 +1112,7 @@ function BoilerProductsContent() {
 
   // Handle save single product quote
   const handleSaveSingleProductQuote = (product: PartnerProduct) => {
+    setLoadingAction(`${product.partner_product_id}-save`)
     // Build detailed product data immediately
     const detailedProductData = {
       product_id: product.partner_product_id,
@@ -1250,6 +1252,7 @@ function BoilerProductsContent() {
   // Persist selected product (with snapshot) in partner_leads.cart_state and advance progress
   const persistProductAndGo = async (product: PartnerProduct) => {
     setLoadingProductId(product.partner_product_id)
+    setLoadingAction(`${product.partner_product_id}-book`)
     try {
       console.log('persistProductAndGo called with:', { submissionId, partnerInfo: partnerInfo?.user_id })
       
@@ -1421,6 +1424,7 @@ function BoilerProductsContent() {
     } catch (e) {
       console.error('Failed to persist product selection:', e)
       setLoadingProductId(null)
+      setLoadingAction(null)
       const fallback = new URL('/boiler/addons', window.location.origin)
       if (submissionId) fallback.searchParams.set('submission', submissionId)
       fallback.searchParams.set('product', product.partner_product_id)
@@ -1431,6 +1435,7 @@ function BoilerProductsContent() {
   // Persist selected product (with snapshot) in partner_leads.cart_state and go to survey
   const persistProductAndGoToSurvey = async (product: PartnerProduct) => {
     setLoadingProductId(product.partner_product_id)
+    setLoadingAction(`${product.partner_product_id}-survey`)
     try {
       console.log('persistProductAndGoToSurvey called with:', { 
         submissionId, 
@@ -1615,11 +1620,13 @@ function BoilerProductsContent() {
     } catch (e) {
       console.error('Failed to persist product selection for survey:', e)
       setLoadingProductId(null)
+      setLoadingAction(null)
       const fallback = new URL('/boiler/survey', window.location.origin)
       if (submissionId) fallback.searchParams.set('submission', submissionId)
       window.location.href = fallback.toString()
     } finally {
       setLoadingProductId(null)
+      setLoadingAction(null)
     }
   }
 
@@ -2209,12 +2216,12 @@ function BoilerProductsContent() {
                       <div className="space-y-3">
                         {/* Primary Action Button */}
                         <Button
-                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
+                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
                           onClick={() => persistProductAndGo(product)}
-                          disabled={!!loadingProductId}
+                          disabled={loadingProductId === product.partner_product_id}
                           style={{ backgroundColor: brandColor }}
                         >
-                          {loadingProductId === product.partner_product_id ? (
+                          {loadingAction === `${product.partner_product_id}-book` ? (
                             <>
                               <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -2230,11 +2237,11 @@ function BoilerProductsContent() {
                         {/* Save Quote Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => handleSaveSingleProductQuote(product)}
-                          disabled={!!loadingProductId}
+                          disabled={loadingProductId === product.partner_product_id}
                         >
-                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'Save this quote'}
+                          {loadingAction === `${product.partner_product_id}-save` ? 'Loading...' : 'Save this quote'}
                         </Button>
 
                         {/* Survey Button */}
@@ -2242,9 +2249,9 @@ function BoilerProductsContent() {
                           variant="outline"
                           className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => persistProductAndGoToSurvey(product)}
-                          disabled={!!loadingProductId}
+                          disabled={loadingProductId === product.partner_product_id}
                         >
-                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'or, book a call to discuss'}
+                          {loadingAction === `${product.partner_product_id}-survey` ? 'Loading...' : 'or, book a call to discuss'}
                         </Button>
                       </div>
                     </div>
@@ -2417,12 +2424,12 @@ function BoilerProductsContent() {
                       <div className="space-y-3">
                         {/* Primary Action Button */}
                         <Button
-                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
+                          className={`w-full py-3 px-4 font-semibold transition-colors flex items-center justify-center gap-2 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'}`}
                           onClick={() => persistProductAndGo(product)}
-                          disabled={!!loadingProductId}
+                          disabled={loadingProductId === product.partner_product_id}
                           style={{ backgroundColor: brandColor }}
                         >
-                          {loadingProductId === product.partner_product_id ? (
+                          {loadingAction === `${product.partner_product_id}-book` ? (
                             <>
                               <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -2438,11 +2445,11 @@ function BoilerProductsContent() {
                         {/* Save Quote Button */}
                         <Button
                           variant="outline"
-                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
+                          className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId === product.partner_product_id ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => handleSaveSingleProductQuote(product)}
-                          disabled={!!loadingProductId}
+                          disabled={loadingProductId === product.partner_product_id}
                         >
-                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'Save this quote'}
+                          {loadingAction === `${product.partner_product_id}-save` ? 'Loading...' : 'Save this quote'}
                         </Button>
 
                         {/* Survey Button */}
@@ -2450,9 +2457,9 @@ function BoilerProductsContent() {
                           variant="outline"
                           className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${loadingProductId ? 'opacity-75 cursor-not-allowed' : ''}`}
                           onClick={() => persistProductAndGoToSurvey(product)}
-                          disabled={!!loadingProductId}
+                          disabled={loadingProductId === product.partner_product_id}
                         >
-                          {loadingProductId === product.partner_product_id ? 'Loading...' : 'or, book a call to discuss'}
+                          {loadingAction === `${product.partner_product_id}-survey` ? 'Loading...' : 'or, book a call to discuss'}
                         </Button>
                       </div>
 
@@ -2563,7 +2570,7 @@ function BoilerProductsContent() {
 
             {/* Show More Products Section */}
             {hasMoreProducts && (
-              <div className="text-center py-8">
+              <div className="text-center pb-10 md:pb-20 pt-0">
                 <div className="p-8 mx-auto max-w-3xl">
                   <div className="text-2xl md:text-4xl font-semibold text-gray-900 mb-4">
                     There are {remainingProducts} more installation packages suitable for your home
