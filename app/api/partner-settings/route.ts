@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { service_category_id, apr_settings, otp_enabled, company_color, included_items, faqs, admin_email, gtm_event_name, main_page_url, ghl_calendar_enabled, ghl_calendar_id, calendar_settings } = body;
+    const { service_category_id, apr_settings, otp_enabled, company_color, included_items, non_included_items, faqs, admin_email, gtm_event_name, main_page_url, ghl_calendar_enabled, ghl_calendar_id, calendar_settings, review_section, main_cta } = body;
 
     if (!service_category_id) {
       return NextResponse.json({ error: 'Service category ID is required' }, { status: 400 });
@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
       service_category_id,
       apr_settings: validateJSON(apr_settings, 'apr_settings'),
       included_items: validateArray(included_items, 'included_items'),
+      non_included_items: validateArray(non_included_items, 'non_included_items'),
       faqs: validateArray(faqs, 'faqs'),
       is_stripe_enabled: Boolean(body.is_stripe_enabled),
       is_kanda_enabled: Boolean(body.is_kanda_enabled),
@@ -129,6 +130,8 @@ export async function POST(request: NextRequest) {
       gtm_event_name: gtm_event_name?.trim() || null,
       main_page_url: main_page_url?.trim() || null,
       calendar_settings: validateJSON(calendar_settings, 'calendar_settings'),
+      review_section: validateJSON(review_section, 'review_section'),
+      main_cta: validateJSON(main_cta, 'main_cta'),
       updated_at: new Date().toISOString()
     };
 
@@ -189,7 +192,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { service_category_id, apr_settings, otp_enabled, company_color, included_items, faqs, admin_email, gtm_event_name, main_page_url, ghl_calendar_enabled, ghl_calendar_id, calendar_settings } = body;
+    const { service_category_id, apr_settings, otp_enabled, company_color, included_items, non_included_items, faqs, admin_email, gtm_event_name, main_page_url, ghl_calendar_enabled, ghl_calendar_id, calendar_settings, review_section, main_cta } = body;
 
     if (!service_category_id) {
       return NextResponse.json({ error: 'Service category ID is required' }, { status: 400 });
@@ -232,6 +235,7 @@ export async function PUT(request: NextRequest) {
     const updateData = {
       apr_settings: validateJSON(apr_settings, 'apr_settings'),
       included_items: validateArray(included_items, 'included_items'),
+      non_included_items: validateArray(non_included_items, 'non_included_items'),
       faqs: validateArray(faqs, 'faqs'),
       is_stripe_enabled: Boolean(body.is_stripe_enabled),
       is_kanda_enabled: Boolean(body.is_kanda_enabled),
@@ -241,6 +245,8 @@ export async function PUT(request: NextRequest) {
       gtm_event_name: gtm_event_name?.trim() || null,
       main_page_url: main_page_url?.trim() || null,
       calendar_settings: validateJSON(calendar_settings, 'calendar_settings'),
+      review_section: validateJSON(review_section, 'review_section'),
+      main_cta: validateJSON(main_cta, 'main_cta'),
       updated_at: new Date().toISOString()
     };
 

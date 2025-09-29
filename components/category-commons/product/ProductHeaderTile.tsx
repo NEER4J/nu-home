@@ -32,6 +32,7 @@ interface ProductHeaderTileProps {
   clearFilters: () => void
   resetFiltersToSubmission?: () => void
   includedItems?: Array<any> | null
+  nonIncludedItems?: Array<any> | null
   brandColor?: string
   // Prefill data for save quote
   defaultFirstName?: string | null
@@ -69,6 +70,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
     clearFilters,
     resetFiltersToSubmission,
     includedItems,
+    nonIncludedItems,
     brandColor = '#2563eb',
     defaultFirstName = null,
     defaultLastName = null,
@@ -159,15 +161,15 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
 
           <div className='flex gap-2 items-center w-full'>
             <div className="flex items-center gap-2 bg-white rounded-full p-1 border border-gray-100 w-full">
-              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm">
+              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm hover:bg-gray-200 cursor-default">
                 <span className="hidden sm:inline text-nowrap">{bedroomLabel.full}</span>
                 <span className="sm:hidden">{bedroomLabel.short}</span>
               </Badge>
-              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm">
+              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm hover:bg-gray-200 cursor-default">
                 <span className="hidden sm:inline text-nowrap">{bathroomLabel.full}</span>
                 <span className="sm:hidden">{bathroomLabel.short}</span>
               </Badge>
-              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm">
+              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm hover:bg-gray-200 cursor-default">
                 <span className="hidden sm:inline text-nowrap">in {postcode || 'your area'}</span>
                 <span className="sm:hidden">in {postcode ? postcode.substring(0, 4) : 'area'}</span>
               </Badge>
@@ -322,7 +324,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
             )}
             
             <Button variant="outline" onClick={() => setShowIncluded(true)} className='bg-gray-200 text-gray-900 rounded-full'>
-              What's included?
+              Service Details
             </Button>
            
             <Button onClick={() => {
@@ -340,30 +342,64 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
 
       {showIncluded && (
         <Dialog open={showIncluded} onOpenChange={setShowIncluded}>
-          <DialogContent className="max-w-xl overflow-y-auto" variant="sidebar">
+          <DialogContent className="max-w-2xl overflow-y-auto" variant="sidebar">
             <DialogHeader>
-              <DialogTitle>What's included</DialogTitle>
+              <DialogTitle>Service Details</DialogTitle>
               <DialogDescription>The prices you see on screen are fixed, include VAT and won't change.</DialogDescription>
             </DialogHeader>
-            <CardContent className="">
-              {Array.isArray(includedItems) && includedItems.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  {includedItems?.map((entry: any, idx: number) => {
-                    const normalized = normalizeIncludedItem(entry)
-                    if (!normalized) return (
-                      <div key={idx} className="p-3 bg-white rounded border text-sm text-gray-900">Invalid item</div>
-                    )
-                    const { image, title, subtitle } = normalized
-                    return (
-                      <div key={idx} className="flex items-center gap-3 px-4 py-2 bg-gray-100 rounded-lg">
-                        <CheckCircle2 className="w-4 h-4 bg-white rounded-full p-1 w-[10%] h-[10%] md:w-[6%] md:h-[6%]" style={{ color: brandColor }} />
-                        <div className="text-gray-700 md:text-base text-sm w-[90%]">{title}</div>
-                      </div>
-                    )
-                  })}
+            <CardContent className="space-y-6">
+              {/* What's Included Section */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <h3 className="text-lg font-medium text-gray-900">What's Included</h3>
                 </div>
-              ) : (
-                <p className="text-sm text-gray-600">No included items provided.</p>
+                {Array.isArray(includedItems) && includedItems.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {includedItems?.map((entry: any, idx: number) => {
+                      const normalized = normalizeIncludedItem(entry)
+                      if (!normalized) return (
+                        <div key={idx} className="p-3 bg-white rounded border text-sm text-gray-900">Invalid item</div>
+                      )
+                      const { image, title, subtitle } = normalized
+                      return (
+                        <div key={idx} className="flex items-center gap-3 px-4 py-2 bg-gray-100 rounded-lg">
+                          <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          <div className="text-gray-700 md:text-base text-sm">{title}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600">No included items provided.</p>
+                )}
+              </div>
+
+              {/* What's Not Included Section */}
+              {Array.isArray(nonIncludedItems) && nonIncludedItems.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <h3 className="text-lg font-medium text-gray-900">What's Not Included</h3>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {nonIncludedItems?.map((entry: any, idx: number) => {
+                      const normalized = normalizeIncludedItem(entry)
+                      if (!normalized) return (
+                        <div key={idx} className="p-3 bg-white rounded border text-sm text-gray-900">Invalid item</div>
+                      )
+                      const { image, title, subtitle } = normalized
+                      return (
+                        <div key={idx} className="flex items-center gap-3 px-4 py-2 bg-gray-100 rounded-lg">
+                          <svg className="w-4 h-4 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          <div className="text-gray-700 md:text-base text-sm">{title}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
             </CardContent>
           </DialogContent>
