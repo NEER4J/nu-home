@@ -1,8 +1,9 @@
 'use client'
 
+
 import { useMemo, useState, type ReactNode, useEffect } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, Info } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Info, RefreshCw } from 'lucide-react'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import { useRouter } from 'next/navigation'
 import OrderSummarySidebar from '@/components/category-commons/checkout/OrderSummarySidebar'
@@ -45,6 +46,19 @@ export interface SurveyLayoutProps {
   companyColor?: string | null
   partnerSettings?: {
     apr_settings: Record<number, number> | null
+    calendar_settings?: {
+      survey_booking?: {
+        enabled: boolean
+        calendar_id: string
+        calendar_name: string
+      }
+      available_calendars?: Array<{
+        id: string
+        name: string
+        isActive: boolean
+        description: string
+      }>
+    }
   } | null
   currentCalculatorSettings?: {
     selected_plan?: { months: number; apr: number } | null
@@ -104,6 +118,13 @@ export default function SurveyLayout({
     selected_plan?: { months: number; apr: number } | null
     selected_deposit?: number
   } | null>(null)
+  
+  // GHL Calendar integration state
+  const [ghlSlots, setGhlSlots] = useState<any[]>([])
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false)
+  const [ghlCalendarEnabled, setGhlCalendarEnabled] = useState(false)
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
+  const [isSyncing, setIsSyncing] = useState(false)
 
   // Pre-fill user info when component mounts
   useEffect(() => {
@@ -127,6 +148,72 @@ export default function SurveyLayout({
       setCalculatorSettings(selectedProduct.calculator_settings)
     }
   }, [currentCalculatorSettings, selectedProduct?.calculator_settings])
+
+  // Initialize GHL calendar integration
+  useEffect(() => {
+    console.log('SurveyLayout: Partner settings:', partnerSettings)
+    console.log('SurveyLayout: Calendar settings:', partnerSettings?.calendar_settings)
+    console.log('SurveyLayout: Survey booking settings:', partnerSettings?.calendar_settings?.survey_booking)
+    console.log('SurveyLayout: Available calendars:', partnerSettings?.calendar_settings?.available_calendars)
+    
+    // Check if survey_booking is enabled OR if we have available calendars (fallback)
+    const hasSurveyBooking = partnerSettings?.calendar_settings?.survey_booking?.enabled
+    const hasAvailableCalendars = (partnerSettings?.calendar_settings?.available_calendars?.length ?? 0) > 0
+    
+    if (hasSurveyBooking || hasAvailableCalendars) {
+      console.log('SurveyLayout: GHL calendar enabled, fetching slots...')
+      setGhlCalendarEnabled(true)
+      fetchGhlSlots()
+    } else {
+      console.log('SurveyLayout: GHL calendar disabled or not configured')
+      setGhlCalendarEnabled(false)
+    }
+  }, [partnerSettings?.calendar_settings])
+
+  // Fetch GHL calendar slots
+  const fetchGhlSlots = async () => {
+    // Get calendar ID from survey_booking or use first available calendar
+    let calendarId = partnerSettings?.calendar_settings?.survey_booking?.calendar_id
+    
+    if (!calendarId && partnerSettings?.calendar_settings?.available_calendars?.length && partnerSettings.calendar_settings.available_calendars.length > 0) {
+      // Use first available calendar as fallback
+      calendarId = partnerSettings.calendar_settings.available_calendars[0]?.id
+      console.log('Using fallback calendar ID:', calendarId)
+    }
+    
+    if (!calendarId) {
+      console.log('No calendar ID available for GHL slots')
+      return
+    }
+    
+    setIsLoadingSlots(true)
+    try {
+      const response = await fetch(`/api/ghl/calendar-slots?calendarId=${calendarId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setGhlSlots(data.slots || [])
+        console.log('GHL slots loaded:', data.slots)
+      } else {
+        console.error('Failed to fetch GHL slots:', await response.text())
+      }
+    } catch (error) {
+      console.error('Error fetching GHL slots:', error)
+    } finally {
+      setIsLoadingSlots(false)
+    }
+  }
+
+  // Sync calendar data
+  const syncCalendar = async () => {
+    setIsSyncing(true)
+    try {
+      await fetchGhlSlots()
+    } catch (error) {
+      console.error('Error syncing calendar:', error)
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   // Calculator handlers
   const handleCalculatorPlanChange = (plan: { months: number; apr: number }) => {
@@ -174,6 +261,49 @@ export default function SurveyLayout({
     }
     return days
   }, [cursor])
+
+  // Get available time slots for selected date (GHL or default)
+  const getAvailableTimeSlots = useMemo(() => {
+    if (!selectedDate) return []
+    
+    if (ghlCalendarEnabled && ghlSlots.length > 0) {
+      // Filter GHL slots for the selected date
+      const dateSlots = ghlSlots.filter(slot => {
+        const slotDate = new Date(slot.startTime).toISOString().split('T')[0]
+        return slotDate === selectedDate && slot.isAvailable
+      })
+      
+      // Convert to time format (use local time)
+      console.log('Filtered date slots for', selectedDate, ':', dateSlots)
+      return dateSlots.map(slot => {
+        // Parse the ISO string and get local time
+        const date = new Date(slot.startTime)
+        const hour = date.getHours()
+        const minute = date.getMinutes()
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+        console.log('Converting slot:', slot.startTime, 'to time:', timeString, 'local hour:', hour)
+        return timeString
+      })
+    } else {
+      // Default time slots (5 AM to 9 PM)
+      const timeSlots = []
+      for (let hour = 5; hour <= 21; hour++) {
+        timeSlots.push(hour < 10 ? `0${hour}:00` : `${hour}:00`)
+      }
+      return timeSlots
+    }
+  }, [selectedDate, ghlCalendarEnabled, ghlSlots])
+
+  // Check if a date has available slots
+  const hasAvailableSlots = (date: Date) => {
+    if (!ghlCalendarEnabled) return true // Default calendar always has slots
+    
+    const dateString = date.toISOString().split('T')[0]
+    return ghlSlots.some(slot => {
+      const slotDate = new Date(slot.startTime).toISOString().split('T')[0]
+      return slotDate === dateString && slot.isAvailable
+    })
+  }
 
   const handleNextStep = () => {
     if (!details.firstName || !details.lastName || !details.email || !details.phone || !details.postcode) {
@@ -376,6 +506,16 @@ export default function SurveyLayout({
                   <div className="flex items-center justify-between">
                     <div className="text-lg font-medium">{cursor.toLocaleString('default', { month: 'long' })} {cursor.getFullYear()}</div>
                     <div className="flex items-center gap-2">
+                      {ghlCalendarEnabled && (
+                        <button 
+                          onClick={syncCalendar}
+                          disabled={isSyncing}
+                          className="w-8 h-8 rounded-md border flex items-center justify-center hover:bg-gray-50 disabled:opacity-50"
+                          title="Sync with GHL Calendar"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                        </button>
+                      )}
                       <button className="w-8 h-8 rounded-md border flex items-center justify-center" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}><ChevronLeft className="w-4 h-4" /></button>
                       <button className="w-8 h-8 rounded-md border flex items-center justify-center" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}><ChevronRight className="w-4 h-4" /></button>
                     </div>
@@ -393,9 +533,24 @@ export default function SurveyLayout({
                       monthDays.forEach(d => {
                         const key = d.toISOString().slice(0,10)
                         const selected = selectedDate === key
-                        const disabled = d < new Date(new Date().toDateString())
+                        const disabled = d < new Date(new Date().toDateString()) || (ghlCalendarEnabled && !hasAvailableSlots(d))
+                        const hasSlots = ghlCalendarEnabled ? hasAvailableSlots(d) : true
                         cells.push(
-                          <button key={key} disabled={disabled} onClick={() => setSelectedDate(key)} className={`h-12 rounded-lg border text-sm ${selected ? `${classes.button} ${classes.buttonText}` : 'bg-gray-50'} disabled:opacity-50`}>{d.getDate()}</button>
+                          <button 
+                            key={key} 
+                            disabled={disabled} 
+                            onClick={() => setSelectedDate(key)} 
+                            className={`h-12 rounded-lg border text-sm ${
+                              selected 
+                                ? `${classes.button} ${classes.buttonText}` 
+                                : hasSlots 
+                                  ? 'bg-gray-50 hover:bg-gray-100' 
+                                  : 'bg-gray-200 opacity-50'
+                            } disabled:opacity-50`}
+                            title={ghlCalendarEnabled && !hasSlots ? 'No available slots' : ''}
+                          >
+                            {d.getDate()}
+                          </button>
                         )
                       })
                       return cells
@@ -403,7 +558,14 @@ export default function SurveyLayout({
                   </div>
                   <div className="mt-4 text-sm text-gray-600 flex items-start gap-2">
                     <Info className="w-4 h-4 mt-0.5" />
-                    <div>We'll contact you to discuss your project requirements and provide a detailed quote.</div>
+                    <div>
+                      We'll contact you to discuss your project requirements and provide a detailed quote.
+                      {ghlCalendarEnabled && (
+                        <div className="mt-2 text-xs text-blue-600 font-medium">
+                          📅 Using GHL Calendar - Available slots only
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               ) : (
@@ -424,13 +586,25 @@ export default function SurveyLayout({
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {(() => {
-                      const timeSlots = []
-                      for (let hour = 5; hour <= 21; hour++) {
-                        const timeString = hour < 10 ? `0${hour}:00` : `${hour}:00`
-                        const displayTime = hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`
-                        timeSlots.push({ value: timeString, label: displayTime })
+                      if (ghlCalendarEnabled && getAvailableTimeSlots.length > 0) {
+                        // Use GHL available slots
+                        return getAvailableTimeSlots.map((timeString) => {
+                          const [hourStr, minuteStr] = timeString.split(':')
+                          const hour = parseInt(hourStr)
+                          const minute = parseInt(minuteStr)
+                          const displayTime = hour < 12 ? `${hour}:${minuteStr} AM` : hour === 12 ? `12:${minuteStr} PM` : `${hour - 12}:${minuteStr} PM`
+                          return { value: timeString, label: displayTime }
+                        })
+                      } else {
+                        // Default time slots (5 AM to 9 PM)
+                        const timeSlots = []
+                        for (let hour = 5; hour <= 21; hour++) {
+                          const timeString = hour < 10 ? `0${hour}:00` : `${hour}:00`
+                          const displayTime = hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`
+                          timeSlots.push({ value: timeString, label: displayTime })
+                        }
+                        return timeSlots
                       }
-                      return timeSlots
                     })().map((timeSlot) => (
                       <button
                         key={timeSlot.value}

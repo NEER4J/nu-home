@@ -1,26 +1,67 @@
+[webuildtrades@mimosa ~]$ sed -n '1,100p' public_html/wp-content/maintenance.php
+<?php
+
+//  ATTENTION!
+//
+//  DO NOT MODIFY THIS FILE BECAUSE IT WAS GENERATED AUTOMATICALLY,
+//  SO ALL YOUR CHANGES WILL BE LOST THE NEXT TIME THE FILE IS GENERATED.
+//  IF YOU REQUIRE TO APPLY CUSTOM MODIFICATIONS, PERFORM THEM IN THE FOLLOWING FILE:
+//  /home/webuildtrades/public_html/wp-content/maintenance/template.phtml
+
+
+$protocol = $_SERVER['SERVER_PROTOCOL'];
+if ('HTTP/1.1' != $protocol && 'HTTP/1.0' != $protocol) {
+    $protocol = 'HTTP/1.0';
+}
+
+header("{$protocol} 503 Service Unavailable", true, 503);
+header('Content-Type: text/html; charset=utf-8');
+header('Retry-After: 600');
+?>
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Test Quote Page</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <link rel="icon" href="https://webuildtrades.com/wp-content/uploads/cropped-wbt-favicon-32x32.png">
+    <link rel="stylesheet" href="https://webuildtrades.com/wp-content/maintenance/assets/styles.css">
+    <script src="https://webuildtrades.com/wp-content/maintenance/assets/timer.js"></script>
+    <title>Scheduled Maintenance</title>
 </head>
+
 <body>
-    <h1>Test Quote Form</h1>
-    
-    <iframe 
-    id="quote-form-iframe-boiler"
-    src="http://origin.localhost:3000/boiler/quote" 
-    width="100%" 
-    height="100vh" 
-    frameborder="0" 
-    style="border: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999;"
-    title="Quote Form - Boiler">
-  </iframe>
-  
-  <script>
-  // Configure iframe settings
-  window.currentIframe = document.getElementById('quote-form-iframe-boiler');
-  window.currentCategorySlug = 'boiler';
-  </script>
-  <script src="/quote-script.js"></script>
+
+    <div class="container">
+
+    <header class="header">
+        <h1>The website is undergoing scheduled maintenance.</h1>
+        <h2>Sorry for the inconvenience. Come back a bit later, we will be ready soon!</h2>
+    </header>
+
+    <!--START_TIMER_BLOCK-->
+        <!--END_TIMER_BLOCK-->
+
+    <!--START_SOCIAL_LINKS_BLOCK-->
+    <section class="social-links">
+                    <a class="social-links__link" href="https://www.facebook.com/cPanel" target="_blank" title="Facebook">
+                <span class="icon"><img src="https://webuildtrades.com/wp-content/maintenance/assets/images/facebook.svg" alt="Facebook"></span>
+            </a>
+                    <a class="social-links__link" href="https://x.com/cPanel" target="_blank" title="Twitter">
+                <span class="icon"><img src="https://webuildtrades.com/wp-content/maintenance/assets/images/twitter.svg" alt="Twitter"></span>
+            </a>
+                    <a class="social-links__link" href="https://instagram.com/cPanel" target="_blank" title="Instagram">
+                <span class="icon"><img src="https://webuildtrades.com/wp-content/maintenance/assets/images/instagram.svg" alt="Instagram"></span>
+            </a>
+            </section>
+    <!--END_SOCIAL_LINKS_BLOCK-->
+
+</div>
+
+<footer class="footer">
+    <div class="footer__content">
+        Powered by WP Toolkit    </div>
+</footer>
+
 </body>
 </html>

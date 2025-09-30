@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
       
       // Get all service categories for this partner
       const { data: serviceCategories, error: categoriesError } = await supabase
-        .from('"ServiceCategories"')
+        .from('ServiceCategories')
         .select('service_category_id')
       
       if (categoriesError) {
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
         // Update calendar_settings for each service category
         for (const category of serviceCategories || []) {
           const { error: updateError } = await supabase
-            .from('"PartnerSettings"')
+            .from('PartnerSettings')
             .update({
               calendar_settings: {
                 available_calendars: calendars,
