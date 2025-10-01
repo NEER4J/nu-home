@@ -84,13 +84,13 @@ export default function Footer({ partnerInfo: propPartnerInfo, hideOnPages = [] 
             {/* Links */}
             <div className="flex items-center space-x-6">
               <Link 
-                href="/privacy-policy" 
+                href={partnerInfo?.privacy_policy || '/privacy-policy'} 
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Privacy Policy
               </Link>
               <Link 
-                href="/terms-and-conditions" 
+                href={partnerInfo?.terms_conditions || '/terms-and-conditions'} 
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Terms & Conditions

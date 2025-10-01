@@ -39,6 +39,11 @@ interface PartnerSettings {
       calendar_id?: string;
       calendar_name?: string;
     };
+    checkout_booking?: {
+      enabled: boolean;
+      calendar_id?: string;
+      calendar_name?: string;
+    };
     appointments?: {
       enabled: boolean;
       calendar_id?: string;
@@ -194,6 +199,7 @@ export default function PartnerSettingsPage() {
   // Calendar settings for different purposes
   const [calendarSettings, setCalendarSettings] = useState({
     survey_booking: { enabled: false, calendar_id: '', calendar_name: '' },
+    checkout_booking: { enabled: false, calendar_id: '', calendar_name: '' },
     appointments: { enabled: false, calendar_id: '', calendar_name: '' },
     consultations: { enabled: false, calendar_id: '', calendar_name: '' }
   });
@@ -544,6 +550,7 @@ export default function PartnerSettingsPage() {
         if (result.data.calendar_settings) {
           setCalendarSettings({
             survey_booking: result.data.calendar_settings.survey_booking || { enabled: false, calendar_id: '', calendar_name: '' },
+            checkout_booking: result.data.calendar_settings.checkout_booking || { enabled: false, calendar_id: '', calendar_name: '' },
             appointments: result.data.calendar_settings.appointments || { enabled: false, calendar_id: '', calendar_name: '' },
             consultations: result.data.calendar_settings.consultations || { enabled: false, calendar_id: '', calendar_name: '' }
           });
@@ -1204,6 +1211,50 @@ export default function PartnerSettingsPage() {
                                     ...prev,
                                     survey_booking: {
                                       ...prev.survey_booking,
+                                      calendar_id: e.target.value,
+                                      calendar_name: selectedCalendar?.name || ''
+                                    }
+                                  }));
+                                }}
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="">Select a calendar</option>
+                                {ghlCalendars.map((calendar) => (
+                                  <option key={calendar.id} value={calendar.id}>
+                                    {calendar.name} {calendar.timezone && `(${calendar.timezone})`}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                          
+                          {/* Checkout Booking Calendar */}
+                          <div className="border rounded-lg p-4 bg-white">
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-900">Checkout Bookings</h4>
+                                <p className="text-xs text-gray-500">Calendar for checkout/installation booking appointments</p>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={calendarSettings.checkout_booking.enabled}
+                                onChange={(e) => setCalendarSettings(prev => ({
+                                  ...prev,
+                                  checkout_booking: { ...prev.checkout_booking, enabled: e.target.checked }
+                                }))}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </div>
+                            
+                            {calendarSettings.checkout_booking.enabled && (
+                              <select
+                                value={calendarSettings.checkout_booking.calendar_id}
+                                onChange={(e) => {
+                                  const selectedCalendar = ghlCalendars.find(c => c.id === e.target.value);
+                                  setCalendarSettings(prev => ({
+                                    ...prev,
+                                    checkout_booking: {
+                                      ...prev.checkout_booking,
                                       calendar_id: e.target.value,
                                       calendar_name: selectedCalendar?.name || ''
                                     }

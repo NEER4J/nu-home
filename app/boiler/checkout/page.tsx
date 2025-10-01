@@ -189,6 +189,7 @@ function BoilerCheckoutPageContent() {
   
   const [partnerSettings, setPartnerSettings] = useState<{
     apr_settings: Record<number, number> | null
+    calendar_settings?: any
   } | null>(null)
   
   const [calculatorSettings, setCalculatorSettings] = useState<{
@@ -357,10 +358,10 @@ function BoilerCheckoutPageContent() {
           // Load payment settings
           await loadPaymentSettings(partnerUserId, boilerCategory.service_category_id as string)
           
-          // Load partner settings for APR configurations
+          // Load partner settings for APR configurations and calendar settings
           const { data: settingsData, error: settingsError } = await supabase
             .from('PartnerSettings')
-            .select('apr_settings')
+            .select('apr_settings, calendar_settings')
             .eq('partner_id', partnerUserId)
             .eq('service_category_id', boilerCategory.service_category_id as string)
             .single()
@@ -374,7 +375,8 @@ function BoilerCheckoutPageContent() {
                     parseInt(key),
                     typeof value === 'number' ? value : parseFloat(String(value))
                   ])
-                ) : null
+                ) : null,
+              calendar_settings: settingsData.calendar_settings || {}
             }
             setPartnerSettings(convertedSettings)
           } else {
@@ -841,6 +843,78 @@ function BoilerCheckoutPageContent() {
               }
             } catch (emailError) {
               console.warn('Error sending email:', emailError)
+            }
+
+            // Create GHL appointment if checkout booking calendar is enabled
+            const hasCheckoutBooking = partnerSettings?.calendar_settings?.checkout_booking?.enabled
+            const hasAvailableCalendars = partnerSettings?.calendar_settings?.available_calendars?.length > 0
+            const calendarId = partnerSettings?.calendar_settings?.checkout_booking?.calendar_id || 
+                              (partnerSettings?.calendar_settings?.available_calendars?.length > 0 ? 
+                               partnerSettings?.calendar_settings?.available_calendars[0]?.id : null)
+
+            if ((payload as any).date && (payload as any).time && (hasCheckoutBooking || hasAvailableCalendars) && calendarId) {
+              try {
+                // Use slot data if available (from GHL calendar), otherwise calculate manually
+                let startTime, endTime
+                
+                if ((payload as any).slot) {
+                  // Use GHL slot data directly
+                  startTime = (payload as any).slot.startTime
+                  endTime = (payload as any).slot.endTime || new Date(new Date((payload as any).slot.startTime).getTime() + ((payload as any).slot.duration || 30) * 60 * 1000).toISOString()
+                } else {
+                  // Fallback: Parse the time manually (for non-GHL bookings)
+                  let timeString = (payload as any).time
+                  
+                  // If time is in "1:30 PM" format, convert to 24-hour format
+                  if (timeString.includes('PM') || timeString.includes('AM')) {
+                    const timeParts = timeString.replace('PM', '').replace('AM', '').trim().split(':')
+                    let hour = parseInt(timeParts[0])
+                    const minute = timeParts[1] ? parseInt(timeParts[1]) : 0
+                    
+                    if (timeString.includes('PM') && hour !== 12) {
+                      hour += 12
+                    } else if (timeString.includes('AM') && hour === 12) {
+                      hour = 0
+                    }
+                    
+                    timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                  }
+                  
+                  startTime = new Date(`${(payload as any).date}T${timeString}:00`).toISOString()
+                  endTime = new Date(new Date(`${(payload as any).date}T${timeString}:00`).getTime() + 30 * 60 * 1000).toISOString()
+                }
+                
+                const appointmentPayload = {
+                  calendarId: calendarId,
+                  title: `Installation Booking - ${userInfo.first_name} ${userInfo.last_name}`,
+                  description: `Installation booking for ${product?.name || 'Product'}. Payment method: ${(payload as any).payment_method}. Notes: ${userInfo.notes || 'No additional notes'}`,
+                  startTime: startTime,
+                  endTime: endTime,
+                  customerName: `${userInfo.first_name} ${userInfo.last_name}`,
+                  customerEmail: userInfo.email,
+                  customerPhone: userInfo.phone
+                }
+                
+                console.log('Creating GHL appointment with payload:', appointmentPayload)
+                
+                const appointmentResponse = await fetch('/api/ghl/appointments', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(appointmentPayload)
+                });
+
+                if (appointmentResponse.ok) {
+                  const appointmentData = await appointmentResponse.json()
+                  console.log('✅ GHL appointment booked successfully:', appointmentData)
+                } else {
+                  const errorText = await appointmentResponse.text()
+                  console.error('❌ Failed to book GHL appointment:', errorText)
+                }
+              } catch (appointmentError) {
+                console.error('❌ Error booking GHL appointment:', appointmentError)
+              }
             }
 
             // Process payment based on payment method

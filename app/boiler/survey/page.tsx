@@ -311,14 +311,18 @@ function SurveyContent() {
            setPartnerInfo(partnerData)
          }
 
-         // Load partner settings for APR configurations
-         if (serviceCategoryId) {
+         // Load partner settings for APR configurations and calendar settings
+         console.log('Loading partner settings for partnerId:', partnerId, 'serviceCategoryId:', serviceCategoryId)
+         
+         if (serviceCategoryId && partnerId) {
            const { data: settingsData, error: settingsError } = await supabase
              .from('PartnerSettings')
-             .select('apr_settings')
+             .select('apr_settings, calendar_settings')
              .eq('partner_id', partnerId)
              .eq('service_category_id', serviceCategoryId)
              .single()
+
+           console.log('Partner settings query result:', { settingsData, settingsError })
 
            if (!settingsError && settingsData) {
              // Convert APR settings keys from string to number
@@ -329,11 +333,45 @@ function SurveyContent() {
                      parseInt(key),
                      typeof value === 'number' ? value : parseFloat(String(value))
                    ])
-                 ) : null
+                 ) : null,
+               calendar_settings: settingsData.calendar_settings || {}
              }
              setPartnerSettings(convertedSettings)
+             console.log('Partner settings loaded successfully:', convertedSettings)
            } else {
+             console.log('Partner settings not found or error:', settingsError)
              setPartnerSettings(null)
+           }
+         } else {
+           console.log('Missing serviceCategoryId or partnerId for partner settings query')
+           setPartnerSettings(null)
+         }
+
+         // Fallback: Try to load partner settings for any service category if the specific one failed
+         if (!partnerSettings && partnerId) {
+           console.log('Trying fallback: loading partner settings for any service category...')
+           const { data: fallbackSettings, error: fallbackError } = await supabase
+             .from('PartnerSettings')
+             .select('apr_settings, calendar_settings')
+             .eq('partner_id', partnerId)
+             .limit(1)
+             .single()
+
+           console.log('Fallback partner settings query result:', { fallbackSettings, fallbackError })
+
+           if (!fallbackError && fallbackSettings) {
+             const convertedSettings = {
+               apr_settings: fallbackSettings.apr_settings ? 
+                 Object.fromEntries(
+                   Object.entries(fallbackSettings.apr_settings).map(([key, value]) => [
+                     parseInt(key),
+                     typeof value === 'number' ? value : parseFloat(String(value))
+                   ])
+                 ) : null,
+               calendar_settings: fallbackSettings.calendar_settings || {}
+             }
+             setPartnerSettings(convertedSettings)
+             console.log('Fallback partner settings loaded successfully:', convertedSettings)
            }
          }
 
@@ -526,34 +564,73 @@ function SurveyContent() {
 
         console.log('Survey data saved successfully');
 
-        // Create GHL calendar event if survey booking calendar is enabled
-        if (surveyDetails.date && surveyDetails.time && partnerSettings?.calendar_settings?.survey_booking?.enabled && partnerSettings.calendar_settings.survey_booking.calendar_id) {
+        // Create GHL appointment if survey booking calendar is enabled
+        const hasSurveyBooking = partnerSettings?.calendar_settings?.survey_booking?.enabled
+        const hasAvailableCalendars = partnerSettings?.calendar_settings?.available_calendars?.length > 0
+        const calendarId = partnerSettings?.calendar_settings?.survey_booking?.calendar_id || 
+                          (partnerSettings?.calendar_settings?.available_calendars?.length > 0 ? 
+                           partnerSettings.calendar_settings.available_calendars[0]?.id : null)
+
+        if (surveyDetails.date && surveyDetails.time && (hasSurveyBooking || hasAvailableCalendars) && calendarId) {
           try {
-            console.log('=== CREATING GHL CALENDAR EVENT ===')
-            const calendarResponse = await fetch('/api/ghl/calendar-events', {
+            // Use slot data if available (from GHL calendar), otherwise calculate manually
+            let startTime, endTime
+            
+            if (surveyDetails.slot) {
+              // Use GHL slot data directly
+              startTime = surveyDetails.slot.startTime
+              endTime = surveyDetails.slot.endTime || new Date(new Date(surveyDetails.slot.startTime).getTime() + (surveyDetails.slot.duration || 30) * 60 * 1000).toISOString()
+            } else {
+              // Fallback: Parse the time manually (for non-GHL bookings)
+              let timeString = surveyDetails.time
+              
+              // If time is in "1:30 PM" format, convert to 24-hour format
+              if (timeString.includes('PM') || timeString.includes('AM')) {
+                const timeParts = timeString.replace('PM', '').replace('AM', '').trim().split(':')
+                let hour = parseInt(timeParts[0])
+                const minute = timeParts[1] ? parseInt(timeParts[1]) : 0
+                
+                if (timeString.includes('PM') && hour !== 12) {
+                  hour += 12
+                } else if (timeString.includes('AM') && hour === 12) {
+                  hour = 0
+                }
+                
+                timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+              }
+              
+              startTime = new Date(`${surveyDetails.date}T${timeString}:00`).toISOString()
+              endTime = new Date(new Date(`${surveyDetails.date}T${timeString}:00`).getTime() + 30 * 60 * 1000).toISOString()
+            }
+            
+            const appointmentPayload = {
+              calendarId: calendarId,
+              title: `Survey Booking - ${surveyDetails.firstName} ${surveyDetails.lastName}`,
+              description: `Survey booking for ${selectedProduct?.name || 'Product'}. Notes: ${surveyDetails.notes || 'No additional notes'}`,
+              startTime: startTime,
+              endTime: endTime,
+              customerName: `${surveyDetails.firstName} ${surveyDetails.lastName}`,
+              customerEmail: surveyDetails.email,
+              customerPhone: surveyDetails.phone
+            }
+            
+            const appointmentResponse = await fetch('/api/ghl/appointments', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({
-                calendarId: partnerSettings.calendar_settings.survey_booking.calendar_id,
-                title: `Survey Booking - ${surveyDetails.firstName} ${surveyDetails.lastName}`,
-                description: `Survey booking for ${selectedProduct?.name || 'Product'}. Notes: ${surveyDetails.notes || 'No additional notes'}`,
-                startTime: new Date(`${surveyDetails.date}T${surveyDetails.time}:00`).toISOString(),
-                endTime: new Date(new Date(`${surveyDetails.date}T${surveyDetails.time}:00`).getTime() + 60 * 60 * 1000).toISOString(), // 1 hour duration
-                customerName: `${surveyDetails.firstName} ${surveyDetails.lastName}`,
-                customerEmail: surveyDetails.email,
-                customerPhone: surveyDetails.phone
-              })
+              body: JSON.stringify(appointmentPayload)
             });
 
-            if (calendarResponse.ok) {
-              console.log('GHL calendar event created successfully');
+            if (appointmentResponse.ok) {
+              const appointmentData = await appointmentResponse.json()
+              console.log('✅ Appointment booked successfully:', appointmentData)
             } else {
-              console.warn('Failed to create GHL calendar event:', await calendarResponse.text());
+              const errorText = await appointmentResponse.text()
+              console.error('❌ Failed to book appointment:', errorText)
             }
-          } catch (calendarError) {
-            console.error('Error creating GHL calendar event:', calendarError);
+          } catch (appointmentError) {
+            console.error('❌ Error booking appointment:', appointmentError)
           }
         }
 
@@ -610,6 +687,9 @@ function SurveyContent() {
           console.warn('Error sending survey email:', emailError)
         }
 
+        // Add delay to make appointment API call visible in network tab
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
         // Redirect to enquiry page after email is sent
         console.log('=== REDIRECTING TO ENQUIRY PAGE ===')
         const url = new URL('/boiler/enquiry', window.location.origin);
