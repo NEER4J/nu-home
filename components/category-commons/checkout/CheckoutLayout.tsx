@@ -11,6 +11,9 @@ import KandaFinanceForm from './KandaFinanceForm'
 import OrderSummarySidebar from './OrderSummarySidebar'
 import FinanceCalculator from '@/components/FinanceCalculator'
 import CheckoutFAQ from './CheckoutFAQ'
+import { useGHLCalendar } from '@/hooks/use-ghl-calendar'
+import GHLCalendarTimeSelector from '@/components/shared/GHLCalendarTimeSelector'
+import { createAppointmentFromSlot, createAppointmentManual } from '@/lib/ghl-appointments'
 
 // Initialize Stripe (this will be overridden by the actual keys from partner settings)
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder')
@@ -86,6 +89,7 @@ export interface CheckoutLayoutProps {
   companyColor?: string | null
   partnerSettings?: {
     apr_settings: Record<number, number> | null
+    calendar_settings?: any
   } | null
   currentCalculatorSettings?: {
     selected_plan?: { months: number; apr: number } | null
@@ -111,7 +115,7 @@ export interface CheckoutLayoutProps {
   onCalculatorPlanChange?: (plan: { months: number; apr: number }) => void
   onCalculatorDepositChange?: (deposit: number) => void
   onCalculatorMonthlyPaymentUpdate?: (monthlyPayment: number) => void
-  onSubmitBooking: (details: CustomerDetails & { date: string; payment_method?: string; payment_details?: any }) => void
+  onSubmitBooking: (details: CustomerDetails & { date: string; time?: string; payment_method?: string; payment_details?: any; slot?: any }) => void
   onPaymentSuccess?: (paymentIntent: any) => void
   backHref?: string
   backLabel?: string
@@ -151,8 +155,9 @@ export default function CheckoutLayout({
 }: CheckoutLayoutProps) {
   const classes = useDynamicStyles(companyColor)
   const [step, setStep] = useState<1 | 2>(1)
-  const [cursor, setCursor] = useState<Date>(new Date())
   const [selectedDate, setSelectedDate] = useState<string>('')
+  const [selectedSlot, setSelectedSlot] = useState<any>(null)
+  const [selectedTime, setSelectedTime] = useState<string>('')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null)
   const [showFinanceCalculator, setShowFinanceCalculator] = useState(false)
   const [loadingPaymentMethod, setLoadingPaymentMethod] = useState<string | null>(null)
@@ -162,6 +167,24 @@ export default function CheckoutLayout({
   } | null>(null)
   const [details, setDetails] = useState<CustomerDetails>({
     firstName: '', lastName: '', email: '', phone: '', postcode: '', notes: ''
+  })
+
+  // Initialize GHL calendar hook (use checkout_booking calendar)
+  const {
+    ghlSlots,
+    isLoadingSlots,
+    isSyncing,
+    cursor,
+    ghlCalendarEnabled,
+    calendarId,
+    syncCalendar,
+    navigateMonth,
+    hasAvailableSlots,
+    setCursor
+  } = useGHLCalendar({
+    partnerSettings,
+    enabled: true,
+    calendarType: 'checkout_booking'
   })
 
   // Pre-fill user info when component mounts
@@ -215,24 +238,40 @@ export default function CheckoutLayout({
   const bundlesTotal = useMemo(() => selectedBundles.reduce((s, b) => s + b.quantity * b.unitPrice, 0), [selectedBundles])
   const orderTotal = useMemo(() => Math.max(0, basePrice + addonsTotal + bundlesTotal), [basePrice, addonsTotal, bundlesTotal])
 
-  const monthDays = useMemo(() => {
-    const start = startOfMonth(cursor)
-    const end = endOfMonth(cursor)
-    const days: Date[] = []
-    for (let d = new Date(start); d <= end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
-      days.push(d)
-    }
-    return days
-  }, [cursor])
-
   const handleBookInstall = () => {
     if (!selectedDate) return
     setStep(2)
   }
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (!selectedDate) { setStep(1); return }
-    onSubmitBooking({ ...details, date: selectedDate })
+    
+    // Create GHL appointment if calendar is enabled
+    if (ghlCalendarEnabled && calendarId && selectedSlot) {
+      try {
+        const result = await createAppointmentFromSlot(
+          selectedSlot,
+          {
+            firstName: details.firstName,
+            lastName: details.lastName,
+            email: details.email,
+            phone: details.phone
+          },
+          {
+            productName: selectedProduct?.name,
+            notes: details.notes
+          }
+        )
+        
+        if (!result.success) {
+          console.error('Failed to create GHL appointment:', result.error)
+        }
+      } catch (error) {
+        console.error('Error creating GHL appointment:', error)
+      }
+    }
+    
+    onSubmitBooking({ ...details, date: selectedDate, time: selectedTime, slot: selectedSlot })
   }
 
   const handlePaymentMethodSelect = async (method: string) => {
@@ -371,40 +410,28 @@ export default function CheckoutLayout({
 
         {step === 1 && (
           <div className="grid lg:grid-cols-2 gap-8 bg-transparent md:bg-white rounded-xl p-0 md:p-8 mb-20">
-            {/* Calendar */}
+            {/* GHL Calendar & Time Selector */}
             <div className="bg-gray-100 rounded-xl p-4 md:p-6 md:bg-gray-100 bg-white">
-              <div className="flex items-center justify-between">
-                <div className="text-lg font-medium">{cursor.toLocaleString('default', { month: 'long' })} {cursor.getFullYear()}</div>
-                <div className="flex items-center gap-2">
-                  <button className="w-8 h-8 rounded-md border flex items-center justify-center" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}><ChevronLeft className="w-4 h-4" /></button>
-                  <button className="w-8 h-8 rounded-md border flex items-center justify-center" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}><ChevronRight className="w-4 h-4" /></button>
-                </div>
-              </div>
-              <div className="grid grid-cols-7 text-center text-xs text-gray-500 mt-3">
-                {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => <div key={d} className="py-2">{d}</div>)}
-              </div>
-              {/* days */}
-              <div className="grid grid-cols-7 gap-2 mt-2">
-                {(() => {
-                  const firstWeekday = (startOfMonth(cursor).getDay() + 6) % 7 // make Monday=0
-                  const blanks = Array.from({ length: firstWeekday })
-                  const cells: ReactNode[] = []
-                  blanks.forEach((_, i) => cells.push(<div key={`b-${i}`} />))
-                  monthDays.forEach(d => {
-                    const key = d.toISOString().slice(0,10)
-                    const selected = selectedDate === key
-                    const disabled = d < new Date(new Date().toDateString())
-                    cells.push(
-                      <button key={key} disabled={disabled} onClick={() => setSelectedDate(key)} className={`h-12 rounded-lg border text-sm ${selected ? `${classes.button} ${classes.buttonText}` : 'bg-gray-50'} disabled:opacity-50`}>{d.getDate()}</button>
-                    )
-                  })
-                  return cells
-                })()}
-              </div>
-              <div className="mt-4 text-sm text-gray-600 flex items-start gap-2">
-                <Info className="w-4 h-4 mt-0.5" />
-                <div>Your installation should take 1-2 days to complete, and our installers will be on site between 8-10am.</div>
-              </div>
+              <GHLCalendarTimeSelector
+                selectedDate={selectedDate}
+                selectedTime={selectedTime}
+                selectedSlot={selectedSlot}
+                onDateSelect={setSelectedDate}
+                onTimeSelect={(time: string, slot: any) => {
+                  setSelectedTime(time)
+                  setSelectedSlot(slot)
+                }}
+                ghlSlots={ghlSlots}
+                ghlCalendarEnabled={ghlCalendarEnabled}
+                cursor={cursor}
+                isLoadingSlots={isLoadingSlots}
+                isSyncing={isSyncing}
+                onNavigateMonth={navigateMonth}
+                onSync={syncCalendar}
+                hasAvailableSlots={hasAvailableSlots}
+                companyColor={companyColor}
+                infoText="Select a date and time for your installation."
+              />
             </div>
 
             {/* Details form */}
@@ -438,7 +465,7 @@ export default function CheckoutLayout({
                  
                   <button 
                     onClick={handleBookInstall} 
-                    disabled={!selectedDate || !details.firstName || !details.lastName || !details.email || !details.phone || !details.postcode}
+                    disabled={!selectedDate || !details.firstName || !details.lastName || !details.email || !details.phone || !details.postcode || (ghlCalendarEnabled && !selectedSlot)}
                     className={`flex-1 py-3 rounded-full font-medium ${classes.button} ${classes.buttonText} disabled:opacity-50`}
                   >
                     Book install
@@ -542,6 +569,8 @@ export default function CheckoutLayout({
                                 onSubmitBooking({ 
                                   ...details, 
                                   date: selectedDate,
+                                  time: selectedTime,
+                                  slot: selectedSlot,
                                   payment_method: 'stripe',
                                   payment_details: {
                                     payment_intent_id: paymentIntent.id,
@@ -734,6 +763,8 @@ export default function CheckoutLayout({
                           onSubmitBooking({ 
                             ...details, 
                             date: selectedDate,
+                            time: selectedTime,
+                            slot: selectedSlot,
                             payment_method: 'monthly',
                             payment_details: {
                               payment_method: 'monthly'
@@ -826,6 +857,8 @@ export default function CheckoutLayout({
                           onSubmitBooking({ 
                             ...details, 
                             date: selectedDate,
+                            time: selectedTime,
+                            slot: selectedSlot,
                             payment_method: 'pay_after_installation',
                             payment_details: {
                               payment_method: 'pay_after_installation'

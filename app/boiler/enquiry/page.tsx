@@ -195,7 +195,6 @@ function EnquiryContent() {
   const [error, setError] = useState<string | null>(null)
   const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(null)
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails | null>(null)
-  const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [serviceCategoryId, setServiceCategoryId] = useState<string | null>(null)
   const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
@@ -294,11 +293,7 @@ function EnquiryContent() {
   }, [submissionId, supabase])
 
   const handleBack = () => {
-    if (currentStep === 2) {
-      setCurrentStep(1)
-    } else {
-      window.location.href = '/boiler/survey' + (submissionId ? `?submission=${submissionId}` : '')
-    }
+    window.location.href = '/boiler/survey' + (submissionId ? `?submission=${submissionId}` : '')
   }
 
   const handleImageUpload = (areaIndex: number, files: FileList) => {
@@ -534,15 +529,15 @@ function EnquiryContent() {
         postcode: customerDetails.postcode
       }}
       onBack={handleBack}
-      backLabel={currentStep === 2 ? 'Back to Step 1' : 'Back to Survey'}
+      backLabel="Back to Survey"
       category="boiler"
       imageUploadAreas={boilerImageUploadAreas}
       formFields={boilerFormFields}
       submissionId={submissionId || 'temp-' + Date.now()}
       onImageUpload={handleImageUpload}
       onFormSubmit={handleFormSubmit}
-      currentStep={currentStep}
-      onStepChange={setCurrentStep}
+      currentStep={1}
+      onStepChange={() => {}}
       isSubmitting={isSubmitting}
     />
   )
