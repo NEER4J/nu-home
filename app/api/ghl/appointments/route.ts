@@ -15,19 +15,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { 
       calendarId, 
-      title, 
-      description, 
       startTime, 
       endTime, 
+      title, 
+      description, 
       customerName, 
       customerEmail, 
-      customerPhone,
-      customerId // Optional customer ID if available
+      customerPhone 
     } = body
 
-    if (!calendarId || !title || !startTime || !endTime) {
+    // Validate required fields
+    if (!calendarId || !startTime || !endTime || !title) {
       return NextResponse.json({ 
-        error: 'Missing required fields: calendarId, title, startTime, endTime' 
+        error: 'Missing required fields: calendarId, startTime, endTime, title' 
       }, { status: 400 })
     }
 
@@ -51,58 +51,115 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'GHL token expired' }, { status: 401 })
     }
 
-    // Create appointment data according to GHL API documentation
-    const appointmentData = {
-      calendarId,
-      title,
-      description: description || `Survey booking with ${customerName}`,
-      startTime: new Date(startTime).toISOString(),
-      endTime: new Date(endTime).toISOString(),
-      allDay: false,
-      attendees: customerEmail ? [{
-        email: customerEmail,
-        name: customerName
-      }] : [],
-      location: '',
-      notes: customerPhone ? `Phone: ${customerPhone}` : '',
-      status: 'confirmed',
-      visibility: 'private',
-      // Additional fields for appointment creation
-      customerId: customerId || null,
-      sendNotifications: true
+    // Get calendar details to fetch assignedUserId
+    let assignedUserId = null
+    try {
+      const calendarResponse = await fetch(`https://services.leadconnectorhq.com/calendars/${calendarId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${integration.access_token}`,
+          'Accept': 'application/json',
+          'Version': '2021-04-15'
+        }
+      })
+
+      if (calendarResponse.ok) {
+        const calendarData = await calendarResponse.json()
+        // Get the first team member/user assigned to this calendar
+        if (calendarData.calendar?.teamMembers && calendarData.calendar.teamMembers.length > 0) {
+          assignedUserId = calendarData.calendar.teamMembers[0].userId
+        } else if (calendarData.calendar?.userId) {
+          assignedUserId = calendarData.calendar.userId
+        }
+      }
+    } catch (calendarError) {
+      console.error('Error fetching calendar details:', calendarError)
     }
 
-    // Make request to GHL API to create appointment
-    // Using the correct Appointments endpoint from the official docs
-    const ghlApiUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}/appointments`
+    // If we still don't have an assignedUserId, try to use the integration user
+    if (!assignedUserId && integration.user_id) {
+      assignedUserId = integration.user_id
+    }
+
+    // Prepare appointment data for GHL API
+    // According to GHL docs: https://marketplace.gohighlevel.com/docs/ghl/calendars/create-appointment
+    const appointmentData: any = {
+      calendarId,
+      locationId: integration.location_id,
+      contactId: undefined, // Will be created if not exists
+      startTime: new Date(startTime).toISOString(),
+      endTime: new Date(endTime).toISOString(),
+      title,
+      appointmentStatus: 'confirmed',
+      assignedUserId: assignedUserId, // Required by GHL
+      ignoreFreeSlotValidation: true, // Allow booking even if slot validation fails
+      toNotify: false, // Don't send notifications (optional)
+      ignoreDateRange: false // Respect calendar date range
+    }
+    
+    // Add meeting location (required by GHL)
+    appointmentData.meetingLocationType = 'custom'
+    appointmentData.meetingLocationId = 'custom_0'
+    appointmentData.overrideLocationConfig = true
+    
+    // Add contact details if provided
+    if (customerName || customerEmail || customerPhone) {
+      appointmentData.contact = {
+        name: customerName || '',
+        email: customerEmail || '',
+        phone: customerPhone || ''
+      }
+    }
+    
+    // Add description/notes if provided
+    if (description) {
+      appointmentData.notes = description
+      appointmentData.description = description
+    }
+
+    // Call GHL API to create appointment
+    const ghlApiUrl = 'https://services.leadconnectorhq.com/calendars/events/appointments'
+    
+    // Build headers with location ID if available
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${integration.access_token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Version': '2021-04-15'
+    }
+    
+    // Add location ID if available
+    if (integration.location_id) {
+      headers['locationId'] = integration.location_id
+    }
     
     const response = await fetch(ghlApiUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${integration.access_token}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28'
-      },
+      headers,
       body: JSON.stringify(appointmentData)
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('GHL API error:', response.status, errorText)
+      console.error('GHL Create Appointment API error:', response.status, errorText)
       return NextResponse.json({ 
-        error: `GHL API error: ${response.status}`,
+        error: `GHL Create Appointment API error: ${response.status}`,
         details: errorText 
       }, { status: response.status })
     }
 
     const data = await response.json()
-    console.log('GHL Appointment Creation Response:', JSON.stringify(data, null, 2))
-    
+
     return NextResponse.json({
       success: true,
-      appointmentId: data.appointment?.id,
-      message: 'Appointment created successfully',
-      appointment: data.appointment
+      appointment: data,
+      message: 'Appointment created successfully in GHL calendar',
+      debug: {
+        ghlApiUrl,
+        requestPayload: appointmentData,
+        responseStatus: response.status,
+        responseData: data
+      }
     })
 
   } catch (error) {

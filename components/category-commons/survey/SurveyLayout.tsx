@@ -143,6 +143,7 @@ export default function SurveyLayout({
   const [cursor, setCursor] = useState<Date>(new Date())
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedTime, setSelectedTime] = useState<string>('')
+  const [selectedSlot, setSelectedSlot] = useState<any>(null)
   const [details, setDetails] = useState<CustomerDetails>({
     firstName: '', lastName: '', email: '', phone: '', postcode: '', notes: ''
   })
@@ -371,7 +372,7 @@ export default function SurveyLayout({
       
       console.log('Using real GHL calendar data - filtered slots for', selectedDate, ':', dateSlots.length, 'slots', 'from total:', ghlSlots.length)
       return dateSlots.map(slot => {
-        // Convert UTC time to selected timezone
+        // Convert UTC time to selected timezone for display
         const formattedTime = convertUTCToTimezone(slot.startTime, selectedTimezone)
         
         console.log('GHL slot conversion:', {
@@ -379,14 +380,23 @@ export default function SurveyLayout({
           timezone: selectedTimezone,
           converted: formattedTime
         })
-        return formattedTime
+        
+        // Return slot object with display time
+        return {
+          displayTime: formattedTime,
+          slot: slot
+        }
       })
     } else {
       // Fallback: Static time slots only when GHL is not connected
       console.log('Using fallback static time slots (GHL not connected)')
       const timeSlots = []
       for (let hour = 9; hour <= 17; hour++) {
-        timeSlots.push(hour < 10 ? `0${hour}:00` : `${hour}:00`)
+        const time = hour < 10 ? `0${hour}:00` : `${hour}:00`
+        timeSlots.push({
+          displayTime: time,
+          slot: null
+        })
       }
       return timeSlots
     }
@@ -436,7 +446,7 @@ export default function SurveyLayout({
     try {
       // Use custom survey submit handler if provided
       if (onSurveySubmit) {
-        await onSurveySubmit({ ...details, date: selectedDate, time: selectedTime })
+        await onSurveySubmit({ ...details, date: selectedDate, time: selectedTime, slot: selectedSlot })
       } else {
         // Fallback to original behavior
         // Save survey submission to database if submissionId exists
@@ -798,30 +808,29 @@ export default function SurveyLayout({
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {(() => {
-                      if (ghlCalendarEnabled) {
-                        if (getAvailableTimeSlots.length > 0) {
-                          // Use real GHL calendar data
-                          return getAvailableTimeSlots.map((timeString) => {
-                            return { value: timeString, label: timeString, disabled: false }
-                          })
-                        } else {
-                          // GHL connected but no slots available for this date
-                          return [{ value: '', label: 'No slots available', disabled: true }]
-                        }
+                      const slots = getAvailableTimeSlots
+                      if (slots.length > 0) {
+                        return slots.map((slotData, index) => {
+                          return { 
+                            value: slotData.displayTime, 
+                            label: slotData.displayTime, 
+                            slot: slotData.slot,
+                            disabled: false 
+                          }
+                        })
                       } else {
-                        // Fallback: Static time slots when GHL not connected
-                        const timeSlots = []
-                        for (let hour = 9; hour <= 17; hour++) {
-                          const timeString = hour < 10 ? `0${hour}:00` : `${hour}:00`
-                          const displayTime = hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`
-                          timeSlots.push({ value: timeString, label: displayTime, disabled: false })
-                        }
-                        return timeSlots
+                        // No slots available for this date
+                        return [{ value: '', label: 'No slots available', slot: null, disabled: true }]
                       }
-                    })().map((timeSlot) => (
+                    })().map((timeSlot, index) => (
                       <button
-                        key={timeSlot.value}
-                        onClick={() => !timeSlot.disabled && setSelectedTime(timeSlot.value)}
+                        key={timeSlot.value || index}
+                        onClick={() => {
+                          if (!timeSlot.disabled) {
+                            setSelectedTime(timeSlot.value)
+                            setSelectedSlot(timeSlot.slot)
+                          }
+                        }}
                         disabled={timeSlot.disabled}
                         className={`p-2 rounded-lg border text-sm font-medium transition-all ${
                           timeSlot.disabled

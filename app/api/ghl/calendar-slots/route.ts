@@ -170,10 +170,14 @@ export async function GET(request: NextRequest) {
         const dayData = data[dateKey]
         if (dayData && dayData.slots && Array.isArray(dayData.slots)) {
           dayData.slots.forEach((slotTime: string, index: number) => {
+            // Calculate endTime based on duration (30 minutes)
+            const startDate = new Date(slotTime)
+            const endDate = new Date(startDate.getTime() + 30 * 60 * 1000) // 30 minutes later
+            
             allSlots.push({
               id: `slot_${dateKey}_${index}`,
               startTime: slotTime,
-              endTime: slotTime, // We'll calculate this based on duration
+              endTime: endDate.toISOString(),
               isAvailable: true,
               duration: 30, // Default 30 minutes, can be configured
               calendarId: calendarId,
