@@ -54,6 +54,13 @@ import {
   getDefaultAdminESurveySubmittedTextTemplate
 } from '@/lib/email-templates/esurvey-submitted'
 
+import {
+  getDefaultCustomerCallbackRequestedTemplate,
+  getDefaultCustomerCallbackRequestedTextTemplate,
+  getDefaultAdminCallbackRequestedTemplate,
+  getDefaultAdminCallbackRequestedTextTemplate
+} from '@/lib/email-templates/callback-requested'
+
 import { getDefaultDynamicFields, TemplateField } from '@/lib/email-templates/shared'
 
 // Import checkout templates directly
@@ -135,6 +142,12 @@ const getTemplatesByType = (categorySlug: string, emailType: string, recipientTy
         return templateType === 'html' ? getDefaultCustomerESurveySubmittedTemplate() : getDefaultCustomerESurveySubmittedTextTemplate()
       } else {
         return templateType === 'html' ? getDefaultAdminESurveySubmittedTemplate() : getDefaultAdminESurveySubmittedTextTemplate()
+      }
+    } else if (emailType === 'callback-requested') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerCallbackRequestedTemplate() : getDefaultCustomerCallbackRequestedTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminCallbackRequestedTemplate() : getDefaultAdminCallbackRequestedTextTemplate()
       }
     }
   }
@@ -228,6 +241,11 @@ const EMAIL_TYPES_BY_CATEGORY = {
       id: 'esurvey-submitted',
       name: 'eSurvey Submitted',
       description: 'Sent when a customer submits photos via eSurvey',
+    },
+    {
+      id: 'callback-requested',
+      name: 'Callback Request',
+      description: 'Sent when a customer requests a callback',
     },
   ],
   aircon: [

@@ -1,5 +1,4 @@
-import { createClient } from '@/utils/supabase/server';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/client';
 
 export interface PartnerSettings {
   header_code?: string;
@@ -8,12 +7,12 @@ export interface PartnerSettings {
   company_color?: string;
 }
 
-// Server-side version
-export async function getPartnerSettings(host?: string): Promise<PartnerSettings | null> {
+// Client-side version
+export async function getPartnerSettingsClient(host?: string): Promise<PartnerSettings | null> {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     
-    // If no host provided, try to get from request headers
+    // If no host provided, return null
     if (!host) {
       return null;
     }
@@ -44,4 +43,3 @@ export async function getPartnerSettings(host?: string): Promise<PartnerSettings
     return null;
   }
 }
-

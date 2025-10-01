@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Phone, ArrowRight, RotateCcw, Camera } from 'lucide-react'
+import { Phone, ArrowRight, RotateCcw, Camera, Clock } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import ESurveyLayout, { ESurveyImageUploadArea } from '@/components/category-commons/esurvey/ESurveyLayout'
+import CallbackRequestForm from './CallbackRequestForm'
 import { createClient } from '@/utils/supabase/client'
 
 interface QuoteSubmission {
@@ -56,6 +57,7 @@ interface UserInfoSectionProps {
 export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart, brandColor = '#2563eb', submissionId }: UserInfoSectionProps) {
   const [showRestartConfirm, setShowRestartConfirm] = useState(false)
   const [showESurvey, setShowESurvey] = useState(false)
+  const [showCallbackForm, setShowCallbackForm] = useState(false)
   const [isSubmittingESurvey, setIsSubmittingESurvey] = useState(false)
   const supabase = createClient()
   
@@ -264,6 +266,29 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
                 </div>
               </div>
 
+              {/* Callback request button */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border">
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${brandColor}20` }}
+                >
+                  <Clock 
+                    className="w-4 h-4" 
+                    style={{ color: brandColor }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-700">Need help choosing?</p>
+                  <button 
+                    onClick={() => setShowCallbackForm(true)}
+                    className="text-sm font-semibold underline hover:opacity-80"
+                    style={{ color: brandColor }}
+                  >
+                    Request a callback
+                  </button>
+                </div>
+              </div>
+
               {/* eSurvey button */}
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border">
                 <div 
@@ -358,6 +383,16 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
            </DialogFooter>
          </DialogContent>
        </Dialog>
+
+       {/* Callback Request Form */}
+       <CallbackRequestForm
+         isOpen={showCallbackForm}
+         onClose={() => setShowCallbackForm(false)}
+         submissionInfo={submissionInfo}
+         partnerInfo={partnerInfo}
+         submissionId={submissionId || null}
+         brandColor={brandColor}
+       />
 
        {/* eSurvey Popup */}
        <ESurveyLayout
