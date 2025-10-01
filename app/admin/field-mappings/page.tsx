@@ -63,6 +63,8 @@ const EMAIL_TYPES = [
   { id: 'checkout-stripe', name: 'Payment Confirmed', description: 'Sent when a customer completes payment via Stripe' },
   { id: 'enquiry-submitted', name: 'Enquiry Submitted', description: 'Sent when a customer submits a general enquiry' },
   { id: 'survey-submitted', name: 'Survey Submitted', description: 'Sent when a customer completes a survey' },
+  { id: 'esurvey-submitted', name: 'eSurvey Submitted', description: 'Sent when a customer submits photos via eSurvey' },
+  { id: 'callback-requested', name: 'Callback Request', description: 'Sent when a customer requests a callback' },
 ]
 
 const DATABASE_SOURCES = [
@@ -72,6 +74,8 @@ const DATABASE_SOURCES = [
   { value: 'checkout_data', label: 'Checkout Data', description: 'Payment, booking, order details' },
   { value: 'survey_data', label: 'Survey Data', description: 'Survey responses and images' },
   { value: 'enquiry_data', label: 'Enquiry Data', description: 'General enquiry information' },
+  { value: 'esurvey_data', label: 'eSurvey Data', description: 'eSurvey photo submissions and details' },
+  { value: 'callback_data', label: 'Callback Data', description: 'Callback request details and customer information' },
   { value: 'form_submissions', label: 'Form Submissions', description: 'Form submissions' },
   { value: 'save_quote_data', label: 'Save Quote Data', description: 'User info, products, and metadata from save quote submissions' },
 ]
@@ -125,6 +129,16 @@ const EMAIL_TYPES_BY_CATEGORY = {
       name: 'Survey Submitted',
       description: 'Sent when a customer completes a survey',
     },
+    {
+      id: 'esurvey-submitted',
+      name: 'eSurvey Submitted',
+      description: 'Sent when a customer submits photos via eSurvey',
+    },
+    {
+      id: 'callback-requested',
+      name: 'Callback Request',
+      description: 'Sent when a customer requests a callback',
+    },
   ],
   aircon: [
     {
@@ -158,6 +172,7 @@ export default function FieldMappingsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [previewData, setPreviewData] = useState<any>(null)
   const [activeDataTab, setActiveDataTab] = useState<string>('')
+  const [lastSelectedTab, setLastSelectedTab] = useState<string>('')
   const [showHtmlGuide, setShowHtmlGuide] = useState(false)
   const [showTemplateGenerator, setShowTemplateGenerator] = useState(false)
 
@@ -179,6 +194,9 @@ export default function FieldMappingsPage() {
   useEffect(() => {
     if (selectedPartnerId) {
       loadCategories()
+      // Reset tab selection when partner changes
+      setActiveDataTab('')
+      setLastSelectedTab('')
     }
   }, [selectedPartnerId])
 
@@ -196,6 +214,10 @@ export default function FieldMappingsPage() {
       } else if (!categoryEmailTypes.find(type => type.id === selectedEmailType)) {
         setSelectedEmailType(categoryEmailTypes[0].id)
       }
+      
+      // Reset tab selection when category changes
+      setActiveDataTab('')
+      setLastSelectedTab('')
       
       loadMappings()
       loadSampleData()
@@ -637,42 +659,49 @@ export default function FieldMappingsPage() {
     if (!selectedCategoryId) return
 
     try {
-      // Load sample submission data for data browser
-      // Try to find a record with actual data in different columns
-      const { data, error } = await supabase
+      // Load all records from the service category to find the one with most data
+      const { data: allRecords, error } = await supabase
         .from('lead_submission_data')
         .select('*')
         .eq('service_category_id', selectedCategoryId)
-        .not('checkout_data', 'is', null)
-        .limit(1)
-        .single()
+        .limit(10) // Get multiple records to compare
 
       if (error) {
-        console.log('No checkout data found, trying any record:', error.message)
-        // If no checkout data, try any record
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('lead_submission_data')
-          .select('*')
-          .eq('service_category_id', selectedCategoryId)
-          .limit(1)
-          .single()
-
-        if (fallbackError) {
-          console.error('Error loading sample data:', fallbackError)
-          return
-        }
-        setPreviewData(fallbackData)
-      } else {
-        setPreviewData(data)
+        console.error('Error loading sample data:', error)
+        return
       }
-      
-      // Set first available data source as active tab
-      if (data) {
-        const recordData = data
+
+      if (allRecords && allRecords.length > 0) {
+        // Find the record with the most non-null data fields
+        let bestRecord = allRecords[0]
+        let maxDataFields = 0
+
+        for (const record of allRecords) {
+          const dataFields = Object.keys(record).filter(key => {
+            const value = record[key]
+            return value !== null && value !== undefined && 
+                   (typeof value === 'object' ? Object.keys(value).length > 0 : true)
+          }).length
+
+          if (dataFields > maxDataFields) {
+            maxDataFields = dataFields
+            bestRecord = record
+          }
+        }
+
+        setPreviewData(bestRecord)
+        
+        // Set active tab - prefer last selected tab if it exists in the new data, otherwise use first available
+        const recordData = bestRecord
         const availableSources = Object.keys(recordData).filter(sourceKey => 
-          ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data'].includes(sourceKey)
+          ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'esurvey_data', 'success_data', 'form_submissions', 'save_quote_data', 'callback_data'].includes(sourceKey)
         )
-        if (availableSources.length > 0) {
+        
+        if (lastSelectedTab && availableSources.includes(lastSelectedTab)) {
+          // Keep the previously selected tab if it's still available
+          setActiveDataTab(lastSelectedTab)
+        } else if (availableSources.length > 0) {
+          // Use first available tab if no previous selection or previous tab not available
           setActiveDataTab(availableSources[0])
         }
       }
@@ -1216,12 +1245,15 @@ export default function FieldMappingsPage() {
                           <nav className="flex overflow-x-auto" aria-label="Data Sources">
                             {Object.entries(previewData)
                               .filter(([sourceKey]) => 
-                                ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data', 'form_submissions', 'save_quote_data'].includes(sourceKey)
+                                ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'esurvey_data', 'success_data', 'form_submissions', 'save_quote_data', 'callback_data'].includes(sourceKey)
                               )
                               .map(([sourceKey, sourceData]) => (
                               <button
                                 key={sourceKey}
-                                onClick={() => setActiveDataTab(sourceKey)}
+                                onClick={() => {
+                                  setActiveDataTab(sourceKey)
+                                  setLastSelectedTab(sourceKey)
+                                }}
                                 className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm ${
                                   activeDataTab === sourceKey
                                     ? 'border-blue-500 text-blue-600'
@@ -1236,12 +1268,25 @@ export default function FieldMappingsPage() {
                         
                         {/* Data Content */}
                         <div className="p-4 max-h-[62vh] overflow-y-auto">
-                          {activeDataTab && previewData && previewData[activeDataTab] ? (
+                          {activeDataTab && previewData ? (
                             <div>
                               <h4 className="text-sm font-medium text-gray-900 mb-3">
                                 {activeDataTab.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} Data
                               </h4>
-                              {renderDataBrowser(previewData[activeDataTab], '', activeDataTab)}
+                              {previewData[activeDataTab] ? (
+                                renderDataBrowser(previewData[activeDataTab], '', activeDataTab)
+                              ) : (
+                                <div className="text-center py-8 text-gray-500">
+                                  <Eye className="h-8 w-8 mx-auto mb-2" />
+                                  <p>No data available in {activeDataTab}</p>
+                                  <p className="text-sm">This field is empty or null</p>
+                                  <div className="text-xs text-gray-400 mt-2">
+                                    Data type: {typeof previewData[activeDataTab]}
+                                    <br />
+                                    Value: {previewData[activeDataTab] === null ? 'null' : previewData[activeDataTab] === undefined ? 'undefined' : 'empty object/array'}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className="text-center py-8 text-gray-500">
@@ -1252,10 +1297,6 @@ export default function FieldMappingsPage() {
                                   Available sources: {Object.keys(previewData).join(', ')}
                                   <br />
                                   Active tab: {activeDataTab || 'none'}
-                                  <br />
-                                  Checkout data type: {typeof previewData.checkout_data}
-                                  <br />
-                                  Checkout data value: {previewData.checkout_data ? JSON.stringify(previewData.checkout_data).substring(0, 100) + '...' : 'null/undefined'}
                                 </div>
                               )}
                             </div>

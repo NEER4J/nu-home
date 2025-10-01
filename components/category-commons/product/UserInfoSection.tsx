@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Phone, ArrowRight, RotateCcw } from 'lucide-react'
+import { Phone, ArrowRight, RotateCcw, Camera, Clock } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import ESurveyLayout, { ESurveyImageUploadArea } from '@/components/category-commons/esurvey/ESurveyLayout'
+import CallbackRequestForm from './CallbackRequestForm'
+import { createClient } from '@/utils/supabase/client'
 
 interface QuoteSubmission {
   submission_id: string
@@ -48,10 +51,15 @@ interface UserInfoSectionProps {
   partnerInfo: PartnerInfo | null
   onRestart?: () => void
   brandColor?: string
+  submissionId?: string | null
 }
 
-export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart, brandColor = '#2563eb' }: UserInfoSectionProps) {
+export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart, brandColor = '#2563eb', submissionId }: UserInfoSectionProps) {
   const [showRestartConfirm, setShowRestartConfirm] = useState(false)
+  const [showESurvey, setShowESurvey] = useState(false)
+  const [showCallbackForm, setShowCallbackForm] = useState(false)
+  const [isSubmittingESurvey, setIsSubmittingESurvey] = useState(false)
+  const supabase = createClient()
   
   if (!submissionInfo) {
     return null
@@ -70,6 +78,134 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
     if (onRestart) {
       onRestart()
       setShowRestartConfirm(false)
+    }
+  }
+
+  // eSurvey image upload areas
+  const esurveyImageUploadAreas: ESurveyImageUploadArea[] = [
+    { title: "Current boiler setup", description: "Show your existing boiler and surrounding area", icon: Camera, required: true },
+    { title: "Installation area", description: "Where you'd like the new boiler installed", icon: Camera, required: true },
+    { title: "Gas meter", description: "Your gas meter and pipework", icon: Camera, required: false },
+    { title: "Hot water tank", description: "If you have a hot water tank", icon: Camera, required: false },
+    { title: "Controls/thermostat", description: "Your current heating controls", icon: Camera, required: false }
+  ]
+
+  const handleESurveyImageUpload = (areaIndex: number, files: FileList) => {
+    console.log(`Uploaded ${files.length} files for eSurvey area ${areaIndex}`)
+  }
+
+  const handleESurveySubmit = async (uploadedImages: Record<number, File[]>, uploadedImageUrls: Record<number, string[]>) => {
+    setIsSubmittingESurvey(true)
+
+    try {
+      console.log('=== eSurvey SUBMISSION HANDLER CALLED ===')
+      console.log('Uploaded images:', uploadedImages)
+      console.log('Uploaded image URLs:', uploadedImageUrls)
+      
+      if (submissionId && partnerInfo) {
+        // Save eSurvey data to lead_submission_data
+        const esurveyData = {
+          esurvey_details: {
+            user_details: {
+              first_name: submissionInfo.first_name,
+              last_name: submissionInfo.last_name,
+              email: submissionInfo.email,
+              phone: submissionInfo.phone,
+              postcode: submissionInfo.postcode
+            },
+            uploaded_images: Object.keys(uploadedImageUrls).map(areaIndex => {
+              const imageUrls = uploadedImageUrls[parseInt(areaIndex)] || [];
+              const area = esurveyImageUploadAreas[parseInt(areaIndex)];
+              return {
+                label: area?.title || `Image ${parseInt(areaIndex) + 1}`,
+                url: imageUrls[0] || null
+              };
+            }).filter(img => img.url),
+            esurvey_completed_at: new Date().toISOString()
+          }
+        };
+
+        // Get service category ID
+        const { data: boilerCategory } = await supabase
+          .from('ServiceCategories')
+          .select('service_category_id')
+          .eq('slug', 'boiler')
+          .single()
+
+        if (boilerCategory) {
+          // Save to lead_submission_data
+          const { error } = await supabase
+            .from('lead_submission_data')
+            .upsert({
+              submission_id: submissionId,
+              partner_id: partnerInfo.user_id,
+              service_category_id: boilerCategory.service_category_id,
+              esurvey_data: esurveyData,
+              current_page: 'esurvey',
+              pages_completed: ['quote', 'products', 'esurvey'],
+              last_activity_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'submission_id'
+            });
+
+          if (error) {
+            console.error('Error saving eSurvey data:', error)
+            throw error
+          }
+
+          console.log('eSurvey data saved successfully')
+
+          // Send eSurvey email
+          console.log('=== SENDING eSurvey EMAIL ===')
+          try {
+            const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+            const subdomain = hostname || null
+            const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
+
+            const emailData = {
+              first_name: submissionInfo.first_name,
+              last_name: submissionInfo.last_name,
+              email: submissionInfo.email,
+              phone: submissionInfo.phone,
+              postcode: submissionInfo.postcode,
+              submission_id: submissionId,
+              category: 'boiler',
+              uploaded_image_urls: uploadedImageUrls,
+              subdomain,
+              is_iframe: isIframe
+            };
+
+            console.log('Sending eSurvey email to: /api/email/boiler/esurvey-submitted')
+            const emailResponse = await fetch('/api/email/boiler/esurvey-submitted', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(emailData),
+            });
+
+            if (emailResponse.ok) {
+              console.log('eSurvey email sent successfully')
+            } else {
+              console.warn('Failed to send eSurvey email:', await emailResponse.text())
+            }
+          } catch (emailError) {
+            console.warn('Error sending eSurvey email:', emailError)
+          }
+
+          // Close the eSurvey popup
+          setShowESurvey(false)
+          alert('eSurvey submitted successfully! We\'ll review your photos and get back to you.')
+        }
+      } else {
+        console.error('Missing submissionId or partnerInfo for eSurvey');
+        alert('Error: Missing required information for eSurvey submission');
+      }
+      
+    } catch (error) {
+      console.error('Failed to submit eSurvey:', error)
+      alert('Failed to submit eSurvey. Please try again.')
+    } finally {
+      setIsSubmittingESurvey(false)
     }
   }
 
@@ -127,6 +263,52 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
                    >
                     {partnerEmail}
                   </a>
+                </div>
+              </div>
+
+              {/* Callback request button */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border">
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${brandColor}20` }}
+                >
+                  <Clock 
+                    className="w-4 h-4" 
+                    style={{ color: brandColor }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-700">Need help choosing?</p>
+                  <button 
+                    onClick={() => setShowCallbackForm(true)}
+                    className="text-sm font-semibold underline hover:opacity-80"
+                    style={{ color: brandColor }}
+                  >
+                    Request a callback
+                  </button>
+                </div>
+              </div>
+
+              {/* eSurvey button */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border">
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${brandColor}20` }}
+                >
+                  <Camera 
+                    className="w-4 h-4" 
+                    style={{ color: brandColor }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-700">For peace of mind</p>
+                  <button 
+                    onClick={() => setShowESurvey(true)}
+                    className="text-sm font-semibold underline hover:opacity-80"
+                    style={{ color: brandColor }}
+                  >
+                    Request a survey
+                  </button>
                 </div>
               </div>
             </CardContent>
@@ -201,6 +383,39 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
            </DialogFooter>
          </DialogContent>
        </Dialog>
+
+       {/* Callback Request Form */}
+       <CallbackRequestForm
+         isOpen={showCallbackForm}
+         onClose={() => setShowCallbackForm(false)}
+         submissionInfo={submissionInfo}
+         partnerInfo={partnerInfo}
+         submissionId={submissionId || null}
+         brandColor={brandColor}
+       />
+
+       {/* eSurvey Popup */}
+       <ESurveyLayout
+         companyColor={partnerInfo?.company_color}
+         partnerPhone={partnerInfo?.phone}
+         customerName={submissionInfo.first_name}
+         customerDetails={{
+           name: `${submissionInfo.first_name} ${submissionInfo.last_name}`,
+           phone: submissionInfo.phone || '',
+           email: submissionInfo.email,
+           postcode: submissionInfo.postcode
+         }}
+         onBack={() => setShowESurvey(false)}
+         backLabel="Close"
+         category="boiler"
+         imageUploadAreas={esurveyImageUploadAreas}
+         submissionId={submissionId || 'temp-' + Date.now()}
+         onImageUpload={handleESurveyImageUpload}
+         onFormSubmit={handleESurveySubmit}
+         isSubmitting={isSubmittingESurvey}
+         isOpen={showESurvey}
+         onClose={() => setShowESurvey(false)}
+       />
      </div>
    )
  }

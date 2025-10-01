@@ -2752,7 +2752,7 @@ function BoilerProductsContent() {
       )}
 
       {/* User Info Section at Bottom */}
-      <UserInfoSection submissionInfo={submissionInfo} partnerInfo={partnerInfo} onRestart={handleRestart} brandColor={brandColor} />
+      <UserInfoSection submissionInfo={submissionInfo} partnerInfo={partnerInfo} onRestart={handleRestart} brandColor={brandColor} submissionId={submissionId} />
 
             {/* FAQs at bottom */}
             <ProductFaqs faqs={partnerSettings?.faqs || null} />

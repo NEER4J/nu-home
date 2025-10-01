@@ -24,5 +24,53 @@ export {
   getDefaultAdminSaveQuoteTextTemplate
 } from './save-quote'
 
+// Checkout Monthly Templates
+export {
+  getDefaultCustomerCheckoutMonthlyTemplate,
+  getDefaultCustomerCheckoutMonthlyTextTemplate,
+  getDefaultAdminCheckoutMonthlyTemplate,
+  getDefaultAdminCheckoutMonthlyTextTemplate
+} from './checkout-monthly'
+
+// Checkout Pay Later Templates
+export {
+  getDefaultCustomerCheckoutPayLaterTemplate,
+  getDefaultCustomerCheckoutPayLaterTextTemplate,
+  getDefaultAdminCheckoutPayLaterTemplate,
+  getDefaultAdminCheckoutPayLaterTextTemplate
+} from './checkout-pay-later'
+
+// Checkout Stripe Templates
+export {
+  getDefaultCustomerCheckoutStripeTemplate,
+  getDefaultCustomerCheckoutStripeTextTemplate,
+  getDefaultAdminCheckoutStripeTemplate,
+  getDefaultAdminCheckoutStripeTextTemplate
+} from './checkout-stripe'
+
+// Enquiry Submitted Templates
+export {
+  getDefaultCustomerEnquirySubmittedTemplate,
+  getDefaultCustomerEnquirySubmittedTextTemplate,
+  getDefaultAdminEnquirySubmittedTemplate,
+  getDefaultAdminEnquirySubmittedTextTemplate
+} from './enquiry-submitted'
+
+// Survey Submitted Templates
+export {
+  getDefaultCustomerSurveySubmittedTemplate,
+  getDefaultCustomerSurveySubmittedTextTemplate,
+  getDefaultAdminSurveySubmittedTemplate,
+  getDefaultAdminSurveySubmittedTextTemplate
+} from './survey-submitted'
+
+// eSurvey Templates
+export {
+  getDefaultCustomerESurveySubmittedTemplate,
+  getDefaultCustomerESurveySubmittedTextTemplate,
+  getDefaultAdminESurveySubmittedTemplate,
+  getDefaultAdminESurveySubmittedTextTemplate
+} from './esurvey-submitted'
+
 // Shared utilities
 export { getDefaultDynamicFields } from './shared'
