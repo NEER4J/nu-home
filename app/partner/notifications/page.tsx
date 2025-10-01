@@ -8,56 +8,75 @@ import { Loader2, Mail, Edit, Eye, Save, RotateCcw, Users, Settings, MapPin } fr
 import EmailTemplateEditor from '@/components/partner/notifications/EmailTemplateEditor'
 import LeadsMapping from '@/components/partner/notifications/LeadsMapping'
 import { toast } from 'sonner'
+
+import { FieldMappingEngine } from '@/lib/field-mapping-engine'
+
+// Import template functions directly from individual files
 import {
   getDefaultCustomerTemplate,
   getDefaultCustomerTextTemplate,
   getDefaultAdminTemplate,
   getDefaultAdminTextTemplate
 } from '@/lib/email-templates/quote-initial'
+
 import {
   getDefaultCustomerVerifiedTemplate,
   getDefaultCustomerVerifiedTextTemplate,
   getDefaultAdminVerifiedTemplate,
   getDefaultAdminVerifiedTextTemplate
 } from '@/lib/email-templates/quote-verified'
+
 import {
   getDefaultCustomerSaveQuoteTemplate,
   getDefaultCustomerSaveQuoteTextTemplate,
   getDefaultAdminSaveQuoteTemplate,
   getDefaultAdminSaveQuoteTextTemplate
 } from '@/lib/email-templates/save-quote'
-import {
-  getDefaultCustomerCheckoutMonthlyTemplate,
-  getDefaultCustomerCheckoutMonthlyTextTemplate,
-  getDefaultAdminCheckoutMonthlyTemplate,
-  getDefaultAdminCheckoutMonthlyTextTemplate
-} from '@/lib/email-templates/checkout-monthly'
-import {
-  getDefaultCustomerCheckoutPayLaterTemplate,
-  getDefaultCustomerCheckoutPayLaterTextTemplate,
-  getDefaultAdminCheckoutPayLaterTemplate,
-  getDefaultAdminCheckoutPayLaterTextTemplate
-} from '@/lib/email-templates/checkout-pay-later'
-import {
-  getDefaultCustomerCheckoutStripeTemplate,
-  getDefaultCustomerCheckoutStripeTextTemplate,
-  getDefaultAdminCheckoutStripeTemplate,
-  getDefaultAdminCheckoutStripeTextTemplate
-} from '@/lib/email-templates/checkout-stripe'
+
 import {
   getDefaultCustomerEnquirySubmittedTemplate,
   getDefaultCustomerEnquirySubmittedTextTemplate,
   getDefaultAdminEnquirySubmittedTemplate,
   getDefaultAdminEnquirySubmittedTextTemplate
 } from '@/lib/email-templates/enquiry-submitted'
+
 import {
   getDefaultCustomerSurveySubmittedTemplate,
   getDefaultCustomerSurveySubmittedTextTemplate,
   getDefaultAdminSurveySubmittedTemplate,
   getDefaultAdminSurveySubmittedTextTemplate
 } from '@/lib/email-templates/survey-submitted'
+
+import {
+  getDefaultCustomerESurveySubmittedTemplate,
+  getDefaultCustomerESurveySubmittedTextTemplate,
+  getDefaultAdminESurveySubmittedTemplate,
+  getDefaultAdminESurveySubmittedTextTemplate
+} from '@/lib/email-templates/esurvey-submitted'
+
 import { getDefaultDynamicFields, TemplateField } from '@/lib/email-templates/shared'
-import { FieldMappingEngine } from '@/lib/field-mapping-engine'
+
+// Import checkout templates directly
+import {
+  getDefaultCustomerCheckoutMonthlyTemplate,
+  getDefaultCustomerCheckoutMonthlyTextTemplate,
+  getDefaultAdminCheckoutMonthlyTemplate,
+  getDefaultAdminCheckoutMonthlyTextTemplate
+} from '@/lib/email-templates/checkout-monthly'
+
+import {
+  getDefaultCustomerCheckoutPayLaterTemplate,
+  getDefaultCustomerCheckoutPayLaterTextTemplate,
+  getDefaultAdminCheckoutPayLaterTemplate,
+  getDefaultAdminCheckoutPayLaterTextTemplate
+} from '@/lib/email-templates/checkout-pay-later'
+
+import {
+  getDefaultCustomerCheckoutStripeTemplate,
+  getDefaultCustomerCheckoutStripeTextTemplate,
+  getDefaultAdminCheckoutStripeTemplate,
+  getDefaultAdminCheckoutStripeTextTemplate
+} from '@/lib/email-templates/checkout-stripe'
 
 // Helper function to get templates based on category and email type
 const getTemplatesByType = (categorySlug: string, emailType: string, recipientType: 'customer' | 'admin', templateType: 'html' | 'text') => {
@@ -110,6 +129,12 @@ const getTemplatesByType = (categorySlug: string, emailType: string, recipientTy
         return templateType === 'html' ? getDefaultCustomerSurveySubmittedTemplate() : getDefaultCustomerSurveySubmittedTextTemplate()
       } else {
         return templateType === 'html' ? getDefaultAdminSurveySubmittedTemplate() : getDefaultAdminSurveySubmittedTextTemplate()
+      }
+    } else if (emailType === 'esurvey-submitted') {
+      if (recipientType === 'customer') {
+        return templateType === 'html' ? getDefaultCustomerESurveySubmittedTemplate() : getDefaultCustomerESurveySubmittedTextTemplate()
+      } else {
+        return templateType === 'html' ? getDefaultAdminESurveySubmittedTemplate() : getDefaultAdminESurveySubmittedTextTemplate()
       }
     }
   }
@@ -198,6 +223,11 @@ const EMAIL_TYPES_BY_CATEGORY = {
       id: 'survey-submitted',
       name: 'Survey Submitted',
       description: 'Sent when a customer completes a survey',
+    },
+    {
+      id: 'esurvey-submitted',
+      name: 'eSurvey Submitted',
+      description: 'Sent when a customer submits photos via eSurvey',
     },
   ],
   aircon: [
@@ -648,6 +678,7 @@ export default function NotificationsPage() {
           'checkout-stripe': { customer: 'Customer Payment Confirmed', admin: 'Admin Payment Confirmed Notification' },
           'enquiry-submitted': { customer: 'Customer Enquiry Confirmation', admin: 'Admin Enquiry Notification' },
           'survey-submitted': { customer: 'Customer Survey Confirmation', admin: 'Admin Survey Notification' },
+          'esurvey-submitted': { customer: 'Customer eSurvey Confirmation', admin: 'Admin eSurvey Notification' },
           'aircon-quote-initial': { customer: 'AC Quote Confirmation', admin: 'Admin AC Quote Notification' },
           'aircon-installation-scheduled': { customer: 'AC Installation Scheduled', admin: 'Admin AC Installation Notification' },
           'aircon-maintenance-reminder': { customer: 'AC Maintenance Reminder', admin: 'Admin AC Maintenance Notification' },
@@ -665,6 +696,7 @@ export default function NotificationsPage() {
           'checkout-stripe': { customer: 'Email sent when customer completes payment via Stripe', admin: 'Notification sent to admin when payment is completed' },
           'enquiry-submitted': { customer: 'Email sent when customer submits a general enquiry', admin: 'Notification sent to admin when enquiry is submitted' },
           'survey-submitted': { customer: 'Email sent when customer completes a survey', admin: 'Notification sent to admin when survey is submitted' },
+          'esurvey-submitted': { customer: 'Email sent when customer submits photos via eSurvey', admin: 'Notification sent to admin when eSurvey is submitted' },
           'aircon-quote-initial': { customer: 'Email sent to customers after AC quote request', admin: 'Notification sent to admin when new AC quote is submitted' },
           'aircon-installation-scheduled': { customer: 'Email sent when AC installation is scheduled', admin: 'Notification sent to admin about scheduled AC installation' },
           'aircon-maintenance-reminder': { customer: 'Reminder sent to customers about AC maintenance', admin: 'Notification to admin about maintenance reminders sent' },
@@ -682,6 +714,7 @@ export default function NotificationsPage() {
           'checkout-stripe': { customer: 'Payment Confirmed - Your Boiler Installation - {{companyName}}', admin: 'Payment Confirmed - Installation Booking - {{companyName}}' },
           'enquiry-submitted': { customer: 'Enquiry Submitted Successfully - {{companyName}}', admin: 'New Enquiry Submitted - {{companyName}}' },
           'survey-submitted': { customer: 'Survey Submitted Successfully - {{companyName}}', admin: 'New Survey Response Received - {{companyName}}' },
+          'esurvey-submitted': { customer: 'eSurvey Submitted Successfully - {{companyName}}', admin: 'New eSurvey Submitted - {{companyName}}' },
           'aircon-quote-initial': { customer: 'Your AC Quote Request - {{companyName}}', admin: 'New AC Quote Request - {{companyName}}' },
           'aircon-installation-scheduled': { customer: 'AC Installation Scheduled - {{companyName}}', admin: 'AC Installation Scheduled - {{companyName}}' },
           'aircon-maintenance-reminder': { customer: 'AC Maintenance Reminder - {{companyName}}', admin: 'AC Maintenance Reminder Sent - {{companyName}}' },
@@ -801,6 +834,7 @@ export default function NotificationsPage() {
             'checkout-stripe': { customer: 'Payment Confirmed - Your Boiler Installation - {{companyName}}', admin: 'Payment Confirmed - Installation Booking - {{companyName}}' },
             'enquiry-submitted': { customer: 'Enquiry Submitted Successfully - {{companyName}}', admin: 'New Enquiry Submitted - {{companyName}}' },
             'survey-submitted': { customer: 'Survey Submitted Successfully - {{companyName}}', admin: 'New Survey Response Received - {{companyName}}' },
+            'esurvey-submitted': { customer: 'eSurvey Submitted Successfully - {{companyName}}', admin: 'New eSurvey Submitted - {{companyName}}' },
           },
           aircon: {
             'aircon-quote-initial': { customer: 'Your AC quote request - {{companyName}}', admin: 'New AC Quote Request - {{companyName}}' },

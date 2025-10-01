@@ -63,6 +63,7 @@ const EMAIL_TYPES = [
   { id: 'checkout-stripe', name: 'Payment Confirmed', description: 'Sent when a customer completes payment via Stripe' },
   { id: 'enquiry-submitted', name: 'Enquiry Submitted', description: 'Sent when a customer submits a general enquiry' },
   { id: 'survey-submitted', name: 'Survey Submitted', description: 'Sent when a customer completes a survey' },
+  { id: 'esurvey-submitted', name: 'eSurvey Submitted', description: 'Sent when a customer submits photos via eSurvey' },
 ]
 
 const DATABASE_SOURCES = [
@@ -72,6 +73,7 @@ const DATABASE_SOURCES = [
   { value: 'checkout_data', label: 'Checkout Data', description: 'Payment, booking, order details' },
   { value: 'survey_data', label: 'Survey Data', description: 'Survey responses and images' },
   { value: 'enquiry_data', label: 'Enquiry Data', description: 'General enquiry information' },
+  { value: 'esurvey_data', label: 'eSurvey Data', description: 'eSurvey photo submissions and details' },
   { value: 'form_submissions', label: 'Form Submissions', description: 'Form submissions' },
   { value: 'save_quote_data', label: 'Save Quote Data', description: 'User info, products, and metadata from save quote submissions' },
 ]
@@ -124,6 +126,11 @@ const EMAIL_TYPES_BY_CATEGORY = {
       id: 'survey-submitted',
       name: 'Survey Submitted',
       description: 'Sent when a customer completes a survey',
+    },
+    {
+      id: 'esurvey-submitted',
+      name: 'eSurvey Submitted',
+      description: 'Sent when a customer submits photos via eSurvey',
     },
   ],
   aircon: [
@@ -670,7 +677,7 @@ export default function FieldMappingsPage() {
       if (data) {
         const recordData = data
         const availableSources = Object.keys(recordData).filter(sourceKey => 
-          ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data'].includes(sourceKey)
+          ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'esurvey_data', 'success_data'].includes(sourceKey)
         )
         if (availableSources.length > 0) {
           setActiveDataTab(availableSources[0])
@@ -1216,7 +1223,7 @@ export default function FieldMappingsPage() {
                           <nav className="flex overflow-x-auto" aria-label="Data Sources">
                             {Object.entries(previewData)
                               .filter(([sourceKey]) => 
-                                ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'success_data', 'form_submissions', 'save_quote_data'].includes(sourceKey)
+                                ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'esurvey_data', 'success_data', 'form_submissions', 'save_quote_data'].includes(sourceKey)
                               )
                               .map(([sourceKey, sourceData]) => (
                               <button
