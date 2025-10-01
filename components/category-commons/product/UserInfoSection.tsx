@@ -276,13 +276,13 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
                   />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-gray-700">Upload photos</p>
+                  <p className="text-sm text-gray-700">For peace of mind</p>
                   <button 
                     onClick={() => setShowESurvey(true)}
                     className="text-sm font-semibold underline hover:opacity-80"
                     style={{ color: brandColor }}
                   >
-                    eSurvey - Help us with photos
+                    Request a survey
                   </button>
                 </div>
               </div>
