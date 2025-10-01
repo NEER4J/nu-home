@@ -86,8 +86,42 @@ function getImageUrl(url: string | null): string | null {
   return `/${url}`
 }
 
+
 function startOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth(), 1) }
 function endOfMonth(d: Date) { return new Date(d.getFullYear(), d.getMonth() + 1, 0) }
+
+// Timezone conversion helpers
+const convertUTCToTimezone = (utcTimeString: string, timezone: 'UTC' | 'UK' | 'US' | 'India' | 'Ireland') => {
+  const date = new Date(utcTimeString)
+  
+  const timezoneMap = {
+    'UTC': 'UTC',
+    'UK': 'Europe/London',
+    'US': 'America/New_York', // Eastern Time
+    'India': 'Asia/Kolkata',
+    'Ireland': 'Europe/Dublin'
+  }
+  
+  const timeString = date.toLocaleTimeString('en-US', {
+    timeZone: timezoneMap[timezone],
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
+  
+  return timeString
+}
+
+const getTimezoneLabel = (timezone: 'UTC' | 'UK' | 'US' | 'India' | 'Ireland') => {
+  const labels = {
+    'UTC': 'UTC',
+    'UK': 'UK (GMT/BST)',
+    'US': 'US (EST/EDT)',
+    'India': 'India (IST)',
+    'Ireland': 'Ireland (GMT/IST)'
+  }
+  return labels[timezone]
+}
 
 export default function SurveyLayout({
   selectedProduct,
@@ -125,6 +159,9 @@ export default function SurveyLayout({
   const [ghlCalendarEnabled, setGhlCalendarEnabled] = useState(false)
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isLoadingMonth, setIsLoadingMonth] = useState(false)
+  const [selectedTimezone, setSelectedTimezone] = useState<'UTC' | 'UK' | 'US' | 'India' | 'Ireland'>('UTC')
+  
 
   // Pre-fill user info when component mounts
   useEffect(() => {
@@ -168,7 +205,7 @@ export default function SurveyLayout({
       console.log('SurveyLayout: GHL calendar disabled or not configured')
       setGhlCalendarEnabled(false)
     }
-  }, [partnerSettings?.calendar_settings])
+  }, [partnerSettings?.calendar_settings, cursor])
 
   // Fetch GHL calendar slots
   const fetchGhlSlots = async () => {
@@ -186,13 +223,24 @@ export default function SurveyLayout({
       return
     }
     
+    // Get date range for current month only (GHL API has 31 day limit)
+    const startDate = new Date(cursor.getFullYear(), cursor.getMonth(), 1)
+    // Set end date to the last day of current month at 23:59:59
+    const endDate = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999)
+    
+    console.log('Fetching GHL slots for date range:', {
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
+      daysInRange: Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+    })
+    
     setIsLoadingSlots(true)
     try {
-      const response = await fetch(`/api/ghl/calendar-slots?calendarId=${calendarId}`)
+      const response = await fetch(`/api/ghl/calendar-slots?calendarId=${calendarId}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`)
       if (response.ok) {
         const data = await response.json()
         setGhlSlots(data.slots || [])
-        console.log('GHL slots loaded:', data.slots)
+        console.log('GHL slots loaded:', data.slots?.length, 'slots for', startDate.toLocaleDateString(), 'to', endDate.toLocaleDateString())
       } else {
         console.error('Failed to fetch GHL slots:', await response.text())
       }
@@ -212,6 +260,36 @@ export default function SurveyLayout({
       console.error('Error syncing calendar:', error)
     } finally {
       setIsSyncing(false)
+    }
+  }
+
+  // Handle month navigation with loading
+  const handleMonthNavigation = async (direction: 'prev' | 'next') => {
+    if (!ghlCalendarEnabled) {
+      // If GHL not enabled, just change month without loading
+      if (direction === 'prev') {
+        setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))
+      } else {
+        setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))
+      }
+      return
+    }
+
+    setIsLoadingMonth(true)
+    try {
+      // Change month first
+      if (direction === 'prev') {
+        setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))
+      } else {
+        setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))
+      }
+      
+      // Fetch new month's slots
+      await fetchGhlSlots()
+    } catch (error) {
+      console.error('Failed to load month slots:', error)
+    } finally {
+      setIsLoadingMonth(false)
     }
   }
 
@@ -256,53 +334,89 @@ export default function SurveyLayout({
     const start = startOfMonth(cursor)
     const end = endOfMonth(cursor)
     const days: Date[] = []
-    for (let d = new Date(start); d <= end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
-      days.push(d)
+    
+    // Create dates in local timezone to avoid timezone issues
+    const startDate = new Date(start.getFullYear(), start.getMonth(), 1)
+    const endDate = new Date(start.getFullYear(), start.getMonth() + 1, 0) // Last day of month
+    
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      days.push(new Date(d))
     }
+    
+    console.log('Month days calculation:', {
+      cursor: cursor.toISOString(),
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
+      daysCount: days.length,
+      firstDay: days[0]?.toISOString(),
+      lastDay: days[days.length - 1]?.toISOString(),
+      firstDayDate: days[0]?.getDate(),
+      lastDayDate: days[days.length - 1]?.getDate()
+    })
+    
     return days
   }, [cursor])
 
-  // Get available time slots for selected date (GHL or default)
+  // Get available time slots for selected date (GHL or fallback)
   const getAvailableTimeSlots = useMemo(() => {
     if (!selectedDate) return []
     
-    if (ghlCalendarEnabled && ghlSlots.length > 0) {
-      // Filter GHL slots for the selected date
+    if (ghlCalendarEnabled) {
+      // Use real GHL calendar data
       const dateSlots = ghlSlots.filter(slot => {
-        const slotDate = new Date(slot.startTime).toISOString().split('T')[0]
+        // Extract date directly from slot without timezone conversion
+        const slotDate = slot.startTime.split('T')[0] // "2025-10-01"
         return slotDate === selectedDate && slot.isAvailable
       })
       
-      // Convert to time format (use local time)
-      console.log('Filtered date slots for', selectedDate, ':', dateSlots)
+      console.log('Using real GHL calendar data - filtered slots for', selectedDate, ':', dateSlots.length, 'slots', 'from total:', ghlSlots.length)
       return dateSlots.map(slot => {
-        // Parse the ISO string and get local time
-        const date = new Date(slot.startTime)
-        const hour = date.getHours()
-        const minute = date.getMinutes()
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-        console.log('Converting slot:', slot.startTime, 'to time:', timeString, 'local hour:', hour)
-        return timeString
+        // Convert UTC time to selected timezone
+        const formattedTime = convertUTCToTimezone(slot.startTime, selectedTimezone)
+        
+        console.log('GHL slot conversion:', {
+          original: slot.startTime,
+          timezone: selectedTimezone,
+          converted: formattedTime
+        })
+        return formattedTime
       })
     } else {
-      // Default time slots (5 AM to 9 PM)
+      // Fallback: Static time slots only when GHL is not connected
+      console.log('Using fallback static time slots (GHL not connected)')
       const timeSlots = []
-      for (let hour = 5; hour <= 21; hour++) {
+      for (let hour = 9; hour <= 17; hour++) {
         timeSlots.push(hour < 10 ? `0${hour}:00` : `${hour}:00`)
       }
       return timeSlots
     }
-  }, [selectedDate, ghlCalendarEnabled, ghlSlots])
+  }, [selectedDate, ghlCalendarEnabled, ghlSlots, selectedTimezone])
 
   // Check if a date has available slots
   const hasAvailableSlots = (date: Date) => {
-    if (!ghlCalendarEnabled) return true // Default calendar always has slots
+    if (!ghlCalendarEnabled) {
+      // Fallback: Show all dates as available when GHL not connected
+      return true
+    }
     
-    const dateString = date.toISOString().split('T')[0]
-    return ghlSlots.some(slot => {
-      const slotDate = new Date(slot.startTime).toISOString().split('T')[0]
+    if (ghlSlots.length === 0) {
+      // No GHL data loaded yet
+      return false
+    }
+    
+    // Extract date directly without timezone conversion
+    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const hasSlots = ghlSlots.some(slot => {
+      // Extract date directly from slot without timezone conversion
+      const slotDate = slot.startTime.split('T')[0]
       return slotDate === dateString && slot.isAvailable
     })
+    
+    console.log(`Date ${dateString} has available slots:`, hasSlots, {
+      dateString,
+      sampleSlotDates: ghlSlots.slice(0, 3).map(s => s.startTime.split('T')[0])
+    })
+    return hasSlots
   }
 
   const handleNextStep = () => {
@@ -516,25 +630,103 @@ export default function SurveyLayout({
                           <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
                         </button>
                       )}
-                      <button className="w-8 h-8 rounded-md border flex items-center justify-center" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}><ChevronLeft className="w-4 h-4" /></button>
-                      <button className="w-8 h-8 rounded-md border flex items-center justify-center" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}><ChevronRight className="w-4 h-4" /></button>
+                      <button 
+                        className="w-8 h-8 rounded-md border flex items-center justify-center disabled:opacity-50" 
+                        onClick={() => handleMonthNavigation('prev')}
+                        disabled={isLoadingMonth}
+                      >
+                        {isLoadingMonth ? (
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                        ) : (
+                          <ChevronLeft className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button 
+                        className="w-8 h-8 rounded-md border flex items-center justify-center disabled:opacity-50" 
+                        onClick={() => handleMonthNavigation('next')}
+                        disabled={isLoadingMonth}
+                      >
+                        {isLoadingMonth ? (
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
                   </div>
+                  
+                  {/* Timezone Selector */}
+                  {ghlCalendarEnabled && (
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <span className="text-sm text-gray-600">Show times in:</span>
+                      <select
+                        value={selectedTimezone}
+                        onChange={(e) => setSelectedTimezone(e.target.value as 'UTC' | 'UK' | 'US' | 'India' | 'Ireland')}
+                        className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="UTC">UTC</option>
+                        <option value="UK">UK (GMT/BST)</option>
+                        <option value="Ireland">Ireland (GMT/IST)</option>
+                        <option value="US">US (EST/EDT)</option>
+                        <option value="India">India (IST)</option>
+                      </select>
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-7 text-center text-xs text-gray-500 mt-3">
-                    {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => <div key={d} className="py-2">{d}</div>)}
+                    {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => <div key={d} className="py-2">{d}</div>)}
                   </div>
                   {/* days */}
-                  <div className="grid grid-cols-7 gap-2 mt-2">
+                  <div className="relative">
+                    {isLoadingMonth && (
+                      <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                          Loading month data...
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-7 gap-2 mt-2">
                     {(() => {
-                      const firstWeekday = (startOfMonth(cursor).getDay() + 6) % 7 // make Monday=0
+                      const firstWeekday = startOfMonth(cursor).getDay() // Sunday=0, Monday=1, etc.
                       const blanks = Array.from({ length: firstWeekday })
                       const cells: ReactNode[] = []
                       blanks.forEach((_, i) => cells.push(<div key={`b-${i}`} />))
                       monthDays.forEach(d => {
-                        const key = d.toISOString().slice(0,10)
+                        // Create date key without timezone conversion
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
                         const selected = selectedDate === key
-                        const disabled = d < new Date(new Date().toDateString()) || (ghlCalendarEnabled && !hasAvailableSlots(d))
+                        
+                        // Debug only first few days
+                        if (d.getDate() <= 2) {
+                          console.log('Calendar button date:', {
+                            originalDate: d.toISOString(),
+                            generatedKey: key,
+                            dayOfMonth: d.getDate()
+                          })
+                        }
+                        
+                        // Fix date comparison to avoid timezone issues
+                        const today = new Date()
+                        // Use local date comparison to avoid timezone issues
+                        const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                        const dateLocal = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+                        const isPastDate = dateLocal < todayLocal
+                        
                         const hasSlots = ghlCalendarEnabled ? hasAvailableSlots(d) : true
+                        const disabled = isPastDate || (ghlCalendarEnabled && !hasAvailableSlots(d))
+                        
+                        // Debug logging for date issues
+                        if (d.getDate() <= 3) { // Only log first few days to avoid spam
+                          console.log('Date debug:', {
+                            date: d.toISOString(),
+                            dateLocal: dateLocal.toISOString(),
+                            todayLocal: todayLocal.toISOString(),
+                            isPastDate,
+                            disabled,
+                            hasSlots
+                          })
+                        }
                         cells.push(
                           <button 
                             key={key} 
@@ -555,14 +747,24 @@ export default function SurveyLayout({
                       })
                       return cells
                     })()}
+                    </div>
                   </div>
                   <div className="mt-4 text-sm text-gray-600 flex items-start gap-2">
                     <Info className="w-4 h-4 mt-0.5" />
                     <div>
                       We'll contact you to discuss your project requirements and provide a detailed quote.
-                      {ghlCalendarEnabled && (
+                      {ghlCalendarEnabled ? (
                         <div className="mt-2 text-xs text-blue-600 font-medium">
-                          📅 Using GHL Calendar - Available slots only
+                          📅 Connected to GHL Calendar - Real availability data
+                          {ghlSlots.length === 0 && (
+                            <div className="mt-1 text-orange-600">
+                              ⚠️ No slots found - Check GHL calendar configuration
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-xs text-gray-500">
+                          📅 Using standard calendar - Connect GHL for real availability
                         </div>
                       )}
                     </div>
@@ -582,35 +784,49 @@ export default function SurveyLayout({
                     </button>
                   </div>
                   <div className="text-sm text-gray-600 mb-4">
-                    Selected date: <span className="font-medium">{new Date(selectedDate).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    Selected date: <span className="font-medium">{new Date(selectedDate).toLocaleDateString('en-GB', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}</span>
+                    {ghlCalendarEnabled && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Times shown in {getTimezoneLabel(selectedTimezone)}
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {(() => {
-                      if (ghlCalendarEnabled && getAvailableTimeSlots.length > 0) {
-                        // Use GHL available slots
-                        return getAvailableTimeSlots.map((timeString) => {
-                          const [hourStr, minuteStr] = timeString.split(':')
-                          const hour = parseInt(hourStr)
-                          const minute = parseInt(minuteStr)
-                          const displayTime = hour < 12 ? `${hour}:${minuteStr} AM` : hour === 12 ? `12:${minuteStr} PM` : `${hour - 12}:${minuteStr} PM`
-                          return { value: timeString, label: displayTime }
-                        })
+                      if (ghlCalendarEnabled) {
+                        if (getAvailableTimeSlots.length > 0) {
+                          // Use real GHL calendar data
+                          return getAvailableTimeSlots.map((timeString) => {
+                            return { value: timeString, label: timeString, disabled: false }
+                          })
+                        } else {
+                          // GHL connected but no slots available for this date
+                          return [{ value: '', label: 'No slots available', disabled: true }]
+                        }
                       } else {
-                        // Default time slots (5 AM to 9 PM)
+                        // Fallback: Static time slots when GHL not connected
                         const timeSlots = []
-                        for (let hour = 5; hour <= 21; hour++) {
+                        for (let hour = 9; hour <= 17; hour++) {
                           const timeString = hour < 10 ? `0${hour}:00` : `${hour}:00`
                           const displayTime = hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`
-                          timeSlots.push({ value: timeString, label: displayTime })
+                          timeSlots.push({ value: timeString, label: displayTime, disabled: false })
                         }
                         return timeSlots
                       }
                     })().map((timeSlot) => (
                       <button
                         key={timeSlot.value}
-                        onClick={() => setSelectedTime(timeSlot.value)}
+                        onClick={() => !timeSlot.disabled && setSelectedTime(timeSlot.value)}
+                        disabled={timeSlot.disabled}
                         className={`p-2 rounded-lg border text-sm font-medium transition-all ${
-                          selectedTime === timeSlot.value
+                          timeSlot.disabled
+                            ? 'border-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+                            : selectedTime === timeSlot.value
                             ? `${classes.button} ${classes.buttonText}`
                             : 'border-gray-300 text-gray-700 hover:border-gray-400'
                         }`}
@@ -636,11 +852,13 @@ export default function SurveyLayout({
                   <div><span className="font-medium">Email:</span> {details.email}</div>
                   <div><span className="font-medium">Phone:</span> {details.phone}</div>
                   <div><span className="font-medium">Postcode:</span> {details.postcode}</div>
-                  {selectedDate && <div><span className="font-medium">Preferred Date:</span> {new Date(selectedDate).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>}
-                  {selectedTime && <div><span className="font-medium">Preferred Time:</span> {(() => {
-                    const hour = parseInt(selectedTime.split(':')[0])
-                    return hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`
-                  })()}</div>}
+                  {selectedDate && <div><span className="font-medium">Preferred Date:</span> {new Date(selectedDate).toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}</div>}
+                  {selectedTime && <div><span className="font-medium">Preferred Time:</span> {selectedTime} {ghlCalendarEnabled && `(${getTimezoneLabel(selectedTimezone)})`}</div>}
                   {details.notes && <div><span className="font-medium">Notes:</span> {details.notes}</div>}
                 </div>
               </div>

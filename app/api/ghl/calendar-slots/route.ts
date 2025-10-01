@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     const calendarId = searchParams.get('calendarId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const userId = searchParams.get('userId') // Optional: filter by specific user
+    const timezone = searchParams.get('timezone') // Optional: specific timezone
 
     if (!calendarId) {
       return NextResponse.json({ 
@@ -51,98 +53,141 @@ export async function GET(request: NextRequest) {
     const start = startDate ? new Date(startDate) : defaultStartDate
     const end = endDate ? new Date(endDate) : defaultEndDate
 
-    // Try to get calendar details first to understand business hours
-    const calendarUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}`
+    // Use GHL's real free-slots endpoint to get actual availability
+    // GHL API expects Unix timestamps in MILLISECONDS (not seconds)
+    const startTimestamp = start.getTime() // Milliseconds since epoch
+    const endTimestamp = end.getTime() // Milliseconds since epoch
     
-    const calendarResponse = await fetch(calendarUrl, {
+    // According to GHL docs: startDate and endDate should be Unix timestamps
+    // Optional parameters: timezone, userId
+    const params = new URLSearchParams({
+      startDate: startTimestamp.toString(),
+      endDate: endTimestamp.toString()
+    })
+    
+    // Add optional parameters if provided
+    if (timezone) {
+      params.append('timezone', timezone)
+    } else {
+      params.append('timezone', 'UTC') // Default to UTC
+    }
+    
+    if (userId) {
+      params.append('userId', userId)
+    }
+    
+    console.log('Using GHL official format (millisecond timestamps)...')
+    console.log('Date range (milliseconds):', {
+      start: start.toISOString(),
+      end: end.toISOString(),
+      startTimestamp,
+      endTimestamp,
+      note: 'Using milliseconds since epoch (not seconds)'
+    })
+    
+    const freeSlotsUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}/free-slots?${params.toString()}`
+    
+    console.log('Fetching real GHL free slots from:', freeSlotsUrl)
+    
+    // First, let's try to get calendar details to understand the configuration
+    try {
+      const calendarDetailsUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}`
+      console.log('Fetching calendar details from:', calendarDetailsUrl)
+      
+      const calendarResponse = await fetch(calendarDetailsUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${integration.access_token}`,
+          'Accept': 'application/json',
+          'Version': '2021-04-15'
+        }
+      })
+      
+      if (calendarResponse.ok) {
+        const calendarData = await calendarResponse.json()
+        console.log('GHL Calendar Details:', JSON.stringify(calendarData, null, 2))
+      } else {
+        console.log('Failed to fetch calendar details:', calendarResponse.status)
+      }
+    } catch (calendarError) {
+      console.log('Error fetching calendar details:', calendarError)
+    }
+    console.log('Date range:', {
+      start: start.toISOString(),
+      end: end.toISOString(),
+      startTimestamp,
+      endTimestamp
+    })
+    
+    const response = await fetch(freeSlotsUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${integration.access_token}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28'
+        'Accept': 'application/json',
+        'Version': '2021-04-15'
       }
     })
 
-    if (!calendarResponse.ok) {
-      const errorText = await calendarResponse.text()
-      console.error('GHL Calendar API error:', calendarResponse.status, errorText)
-      return NextResponse.json({ 
-        error: `GHL Calendar API error: ${calendarResponse.status}`,
-        details: errorText 
-      }, { status: calendarResponse.status })
-    }
-
-    const calendarData = await calendarResponse.json()
-    console.log('GHL Calendar Details:', JSON.stringify(calendarData, null, 2))
-    
-    // Try to get existing appointments to check availability
-    const appointmentsUrl = `https://services.leadconnectorhq.com/calendars/${calendarId}/appointments`
-    
-    const appointmentsResponse = await fetch(appointmentsUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${integration.access_token}`,
-        'Content-Type': 'application/json',
-        'Version': '2021-07-28'
-      }
-    })
-
-    let existingAppointments = []
-    if (appointmentsResponse.ok) {
-      const appointmentsData = await appointmentsResponse.json()
-      existingAppointments = appointmentsData.appointments || []
-      console.log('Existing appointments:', existingAppointments.length)
-    }
-
-    // Generate time slots based on calendar business hours
-    // Use calendar business hours if available, otherwise default to 9 AM - 5 PM
-    const slots = []
-    const currentDate = new Date()
-    
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(currentDate)
-      date.setDate(currentDate.getDate() + i)
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('GHL Free Slots API error:', response.status, errorText)
       
-      // Skip weekends if calendar doesn't work on weekends
-      const dayOfWeek = date.getDay()
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        // Skip Sunday (0) and Saturday (6) for now
-        continue
-      }
-      
-      // Generate hourly slots from 9 AM to 5 PM (local time)
-      for (let hour = 9; hour <= 17; hour++) {
-        // Create date in local timezone
-        const year = date.getFullYear()
-        const month = date.getMonth()
-        const day = date.getDate()
-        
-        const slotDate = new Date(year, month, day, hour, 0, 0, 0)
-        const endDate = new Date(year, month, day, hour + 1, 0, 0, 0)
-        
-        // Check if this slot conflicts with existing appointments
-        const slotStart = slotDate.toISOString()
-        const slotEnd = endDate.toISOString()
-        
-        const hasConflict = existingAppointments.some((appointment: any) => {
-          const apptStart = new Date(appointment.startTime)
-          const apptEnd = new Date(appointment.endTime)
-          const slotStartDate = new Date(slotStart)
-          const slotEndDate = new Date(slotEnd)
-          
-          return (slotStartDate < apptEnd && slotEndDate > apptStart)
-        })
-        
-        slots.push({
-          id: `slot_${date.toISOString().split('T')[0]}_${hour}`,
-          startTime: slotDate.toISOString(),
-          endTime: endDate.toISOString(),
-          isAvailable: !hasConflict,
-          duration: 60,
-          calendarId: calendarId
-        })
+      // Handle specific GHL API error codes
+      if (response.status === 400) {
+        return NextResponse.json({ 
+          error: 'Bad Request - Invalid parameters',
+          details: errorText,
+          suggestion: 'Check calendarId, startDate, and endDate parameters'
+        }, { status: 400 })
+      } else if (response.status === 401) {
+        return NextResponse.json({ 
+          error: 'Unauthorized - Invalid or expired token',
+          details: errorText,
+          suggestion: 'Check GHL integration token'
+        }, { status: 401 })
+      } else {
+        return NextResponse.json({ 
+          error: `GHL Free Slots API error: ${response.status}`,
+          details: errorText 
+        }, { status: response.status })
       }
     }
+
+    const data = await response.json()
+    console.log('GHL Free Slots API Response:', JSON.stringify(data, null, 2))
+    
+    // Debug: Log the raw response to understand the structure
+    console.log('GHL API Response Headers:', Object.fromEntries(response.headers.entries()))
+    console.log('GHL API Response Status:', response.status)
+    console.log('GHL API Response OK:', response.ok)
+    
+    // GHL API returns slots in format: { "2025-10-01": { "slots": [...] }, "2025-10-02": { "slots": [...] } }
+    // We need to flatten this structure
+    const allSlots: any[] = []
+    
+    if (data && typeof data === 'object') {
+      Object.keys(data).forEach(dateKey => {
+        const dayData = data[dateKey]
+        if (dayData && dayData.slots && Array.isArray(dayData.slots)) {
+          dayData.slots.forEach((slotTime: string, index: number) => {
+            allSlots.push({
+              id: `slot_${dateKey}_${index}`,
+              startTime: slotTime,
+              endTime: slotTime, // We'll calculate this based on duration
+              isAvailable: true,
+              duration: 30, // Default 30 minutes, can be configured
+              calendarId: calendarId,
+              date: dateKey
+            })
+          })
+        }
+      })
+    }
+    
+    console.log('Parsed slots from GHL:', allSlots.length, 'slots found')
+    console.log('Sample slots:', allSlots.slice(0, 3))
+    
+    const slots = allSlots
 
     return NextResponse.json({
       success: true,
@@ -152,7 +197,19 @@ export async function GET(request: NextRequest) {
         start: start.toISOString(),
         end: end.toISOString()
       },
-      message: 'Generated time slots based on calendar availability'
+      message: slots.length > 0 
+        ? `Retrieved ${slots.length} real available slots from GHL calendar`
+        : 'No available slots found in GHL calendar - check business hours configuration',
+      debug: {
+        hasSlots: slots.length > 0,
+        dateRange: {
+          start: start.toISOString(),
+          end: end.toISOString(),
+          startTimestamp,
+          endTimestamp,
+          format: 'milliseconds since epoch'
+        }
+      }
     })
 
   } catch (error) {
