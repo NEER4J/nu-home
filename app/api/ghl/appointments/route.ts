@@ -5,13 +5,6 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      console.error('Auth error:', userError)
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
     const { 
       calendarId, 
@@ -21,7 +14,9 @@ export async function POST(request: NextRequest) {
       description, 
       customerName, 
       customerEmail, 
-      customerPhone 
+      customerPhone,
+      assignedUserId,
+      locationId
     } = body
 
     // Validate required fields
@@ -31,16 +26,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Get GHL integration for this user
+    // Get GHL integration from database (no user authentication required)
     const { data: integration, error: integrationError } = await supabase
       .from('ghl_integrations')
       .select('*')
-      .eq('partner_id', user.id)
       .eq('is_active', true)
       .single()
 
     if (integrationError || !integration) {
-      return NextResponse.json({ error: 'GHL integration not found' }, { status: 404 })
+      return NextResponse.json({ error: 'GHL integration not found or inactive' }, { status: 404 })
     }
 
     // Check if token is expired
@@ -51,51 +45,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'GHL token expired' }, { status: 401 })
     }
 
-    // Get calendar details to fetch assignedUserId
-    let assignedUserId = null
-    try {
-      const calendarResponse = await fetch(`https://services.leadconnectorhq.com/calendars/${calendarId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${integration.access_token}`,
-          'Accept': 'application/json',
-          'Version': '2021-04-15'
-        }
-      })
+    // Get a valid assignedUserId from the calendar team if not provided
+    let validAssignedUserId = assignedUserId
+    
+    if (!validAssignedUserId) {
+      try {
+        console.log('No assignedUserId provided, fetching calendar team members...')
+        const calendarResponse = await fetch(`https://services.leadconnectorhq.com/calendars/${calendarId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${integration.access_token}`,
+            'Accept': 'application/json',
+            'Version': '2021-04-15'
+          }
+        })
 
-      if (calendarResponse.ok) {
-        const calendarData = await calendarResponse.json()
-        // Get the first team member/user assigned to this calendar
-        if (calendarData.calendar?.teamMembers && calendarData.calendar.teamMembers.length > 0) {
-          assignedUserId = calendarData.calendar.teamMembers[0].userId
-        } else if (calendarData.calendar?.userId) {
-          assignedUserId = calendarData.calendar.userId
+        if (calendarResponse.ok) {
+          const calendarData = await calendarResponse.json()
+          console.log('Calendar data:', JSON.stringify(calendarData, null, 2))
+          
+          // Get the first available team member
+          if (calendarData.calendar?.teamMembers && calendarData.calendar.teamMembers.length > 0) {
+            validAssignedUserId = calendarData.calendar.teamMembers[0].userId
+            console.log('Found team member:', validAssignedUserId)
+          } else if (calendarData.calendar?.userId) {
+            validAssignedUserId = calendarData.calendar.userId
+            console.log('Using calendar owner:', validAssignedUserId)
+          }
+        } else {
+          console.error('Failed to fetch calendar details:', calendarResponse.status)
         }
+      } catch (calendarError) {
+        console.error('Error fetching calendar details:', calendarError)
       }
-    } catch (calendarError) {
-      console.error('Error fetching calendar details:', calendarError)
     }
-
-    // If we still don't have an assignedUserId, try to use the integration user
-    if (!assignedUserId && integration.user_id) {
-      assignedUserId = integration.user_id
+    
+    if (!validAssignedUserId) {
+      return NextResponse.json({ 
+        error: 'Unable to find a valid team member for the calendar. Please provide assignedUserId or check calendar configuration.' 
+      }, { status: 400 })
     }
 
     // Prepare appointment data for GHL API
     // According to GHL docs: https://marketplace.gohighlevel.com/docs/ghl/calendars/create-appointment
     const appointmentData: any = {
       calendarId,
-      locationId: integration.location_id,
+      locationId: locationId || integration.location_id,
       contactId: undefined, // Will be created if not exists
       startTime: new Date(startTime).toISOString(),
       endTime: new Date(endTime).toISOString(),
       title,
       appointmentStatus: 'confirmed',
-      assignedUserId: assignedUserId, // Required by GHL
       ignoreFreeSlotValidation: true, // Allow booking even if slot validation fails
       toNotify: false, // Don't send notifications (optional)
       ignoreDateRange: false // Respect calendar date range
     }
+    
+    // Add the valid assignedUserId (required by GHL)
+    appointmentData.assignedUserId = validAssignedUserId
     
     // Add meeting location (required by GHL)
     appointmentData.meetingLocationType = 'custom'
@@ -117,20 +124,20 @@ export async function POST(request: NextRequest) {
       appointmentData.description = description
     }
 
-    // Call GHL API to create appointment
+    // Call GHL API to create appointment (requires authentication)
     const ghlApiUrl = 'https://services.leadconnectorhq.com/calendars/events/appointments'
     
-    // Build headers with location ID if available
+    // Build headers for GHL API (requires authentication)
     const headers: Record<string, string> = {
-      'Authorization': `Bearer ${integration.access_token}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'Version': '2021-04-15'
+      'Version': '2021-04-15',
+      'Authorization': `Bearer ${integration.access_token}`
     }
     
-    // Add location ID if available
-    if (integration.location_id) {
-      headers['locationId'] = integration.location_id
+    // Add location ID if provided or use integration location
+    if (locationId || integration.location_id) {
+      headers['locationId'] = locationId || integration.location_id
     }
     
     const response = await fetch(ghlApiUrl, {
@@ -142,10 +149,38 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('GHL Create Appointment API error:', response.status, errorText)
+      
+      // Handle specific GHL API error codes
+      if (response.status === 400) {
+        return NextResponse.json({ 
+          error: 'Bad Request - Invalid parameters',
+          details: errorText,
+          suggestion: 'Check calendarId, startTime, endTime, and assignedUserId parameters'
+        }, { status: 400 })
+      } else if (response.status === 401) {
+        return NextResponse.json({ 
+          error: 'Unauthorized - Invalid or expired access token',
+          details: errorText,
+          suggestion: 'Check if accessToken is valid and not expired'
+        }, { status: 401 })
+      } else if (response.status === 422) {
+        return NextResponse.json({ 
+          error: 'Unprocessable Entity - Invalid appointment data',
+          details: errorText,
+          suggestion: 'Check if assignedUserId is part of the calendar team, or remove assignedUserId to let GHL auto-assign'
+        }, { status: 422 })
+      } else if (response.status === 404) {
+        return NextResponse.json({ 
+          error: 'Calendar or location not found',
+          details: errorText,
+          suggestion: 'Check if calendarId and locationId are correct'
+        }, { status: 404 })
+      } else {
       return NextResponse.json({ 
         error: `GHL Create Appointment API error: ${response.status}`,
         details: errorText 
       }, { status: response.status })
+      }
     }
 
     const data = await response.json()
