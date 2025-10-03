@@ -8,16 +8,19 @@ import { QuestionDialog } from './QuestionDialog';
 import { ConditionalDialog } from './ConditionalDialog';
 import Link from 'next/link';
 
-export default function SimpleFormQuestionsEditor({ initialCategories }) {
+export default function SimpleFormQuestionsEditor({ initialCategories, initialPartners }) {
   const router = useRouter();
   
   // State
   const [categories, setCategories] = useState(initialCategories || []);
+  const [partners, setPartners] = useState(initialPartners || []);
+  const [selectedPartner, setSelectedPartner] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showInactiveQuestions, setShowInactiveQuestions] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   
   // Dialog state
   const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false);
@@ -27,6 +30,24 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
   const [editingConditional, setEditingConditional] = useState(null);
   const [sourceQuestionId, setSourceQuestionId] = useState(null);
   
+  // Get current user on component mount
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const supabase = await createClient();
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error getting current user:', error);
+        // Redirect to login if not authenticated
+        router.push('/sign-in');
+      }
+    };
+    
+    getCurrentUser();
+  }, [router]);
+
   // Use the first category as default if none selected
   useEffect(() => {
     if (categories.length > 0 && !selectedCategory) {
@@ -34,9 +55,9 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
     }
   }, [categories, selectedCategory]);
   
-  // Fetch questions when selected category changes
+  // Fetch questions when selected category or partner changes
   useEffect(() => {
-    if (!selectedCategory) {
+    if (!selectedCategory || !selectedPartner) {
       setQuestions([]);
       return;
     }
@@ -56,6 +77,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
             )
           `)
           .eq('service_category_id', selectedCategory)
+          .eq('user_id', selectedPartner) // Filter by selected partner
           .eq('is_deleted', false);
           
         if (!showInactiveQuestions) {
@@ -78,7 +100,7 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
     };
     
     fetchQuestions();
-  }, [selectedCategory, showInactiveQuestions]);
+  }, [selectedCategory, selectedPartner, showInactiveQuestions]);
   
   // Group questions by step
   const questionsByStep = questions.reduce((acc, question) => {
@@ -262,29 +284,69 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
           )}
         </div>
         
-        {/* Category Tabs */}
-        <div className="px-2 border-t">
-          <div className="flex overflow-x-auto">
-            {categories.map((category) => (
-              <button
-                key={category.service_category_id}
-                onClick={() => handleCategoryChange(category.service_category_id)}
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
-                  selectedCategory === category.service_category_id
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 border-transparent'
-                }`}
+        {/* Partner Selection */}
+        <div className="px-4 py-3 border-t bg-gray-50">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <label htmlFor="partner-select" className="block text-sm font-medium text-gray-700 mb-1">
+                Select Partner
+              </label>
+              <select
+                id="partner-select"
+                value={selectedPartner}
+                onChange={(e) => setSelectedPartner(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                {category.name}
-              </button>
-            ))}
+                <option value="">Choose a partner...</option>
+                {partners.map((partner) => (
+                  <option key={partner.user_id} value={partner.user_id}>
+                    {partner.company_name} ({partner.contact_person})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedPartner && (
+              <div className="text-sm text-gray-600">
+                Managing questions for: <span className="font-medium">{partners.find(p => p.user_id === selectedPartner)?.company_name}</span>
+              </div>
+            )}
           </div>
         </div>
+        
+        {/* Category Tabs */}
+        {selectedPartner && (
+          <div className="px-2 border-t">
+            <div className="flex overflow-x-auto">
+              {categories.map((category) => (
+                <button
+                  key={category.service_category_id}
+                  onClick={() => handleCategoryChange(category.service_category_id)}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${
+                    selectedCategory === category.service_category_id
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 border-transparent'
+                  }`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Questions Content */}
       <div className="flex-grow overflow-auto bg-gray-50 p-6 justify-center align-middle">
-        {isLoading ? (
+        {!selectedPartner ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <h3 className="mt-2 text-lg font-medium text-gray-900">Select a Partner</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Choose a partner from the dropdown above to manage their form questions
+              </p>
+            </div>
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <svg className="animate-spin h-8 w-8 text-blue-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -564,13 +626,14 @@ export default function SimpleFormQuestionsEditor({ initialCategories }) {
       </div>
       
       {/* Question Dialog */}
-      {isQuestionDialogOpen && (
+      {isQuestionDialogOpen && selectedPartner && (
         <QuestionDialog
           isOpen={isQuestionDialogOpen}
           onClose={() => setIsQuestionDialogOpen(false)}
           question={editingQuestion}
           categories={categories}
           selectedCategoryId={selectedCategory}
+          selectedPartnerId={selectedPartner}
           newQuestionPosition={newQuestionPosition}
           availableQuestions={questions.filter(q => 
             (!editingQuestion || q.question_id !== editingQuestion.question_id) &&

@@ -105,11 +105,19 @@ export default function QuoteForm({
     async function loadQuestions() {
       const supabase = await createClient();
       
+      // Get the effective partner ID
+      const effectivePartnerId = partnerInfo?.user_id || partnerId;
+      if (!effectivePartnerId) {
+        console.log('Partner information not yet available, waiting...');
+        return;
+      }
+      
       // First, fetch the standard form questions
       const { data, error } = await supabase
         .from('FormQuestions')
         .select('*')
         .eq('service_category_id', serviceCategoryId)
+        .eq('user_id', effectivePartnerId) // Filter by partner's user_id
         .eq('status', 'active')
         .eq('is_deleted', false)
         .order('step_number')
@@ -160,8 +168,12 @@ export default function QuoteForm({
       setLoading(false);
     }
     
-    loadQuestions();
-  }, [serviceCategoryId]);
+    // Only load questions if we have partner information
+    const effectivePartnerId = partnerInfo?.user_id || partnerId;
+    if (effectivePartnerId) {
+      loadQuestions();
+    }
+  }, [serviceCategoryId, partnerInfo, partnerId]);
   
   function evaluateCondition(
     questionId: string, 
@@ -530,7 +542,7 @@ export default function QuoteForm({
     in: { opacity: 1, x: 1 },
   };
   
-  if (loading) {
+  if (loading || questions.length === 0) {
     return (
       <div className="w-full max-w-4xl mx-auto py-12">
         <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center justify-center min-h-[300px]">

@@ -25,9 +25,20 @@ export default async function AdminFormQuestionsPage({
       .select('*')
       .order('name');
     
+    // Fetch all partners
+    const { data: partners } = await supabase
+      .from('UserProfiles')
+      .select('user_id, company_name, contact_person, status')
+      .eq('role', 'partner')
+      .eq('status', 'active')
+      .order('company_name');
+    
     return (
       <div className="h-100">
-        <SimpleFormQuestionsEditor initialCategories={categories || []} />
+        <SimpleFormQuestionsEditor 
+          initialCategories={categories || []} 
+          initialPartners={partners || []}
+        />
       </div>
     );
   } catch (error) {

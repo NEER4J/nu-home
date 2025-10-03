@@ -8,6 +8,7 @@ export function QuestionDialog({
   question,
   categories,
   selectedCategoryId,
+  selectedPartnerId,
   newQuestionPosition,
   availableQuestions,
   onSave
@@ -60,6 +61,7 @@ export function QuestionDialog({
           <QuestionForm
             question={question}
             categories={categories}
+            selectedPartnerId={selectedPartnerId}
             conditionalQuestions={availableQuestions}
             categoryStepMap={categoryStepMap}
             onSave={onSave}

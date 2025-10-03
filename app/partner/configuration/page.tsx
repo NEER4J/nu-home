@@ -1272,8 +1272,8 @@ export default function PartnerSettingsPage() {
                             )}
                           </div>
                           
-                          {/* Appointments Calendar */}
-                          <div className="border rounded-lg p-4 bg-white">
+                     
+                       {/*   <div className="border rounded-lg p-4 bg-white hidded">
                             <div className="flex items-center justify-between mb-3">
                               <div>
                                 <h4 className="text-sm font-medium text-gray-900">Appointments</h4>
@@ -1315,8 +1315,7 @@ export default function PartnerSettingsPage() {
                               </select>
                             )}
                           </div>
-                          
-                          {/* Consultations Calendar */}
+                     
                           <div className="border rounded-lg p-4 bg-white">
                             <div className="flex items-center justify-between mb-3">
                               <div>
@@ -1359,6 +1358,7 @@ export default function PartnerSettingsPage() {
                               </select>
                             )}
                           </div>
+                          */}
                         </div>
                       )}
                       

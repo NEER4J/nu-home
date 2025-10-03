@@ -154,13 +154,30 @@ export async function GET(request: NextRequest) {
       } else {
         // Update calendar_settings for each service category
         for (const category of serviceCategories || []) {
+          // First, get the existing calendar settings to preserve user configurations
+          const { data: existingSettings, error: fetchError } = await supabase
+            .from('PartnerSettings')
+            .select('calendar_settings')
+            .eq('partner_id', user.id)
+            .eq('service_category_id', category.service_category_id)
+            .single()
+
+          if (fetchError) {
+            console.error('Error fetching existing calendar settings:', fetchError)
+          }
+
+          // Merge existing settings with new available calendars
+          const existingCalendarSettings = existingSettings?.calendar_settings || {}
+          const mergedCalendarSettings = {
+            ...existingCalendarSettings,
+            available_calendars: calendars,
+            last_updated: new Date().toISOString()
+          }
+
           const { error: updateError } = await supabase
             .from('PartnerSettings')
             .update({
-              calendar_settings: {
-                available_calendars: calendars,
-                last_updated: new Date().toISOString()
-              }
+              calendar_settings: mergedCalendarSettings
             })
             .eq('partner_id', user.id)
             .eq('service_category_id', category.service_category_id)
