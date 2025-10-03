@@ -404,10 +404,19 @@ export default function HeatingQuotePage({
       const categoryId = await getHeatingCategoryId();
       if (!categoryId) return;
 
+      // Get the effective partner ID
+      const effectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
+      if (!effectivePartnerId) {
+        // Don't set error here, just return - partner info might still be loading
+        console.log('Partner information not yet available, waiting...');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('FormQuestions')
         .select('*')
         .eq('service_category_id', categoryId)
+        .eq('user_id', effectivePartnerId) // Filter by partner's user_id
         .eq('status', 'active')
         .eq('is_deleted', false)
         .order('step_number')
@@ -425,8 +434,12 @@ export default function HeatingQuotePage({
       setLoading(false);
     }
     
-    loadQuestions();
-  }, [serviceCategoryId]);
+    // Only load questions if we have partner information
+    const effectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
+    if (effectivePartnerId) {
+      loadQuestions();
+    }
+  }, [serviceCategoryId, partnerInfo, partnerId, partnerInfoFromDomain]);
 
   // Fetch partner information by host (custom domain preferred, fallback to subdomain)
   useEffect(() => {
@@ -1012,7 +1025,7 @@ export default function HeatingQuotePage({
     return null;
   };
 
-  if (loading) {
+  if (loading || questions.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <QuoteLoader />

@@ -53,6 +53,7 @@ type FormValues = z.infer<typeof formSchema> & {
 interface QuestionFormProps {
   question?: FormQuestion; // Optional for new questions
   categories: ServiceCategory[];
+  selectedPartnerId?: string; // Partner ID for the question
   categoryStepMap?: Record<string, number>; // For suggesting next step number
   conditionalQuestions?: any[]; // For edit mode
   onSave?: (updatedQuestion?: FormQuestion) => void; // New callback prop
@@ -62,6 +63,7 @@ interface QuestionFormProps {
 export function QuestionForm({
   question,
   categories,
+  selectedPartnerId,
   categoryStepMap = {},
   conditionalQuestions = [],
   onSave,
@@ -208,13 +210,15 @@ const defaultConditions = (() => {
   // Fetch existing questions for conditional logic when category changes
   useEffect(() => {
     async function fetchQuestions() {
-      if (!selectedCategoryId) return;
+      if (!selectedCategoryId || !selectedPartnerId) return;
       
       const supabase = await createClient();
+      
       const { data, error } = await supabase
         .from('FormQuestions')
         .select('question_id, question_text, step_number, is_multiple_choice, answer_options')
         .eq('service_category_id', selectedCategoryId)
+        .eq('user_id', selectedPartnerId) // Filter by selected partner
         .eq('status', 'active')
         .eq('is_deleted', false)
         .order('step_number');
@@ -236,7 +240,7 @@ const defaultConditions = (() => {
     }
     
     fetchQuestions();
-  }, [selectedCategoryId, stepNumber, isEditMode, question]);
+  }, [selectedCategoryId, selectedPartnerId, stepNumber, isEditMode, question]);
   
   // Update selected question when conditional question changes
 // In your useEffect or when initializing state
@@ -332,6 +336,12 @@ const handleAnswerOptionChange = (index: number, field: keyof AnswerOption, valu
       setIsSubmitting(true);
       setError(null);
       
+      if (!selectedPartnerId) {
+        throw new Error('No partner selected');
+      }
+      
+      const supabase = await createClient();
+      
       // Prepare the base data
       const formData: any = {
         service_category_id: data.service_category_id,
@@ -350,6 +360,7 @@ const handleAnswerOptionChange = (index: number, field: keyof AnswerOption, valu
         helper_video_url: data.has_helper_video ? data.helper_video_url : null,
         is_required: data.is_required || false,
         status: data.status,
+        user_id: selectedPartnerId, // Use the selected partner ID
         conditional_display: null // Initialize as null by default
       };
       
@@ -376,8 +387,6 @@ const handleAnswerOptionChange = (index: number, field: keyof AnswerOption, valu
           };
         }
       }
-      
-      const supabase = await createClient();
       
       let updatedQuestion;
       
