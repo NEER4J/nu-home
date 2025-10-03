@@ -367,6 +367,53 @@ export default function CheckoutLayout({
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         console.warn(`Failed to send ${paymentMethod} checkout email:`, data?.error || 'Unknown error')
+      } else {
+        // Create GHL lead from frontend (visible in network tab)
+        if (data?.partnerId || data?.debug?.partnerId) {
+          try {
+            console.log(`🚀 Creating GHL lead from frontend for checkout-${paymentMethod}...`);
+            
+            const emailTypeMap = {
+              stripe: 'checkout-stripe',
+              monthly: 'checkout-monthly',
+              'pay-later': 'checkout-pay-later'
+            }
+            
+            const ghlResponse = await fetch('/api/ghl/create-lead-client', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                partnerId: data.partnerId || data.debug?.partnerId,
+                submissionId: submissionId,
+                emailType: emailTypeMap[paymentMethod],
+                contactData: {
+                  firstName: prefillUserInfo?.first_name || '',
+                  lastName: prefillUserInfo?.last_name || '',
+                  email: prefillUserInfo?.email || '',
+                  phone: prefillUserInfo?.phone || '',
+                  address1: prefillUserInfo?.postcode || '',
+                  city: prefillUserInfo?.postcode || '',
+                  country: 'United Kingdom'
+                },
+                customFields: {},
+                pipelineId: null,
+                stageId: null
+              })
+            })
+
+            if (ghlResponse.ok) {
+              const ghlResult = await ghlResponse.json()
+              console.log('✅ GHL lead created from frontend:', ghlResult)
+            } else {
+              console.warn('⚠️ GHL lead creation failed:', ghlResponse.status)
+            }
+          } catch (ghlError) {
+            console.warn('⚠️ GHL lead creation error:', ghlError)
+            // Don't fail the checkout if GHL fails
+          }
+        }
       }
     } catch (err: any) {
       console.warn(`Failed to send ${paymentMethod} checkout email:`, err?.message || 'Unknown error')

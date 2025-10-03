@@ -169,8 +169,50 @@ export default function CallbackRequestForm({
           body: JSON.stringify(emailData),
         })
 
+        const responseData = await emailResponse.json().catch(() => ({}))
+
         if (emailResponse.ok) {
           console.log('Callback request email sent successfully')
+          
+          // Create GHL lead from frontend (visible in network tab)
+          if (responseData?.partnerId || responseData?.debug?.partnerId) {
+            try {
+              console.log('🚀 Creating GHL lead from frontend for callback-requested...');
+              
+              const ghlResponse = await fetch('/api/ghl/create-lead-client', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  partnerId: responseData.partnerId || responseData.debug?.partnerId,
+                  submissionId: submissionId,
+                  emailType: 'callback-requested',
+                  contactData: {
+                    firstName: formData.first_name || '',
+                    lastName: formData.last_name || '',
+                    email: formData.email || '',
+                    phone: formData.phone || '',
+                    address1: submissionInfo?.postcode || '',
+                    city: submissionInfo?.postcode || '',
+                    country: 'United Kingdom'
+                  },
+                  customFields: {},
+                  pipelineId: null,
+                  stageId: null
+                })
+              })
+
+              if (ghlResponse.ok) {
+                const ghlResult = await ghlResponse.json()
+                console.log('✅ GHL lead created from frontend:', ghlResult)
+              } else {
+                console.warn('⚠️ GHL lead creation failed:', ghlResponse.status)
+              }
+            } catch (ghlError) {
+              console.warn('⚠️ GHL lead creation error:', ghlError)
+            }
+          }
         } else {
           console.warn('Failed to send callback request email:', await emailResponse.text())
         }

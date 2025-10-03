@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHostname } from '@/lib/partner'
 import { FieldMappingEngine } from '@/lib/field-mapping-engine'
+import { getNotificationSettingsForType } from '@/lib/email-notification-settings'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -483,8 +484,25 @@ export async function POST(request: NextRequest) {
       console.log('📊 HTML Preview (first 200 chars):', processedAdminTemplate.html.substring(0, 200))
     }
 
-    // Send customer email
-    if (processedCustomerTemplate) {
+    // Get notification settings for this email type
+    const notificationSettings = await getNotificationSettingsForType(
+      supabase,
+      partner.user_id,
+      boilerCategory.service_category_id,
+      'save-quote'
+    )
+    console.log('📧 Notification settings:', {
+      admin: { enabled: notificationSettings.admin.enabled, emails: notificationSettings.admin.emails.length },
+      customer: { enabled: notificationSettings.customer.enabled },
+      ghl: { enabled: notificationSettings.ghl.enabled }
+    })
+
+    let customerEmailSent = false
+    let adminEmailSent = false
+    let emailErrors: string[] = []
+
+    // Send customer email if enabled
+    if (notificationSettings.customer.enabled && processedCustomerTemplate) {
       // Get customer email from mapped data only
       const customerEmail = customerTemplateData.email || customerTemplateData.customer_email
 
@@ -500,173 +518,91 @@ export async function POST(request: NextRequest) {
             html: processedCustomerTemplate.html,
           })
           console.log('✅ Customer email sent successfully to:', customerEmail)
+          customerEmailSent = true
         } catch (sendErr: any) {
           console.error('❌ Failed to send customer email:', sendErr?.message || String(sendErr))
+          emailErrors.push(`Customer email: ${sendErr?.message || String(sendErr)}`)
         }
       } else {
         console.error('❌ No customer email found in mapped data')
       }
     } else {
-      console.log('⚠️ No customer template found, skipping customer email')
+      if (!notificationSettings.customer.enabled) {
+        console.log('⚠️ Customer email disabled, skipping')
+      } else {
+        console.log('⚠️ No customer template found, skipping customer email')
+      }
     }
 
-    // Get admin email from partner settings
-    let adminEmail: string | undefined = undefined
-    const { data: partnerSettings } = await supabase
-      .from('PartnerSettings')
-      .select('admin_email')
-      .eq('partner_id', partner.user_id)
-      .eq('service_category_id', boilerCategory.service_category_id)
-      .single()
-    adminEmail = partnerSettings?.admin_email || undefined
-
-    console.log('📧 Admin email configured:', adminEmail)
-
-    // Send admin email if admin template exists and admin email is configured
-    console.log('🔍 Admin email check:')
-    console.log('🔍 processedAdminTemplate exists:', !!processedAdminTemplate)
-    console.log('🔍 adminEmail exists:', !!adminEmail)
-    console.log('🔍 adminEmail value:', adminEmail)
-
-    if (processedAdminTemplate && adminEmail) {
-      try {
-        await transporter.sendMail({
-          from: smtp.SMTP_FROM || smtp.SMTP_USER,
-          to: adminEmail,
-          subject: processedAdminTemplate.subject,
-          text: processedAdminTemplate.text,
-          html: processedAdminTemplate.html,
-        })
-        console.log('✅ Admin email sent successfully to:', adminEmail)
-      } catch (sendErr: any) {
-        console.error('❌ Failed to send admin email:', sendErr?.message || String(sendErr))
+    // Send admin emails if enabled and configured
+    if (notificationSettings.admin.enabled && processedAdminTemplate && notificationSettings.admin.emails.length > 0) {
+      for (const adminEmail of notificationSettings.admin.emails) {
+        try {
+          console.log(`📤 Sending admin email to ${adminEmail}...`)
+          await transporter.sendMail({
+            from: smtp.SMTP_FROM || smtp.SMTP_USER,
+            to: adminEmail,
+            subject: processedAdminTemplate.subject,
+            text: processedAdminTemplate.text,
+            html: processedAdminTemplate.html,
+          })
+          console.log(`✅ Admin email sent successfully to ${adminEmail}`)
+          adminEmailSent = true
+        } catch (adminErr: any) {
+          console.error(`❌ Admin email to ${adminEmail} failed:`, adminErr)
+          emailErrors.push(`Admin email to ${adminEmail}: ${adminErr?.message || String(adminErr)}`)
+        }
       }
     } else {
-      console.log('⚠️ Admin email conditions not met:')
-      console.log('⚠️ - processedAdminTemplate:', !!processedAdminTemplate)
-      console.log('⚠️ - adminEmail:', !!adminEmail)
+      if (!notificationSettings.admin.enabled) {
+        console.log('⚠️ Admin emails disabled, skipping')
+      } else {
+        console.log('⚠️ Admin emails not configured, skipping admin emails')
+      }
     }
 
-    // GHL Integration - similar to initial quote v2
-    console.log('🔗 Starting GHL integration...')
+    // GHL Integration - check if enabled and mappings exist
+    // Note: GHL lead is created from frontend (like quote-initial), not backend
+    // This is just for tracking/debugging
+    console.log('🔗 Checking GHL settings...')
+    console.log('🔗 GHL enabled:', notificationSettings.ghl.enabled)
 
-    // Check if GHL field mappings exist for this partner and service
-    const { data: ghlMappings } = await supabase
-      .from('ghl_field_mappings')
-      .select('*')
-      .eq('partner_id', partner.user_id)
-      .eq('service_category_id', boilerCategory.service_category_id)
-      .eq('is_active', true)
+    let ghlMappings = null
 
-    console.log('🔗 GHL mappings found:', ghlMappings?.length || 0)
-
-    if (ghlMappings && ghlMappings.length > 0) {
-      // Get the GHL webhook URL from partner settings
-      const { data: ghlSettings } = await supabase
-        .from('PartnerSettings')
-        .select('ghl_webhook_url')
+    if (notificationSettings.ghl.enabled) {
+      // Check if GHL field mappings exist for this partner and service
+      const { data: mappings } = await supabase
+        .from('ghl_field_mappings')
+        .select('*')
         .eq('partner_id', partner.user_id)
         .eq('service_category_id', boilerCategory.service_category_id)
-        .single()
+        .eq('is_active', true)
 
-      const ghlWebhookUrl = ghlSettings?.ghl_webhook_url
-
-      console.log('🔗 GHL webhook URL:', ghlWebhookUrl ? 'Found' : 'Not found')
-
-      if (ghlWebhookUrl) {
-        try {
-          // Map submission data to GHL fields using field mappings
-          const ghlData: Record<string, any> = {}
-
-          // Use the raw submission data and mapped template data
-          const sourceData = {
-            ...rawSubmissionData,
-            ...customerTemplateData,
-            email_type: 'save-quote',
-            submission_id: finalSubmissionId
-          }
-
-          console.log('🔗 Source data for GHL mapping:', Object.keys(sourceData))
-
-          // Apply field mappings
-          for (const mapping of ghlMappings) {
-            const sourceField = mapping.source_field
-            const ghlField = mapping.ghl_field
-            const defaultValue = mapping.default_value
-
-            let value = sourceData[sourceField]
-
-            // Handle nested field access (e.g., 'save_quote_data.0.user_info.email')
-            if (!value && sourceField.includes('.')) {
-              const fieldParts = sourceField.split('.')
-              let tempValue = sourceData
-
-              for (const part of fieldParts) {
-                if (tempValue && typeof tempValue === 'object') {
-                  // Handle array indices
-                  if (/^\d+$/.test(part)) {
-                    tempValue = tempValue[parseInt(part)]
-                  } else {
-                    tempValue = tempValue[part]
-                  }
-                } else {
-                  tempValue = undefined
-                  break
-                }
-              }
-              value = tempValue
-            }
-
-            // Use default value if no source value found
-            if ((value === undefined || value === null || value === '') && defaultValue) {
-              value = defaultValue
-            }
-
-            if (value !== undefined && value !== null && value !== '') {
-              ghlData[ghlField] = value
-            }
-
-            console.log(`🔗 Mapped ${sourceField} -> ${ghlField}:`, value)
-          }
-
-          console.log('🔗 Final GHL data to send:', ghlData)
-
-          // Send to GHL webhook
-          const ghlResponse = await fetch(ghlWebhookUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(ghlData),
-          })
-
-          if (ghlResponse.ok) {
-            console.log('✅ Successfully sent data to GHL webhook')
-          } else {
-            console.error('❌ Failed to send data to GHL webhook:', ghlResponse.status, ghlResponse.statusText)
-          }
-        } catch (ghlError) {
-          console.error('❌ Error in GHL integration:', ghlError)
-        }
-      } else {
-        console.log('⚠️ GHL webhook URL not configured, skipping GHL integration')
-      }
+      ghlMappings = mappings
+      console.log('🔗 GHL mappings found:', ghlMappings?.length || 0)
+      console.log('✅ GHL lead will be created from frontend')
     } else {
-      console.log('⚠️ No GHL field mappings found, skipping GHL integration')
+      console.log('⚠️ GHL integration disabled, skipping')
     }
 
     return NextResponse.json({
       success: true,
       submissionId: finalSubmissionId,
-      customerEmailSent: !!processedCustomerTemplate,
-      adminEmailSent: !!processedAdminTemplate && !!adminEmail,
-      ghlIntegrationAttempted: !!(ghlMappings && ghlMappings.length > 0),
+      partnerId: partner.user_id, // Add partnerId for frontend GHL integration
+      customerEmailSent: customerEmailSent,
+      adminEmailSent: adminEmailSent,
+      ghlIntegrationAttempted: notificationSettings.ghl.enabled && !!(ghlMappings && ghlMappings.length > 0),
       debug: {
+        partnerId: partner.user_id, // Also in debug for consistency
         customerTemplateDataKeys: Object.keys(customerTemplateData),
         adminTemplateDataKeys: Object.keys(adminTemplateData),
         rawSubmissionDataKeys: rawSubmissionData ? Object.keys(rawSubmissionData) : [],
         customerEmail: customerTemplateData.email || customerTemplateData.customer_email,
-        adminEmail: adminEmail,
+        adminEmails: notificationSettings.admin.emails,
+        adminEmailsEnabled: notificationSettings.admin.enabled,
+        customerEmailEnabled: notificationSettings.customer.enabled,
+        ghlEnabled: notificationSettings.ghl.enabled,
+        emailErrors: emailErrors.length > 0 ? emailErrors : undefined,
         is_iframe: is_iframe,
         ghlMappingsCount: ghlMappings?.length || 0,
         // Enhanced debugging data

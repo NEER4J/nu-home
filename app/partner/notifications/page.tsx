@@ -10,6 +10,13 @@ import LeadsMapping from '@/components/partner/notifications/LeadsMapping'
 import { toast } from 'sonner'
 
 import { FieldMappingEngine } from '@/lib/field-mapping-engine'
+import { 
+  getAllEmailNotificationSettings, 
+  updateEmailNotificationSettings,
+  type EmailNotificationSettings as EmailNotificationSettingsType,
+  type EmailNotificationConfig
+} from '@/lib/email-notification-settings'
+import EmailNotificationSettings from '@/components/partner/notifications/EmailNotificationSettings'
 
 // Import template functions directly from individual files
 import {
@@ -284,6 +291,7 @@ export default function NotificationsPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [adminEmail, setAdminEmail] = useState<string | null>(null)
   const [selectedEmailType, setSelectedEmailType] = useState('quote-initial')
+  const [emailNotificationSettings, setEmailNotificationSettings] = useState<EmailNotificationSettingsType>({})
   
   // GHL integration states
   const [ghlIntegration, setGhlIntegration] = useState<any>(null)
@@ -331,6 +339,7 @@ export default function NotificationsPage() {
       loadTemplates()
       loadAdminEmail()
       loadFieldMappings()
+      loadEmailNotificationSettings()
       
       // Load GHL field mappings if GHL is connected
       if (ghlIntegration) {
@@ -511,6 +520,52 @@ export default function NotificationsPage() {
     } catch (error) {
       console.error('Error loading admin email:', error)
       setAdminEmail(null)
+    }
+  }
+
+  const loadEmailNotificationSettings = async () => {
+    if (!selectedCategoryId) return
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const settings = await getAllEmailNotificationSettings(
+        supabase,
+        user.id,
+        selectedCategoryId
+      )
+      
+      setEmailNotificationSettings(settings)
+    } catch (error) {
+      console.error('Error loading email notification settings:', error)
+      setEmailNotificationSettings({})
+    }
+  }
+
+  const handleSaveEmailNotificationSettings = async (emailType: string, config: EmailNotificationConfig) => {
+    if (!selectedCategoryId) return
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
+      const result = await updateEmailNotificationSettings(
+        supabase,
+        user.id,
+        selectedCategoryId,
+        emailType,
+        config
+      )
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save settings')
+      }
+
+      // Reload settings
+      await loadEmailNotificationSettings()
+    } catch (error: any) {
+      throw new Error(error?.message || 'Failed to save email notification settings')
     }
   }
 
@@ -1081,15 +1136,7 @@ export default function NotificationsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Email Notifications</h1>
           <p className="mt-1 text-sm text-gray-600">Customise your email templates for different notifications</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => window.open('/admin/field-mappings', '_blank')}
-          >
-            <MapPin className="h-4 w-4 mr-2" />
-            Manage Field Mappings
-          </Button>
-        </div>
+        
       </div>
 
       {/* Category filter tabs */}
@@ -1163,16 +1210,56 @@ export default function NotificationsPage() {
                         </SelectContent>
                       </Select>
                       {selectedEmailType && (
-                        <div className="mt-2">
-                          {adminEmail ? (
-                            <p className="text-xs text-blue-600">
-                              Admin notifications: {adminEmail}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-amber-600">
-                              No admin email configured
-                            </p>
-                          )}
+                        <div className="mt-2 space-y-1">
+                          {(() => {
+                            const currentSettings = emailNotificationSettings[selectedEmailType]
+                            
+                            // Handle new structure with admin/customer/ghl
+                            const adminConfig = currentSettings?.admin
+                            const customerConfig = currentSettings?.customer
+                            const ghlConfig = currentSettings?.ghl
+                            
+                            const hasSpecificEmails = adminConfig?.emails && adminConfig.emails.length > 0
+                            const adminEnabled = adminConfig?.enabled !== false
+                            const displayEmails = hasSpecificEmails ? adminConfig.emails : (adminEmail ? [adminEmail] : [])
+                            
+                            return (
+                              <>
+                                {/* Admin Email Status */}
+                                {displayEmails.length === 0 ? (
+                                  <p className="text-xs text-amber-600">
+                                    ⚠️ No admin email configured
+                                  </p>
+                                ) : !adminEnabled ? (
+                                  <p className="text-xs text-gray-500">
+                                    📧 Admin: <span className="font-medium">Disabled</span>
+                                  </p>
+                                ) : (
+                                  <div className="text-xs text-blue-600">
+                                    <span>📧 Admin: </span>
+                                    {displayEmails.length === 1 ? (
+                                      <span className="font-medium">{displayEmails[0]}</span>
+                                    ) : (
+                                      <span className="font-medium">{displayEmails.length} emails</span>
+                                    )}
+                                    {!hasSpecificEmails && adminEmail && (
+                                      <span className="text-gray-500"> (fallback)</span>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* Customer Email Status */}
+                                <p className="text-xs text-gray-600">
+                                  👤 Customer: <span className="font-medium">{customerConfig?.enabled !== false ? 'Enabled' : 'Disabled'}</span>
+                                </p>
+                                
+                                {/* GHL Status */}
+                                <p className="text-xs text-gray-600">
+                                  ⚡ GHL: <span className="font-medium">{ghlConfig?.enabled !== false ? 'Enabled' : 'Disabled'}</span>
+                                </p>
+                              </>
+                            )
+                          })()}
                         </div>
                       )}
                     </div>
@@ -1200,13 +1287,13 @@ export default function NotificationsPage() {
       {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && (
         <div className="mb-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <nav className="flex space-x-8" aria-label="Email Types">
+            <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto pb-px" aria-label="Email Types">
               <button
                 onClick={() => {
                   setActiveTab('customer')
                   selectTemplateByType('customer')
                 }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === 'customer'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -1219,7 +1306,7 @@ export default function NotificationsPage() {
                   setActiveTab('admin')
                   selectTemplateByType('admin')
                 }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === 'admin'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -1230,7 +1317,7 @@ export default function NotificationsPage() {
               {ghlIntegration && (
                 <button
                   onClick={() => setActiveTab('leads')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${
                     activeTab === 'leads'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -1240,8 +1327,19 @@ export default function NotificationsPage() {
                   <span>Leads</span>
                 </button>
               )}
+              <button
+                onClick={() => setActiveTab('email-settings')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${
+                  activeTab === 'email-settings'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Settings className="h-4 w-4" />
+                <span>Email Settings</span>
+              </button>
             </nav>
-            {activeTab !== 'leads' && (
+            {activeTab !== 'leads' && activeTab !== 'email-settings' && (
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
@@ -1272,7 +1370,7 @@ export default function NotificationsPage() {
       )}
 
       {/* Field Mappings Info */}
-      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && templateFields.length === 0 && (
+      {selectedCategoryId && availableEmailTypes.length > 0 && selectedEmailType && templateFields.length === 0 && activeTab !== 'leads' && activeTab !== 'email-settings' && (
         <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start">
             <MapPin className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
@@ -1297,7 +1395,7 @@ export default function NotificationsPage() {
       )}
 
       {/* Template Content */}
-      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && templateFields.length > 0 && (
+      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && activeTab !== 'email-settings' && templateFields.length > 0 && (
         <EmailTemplateEditor
           template={selectedTemplate}
           templateFields={templateFields}
@@ -1306,7 +1404,7 @@ export default function NotificationsPage() {
       )}
 
       {/* No Field Mappings Message */}
-      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && templateFields.length === 0 && (
+      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && activeTab !== 'email-settings' && templateFields.length === 0 && (
         <div className="text-center py-12">
           <MapPin className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-4 text-lg font-medium text-gray-900">No Field Mappings Available</h3>
@@ -1358,6 +1456,35 @@ export default function NotificationsPage() {
               Go to Settings
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Email Settings Tab Content */}
+      {activeTab === 'email-settings' && selectedEmailType && availableEmailTypes.length > 0 && (
+        <div className="space-y-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start">
+              <Mail className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-blue-900">Email Notification Settings</h3>
+                <p className="mt-1 text-sm text-blue-700">
+                  Configure which admin emails should receive notifications for this email type. 
+                  You can specify multiple emails and enable/disable notifications individually.
+                  {adminEmail && (
+                    <> If no specific emails are configured, notifications will be sent to your default admin email: <span className="font-medium">{adminEmail}</span></>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <EmailNotificationSettings
+            emailType={selectedEmailType}
+            emailTypeName={availableEmailTypes.find(et => et.id === selectedEmailType)?.name || selectedEmailType}
+            currentSettings={emailNotificationSettings[selectedEmailType] || null}
+            fallbackEmail={adminEmail}
+            onSave={(config) => handleSaveEmailNotificationSettings(selectedEmailType, config)}
+          />
         </div>
       )}
     </div>
