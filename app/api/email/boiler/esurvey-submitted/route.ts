@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { decryptObject } from '@/lib/encryption'
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner'
 import { FieldMappingEngine } from '@/lib/field-mapping-engine'
+import { getNotificationSettingsForType } from '@/lib/email-notification-settings'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -201,62 +202,122 @@ export async function POST(request: NextRequest) {
     console.log('📧 Processed customer template:', !!processedCustomerTemplate)
     console.log('📧 Processed admin template:', !!processedAdminTemplate)
 
-    // Get admin email from PartnerSettings
-    let adminEmail: string | undefined = undefined
-    const { data: partnerSettings } = await supabase
-      .from('PartnerSettings')
-      .select('admin_email')
-      .eq('partner_id', partner.user_id)
-      .eq('service_category_id', boilerCategory.service_category_id)
-      .single()
-
-    adminEmail = partnerSettings?.admin_email || undefined
+    // Get notification settings for this email type
+    const notificationSettings = await getNotificationSettingsForType(
+      supabase,
+      partner.user_id,
+      boilerCategory.service_category_id,
+      'esurvey-submitted'
+    )
+    console.log('📧 Notification settings:', {
+      admin: { enabled: notificationSettings.admin.enabled, emails: notificationSettings.admin.emails.length },
+      customer: { enabled: notificationSettings.customer.enabled },
+      ghl: { enabled: notificationSettings.ghl.enabled }
+    })
 
     const toAddress: string = email || smtp.SMTP_FROM
     if (!toAddress) {
       return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 })
     }
 
+    let customerEmailSent = false
+    let adminEmailSent = false
+    let emailErrors: string[] = []
+
     try {
-      // Send customer email
-      if (processedCustomerTemplate) {
-        await transporter.sendMail({
-          from: smtp.SMTP_FROM || smtp.SMTP_USER,
-          to: toAddress,
-          subject: processedCustomerTemplate.subject,
-          text: processedCustomerTemplate.text,
-          html: processedCustomerTemplate.html,
-        })
-        console.log('✅ Customer email sent successfully')
-      } else {
-        console.log('⚠️ No customer template or processed template, skipping customer email')
+      // Send customer email if enabled
+      if (notificationSettings.customer.enabled && processedCustomerTemplate) {
+        try {
+          await transporter.sendMail({
+            from: smtp.SMTP_FROM || smtp.SMTP_USER,
+            to: toAddress,
+            subject: processedCustomerTemplate.subject,
+            text: processedCustomerTemplate.text,
+            html: processedCustomerTemplate.html,
+          })
+          console.log('✅ Customer email sent successfully')
+          customerEmailSent = true
+        } catch (customerErr: any) {
+          console.error('❌ Customer email failed:', customerErr)
+          emailErrors.push(`Customer email failed: ${customerErr?.message || String(customerErr)}`)
+        }
+      } else if (!notificationSettings.customer.enabled) {
+        console.log('⚠️ Customer email disabled, skipping')
       }
 
-      // Send admin email if admin email is configured
-      if (adminEmail && processedAdminTemplate) {
-        await transporter.sendMail({
-          from: smtp.SMTP_FROM || smtp.SMTP_USER,
-          to: adminEmail,
-          subject: processedAdminTemplate.subject,
-          text: processedAdminTemplate.text,
-          html: processedAdminTemplate.html,
-        })
-        console.log('✅ Admin email sent successfully')
-      } else {
-        console.log('⚠️ No admin email or processed template, skipping admin email')
+      // Send admin emails if enabled and configured
+      if (notificationSettings.admin.enabled && processedAdminTemplate && notificationSettings.admin.emails.length > 0) {
+        for (const adminEmail of notificationSettings.admin.emails) {
+          try {
+            await transporter.sendMail({
+              from: smtp.SMTP_FROM || smtp.SMTP_USER,
+              to: adminEmail,
+              subject: processedAdminTemplate.subject,
+              text: processedAdminTemplate.text,
+              html: processedAdminTemplate.html,
+            })
+            console.log(`✅ Admin email sent successfully to ${adminEmail}`)
+            adminEmailSent = true
+          } catch (adminErr: any) {
+            console.error(`❌ Admin email to ${adminEmail} failed:`, adminErr)
+            emailErrors.push(`Admin email to ${adminEmail} failed: ${adminErr?.message || String(adminErr)}`)
+          }
+        }
+      } else if (!notificationSettings.admin.enabled) {
+        console.log('⚠️ Admin emails disabled, skipping')
       }
     } catch (sendErr: any) {
       console.error('❌ SMTP send failed:', sendErr)
       return NextResponse.json({ 
         error: 'SMTP send failed', 
-        details: sendErr?.message || String(sendErr)
+        details: sendErr?.message || String(sendErr),
+        adminEmails: notificationSettings.admin.emails,
+        adminEmailsEnabled: notificationSettings.admin.enabled,
+        customerEmailEnabled: notificationSettings.customer.enabled,
+        emailErrors: emailErrors
       }, { status: 400 })
     }
 
-    console.log('🎉 All emails sent successfully!')
+    // GHL Integration - check if enabled and mappings exist
+    // Note: GHL lead is created from frontend (in UserInfoSection.tsx), not backend
+    // This is just for tracking/debugging to avoid duplicate leads
+    console.log('🔗 Checking GHL settings...')
+    console.log('🔗 GHL enabled:', notificationSettings.ghl.enabled)
+
+    let ghlMappings = null
+
+    if (notificationSettings.ghl.enabled) {
+      const { data: mappings } = await supabase
+        .from('ghl_field_mappings')
+        .select('*')
+        .eq('partner_id', partner.user_id)
+        .eq('service_category_id', boilerCategory.service_category_id)
+        .eq('is_active', true)
+
+      ghlMappings = mappings
+      console.log('🔗 GHL mappings found:', ghlMappings?.length || 0)
+      console.log('✅ GHL lead will be created from frontend')
+    } else {
+      console.log('⚠️ GHL integration disabled, skipping')
+    }
+
+    console.log('🎉 Email sending completed!')
     return NextResponse.json({ 
       success: true,
-      message: 'eSurvey emails sent successfully'
+      partnerId: partner.user_id, // Add partnerId for frontend GHL integration
+      customerEmailSent: customerEmailSent,
+      adminEmailSent: adminEmailSent,
+      ghlIntegrationAttempted: notificationSettings.ghl.enabled && !!(ghlMappings && ghlMappings.length > 0),
+      message: 'eSurvey emails sent successfully',
+      debug: {
+        partnerId: partner.user_id,
+        adminEmails: notificationSettings.admin.emails,
+        adminEmailsEnabled: notificationSettings.admin.enabled,
+        customerEmailEnabled: notificationSettings.customer.enabled,
+        ghlEnabled: notificationSettings.ghl.enabled,
+        ghlMappingsCount: ghlMappings?.length || 0,
+        emailErrors: emailErrors.length > 0 ? emailErrors : undefined
+      }
     })
   } catch (error: any) {
     console.error('❌ esurvey-submitted error:', error)

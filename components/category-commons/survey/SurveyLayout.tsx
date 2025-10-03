@@ -257,8 +257,50 @@ export default function SurveyLayout({
             }),
           })
           
+          const responseData = await emailResponse.json().catch(() => ({}))
+          
           if (emailResponse.ok) {
             console.log('Survey email sent successfully')
+            
+            // Create GHL lead from frontend (visible in network tab)
+            if (responseData?.partnerId || responseData?.debug?.partnerId) {
+              try {
+                console.log('🚀 Creating GHL lead from frontend for survey-submitted...');
+                
+                const ghlResponse = await fetch('/api/ghl/create-lead-client', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    partnerId: responseData.partnerId || responseData.debug?.partnerId,
+                    submissionId: submissionId,
+                    emailType: 'survey-submitted',
+                    contactData: {
+                      firstName: details.firstName || '',
+                      lastName: details.lastName || '',
+                      email: details.email || '',
+                      phone: details.phone || '',
+                      address1: details.postcode || '',
+                      city: details.postcode || '',
+                      country: 'United Kingdom'
+                    },
+                    customFields: {},
+                    pipelineId: null,
+                    stageId: null
+                  })
+                })
+
+                if (ghlResponse.ok) {
+                  const ghlResult = await ghlResponse.json()
+                  console.log('✅ GHL lead created from frontend:', ghlResult)
+                } else {
+                  console.warn('⚠️ GHL lead creation failed:', ghlResponse.status)
+                }
+              } catch (ghlError) {
+                console.warn('⚠️ GHL lead creation error:', ghlError)
+              }
+            }
           } else {
             console.warn('Failed to send survey email:', await emailResponse.text())
           }

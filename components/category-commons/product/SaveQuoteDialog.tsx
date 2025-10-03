@@ -95,6 +95,48 @@ export default function SaveQuoteDialog({
       if (!res.ok) {
         throw new Error(data?.error || 'Failed to send email')
       }
+
+      // Create GHL lead directly from frontend (visible in network tab) - same as quote-initial
+      if (data?.debug?.partnerId || data?.partnerId) {
+        try {
+          console.log('🚀 Creating GHL lead from frontend for save-quote...');
+          
+          const ghlResponse = await fetch('/api/ghl/create-lead-client', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              partnerId: data.debug?.partnerId || data.partnerId,
+              submissionId: submissionId,
+              emailType: 'save-quote',
+              contactData: {
+                firstName: firstName,
+                lastName: lastName,
+                email: email,
+                phone: phone,
+                address1: postcode,
+                city: postcode,
+                country: 'United Kingdom'
+              },
+              customFields: {},
+              pipelineId: null,
+              stageId: null
+            })
+          })
+
+          if (ghlResponse.ok) {
+            const ghlResult = await ghlResponse.json()
+            console.log('✅ GHL lead created from frontend:', ghlResult)
+          } else {
+            console.warn('⚠️ GHL lead creation failed:', ghlResponse.status)
+          }
+        } catch (ghlError) {
+          console.warn('⚠️ GHL lead creation error:', ghlError)
+          // Don't fail the save-quote if GHL fails
+        }
+      }
+
       setSuccess('Saved! We sent you an email with your quote details.')
     } catch (err: any) {
       setError(err?.message || 'Failed to send email')
