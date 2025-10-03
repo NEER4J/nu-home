@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createProduct, updateProduct } from '@/lib/products-actions';
-import { createPartnerProduct, updatePartnerProduct } from '@/app/partner/actions';
 import { Product } from '@/types/product.types';
 import { ServiceCategory } from '@/types/database.types';
 import { CategoryField } from '@/types/product.types';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Image from 'next/image';
-import { Loader2, PlusCircle, X, Upload, Save, AlertTriangle, Settings } from 'lucide-react';
+import { Loader2, PlusCircle, X, Upload, Save, AlertTriangle, Settings, ImageIcon } from 'lucide-react';
 import { SubmitButton } from '@/components/submit-button';
+import { uploadProductImage } from '@/lib/product-image-upload';
 
 type ProductFormProps = {
   product?: Product;
@@ -43,6 +43,8 @@ export function ProductForm({
   const [imageUrl, setImageUrl] = useState<string>(product?.image_url || '');
   const [imagePreview, setImagePreview] = useState<string>(product?.image_url || '');
   const [isSessionValid, setIsSessionValid] = useState<boolean>(true);
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+  const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
   
   // Fetch category fields when category changes
   useEffect(() => {
@@ -167,6 +169,43 @@ export function ProductForm({
         [key]: currentValues
       };
     });
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (file: File, fieldKey: string, isMainImage: boolean = false) => {
+    if (!file) return;
+
+    // Set uploading state
+    if (isMainImage) {
+      setIsUploadingImage(true);
+    } else {
+      setUploadingFields(prev => ({ ...prev, [fieldKey]: true }));
+    }
+
+    try {
+      const result = await uploadProductImage(file, product?.product_id, fieldKey);
+      
+      if (result.success && result.url) {
+        if (isMainImage) {
+          setImageUrl(result.url);
+          setImagePreview(result.url);
+        } else {
+          handleFieldChange(fieldKey, result.url);
+        }
+      } else {
+        console.error('Upload failed:', result.error);
+        alert(`Failed to upload image: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image');
+    } finally {
+      if (isMainImage) {
+        setIsUploadingImage(false);
+      } else {
+        setUploadingFields(prev => ({ ...prev, [fieldKey]: false }));
+      }
+    }
   };
   
   // Render a nested child field
@@ -362,36 +401,73 @@ export function ProductForm({
           }
         };
 
+        const isUploading = uploadingFields[fieldKey] || false;
+
         return (
-          <div className="flex items-center space-x-3">
-            {/* Image Preview - Square shape to the left */}
-            <div className="flex-shrink-0">
-              {value && isValidUrl(value) ? (
-                <div className="relative w-12 h-12 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                  <Image
-                    src={value}
-                    alt={field.name}
-                    fill
-                    className="object-contain"
-                    onError={() => {
-                      // Handle broken images gracefully
-                      console.log('Image failed to load:', value);
-                    }}
-                  />
-                </div>
-              ) : value && !isValidUrl(value) ? (
-                <div className="w-12 h-12 bg-red-50 rounded-md border-2 border-dashed border-red-300 flex items-center justify-center">
-                  <span className="text-xs text-red-500">!</span>
-                </div>
-              ) : (
-                <div className="w-12 h-12 bg-gray-50 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
-                  <span className="text-xs text-gray-400">?</span>
+          <div className="space-y-3">
+            {/* Image Preview */}
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                {value && isValidUrl(value) ? (
+                  <div className="relative w-16 h-16 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
+                    <Image
+                      src={value}
+                      alt={field.name}
+                      fill
+                      className="object-contain"
+                      onError={() => {
+                        console.log('Image failed to load:', value);
+                      }}
+                    />
+                  </div>
+                ) : value && !isValidUrl(value) ? (
+                  <div className="w-16 h-16 bg-red-50 rounded-md border-2 border-dashed border-red-300 flex items-center justify-center">
+                    <span className="text-xs text-red-500">!</span>
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 bg-gray-50 rounded-md border-2 border-dashed border-gray-300 flex items-center justify-center">
+                    <ImageIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              
+              {/* Upload Status */}
+              {isUploading && (
+                <div className="flex items-center text-sm text-blue-600">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Uploading...
                 </div>
               )}
             </div>
             
-            {/* Input Field */}
-            <div className="flex-1">
+            {/* Upload Button */}
+            <div>
+              <input
+                type="file"
+                id={`upload-${fieldKey}`}
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleImageUpload(file, fieldKey);
+                  }
+                }}
+                className="hidden"
+              />
+              <label
+                htmlFor={`upload-${fieldKey}`}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {isUploading ? 'Uploading...' : 'Upload Image'}
+              </label>
+            </div>
+            
+            {/* URL Input Field */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Or enter image URL
+              </label>
               <input
                 type="url"
                 id={`field-${fieldKey}`}
@@ -613,20 +689,44 @@ export function ProductForm({
       formData.append('product_fields', JSON.stringify(dynamicFieldValues));
       
       if (isPartner) {
-        // Partner-specific form handling
-        formData.append('categoryId', selectedCategory);
-        formData.append('imageUrl', imageUrl);
-        formData.append('isActive', formData.get('is_active') === 'on' ? 'true' : 'false');
+        // Partner-specific form handling using Supabase directly
+        const supabase = createClientComponentClient();
         
-        if (template) {
-          formData.append('fromTemplateId', template.product_id);
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('User not authenticated');
         }
         
+        const partnerProductData = {
+          name: formData.get('name') as string,
+          slug: slug,
+          description: formData.get('description') as string,
+          price: parseFloat(formData.get('price') as string) || null,
+          service_category_id: selectedCategory,
+          product_fields: dynamicFieldValues,
+          image_url: imageUrl,
+          is_active: formData.get('is_active') === 'on',
+          partner_id: user.id,
+          base_product_id: template?.product_id || null
+        };
+        
         if (isEditing && product) {
-          formData.append('productId', product.product_id);
-          await updatePartnerProduct(formData);
+          // Update existing partner product
+          const { error } = await supabase
+            .from('PartnerProducts')
+            .update(partnerProductData)
+            .eq('partner_product_id', product.product_id)
+            .eq('partner_id', user.id);
+            
+          if (error) throw error;
         } else {
-          await createPartnerProduct(formData);
+          // Create new partner product
+          const { error } = await supabase
+            .from('PartnerProducts')
+            .insert(partnerProductData);
+            
+          if (error) throw error;
         }
         
         if (onSuccess) {
@@ -692,8 +792,9 @@ export function ProductForm({
                 Main Image
               </label>
               <div className="space-y-3">
-              {imagePreview && (
-                  <div className="relative w-full h-48 bg-gray-100 rounded-md overflow-hidden">
+                {/* Image Preview */}
+                {imagePreview && (
+                  <div className="relative w-full h-48 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
                     <Image
                       src={imagePreview}
                       alt="Product preview"
@@ -702,19 +803,56 @@ export function ProductForm({
                     />
                   </div>
                 )}
-                <input
-                  type="url"
-                  id="image_url"
-                  name="image_url"
-                  value={imageUrl}
-                  onChange={(e) => {
-                    setImageUrl(e.target.value);
-                    setImagePreview(e.target.value);
-                  }}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="https://example.com/image.jpg"
-                />
                 
+                {/* Upload Status */}
+                {isUploadingImage && (
+                  <div className="flex items-center justify-center py-4 text-sm text-blue-600">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Uploading image...
+                  </div>
+                )}
+                
+                {/* Upload Button */}
+                <div>
+                  <input
+                    type="file"
+                    id="upload-main-image"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleImageUpload(file, 'main-image', true);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="upload-main-image"
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {isUploadingImage ? 'Uploading...' : 'Upload Image'}
+                  </label>
+                </div>
+                
+                {/* URL Input Field */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Or enter image URL
+                  </label>
+                  <input
+                    type="url"
+                    id="image_url"
+                    name="image_url"
+                    value={imageUrl}
+                    onChange={(e) => {
+                      setImageUrl(e.target.value);
+                      setImagePreview(e.target.value);
+                    }}
+                    className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </div>
               </div>
             </div>
             

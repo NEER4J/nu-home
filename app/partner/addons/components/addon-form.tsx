@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Addon, ServiceCategory } from "@/types";
 import Image from "next/image";
+import { Upload, Loader2, ImageIcon } from "lucide-react";
+import { uploadProductImage } from "@/lib/product-image-upload";
 
 interface AddonFormProps {
   initialData?: Addon | null;
@@ -89,6 +91,7 @@ export default function AddonForm({ initialData, onSuccess, customSubmitHandler,
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [addonTypes, setAddonTypes] = useState<{ id: string; name: string }[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     description: initialData?.description || "",
@@ -144,6 +147,29 @@ export default function AddonForm({ initialData, onSuccess, customSubmitHandler,
     } catch (error) {
       console.error("Error fetching addon types:", error);
       setAddonTypes([]);
+    }
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (file: File) => {
+    if (!file) return;
+
+    setIsUploadingImage(true);
+
+    try {
+      const result = await uploadProductImage(file, initialData?.addon_id, 'addon-image');
+      
+      if (result.success && result.url) {
+        setFormData(prev => ({ ...prev, image_link: result.url! }));
+      } else {
+        console.error('Upload failed:', result.error);
+        alert(`Failed to upload image: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image');
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -330,10 +356,57 @@ export default function AddonForm({ initialData, onSuccess, customSubmitHandler,
 
           <div>
             <label htmlFor="image_link" className="block text-sm font-medium text-gray-700 mb-1">
-              Image URL
+              Image
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2">
+            <div className="space-y-4">
+              {/* Image Preview */}
+              {formData.image_link && isValidUrl(formData.image_link) && (
+                <div className="flex items-center space-x-4">
+                  <div className="relative h-24 w-24 rounded-lg overflow-hidden border border-gray-200">
+                    <ImagePreview 
+                      src={formData.image_link} 
+                      alt="Addon preview" 
+                    />
+                  </div>
+                  
+                  {/* Upload Status */}
+                  {isUploadingImage && (
+                    <div className="flex items-center text-sm text-blue-600">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Uploading...
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Upload Button */}
+              <div>
+                <input
+                  type="file"
+                  id="upload-addon-image"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleImageUpload(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="upload-addon-image"
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {isUploadingImage ? 'Uploading...' : 'Upload Image'}
+                </label>
+              </div>
+              
+              {/* URL Input Field */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Or enter image URL
+                </label>
                 <input
                   type="text"
                   id="image_link"
@@ -350,14 +423,6 @@ export default function AddonForm({ initialData, onSuccess, customSubmitHandler,
                   <p className="mt-1 text-sm text-red-600">Please enter a valid URL</p>
                 )}
               </div>
-              {formData.image_link && isValidUrl(formData.image_link) && (
-                <div className="relative h-24 w-24 rounded-lg overflow-hidden border border-gray-200">
-                  <ImagePreview 
-                    src={formData.image_link} 
-                    alt="Addon preview" 
-                  />
-                </div>
-              )}
             </div>
           </div>
         </div>
