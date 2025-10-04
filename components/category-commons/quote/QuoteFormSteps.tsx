@@ -278,14 +278,13 @@ export default function QuoteFormSteps({
                       <span className="text-base font-medium text-center leading-tight">{optionText}</span>
                       
                       {/* Additional Cost Badge */}
-                      {hasAdditionalCost && (
+                      {hasAdditionalCost && additionalCost > 0 && (
                         <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${
                           isSelected 
                             ? 'bg-white text-blue-600' 
                             : 'bg-blue-100 text-blue-700'
                         }`}>
                           <div className="flex items-center">
-                            <DollarSign size={10} className="mr-1" />
                             <span>+£{additionalCost.toFixed(2)}</span>
                           </div>
                         </div>

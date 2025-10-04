@@ -52,9 +52,11 @@ interface UserInfoSectionProps {
   onRestart?: () => void
   brandColor?: string
   submissionId?: string | null
+  additionalCosts?: number
+  questionDetails?: Record<string, any>
 }
 
-export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart, brandColor = '#2563eb', submissionId }: UserInfoSectionProps) {
+export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart, brandColor = '#2563eb', submissionId, additionalCosts = 0, questionDetails = {} }: UserInfoSectionProps) {
   const [showRestartConfirm, setShowRestartConfirm] = useState(false)
   const [showESurvey, setShowESurvey] = useState(false)
   const [showCallbackForm, setShowCallbackForm] = useState(false)
@@ -67,6 +69,26 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
 
   const partnerPhone = partnerInfo?.phone || '0330 113 1333'
   const partnerEmail = partnerInfo?.subdomain ? `info@${partnerInfo.subdomain}.com` : 'info@example.com'
+
+  // Helper function to get cost for a specific answer
+  const getAnswerCost = (questionId: string, answer: string | string[]): number => {
+    const question = questionDetails[questionId];
+    if (!question || !question.is_multiple_choice || !question.answer_options) {
+      return 0;
+    }
+    
+    const answers = Array.isArray(answer) ? answer : [answer];
+    let totalCost = 0;
+    
+    answers.forEach(answerText => {
+      const option = question.answer_options?.find((opt: any) => opt.text === answerText);
+      if (option?.hasAdditionalCost && option.additionalCost) {
+        totalCost += option.additionalCost;
+      }
+    });
+    
+    return totalCost;
+  };
 
   const handleRestart = () => {
     if (onRestart) {
@@ -365,18 +387,28 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
             <CardContent>
               <div className="space-y-0">
                 {submissionInfo.form_answers && (Array.isArray(submissionInfo.form_answers) ? submissionInfo.form_answers.length > 0 : Object.keys(submissionInfo.form_answers).length > 0) ? (
-                  (Array.isArray(submissionInfo.form_answers) ? submissionInfo.form_answers : Object.values(submissionInfo.form_answers)).map((answer: any, index) => (
-                    <div key={index} className="flex md:flex-row flex-col justify-between items-start py-2 border-b border-gray-200 last:border-b-0">
-                      <div className="flex-1 pr-4">
-                        <p className="text-sm text-gray-700">{answer.question_text}</p>
+                  (Array.isArray(submissionInfo.form_answers) ? submissionInfo.form_answers : Object.values(submissionInfo.form_answers)).map((answer: any, index) => {
+                    const answerCost = getAnswerCost(answer.question_id, answer.answer);
+                    return (
+                      <div key={index} className="flex md:flex-row flex-col justify-between items-start py-2 border-b border-gray-200 last:border-b-0">
+                        <div className="flex-1 pr-4">
+                          <p className="text-sm text-gray-700">{answer.question_text}</p>
+                        </div>
+                        <div className="flex-1 text-right">
+                          <div className="flex flex-col items-end">
+                            <p className="text-sm text-gray-900 font-medium">
+                              {Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer}
+                            </p>
+                            {answerCost > 0 && (
+                              <p className="text-xs text-green-600 font-medium mt-1">
+                                +£{answerCost.toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1 text-right">
-                        <p className="text-sm text-gray-900 font-medium">
-                          {Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <p>No form answers available</p>

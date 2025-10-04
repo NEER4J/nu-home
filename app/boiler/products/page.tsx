@@ -293,10 +293,17 @@ function BoilerProductsContent() {
 
   const getCurrentPrice = (product: PartnerProduct): number => {
     const selectedPower = getSelectedPowerOption(product)
+    let basePrice = 0
+    
     if (selectedPower) {
-      return selectedPower.price
+      basePrice = selectedPower.price
+    } else {
+      basePrice = product.price || 0
     }
-    return product.price || 0
+    
+    // Add additional costs from form answers
+    const additionalCosts = getTotalAnswersCost()
+    return basePrice + additionalCosts
   }
 
   const getMonthlyPayment = (product: PartnerProduct): number | null => {
@@ -316,6 +323,16 @@ function BoilerProductsContent() {
       if (apr && apr > 0) {
         const monthlyPayment = calculateMonthlyPaymentWithDeposit(currentPrice, apr, selectedPlan.months, selectedDeposit)
         // Store this calculation for future use
+        setMonthlyPayments(prev => ({
+          ...prev,
+          [product.partner_product_id]: monthlyPayment
+        }))
+        return monthlyPayment
+      }
+    }
+    
+    return null
+  }
 
   // Helper function to fetch question details for cost calculation
   const fetchQuestionDetails = async (questionIds: string[]) => {
@@ -377,16 +394,6 @@ function BoilerProductsContent() {
       return total + getAnswerCost(answer.question_id, answer.answer);
     }, 0);
   };
-        setMonthlyPayments(prev => ({
-          ...prev,
-          [product.partner_product_id]: monthlyPayment
-        }))
-        return monthlyPayment
-      }
-    }
-    
-    return null
-  }
 
   // Helper function to calculate monthly payment using APR
   const calculateMonthlyPayment = (price: number, apr: number, months: number): number => {
@@ -461,6 +468,10 @@ function BoilerProductsContent() {
       description: product.description,
       is_selected: isSelected,
       selected_at: isSelected ? new Date().toISOString() : null,
+      selected_power: selectedPower ? {
+        ...selectedPower,
+        price: currentPrice // Store the full price with additional costs
+      } : null,
       calculator_settings: {
         selected_plan: selectedPlan,
         selected_deposit: selectedDeposit,
@@ -478,7 +489,10 @@ function BoilerProductsContent() {
     
     // Recalculate monthly payment when power option changes
     const newPrice = powerOption.price
-    if (newPrice > 0 && partnerSettings?.apr_settings) {
+    const additionalCosts = getTotalAnswersCost()
+    const totalPrice = newPrice + additionalCosts
+    
+    if (totalPrice > 0 && partnerSettings?.apr_settings) {
       const selectedPlan = getSelectedPlan(product)
       const availableTerms = Object.keys(partnerSettings.apr_settings).map(Number).sort((a, b) => a - b)
       if (availableTerms.length > 0) {
@@ -486,7 +500,7 @@ function BoilerProductsContent() {
         const apr = partnerSettings.apr_settings[term]
         if (apr && apr > 0) {
           const depositPercentage = getSelectedDeposit(product)
-          const monthlyPayment = calculateMonthlyPaymentWithDeposit(newPrice, apr, term, depositPercentage)
+          const monthlyPayment = calculateMonthlyPaymentWithDeposit(totalPrice, apr, term, depositPercentage)
           setMonthlyPayments(prev => ({
             ...prev,
             [product.partner_product_id]: monthlyPayment
@@ -608,6 +622,17 @@ function BoilerProductsContent() {
         if (partnerLead && !partnerLeadError) {
           console.log('Found submission in partner_leads:', partnerLead)
           setSubmissionInfo(partnerLead as unknown as QuoteSubmission)
+          
+          // Fetch question details for cost calculation
+          const formAnswers = partnerLead.form_answers as any
+          const answersArray = Array.isArray(formAnswers) 
+            ? formAnswers 
+            : Object.values(formAnswers) as Array<{ question_id: string; question_text: string; answer: string | string[] }>
+          
+          const questionIds = answersArray.map(a => a.question_id)
+          if (questionIds.length > 0) {
+            fetchQuestionDetails(questionIds)
+          }
           return
         }
 
@@ -628,6 +653,17 @@ function BoilerProductsContent() {
         if (submission) {
           console.log('Found submission in QuoteSubmissions:', submission)
           setSubmissionInfo(submission as unknown as QuoteSubmission)
+          
+          // Fetch question details for cost calculation
+          const formAnswers = submission.form_answers as any
+          const answersArray = Array.isArray(formAnswers) 
+            ? formAnswers 
+            : Object.values(formAnswers) as Array<{ question_id: string; question_text: string; answer: string | string[] }>
+          
+          const questionIds = answersArray.map(a => a.question_id)
+          if (questionIds.length > 0) {
+            fetchQuestionDetails(questionIds)
+          }
         } else {
           console.log('No submission found in either table')
         }
@@ -658,7 +694,9 @@ function BoilerProductsContent() {
           const apr = partnerSettings.apr_settings[term]
           if (apr && apr > 0) {
             const depositPercentage = getSelectedDeposit(product)
-            const monthlyPayment = calculateMonthlyPaymentWithDeposit(product.price, apr, term, depositPercentage)
+            const additionalCosts = getTotalAnswersCost()
+            const totalPrice = product.price + additionalCosts
+            const monthlyPayment = calculateMonthlyPaymentWithDeposit(totalPrice, apr, term, depositPercentage)
             setMonthlyPayments(prev => ({
               ...prev,
               [product.partner_product_id]: monthlyPayment
@@ -1199,8 +1237,8 @@ function BoilerProductsContent() {
     setSelectedProductForFinance(product)
     setShowFinanceCalculator(true)
     
-    // Calculate and store monthly payment for this product
-    const currentPrice = getCurrentPrice(product)
+    // Calculate and store monthly payment for this product (includes additional costs)
+    const currentPrice = getCurrentPrice(product) // This now includes additional costs
     if (currentPrice > 0 && partnerSettings?.apr_settings) {
       // Use saved calculator settings or default to first available term
       const selectedPlan = getSelectedPlan(product)
@@ -1281,7 +1319,10 @@ function BoilerProductsContent() {
       const updated = {
         ...existing,
         product_id: product.partner_product_id,
-        selected_power: selectedPower,
+        selected_power: selectedPower ? {
+          ...selectedPower,
+          price: currentPrice // Store the full price with additional costs
+        } : null,
         current_price: currentPrice,
         calculator_settings: {
           selected_plan: selectedPlan,
@@ -1295,7 +1336,10 @@ function BoilerProductsContent() {
           product_id: product.partner_product_id,
           name: product.name,
           price: currentPrice,
-          selected_power: selectedPower,
+          selected_power: selectedPower ? {
+          ...selectedPower,
+          price: currentPrice // Store the full price with additional costs
+        } : null,
           image_url: product.image_url,
         },
         calculator_info: {
@@ -1312,7 +1356,10 @@ function BoilerProductsContent() {
             product_id: product.partner_product_id,
             name: product.name,
             price: currentPrice,
-            selected_power: selectedPower,
+            selected_power: selectedPower ? {
+          ...selectedPower,
+          price: currentPrice // Store the full price with additional costs
+        } : null,
             image_url: product.image_url,
           },
           calculator_info: {
@@ -1341,7 +1388,10 @@ function BoilerProductsContent() {
           product_id: product.partner_product_id,
           name: product.name,
           price: currentPrice,
-          selected_power: selectedPower,
+          selected_power: selectedPower ? {
+          ...selectedPower,
+          price: currentPrice // Store the full price with additional costs
+        } : null,
           image_url: product.image_url,
         }
       })
@@ -1477,7 +1527,10 @@ function BoilerProductsContent() {
       const updated = {
         ...existing,
         product_id: product.partner_product_id,
-        selected_power: selectedPower,
+        selected_power: selectedPower ? {
+          ...selectedPower,
+          price: currentPrice // Store the full price with additional costs
+        } : null,
         current_price: currentPrice,
         calculator_settings: {
           selected_plan: selectedPlan,
@@ -1491,7 +1544,10 @@ function BoilerProductsContent() {
           product_id: product.partner_product_id,
           name: product.name,
           price: currentPrice,
-          selected_power: selectedPower,
+          selected_power: selectedPower ? {
+          ...selectedPower,
+          price: currentPrice // Store the full price with additional costs
+        } : null,
           image_url: product.image_url,
         },
         calculator_info: {
@@ -1508,7 +1564,10 @@ function BoilerProductsContent() {
             product_id: product.partner_product_id,
             name: product.name,
             price: currentPrice,
-            selected_power: selectedPower,
+            selected_power: selectedPower ? {
+          ...selectedPower,
+          price: currentPrice // Store the full price with additional costs
+        } : null,
             image_url: product.image_url,
           },
           calculator_info: {
@@ -1537,7 +1596,10 @@ function BoilerProductsContent() {
           product_id: product.partner_product_id,
           name: product.name,
           price: currentPrice,
-          selected_power: selectedPower,
+          selected_power: selectedPower ? {
+          ...selectedPower,
+          price: currentPrice // Store the full price with additional costs
+        } : null,
           image_url: product.image_url,
         }
       })
@@ -2169,7 +2231,7 @@ function BoilerProductsContent() {
                       {/* Pricing Section */}
                       {(() => {
                         const powerOptions = getPowerAndPriceOptions(product)
-                        const currentPrice = powerOptions.length > 0 ? getCurrentPrice(product) : (typeof product.price === 'number' ? product.price : 0)
+                        const currentPrice = getCurrentPrice(product)
                         const monthlyPayment = getMonthlyPayment(product) || (currentPrice / 12)
                         
                         if (currentPrice > 0) {
@@ -2377,7 +2439,7 @@ function BoilerProductsContent() {
                       {/* Pricing Section */}
                       {(() => {
                         const powerOptions = getPowerAndPriceOptions(product)
-                        const currentPrice = powerOptions.length > 0 ? getCurrentPrice(product) : (typeof product.price === 'number' ? product.price : 0)
+                        const currentPrice = getCurrentPrice(product)
                         const monthlyPayment = getMonthlyPayment(product) || (currentPrice / 12)
                         
                         if (currentPrice > 0) {
@@ -2752,7 +2814,15 @@ function BoilerProductsContent() {
       )}
 
       {/* User Info Section at Bottom */}
-      <UserInfoSection submissionInfo={submissionInfo} partnerInfo={partnerInfo} onRestart={handleRestart} brandColor={brandColor} submissionId={submissionId} />
+      <UserInfoSection 
+        submissionInfo={submissionInfo} 
+        partnerInfo={partnerInfo} 
+        onRestart={handleRestart} 
+        brandColor={brandColor} 
+        submissionId={submissionId}
+        additionalCosts={getTotalAnswersCost()}
+        questionDetails={questionDetails}
+      />
 
             {/* FAQs at bottom */}
             <ProductFaqs faqs={partnerSettings?.faqs || null} />

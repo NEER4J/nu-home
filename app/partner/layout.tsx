@@ -2,7 +2,7 @@
 
 import '../globals.css';
 import { Inter } from 'next/font/google';
-import { Home, Package, Grid, Blocks, Tag, Gift, Mail, Settings2, UserRound, Settings } from 'lucide-react';
+import { Home, Package, Grid, Blocks, Tag, Gift, Mail, Settings2, UserRound, Settings, Megaphone } from 'lucide-react';
 import Loader from '@/components/Loader';
 import Sidebar from '@/components/Sidebar';
 
@@ -15,6 +15,7 @@ const partnerNavItems = [
   { href: '/partner/addons', label: 'Addons', icon: Blocks },
   { href: '/partner/admin-products', label: 'Products Catalogue', icon: Tag },
   { href: '/partner/admin-addons', label: 'Addons Catalogue', icon: Gift },
+  { href: '/partner/highlights', label: 'Header Highlights', icon: Megaphone, section: 'Marketing' },
   { href: '/partner/leads', label: 'Leads', icon: UserRound, section: 'Leads' },
   { href: '/partner/category-access', label: 'Services', icon: Grid, section: 'Account' },
   { href: '/partner/notifications', label: 'Emails', icon: Mail },
