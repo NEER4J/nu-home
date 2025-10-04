@@ -2,9 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ChevronDown, Phone, Mail, MessageCircle } from 'lucide-react';
+import { 
+  ChevronDown, Phone, Mail, MessageCircle, ExternalLink, X,
+  Info, CheckCircle, AlertTriangle, Gift, Megaphone,
+  Star, Heart, Zap, Shield, Award, Target, TrendingUp,
+  Users, Clock, MapPin, Globe, Settings,
+  Lightbulb, Rocket, Crown, Diamond, Flame, Sparkles
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
+import { PartnerHighlight } from '@/types/database.types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +27,9 @@ interface HeaderProps {
 export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
   const [partnerInfo, setPartnerInfo] = useState<PartnerProfile | null>(propPartnerInfo || null);
   const [loading, setLoading] = useState(!propPartnerInfo);
+  const [highlights, setHighlights] = useState<PartnerHighlight[]>([]);
+  const [highlightsLoading, setHighlightsLoading] = useState(false);
+  const [dismissedHighlights, setDismissedHighlights] = useState<Set<string>>(new Set());
 
   // Fetch partner info by host (custom domain preferred, fallback to subdomain) if not provided as prop
   useEffect(() => {
@@ -50,6 +60,49 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
     fetchPartnerByHost();
   }, [propPartnerInfo]);
 
+  // Fetch highlights for the partner
+  useEffect(() => {
+    async function fetchHighlights() {
+      if (!partnerInfo?.user_id) return;
+
+      setHighlightsLoading(true);
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('PartnerHighlights')
+          .select('*')
+          .eq('partner_id', partnerInfo.user_id)
+          .eq('is_active', true)
+          .order('priority', { ascending: false })
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching highlights:', error);
+          return;
+        }
+
+        // Filter highlights by date range
+        const now = new Date();
+        const validHighlights = (data || []).filter(highlight => {
+          const startDate = highlight.start_date ? new Date(highlight.start_date as string) : null;
+          const endDate = highlight.end_date ? new Date(highlight.end_date as string) : null;
+
+          if (startDate && now < startDate) return false;
+          if (endDate && now > endDate) return false;
+          return true;
+        });
+
+        setHighlights(validHighlights as unknown as PartnerHighlight[]);
+      } catch (error) {
+        console.error('Error in fetchHighlights:', error);
+      } finally {
+        setHighlightsLoading(false);
+      }
+    }
+
+    fetchHighlights();
+  }, [partnerInfo?.user_id]);
+
   // Get dynamic color based on partner info
   const getDynamicColor = () => {
     const color = partnerInfo?.company_color || '#2563eb'; // Default to blue if no company color
@@ -58,10 +111,140 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
     return color;
   };
 
+  // Dismiss a highlight
+  const dismissHighlight = (highlightId: string) => {
+    setDismissedHighlights(prev => new Set(Array.from(prev).concat(highlightId)));
+  };
+
+  // Icon mapping
+  const iconMap = {
+    Info, CheckCircle, AlertTriangle, Gift, Megaphone,
+    Star, Heart, Zap, Shield, Award, Target, TrendingUp,
+    Users, Clock, MapPin, Globe, Settings,
+    Lightbulb, Rocket, Crown, Diamond, Flame, Sparkles
+  };
+
+  // Helper function to get icon component
+  const getIconComponent = (iconName: string | null) => {
+    if (!iconName || !(iconName in iconMap)) {
+      return Info; // Default icon
+    }
+    return iconMap[iconName as keyof typeof iconMap];
+  };
+
+  // Helper function to generate color styles from hex color
+  const generateColorStyles = (hexColor: string) => {
+    // Convert hex to RGB
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Use the color as background, text is always white
+    const bgColor = `rgb(${r}, ${g}, ${b})`;
+    
+    return {
+      bg: `bg-[${bgColor}]`,
+      border: `border-[${bgColor}]`,
+      text: `text-white`,
+      style: {
+        backgroundColor: bgColor,
+        borderColor: bgColor,
+        color: 'white'
+      }
+    };
+  };
+
+  const getColorSchemeStyles = (colorScheme: string | null) => {
+    // Check if it's a hex color
+    if (colorScheme && colorScheme.startsWith('#')) {
+      return generateColorStyles(colorScheme);
+    }
+
+    // Default to blue hex color
+    return generateColorStyles('#3B82F6');
+  };
+
+  // Filter out dismissed highlights
+  const visibleHighlights = highlights.filter(highlight => 
+    !dismissedHighlights.has(highlight.highlight_id)
+  );
+
   return (
-    <header className="bg-white border-b border-gray-200 w-full z-50">
-      <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+    <>
+      {/* Highlights Bar */}
+      {visibleHighlights.length > 0 && (
+        <div className="w-full">
+          {visibleHighlights.map((highlight) => {
+            const colorStyles = getColorSchemeStyles(highlight.color_scheme);
+            return (
+              <div
+                key={highlight.highlight_id}
+                className="relative overflow-hidden"
+                style={{
+                  backgroundColor: colorStyles.style?.backgroundColor || '#3B82F6'
+                }}
+              >
+                <div className="relative px-4 py-3">
+                  {/* Desktop: Side by side layout */}
+                  <div className="hidden sm:flex items-center max-w-[1480px] mx-auto justify-center">
+                    <div className="flex items-center min-w-0 justify-center">
+                      {(() => {
+                        const IconComponent = getIconComponent(highlight.icon);
+                        return <IconComponent className="h-5 w-5 mr-3 text-white flex-shrink-0" />;
+                      })()}
+                      <h4 className="font-bold text-white text-base mr-4 whitespace-nowrap">
+                        {highlight.title}
+                      </h4>
+                      <p className="text-white text-sm opacity-90 flex-1 min-w-0">
+                        {highlight.message}
+                      </p>
+                    </div>
+                    
+                    <button
+                      onClick={() => dismissHighlight(highlight.highlight_id)}
+                      className="ml-4 p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors text-white flex-shrink-0"
+                      title="Dismiss"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  
+                  {/* Mobile: Marquee scrolling with overlay button */}
+                  <div className="sm:hidden relative overflow-hidden">
+                    <div className="flex items-center space-x-4 animate-marquee whitespace-nowrap">
+                      {(() => {
+                        const IconComponent = getIconComponent(highlight.icon);
+                        return <IconComponent className="h-5 w-5 text-white flex-shrink-0" />;
+                      })()}
+                      <h4 className="font-bold text-white text-base">
+                        {highlight.title}
+                      </h4>
+                      <span className="text-white text-sm opacity-90">
+                        {highlight.message}
+                      </span>
+                    </div>
+                    
+                    {/* Overlay dismiss button */}
+                    <button
+                      onClick={() => dismissHighlight(highlight.highlight_id)}
+                      className="absolute top-0 right-0 h-full px-1 bg-black bg-opacity-50 rounded-full hover:bg-opacity-30 transition-colors text-white flex items-center"
+                      title="Dismiss"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Main Header */}
+      <header className="bg-white border-b border-gray-200 w-full z-50">
+        <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
           {/* Logo - Dynamic based on partner or default */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-3">
@@ -164,5 +347,6 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
         </div>
       </div>
     </header>
+    </>
   );
 }

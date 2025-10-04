@@ -82,6 +82,24 @@ export interface ServiceCategory {
   redirect_to_products: boolean | null;
   products_list_layout: string;
 }
+
+export interface PartnerHighlight {
+  highlight_id: string;
+  partner_id: string;
+  title: string;
+  message: string;
+  highlight_type: 'info' | 'success' | 'warning' | 'offer' | 'announcement';
+  is_active: boolean;
+  priority: number;
+  start_date: string | null;
+  end_date: string | null;
+  link_url: string | null;
+  link_text: string | null;
+  icon: string | null;
+  color_scheme: string | null;
+  created_at: string;
+  updated_at: string;
+}
   
 export interface ConditionalDisplay {
   dependent_on_question_id: string;
