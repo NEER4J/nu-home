@@ -10,6 +10,9 @@ import {
   Lightbulb, Rocket, Crown, Diamond, Flame, Sparkles,
   Truck, CreditCard
 } from 'lucide-react';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay } from 'swiper/modules';
+import 'swiper/css';
 import { createClient } from '@/lib/supabase/client';
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
 import { PartnerHighlight, PartnerKeyPoint } from '@/types/database.types';
@@ -31,9 +34,21 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
   const [highlights, setHighlights] = useState<PartnerHighlight[]>([]);
   const [highlightsLoading, setHighlightsLoading] = useState(false);
   const [dismissedHighlights, setDismissedHighlights] = useState<Set<string>>(new Set());
+
+  // Load dismissed highlights from localStorage on component mount
+  useEffect(() => {
+    const saved = localStorage.getItem('dismissedHighlights');
+    if (saved) {
+      try {
+        const dismissedArray = JSON.parse(saved);
+        setDismissedHighlights(new Set(dismissedArray));
+      } catch (error) {
+        console.error('Error loading dismissed highlights:', error);
+      }
+    }
+  }, []);
   const [keyPoints, setKeyPoints] = useState<PartnerKeyPoint[]>([]);
   const [keyPointsLoading, setKeyPointsLoading] = useState(false);
-  const [currentKeyPointIndex, setCurrentKeyPointIndex] = useState(0);
 
   // Fetch partner info by host (custom domain preferred, fallback to subdomain) if not provided as prop
   useEffect(() => {
@@ -138,20 +153,6 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
     fetchKeyPoints();
   }, [partnerInfo?.user_id]);
 
-  // Auto-slide key points on mobile with infinite loop
-  useEffect(() => {
-    if (keyPoints.length <= 1) return;
-
-    const interval = setInterval(() => {
-      setCurrentKeyPointIndex((prevIndex) => {
-        const nextIndex = prevIndex + 1;
-        // If we reach the end, reset to 0 for infinite loop
-        return nextIndex >= keyPoints.length ? 0 : nextIndex;
-      });
-    }, 2000); // 2 seconds
-
-    return () => clearInterval(interval);
-  }, [keyPoints.length]);
 
   // Get dynamic color based on partner info
   const getDynamicColor = () => {
@@ -163,7 +164,12 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
 
   // Dismiss a highlight
   const dismissHighlight = (highlightId: string) => {
-    setDismissedHighlights(prev => new Set(Array.from(prev).concat(highlightId)));
+    setDismissedHighlights(prev => {
+      const newDismissed = new Set(Array.from(prev).concat(highlightId));
+      // Save to localStorage
+      localStorage.setItem('dismissedHighlights', JSON.stringify(Array.from(newDismissed)));
+      return newDismissed;
+    });
   };
 
   // Icon mapping for highlights
@@ -266,7 +272,7 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
                     
                     <button
                       onClick={() => dismissHighlight(highlight.highlight_id)}
-                      className="ml-4 p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors text-white flex-shrink-0"
+                      className="ml-4 p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors text-white flex-shrink-0 bg-white bg-opacity-20"
                       title="Dismiss"
                     >
                       <X className="h-4 w-4" />
@@ -413,9 +419,9 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
 
       {/* Key Points Bar */}
       {keyPoints.length > 0 && (
-        <div className="bg-gray-100 border-b border-gray-200 w-full">
-          <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="py-2">
+        <div className="bg-gray-100 border-b border-gray-200 w-full bg-white">
+          <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 ">
+            <div className="py-0 md:py-2">
               {/* Desktop Layout - Show all key points */}
               <div className="hidden sm:flex items-center w-full">
                 {keyPoints.map((keyPoint, index) => {
@@ -438,35 +444,37 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
                   return (
                     <div key={keyPoint.key_point_id} className={`flex items-center space-x-3 ${alignmentClass} ${keyPoints.length === 4 ? 'w-1/4' : 'flex-1'}`}>
                       <IconComponent className="h-5 w-5 text-gray-600 flex-shrink-0" />
-                      <span className="text-sm font-medium text-gray-900 truncate">{keyPoint.title}</span>
+                      <span className="text-sm font-medium text-gray-700 truncate">{keyPoint.title}</span>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Mobile Layout - Auto-sliding carousel */}
-              <div className="sm:hidden relative overflow-hidden w-full">
-                <div 
-                  className="flex transition-transform duration-500 ease-in-out"
-                  style={{ 
-                    transform: `translateX(-${currentKeyPointIndex * 100}%)`,
-                    width: `${keyPoints.length * 100}%`
+              {/* Mobile Layout - Swiper carousel */}
+              <div className="sm:hidden">
+                <Swiper
+                  modules={[Autoplay]}
+                  spaceBetween={0}
+                  slidesPerView={1}
+                  autoplay={{
+                    delay: 2000,
+                    disableOnInteraction: false,
                   }}
+                  loop={true}
+                  className="w-full"
                 >
-                  {keyPoints.map((keyPoint, index) => {
+                  {keyPoints.map((keyPoint) => {
                     const IconComponent = getKeyPointIconComponent(keyPoint.icon);
                     return (
-                      <div 
-                        key={`${keyPoint.key_point_id}-${index}`} 
-                        className="flex items-center justify-center space-x-3 flex-shrink-0"
-                        style={{ width: '100vw', minWidth: '100%' }}
-                      >
-                        <IconComponent className="h-5 w-5 text-gray-600 flex-shrink-0" />
-                        <span className="text-sm font-medium text-gray-900 text-center">{keyPoint.title}</span>
-                      </div>
+                      <SwiperSlide key={keyPoint.key_point_id}>
+                        <div className="flex items-center justify-center space-x-3 py-2">
+                          <IconComponent className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                          <span className="text-sm font-medium text-gray-900 text-center">{keyPoint.title}</span>
+                        </div>
+                      </SwiperSlide>
                     );
                   })}
-                </div>
+                </Swiper>
               </div>
             </div>
           </div>

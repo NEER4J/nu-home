@@ -1924,7 +1924,7 @@ function BoilerProductsContent() {
       />
 
       {/* Products Grid */}
-      <main className="max-w-[1500px] mx-auto px-6 py-0">
+      <main className="max-w-[1500px] mx-auto px-4 py-0">
 
         {displayProducts.length === 0 ? (
           <Card className="p-10 text-center text-gray-600">
@@ -1932,7 +1932,7 @@ function BoilerProductsContent() {
           </Card>
         ) : (
           <>
-            <div className={isHorizontalLayout ? "space-y-8 mb-10 md:mb-20" : "grid gap-10 lg:grid-cols-3"}>
+            <div className={isHorizontalLayout ? "space-y-8 mb-10 md:mb-20" : "grid gap-10 lg:grid-cols-3 mb-10 md:mb-20"}>
               {visibleProducts.map((product, index) => {
               const showMainCta = isMainCtaEnabled()
               
@@ -1963,7 +1963,7 @@ function BoilerProductsContent() {
                   {(() => {
                     const highlight = getProductHighlight(product)
                     const cardClasses = highlight 
-                      ? `bg-white rounded-2xl relative !mt-16 md:!mt-12 ${isHorizontalLayout ? 'border-0' : ''}` 
+                      ? `bg-white rounded-2xl relative !mt-12 md:!mt-12 ${isHorizontalLayout ? 'border-0' : ''}` 
                       : `bg-white rounded-2xl border-2 border-gray-200 md:!mt-12 ${isHorizontalLayout ? '' : ''}`
               
                     return (
@@ -1975,7 +1975,7 @@ function BoilerProductsContent() {
                   {/* Product Highlight Title for Vertical Layout */}
                   {highlight && !isHorizontalLayout && (
                     <div 
-                      className="absolute h-[calc(100%+2rem)] -top-8 text-white px-3 py-2 rounded-2xl text-sm font-medium  w-full text-center"
+                      className="absolute h-[calc(100%+2.2rem)] -top-8 text-white px-3 py-2 rounded-2xl text-sm font-medium  w-full text-center"
                       style={{ backgroundColor: brandColor }}
                     >
                       {highlight.text}
@@ -2045,10 +2045,10 @@ function BoilerProductsContent() {
                           return product.image_url ? [{ image: product.image_url }] : []
                         })()}
                         productName={product.name}
-                        className="bg-gray-100 p-2 md:pt-5 pt-10 rounded-2xl rounded-r-none mb-4 h-full flex items-center justify-center"
+                        className="bg-gray-100 p-2 md:pt-5 pt-10 rounded-2xl md:rounded-r-none mb-4 h-full flex items-center justify-center"
                       />
 
-                      <div className="flex justify-center absolute bottom-0 left-0 w-full p-4 max-w-[500px] flex-col-reverse md:flex-col gap-3">
+                      <div className="flex justify-center absolute bottom-0 left-0 w-full p-4 max-w-[500px] flex-col-reverse md:flex-col gap-3 rounded-b-lg md:rounded-b-none">
                       
                       {/* Brand Logo */}
                       {(() => {
@@ -2059,7 +2059,7 @@ function BoilerProductsContent() {
                               <img 
                                 src={brandImage} 
                                 alt="Brand Logo"
-                                className="md:h-8 h-5 object-contain"
+                                className="md:h-8 h-5 object-contain md:block hidden"
                               />
                             </div>
                           )
@@ -2188,7 +2188,7 @@ function BoilerProductsContent() {
                     </div>
 
                     {/* Column 3: Pricing and Actions */}
-                    <div className="col-span-4 bg-gray-100 rounded-2xl rounded-l-none md:p-8 p-4 h-full flex items-center justify-center">
+                    <div className="col-span-4 bg-gray-100 rounded-2xl md:rounded-l-none md:p-8 p-4 h-full flex items-center justify-center">
                       <div className='w-full'>
                       {/* Power Selection */}
                       <p className="text-base text-gray-600 mb-2 text-center mb-4">Your fixed price including installation</p>
@@ -2237,21 +2237,21 @@ function BoilerProductsContent() {
                         if (currentPrice > 0) {
                           return (
                             <div className="mb-6 border border-gray-200 rounded-lg bg-gray-100">
-                              <div className="flex items-center justify-around p-4 bg-white">
+                              <div className="flex items-center justify-around p-4 bg-white rounded-t-lg">
                                 {/* Fixed Price */}
-                                <div className="text-center border-r border-gray-200 pr-4">
+                                <div className="text-center border-r border-gray-200 md:pr-4 pr-2">
                                   <p className="text-xs text-gray-600 mb-1 text-left">Fixed price (inc. VAT)</p>
                                   <div className="flex items-end gap-2 justify-center">
-                                    <span className="text-xl font-medium text-gray-900">£{formatPrice(currentPrice)}</span>
+                                    <span className="md:text-xl text-lg font-medium text-gray-900">£{formatPrice(currentPrice)}</span>
                                     <span className="text-xs text-red-500 line-through">£{formatPrice(currentPrice + 250)}</span>
                                   </div>
                                 </div>
                                 
                                 {/* Monthly Price */}
-                                <div className="text-center">
+                                <div className="text-center md:pr-4 px-2">
                                   <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
                                   <div className="flex items-center gap-2 justify-center">
-                                    <span className="text-xl font-medium text-gray-900">£{formatPrice(monthlyPayment)}</span>
+                                    <span className="md:text-xl text-lg font-medium text-gray-900">£{formatPrice(monthlyPayment)}</span>
                                     <button
                                       onClick={() => openFinanceCalculator(product)}
                                       className="p-1 hover:bg-gray-100 rounded transition-colors"
@@ -2264,7 +2264,7 @@ function BoilerProductsContent() {
                               </div>
                               <span 
                                 onClick={() => openWhatsIncluded(product)}
-                                className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer"
+                                className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer rounded-b-lg md:rounded-b-none"
                               >
                                 What's included in my installation?
                               </span>
@@ -2445,12 +2445,12 @@ function BoilerProductsContent() {
                         if (currentPrice > 0) {
                           return (
                             <div className="mb-6 border border-gray-200 rounded-lg bg-gray-100">
-                              <div className="flex items-end justify-between p-4 bg-white">
+                              <div className="flex items-end justify-between p-4 bg-white rounded-t-lg">
                                 {/* Left Section - Fixed Price */}
                                 <div className="border-r border-gray-200 pr-4 w-1/2 flex flex-col items-center justify-center">
                                   <p className="text-xs text-gray-600 mb-1">Fixed price (inc. VAT)</p>
                                   <div className="flex items-end gap-2">
-                                    <span className="text-xl font-medium text-gray-900">£{formatPrice(currentPrice)}</span>
+                                    <span className="md:text-xl text-lg font-medium text-gray-900">£{formatPrice(currentPrice)}</span>
                                     <span className="text-xs text-red-500 line-through">£{formatPrice(currentPrice + 250)}</span>
                                   </div>
                                 </div>
@@ -2459,7 +2459,7 @@ function BoilerProductsContent() {
                                 <div className="text-left w-1/2 flex flex-col items-center justify-center">
                                   <p className="text-xs text-gray-600 mb-1">or, monthly from</p>
                                   <div className="flex items-center gap-2">
-                                    <span className="text-xl font-medium text-gray-900">£{formatPrice(monthlyPayment)}</span>
+                                    <span className="md:text-xl text-lg font-medium text-gray-900">£{formatPrice(monthlyPayment)}</span>
                                     <button
                                       onClick={() => openFinanceCalculator(product)}
                                       className="p-1 hover:bg-gray-100 rounded transition-colors"
@@ -2472,7 +2472,7 @@ function BoilerProductsContent() {
                               </div>
                               <span 
                                 onClick={() => openWhatsIncluded(product)}
-                                className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer"
+                                className="text-sm text-gray-600 hover:text-gray-800 underline font-medium p-3 h-auto bg-gray-100 w-full text-center justify-center flex cursor-pointer rounded-b-lg md:rounded-b-none"
                               >
                                 What's included in my installation?
                               </span>

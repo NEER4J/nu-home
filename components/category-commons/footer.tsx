@@ -58,9 +58,9 @@ export default function Footer({ partnerInfo: propPartnerInfo, hideOnPages = [] 
     <footer className={`border-t border-gray-200 w-full ${needsExtraPadding ? 'pb-20 md:pb-0' : ''}`}>
       <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="py-6">
-          <div className="flex flex-col sm:flex-row justify-between space-y-4 sm:space-y-0 items-center">
+          <div className="flex flex-col sm:flex-row md:justify-between justify-start space-y-4 sm:space-y-0 items-center">
             {/* Logo */}
-            <div className="flex items-center">
+            <div className="flex items-center w-full md:w-auto">
               {partnerInfo?.logo_url ? (
                 <img
                   src={partnerInfo.logo_url}
@@ -82,7 +82,7 @@ export default function Footer({ partnerInfo: propPartnerInfo, hideOnPages = [] 
             </div>
 
             {/* Links */}
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-6 w-full md:w-auto">
               <Link 
                 href={partnerInfo?.privacy_policy || '/privacy-policy'} 
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"

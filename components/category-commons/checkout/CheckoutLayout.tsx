@@ -437,7 +437,7 @@ export default function CheckoutLayout({
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 grid lg:grid-cols-[1fr_380px] gap-8 ">
+    <div className="max-w-[1500px] mx-auto md:px-6 px-4 py-6 grid lg:grid-cols-[1fr_380px] gap-8 ">
       <div>
         {showBack && (
           <button 
@@ -477,7 +477,7 @@ export default function CheckoutLayout({
                 onSync={syncCalendar}
                 hasAvailableSlots={hasAvailableSlots}
                 companyColor={companyColor}
-                infoText="Select a date and time for your installation."
+                infoText="Select your preferred installation date and time. Times may be adjusted if needed."
               />
             </div>
 

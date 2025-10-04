@@ -662,7 +662,7 @@ function BoilerAddonsPageContent() {
   console.log('Rendering AddonsLayout with calculatorSettings:', calculatorSettings)
   
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-[1500px] mx-auto md:px-6 px-4 py-6 ">
       {/* Iframe Navigation Tracker */}
       <IframeNavigationTracker categorySlug="boiler" />
       
