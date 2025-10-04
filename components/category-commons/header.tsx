@@ -7,11 +7,12 @@ import {
   Info, CheckCircle, AlertTriangle, Gift, Megaphone,
   Star, Heart, Zap, Shield, Award, Target, TrendingUp,
   Users, Clock, MapPin, Globe, Settings,
-  Lightbulb, Rocket, Crown, Diamond, Flame, Sparkles
+  Lightbulb, Rocket, Crown, Diamond, Flame, Sparkles,
+  Truck, CreditCard
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
-import { PartnerHighlight } from '@/types/database.types';
+import { PartnerHighlight, PartnerKeyPoint } from '@/types/database.types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,9 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
   const [highlights, setHighlights] = useState<PartnerHighlight[]>([]);
   const [highlightsLoading, setHighlightsLoading] = useState(false);
   const [dismissedHighlights, setDismissedHighlights] = useState<Set<string>>(new Set());
+  const [keyPoints, setKeyPoints] = useState<PartnerKeyPoint[]>([]);
+  const [keyPointsLoading, setKeyPointsLoading] = useState(false);
+  const [currentKeyPointIndex, setCurrentKeyPointIndex] = useState(0);
 
   // Fetch partner info by host (custom domain preferred, fallback to subdomain) if not provided as prop
   useEffect(() => {
@@ -103,6 +107,52 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
     fetchHighlights();
   }, [partnerInfo?.user_id]);
 
+  // Fetch key points for the partner
+  useEffect(() => {
+    async function fetchKeyPoints() {
+      if (!partnerInfo?.user_id) return;
+
+      setKeyPointsLoading(true);
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('PartnerKeyPoints')
+          .select('*')
+          .eq('partner_id', partnerInfo.user_id)
+          .eq('is_active', true)
+          .order('position', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching key points:', error);
+          return;
+        }
+
+        setKeyPoints((data as unknown as PartnerKeyPoint[]) || []);
+      } catch (error) {
+        console.error('Error in fetchKeyPoints:', error);
+      } finally {
+        setKeyPointsLoading(false);
+      }
+    }
+
+    fetchKeyPoints();
+  }, [partnerInfo?.user_id]);
+
+  // Auto-slide key points on mobile with infinite loop
+  useEffect(() => {
+    if (keyPoints.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentKeyPointIndex((prevIndex) => {
+        const nextIndex = prevIndex + 1;
+        // If we reach the end, reset to 0 for infinite loop
+        return nextIndex >= keyPoints.length ? 0 : nextIndex;
+      });
+    }, 2000); // 2 seconds
+
+    return () => clearInterval(interval);
+  }, [keyPoints.length]);
+
   // Get dynamic color based on partner info
   const getDynamicColor = () => {
     const color = partnerInfo?.company_color || '#2563eb'; // Default to blue if no company color
@@ -116,7 +166,7 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
     setDismissedHighlights(prev => new Set(Array.from(prev).concat(highlightId)));
   };
 
-  // Icon mapping
+  // Icon mapping for highlights
   const iconMap = {
     Info, CheckCircle, AlertTriangle, Gift, Megaphone,
     Star, Heart, Zap, Shield, Award, Target, TrendingUp,
@@ -124,12 +174,25 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
     Lightbulb, Rocket, Crown, Diamond, Flame, Sparkles
   };
 
+  // Icon mapping for key points
+  const keyPointIconMap = {
+    Star, Zap, Truck, CreditCard, Shield, Award, Clock, Users, Heart
+  };
+
   // Helper function to get icon component
-  const getIconComponent = (iconName: string | null) => {
+  const getIconComponent = (iconName: string | null): React.ComponentType<any> => {
     if (!iconName || !(iconName in iconMap)) {
       return Info; // Default icon
     }
     return iconMap[iconName as keyof typeof iconMap];
+  };
+
+  // Helper function to get key point icon component
+  const getKeyPointIconComponent = (iconName: string | null): React.ComponentType<any> => {
+    if (!iconName || !(iconName in keyPointIconMap)) {
+      return Star; // Default icon
+    }
+    return keyPointIconMap[iconName as keyof typeof keyPointIconMap];
   };
 
   // Helper function to generate color styles from hex color
@@ -185,7 +248,7 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
                   backgroundColor: colorStyles.style?.backgroundColor || '#3B82F6'
                 }}
               >
-                <div className="relative px-4 py-3">
+                <div className="relative px-4 py-2">
                   {/* Desktop: Side by side layout */}
                   <div className="hidden sm:flex items-center max-w-[1480px] mx-auto justify-center">
                     <div className="flex items-center min-w-0 justify-center">
@@ -347,6 +410,68 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
         </div>
       </div>
     </header>
+
+      {/* Key Points Bar */}
+      {keyPoints.length > 0 && (
+        <div className="bg-gray-100 border-b border-gray-200 w-full">
+          <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-2">
+              {/* Desktop Layout - Show all key points */}
+              <div className="hidden sm:flex items-center w-full">
+                {keyPoints.map((keyPoint, index) => {
+                  const IconComponent = getKeyPointIconComponent(keyPoint.icon);
+                  let alignmentClass = '';
+                  
+                  if (keyPoints.length === 4) {
+                    if (index === 0) {
+                      alignmentClass = 'justify-start'; // First item at start
+                    } else if (index === 1 || index === 2) {
+                      alignmentClass = 'justify-center'; // Middle two centered
+                    } else if (index === 3) {
+                      alignmentClass = 'justify-end'; // Last item at end
+                    }
+                  } else {
+                    // Fallback for other lengths - distribute evenly
+                    alignmentClass = 'justify-center flex-1';
+                  }
+                  
+                  return (
+                    <div key={keyPoint.key_point_id} className={`flex items-center space-x-3 ${alignmentClass} ${keyPoints.length === 4 ? 'w-1/4' : 'flex-1'}`}>
+                      <IconComponent className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                      <span className="text-sm font-medium text-gray-900 truncate">{keyPoint.title}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mobile Layout - Auto-sliding carousel */}
+              <div className="sm:hidden relative overflow-hidden w-full">
+                <div 
+                  className="flex transition-transform duration-500 ease-in-out"
+                  style={{ 
+                    transform: `translateX(-${currentKeyPointIndex * 100}%)`,
+                    width: `${keyPoints.length * 100}%`
+                  }}
+                >
+                  {keyPoints.map((keyPoint, index) => {
+                    const IconComponent = getKeyPointIconComponent(keyPoint.icon);
+                    return (
+                      <div 
+                        key={`${keyPoint.key_point_id}-${index}`} 
+                        className="flex items-center justify-center space-x-3 flex-shrink-0"
+                        style={{ width: '100vw', minWidth: '100%' }}
+                      >
+                        <IconComponent className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-900 text-center">{keyPoint.title}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

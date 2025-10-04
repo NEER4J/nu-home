@@ -100,6 +100,17 @@ export interface PartnerHighlight {
   created_at: string;
   updated_at: string;
 }
+
+export interface PartnerKeyPoint {
+  key_point_id: string;
+  partner_id: string;
+  title: string;
+  icon: string;
+  position: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
   
 export interface ConditionalDisplay {
   dependent_on_question_id: string;
