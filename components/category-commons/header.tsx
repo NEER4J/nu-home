@@ -34,6 +34,19 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
   const [highlights, setHighlights] = useState<PartnerHighlight[]>([]);
   const [highlightsLoading, setHighlightsLoading] = useState(false);
   const [dismissedHighlights, setDismissedHighlights] = useState<Set<string>>(new Set());
+
+  // Load dismissed highlights from localStorage on component mount
+  useEffect(() => {
+    const saved = localStorage.getItem('dismissedHighlights');
+    if (saved) {
+      try {
+        const dismissedArray = JSON.parse(saved);
+        setDismissedHighlights(new Set(dismissedArray));
+      } catch (error) {
+        console.error('Error loading dismissed highlights:', error);
+      }
+    }
+  }, []);
   const [keyPoints, setKeyPoints] = useState<PartnerKeyPoint[]>([]);
   const [keyPointsLoading, setKeyPointsLoading] = useState(false);
 
@@ -151,7 +164,12 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
 
   // Dismiss a highlight
   const dismissHighlight = (highlightId: string) => {
-    setDismissedHighlights(prev => new Set(Array.from(prev).concat(highlightId)));
+    setDismissedHighlights(prev => {
+      const newDismissed = new Set(Array.from(prev).concat(highlightId));
+      // Save to localStorage
+      localStorage.setItem('dismissedHighlights', JSON.stringify(Array.from(newDismissed)));
+      return newDismissed;
+    });
   };
 
   // Icon mapping for highlights
@@ -426,7 +444,7 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
                   return (
                     <div key={keyPoint.key_point_id} className={`flex items-center space-x-3 ${alignmentClass} ${keyPoints.length === 4 ? 'w-1/4' : 'flex-1'}`}>
                       <IconComponent className="h-5 w-5 text-gray-600 flex-shrink-0" />
-                      <span className="text-sm font-medium text-gray-900 truncate">{keyPoint.title}</span>
+                      <span className="text-sm font-medium text-gray-700 truncate">{keyPoint.title}</span>
                     </div>
                   );
                 })}

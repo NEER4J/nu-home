@@ -215,7 +215,7 @@ export default function CallbackRequestForm({
           }
         } else {
           console.warn('Failed to send callback request email:', await emailResponse.text())
-        }
+        } 
       } catch (emailError) {
         console.warn('Error sending callback request email:', emailError)
       }
@@ -263,11 +263,10 @@ export default function CallbackRequestForm({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={isOpen} onOpenChange={onClose} >
+      <DialogContent className="max-w-lg" variant="sidebar">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Phone className="w-5 h-5" style={{ color: brandColor }} />
             Request a Callback
           </DialogTitle>
           <DialogDescription>
