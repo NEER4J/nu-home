@@ -140,7 +140,7 @@ export async function middleware(request: NextRequest) {
   // Domain restriction logic for subdomains and custom domains
   // Consider any host different from the main hostname as subdomain/custom
   const isSubdomainOrCustomDomain = hostname !== mainHostname;
-  const allowedPaths = ['/partner', '/admin', '/sign-in', '/sign-up', '/info', '/domain-restricted'];
+  const allowedPaths = ['/partner', '/admin', '/sign-in', '/sign-up', '/info', '/domain-restricted', '/docs'];
   const isAllowedPath = allowedPaths.some(allowedPath => path.startsWith(allowedPath));
   
   console.log('Domain restriction check:', {
