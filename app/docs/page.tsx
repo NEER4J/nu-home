@@ -1,5 +1,7 @@
 // app/docs/page.tsx
 import { createClient } from '@/utils/supabase/server';
+import { resolvePartnerByHost } from '@/lib/partner';
+import { headers } from 'next/headers';
 import {
   FileText,
   Shield,
@@ -39,14 +41,46 @@ export const metadata = {
 };
 
 export default async function DocumentationPage() {
+  // Detect partner from hostname
+  const headersList = await headers();
+  const host = headersList.get('host') || '';
+  const supabase = createClient();
+  
+  let partnerInfo = null;
+  let isPartnerView = false;
+  
+  try {
+    if (host && !host.includes('localhost') && !host.includes('vercel.app')) {
+      partnerInfo = await resolvePartnerByHost(supabase, host);
+      isPartnerView = !!partnerInfo;
+    }
+  } catch (error) {
+    console.error('Error detecting partner:', error);
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="flex">
         {/* Sidebar */}
         <div className="w-80 bg-gray-50 border-r border-gray-200 p-6 sticky top-0 h-screen overflow-y-auto">
           <div className="mb-8">
-            <h1 className="text-xl font-semibold text-gray-900 mb-2">Quote AI Documentation</h1>
-            <p className="text-sm text-gray-600">Complete guide to the Quote AI system</p>
+            <h1 className="text-xl font-semibold text-gray-900 mb-2">
+              {isPartnerView ? `${partnerInfo?.company_name} Documentation` : 'Quote AI Documentation'}
+            </h1>
+            <p className="text-sm text-gray-600">
+              {isPartnerView 
+                ? `Complete guide for ${partnerInfo?.company_name} partners` 
+                : 'Complete guide to the Quote AI system'
+              }
+            </p>
+            {isPartnerView && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center text-sm text-blue-800">
+                  <User className="w-4 h-4 mr-2" />
+                  <span>Partner View: {partnerInfo?.company_name}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <nav className="space-y-1">
@@ -54,28 +88,34 @@ export default async function DocumentationPage() {
               <span className="mr-3">1</span>
               System Overview
             </a>
+            {isPartnerView && (
+              <a href="#partner-dashboard" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
+                <span className="mr-3">2</span>
+                Your Dashboard
+              </a>
+            )}
             <a href="#auth-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">2</span>
+              <span className="mr-3">{isPartnerView ? '3' : '2'}</span>
               Authentication Flow
             </a>
             <a href="#admin-section" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">3</span>
+              <span className="mr-3">{isPartnerView ? '4' : '3'}</span>
               Admin Section
             </a>
             <a href="#partner-section" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">4</span>
+              <span className="mr-3">{isPartnerView ? '5' : '4'}</span>
               Partner Section
             </a>
             <a href="#boiler-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">5</span>
+              <span className="mr-3">{isPartnerView ? '6' : '5'}</span>
               Boiler Quote Flow
             </a>
             <a href="#public-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">6</span>
+              <span className="mr-3">{isPartnerView ? '7' : '6'}</span>
               Public Quote Flow
             </a>
             <a href="#technical-details" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">7</span>
+              <span className="mr-3">{isPartnerView ? '8' : '7'}</span>
               Technical Details
             </a>
           </nav>
@@ -185,6 +225,90 @@ export default async function DocumentationPage() {
               </div>
             </div>
           </section>
+
+          {/* Partner-Specific Information */}
+          {isPartnerView && (
+            <section id="partner-dashboard" className="mb-16">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Your Partner Dashboard</h2>
+              
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-8">
+                <div className="flex items-center mb-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <User className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{partnerInfo?.company_name}</h3>
+                    <p className="text-sm text-gray-600">Partner Account</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-900">Contact Person:</span>
+                    <span className="ml-2 text-gray-600">{partnerInfo?.contact_person}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-900">Phone:</span>
+                    <span className="ml-2 text-gray-600">{partnerInfo?.phone}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-900">Postcode:</span>
+                    <span className="ml-2 text-gray-600">{partnerInfo?.postcode}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-900">Website:</span>
+                    <span className="ml-2 text-gray-600">{partnerInfo?.website_url || 'Not set'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="border border-gray-200 p-6">
+                  <h4 className="font-medium text-gray-900 mb-3">Quick Access</h4>
+                  <div className="space-y-2">
+                    <a href="/partner" className="flex items-center text-blue-600 hover:text-blue-800 text-sm">
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                      Partner Dashboard
+                    </a>
+                    <a href="/partner/my-products" className="flex items-center text-blue-600 hover:text-blue-800 text-sm">
+                      <Package className="w-4 h-4 mr-2" />
+                      Manage Products
+                    </a>
+                    <a href="/partner/leads" className="flex items-center text-blue-600 hover:text-blue-800 text-sm">
+                      <Users className="w-4 h-4 mr-2" />
+                      View Leads
+                    </a>
+                    <a href="/partner/configuration" className="flex items-center text-blue-600 hover:text-blue-800 text-sm">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </a>
+                  </div>
+                </div>
+
+                <div className="border border-gray-200 p-6">
+                  <h4 className="font-medium text-gray-900 mb-3">Getting Started</h4>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div className="flex items-start">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>Complete your business profile</span>
+                    </div>
+                    <div className="flex items-start">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>Add your products and services</span>
+                    </div>
+                    <div className="flex items-start">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>Configure your settings</span>
+                    </div>
+                    <div className="flex items-start">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>Start receiving leads</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Authentication Flow */}
           <section id="auth-flow" className="mb-16">

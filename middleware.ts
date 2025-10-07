@@ -172,7 +172,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check authentication for all routes except public ones
-  const publicPaths = ['/sign-in', '/sign-up', '/forgot-password', '/auth', '/info', '/domain-restricted'];
+  const publicPaths = ['/sign-in', '/sign-up', '/forgot-password', '/auth', '/info', '/domain-restricted', '/docs'];
   const isPublicPath = publicPaths.some(publicPath => path.startsWith(publicPath));
   
   if (!isPublicPath) {
