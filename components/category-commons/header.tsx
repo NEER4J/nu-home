@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Chatbot from '@/components/Chatbot';
 
 interface HeaderProps {
   partnerInfo?: PartnerProfile;
@@ -480,6 +481,9 @@ export default function Header({ partnerInfo: propPartnerInfo }: HeaderProps) {
           </div>
         </div>
       )}
+
+      {/* Chatbot */}
+      <Chatbot partnerInfo={partnerInfo || undefined} />
     </>
   );
 }
