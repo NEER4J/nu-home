@@ -34,12 +34,62 @@ export interface ChatContext {
     description: string;
     price?: number;
   }>;
+  formQuestions?: Array<{
+    questionId: string;
+    serviceCategoryId: string;
+    questionText: string;
+    stepNumber: number;
+    displayOrderInStep: number;
+    isMultipleChoice: boolean;
+    answerOptions?: any;
+    hasHelperVideo: boolean;
+    helperVideoUrl?: string;
+    isRequired: boolean;
+    conditionalDisplay?: any;
+    status: string;
+    createdBy?: string;
+    createdAt: string;
+    updatedAt: string;
+    isDeleted: boolean;
+    allowMultipleSelections?: boolean;
+    answerImages?: string;
+    positionX?: number;
+    positionY?: number;
+    userId?: string;
+    rawQuestionData?: any;
+  }>;
   leadData?: {
+    // Basic info
+    id?: string;
+    submissionId?: string;
+    partnerId?: string;
+    serviceCategoryId?: string;
+    
+    // Form data
     currentPage?: string;
     pagesCompleted?: string[];
     quoteData?: any;
     productsData?: any;
     addonsData?: any;
+    surveyData?: any;
+    checkoutData?: any;
+    enquiryData?: any;
+    successData?: any;
+    formSubmissions?: any[];
+    saveQuoteData?: any[];
+    esurveyData?: any;
+    callbackData?: any;
+    
+    // Session & tracking
+    sessionId?: string;
+    deviceInfo?: any;
+    conversionEvents?: any[];
+    pageTimings?: any;
+    
+    // Timestamps
+    lastActivityAt?: string;
+    createdAt?: string;
+    updatedAt?: string;
   };
   userMessage: string;
 }
@@ -51,11 +101,11 @@ export class GeminiService {
 
   constructor(config: GeminiConfig) {
     this.config = {
-      model: 'gemini-2.5-flash-lite',
+      model: 'gemini-2.5-flash',
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
-      maxOutputTokens: 2024,
+      maxOutputTokens: 4096,
       retryAttempts: 3,
       retryDelay: 1000,
       ...config
@@ -115,12 +165,31 @@ export class GeminiService {
       prompt += `Our business: ${context.partnerInfo.business_description}. `;
     }
 
-    if (context.partnerInfo?.contact_person) {
-      prompt += `Contact person: ${context.partnerInfo.contact_person}. `;
-    }
-
-    if (context.partnerInfo?.phone) {
-      prompt += `Phone: ${context.partnerInfo.phone}. `;
+    // CRITICAL: Extract and highlight cost information FIRST
+    if (context.formQuestions && context.formQuestions.length > 0) {
+      const costInfo: Array<{question: string, option: string, cost: number}> = [];
+      
+      context.formQuestions.forEach(question => {
+        if (question.answerOptions) {
+          question.answerOptions.forEach((option: any) => {
+            if (option.additionalCost !== undefined && option.additionalCost > 0) {
+              costInfo.push({
+                question: question.questionText,
+                option: option.text,
+                cost: option.additionalCost
+              });
+            }
+          });
+        }
+      });
+      
+      if (costInfo.length > 0) {
+        prompt += `\n\n💰 IMPORTANT COST INFORMATION:\n`;
+        costInfo.forEach(cost => {
+          prompt += `- ${cost.option}: +£${cost.cost} (from: ${cost.question})\n`;
+        });
+        prompt += `\n`;
+      }
     }
 
     // Add products context
@@ -147,36 +216,215 @@ export class GeminiService {
       });
     }
 
-    // Add lead data context if available
+        // Add form questions context (simplified)
+        if (context.formQuestions && context.formQuestions.length > 0) {
+          prompt += `\n\nFORM QUESTIONS (${context.formQuestions.length} questions):\n`;
+      
+      // Group questions by step
+      const questionsByStep = context.formQuestions.reduce((acc, question) => {
+        if (!acc[question.stepNumber]) {
+          acc[question.stepNumber] = [];
+        }
+        acc[question.stepNumber].push(question);
+        return acc;
+      }, {} as Record<number, typeof context.formQuestions>);
+
+      Object.entries(questionsByStep).forEach(([stepNumber, questions]) => {
+        prompt += `STEP ${stepNumber}:\n`;
+        questions.forEach((question, index) => {
+          prompt += `  ${index + 1}. ${question.questionText}\n`;
+          
+          if (question.answerOptions) {
+            prompt += `     Options:\n`;
+            question.answerOptions.forEach((option: any, optionIndex: number) => {
+              prompt += `       ${optionIndex + 1}. ${option.text}`;
+              if (option.additionalCost !== undefined && option.additionalCost > 0) {
+                prompt += ` - COST: +£${option.additionalCost}`;
+              }
+              prompt += `\n`;
+            });
+          }
+          prompt += `\n`;
+        });
+      });
+    }
+
+    // Add detailed lead data context if available
     if (context.leadData) {
-      prompt += `\n\nCustomer context:\n`;
+      prompt += `\n\nCUSTOMER CONTEXT - This customer has an active quote submission:\n`;
+      prompt += `- Submission ID: ${context.leadData.submissionId}\n`;
       prompt += `- Current page: ${context.leadData.currentPage || 'Unknown'}\n`;
       prompt += `- Pages completed: ${context.leadData.pagesCompleted?.join(', ') || 'None'}\n`;
+      prompt += `- Session started: ${context.leadData.createdAt || 'Unknown'}\n`;
+      prompt += `- Last activity: ${context.leadData.lastActivityAt || 'Unknown'}\n`;
       
-      if (context.leadData.quoteData?.form_answers) {
-        prompt += `- Form answers provided: ${Object.keys(context.leadData.quoteData.form_answers).length} questions answered\n`;
+      // Detailed quote data - handle all nested data
+      if (context.leadData.quoteData && Object.keys(context.leadData.quoteData).length > 0) {
+        prompt += `\nQUOTE FORM DATA:\n`;
+        const quoteData = context.leadData.quoteData;
+        
+        // Recursively process all quote data
+        const processNestedData = (obj: any, prefix = '') => {
+          Object.entries(obj).forEach(([key, value]) => {
+            if (value !== null && value !== undefined) {
+              if (typeof value === 'object' && !Array.isArray(value)) {
+                // Nested object - process recursively
+                prompt += `${prefix}${key}:\n`;
+                processNestedData(value, prefix + '  ');
+              } else if (Array.isArray(value)) {
+                // Array - show items
+                prompt += `${prefix}${key}: [${value.length} items]\n`;
+                value.forEach((item, index) => {
+                  if (typeof item === 'object') {
+                    prompt += `${prefix}  ${index + 1}: ${JSON.stringify(item)}\n`;
+                  } else {
+                    prompt += `${prefix}  ${index + 1}: ${item}\n`;
+                  }
+                });
+              } else {
+                // Simple value
+                prompt += `${prefix}${key}: ${value}\n`;
+              }
+            }
+          });
+        };
+        
+        processNestedData(quoteData);
       }
       
-      if (context.leadData.productsData && Object.keys(context.leadData.productsData).length > 0) {
-        prompt += `- Products selected: ${Object.keys(context.leadData.productsData).length} items\n`;
+      // Helper function to process nested data
+      const processDataSection = (data: any, sectionName: string) => {
+        if (data && Object.keys(data).length > 0) {
+          prompt += `\n${sectionName}:\n`;
+          const processNestedData = (obj: any, prefix = '') => {
+            Object.entries(obj).forEach(([key, value]) => {
+              if (value !== null && value !== undefined) {
+                if (typeof value === 'object' && !Array.isArray(value)) {
+                  prompt += `${prefix}${key}:\n`;
+                  processNestedData(value, prefix + '  ');
+                } else if (Array.isArray(value)) {
+                  prompt += `${prefix}${key}: [${value.length} items]\n`;
+                  value.forEach((item, index) => {
+                    if (typeof item === 'object') {
+                      prompt += `${prefix}  ${index + 1}: ${JSON.stringify(item)}\n`;
+                    } else {
+                      prompt += `${prefix}  ${index + 1}: ${item}\n`;
+                    }
+                  });
+                } else {
+                  prompt += `${prefix}${key}: ${value}\n`;
+                }
+              }
+            });
+          };
+          processNestedData(data);
+        }
+      };
+
+      // Process all data sections with nested data
+      processDataSection(context.leadData.surveyData, 'SURVEY DATA');
+      processDataSection(context.leadData.enquiryData, 'ENQUIRY DATA');
+      processDataSection(context.leadData.productsData, 'SELECTED PRODUCTS');
+      processDataSection(context.leadData.addonsData, 'SELECTED ADDONS');
+      processDataSection(context.leadData.checkoutData, 'CHECKOUT DATA');
+      processDataSection(context.leadData.successData, 'SUCCESS DATA');
+      processDataSection(context.leadData.deviceInfo, 'DEVICE INFO');
+      processDataSection(context.leadData.pageTimings, 'PAGE TIMINGS');
+      processDataSection(context.leadData.esurveyData, 'E-SURVEY DATA');
+      processDataSection(context.leadData.callbackData, 'CALLBACK DATA');
+      
+      // Form submissions
+      if (context.leadData.formSubmissions && Array.isArray(context.leadData.formSubmissions) && context.leadData.formSubmissions.length > 0) {
+        prompt += `\nFORM SUBMISSIONS (${context.leadData.formSubmissions.length}):\n`;
+        context.leadData.formSubmissions.forEach((submission, index) => {
+          prompt += `- Submission ${index + 1}: ${JSON.stringify(submission)}\n`;
+        });
       }
       
-      if (context.leadData.addonsData && Object.keys(context.leadData.addonsData).length > 0) {
-        prompt += `- Addons selected: ${Object.keys(context.leadData.addonsData).length} items\n`;
+      // Conversion events
+      if (context.leadData.conversionEvents && Array.isArray(context.leadData.conversionEvents) && context.leadData.conversionEvents.length > 0) {
+        prompt += `\nCONVERSION EVENTS (${context.leadData.conversionEvents.length}):\n`;
+        context.leadData.conversionEvents.forEach((event, index) => {
+          prompt += `- Event ${index + 1}: ${JSON.stringify(event)}\n`;
+        });
+      }
+      
+      // Device info
+      if (context.leadData.deviceInfo && Object.keys(context.leadData.deviceInfo).length > 0) {
+        prompt += `\nDEVICE INFO:\n`;
+        Object.entries(context.leadData.deviceInfo).forEach(([key, value]) => {
+          prompt += `- ${key}: ${value}\n`;
+        });
+      }
+      
+      // Page timings
+      if (context.leadData.pageTimings && Object.keys(context.leadData.pageTimings).length > 0) {
+        prompt += `\nPAGE TIMINGS:\n`;
+        Object.entries(context.leadData.pageTimings).forEach(([key, value]) => {
+          prompt += `- ${key}: ${value}\n`;
+        });
+      }
+      
+      // Saved quote data
+      if (context.leadData.saveQuoteData && Array.isArray(context.leadData.saveQuoteData) && context.leadData.saveQuoteData.length > 0) {
+        prompt += `\nSAVED QUOTE DATA (${context.leadData.saveQuoteData.length} items):\n`;
+        context.leadData.saveQuoteData.forEach((item, index) => {
+          prompt += `- Item ${index + 1}: ${JSON.stringify(item)}\n`;
+        });
+      }
+      
+      // E-survey data
+      if (context.leadData.esurveyData && Object.keys(context.leadData.esurveyData).length > 0) {
+        prompt += `\nE-SURVEY DATA:\n`;
+        Object.entries(context.leadData.esurveyData).forEach(([key, value]) => {
+          prompt += `- ${key}: ${value}\n`;
+        });
+      }
+      
+      // Callback data
+      if (context.leadData.callbackData && Object.keys(context.leadData.callbackData).length > 0) {
+        prompt += `\nCALLBACK DATA:\n`;
+        Object.entries(context.leadData.callbackData).forEach(([key, value]) => {
+          prompt += `- ${key}: ${value}\n`;
+        });
       }
     }
 
     // Add guidelines
     prompt += `\n\nPlease respond to the customer's question: "${context.userMessage}"\n\n`;
-    prompt += `Guidelines:\n`;
-    prompt += `- Be helpful and friendly\n`;
-    prompt += `- Use the product and addon information to provide accurate details\n`;
-    prompt += `- If the customer is asking about their quote progress, use the lead data context\n`;
-    prompt += `- If you don't know something specific, suggest they contact us directly\n`;
-    prompt += `- Keep responses concise but informative\n`;
-    prompt += `- Always be professional and represent ${context.partnerInfo?.company_name || 'our company'} well\n`;
-    prompt += `- If asked about pricing, provide general guidance but suggest they get a personalized quote\n`;
-    prompt += `- If asked about installation, mention that we provide professional installation services\n`;
+    prompt += `CRITICAL: ALWAYS start your response by addressing the customer by their name if it's available in the quote data (customer_name field). Do NOT use generic greetings like "Hello there!" if you have their name.\n`;
+    prompt += `EXAMPLE: If customer_name is "John Smith", start with "Hi John!" or "Hello John!" - NOT "Hello there!"\n\n`;
+    
+    // CRITICAL: Cost-specific instructions
+    if (context.userMessage.toLowerCase().includes('cost') || context.userMessage.toLowerCase().includes('charge') || context.userMessage.toLowerCase().includes('price')) {
+      prompt += `\n🚨 COST QUERY DETECTED - You MUST use the exact cost information provided above. Do NOT give generic responses about "varying costs" or "detailed assessment needed". Use the specific £ amounts from the form data.\n`;
+    }
+    prompt += `IMPORTANT GUIDELINES:\n`;
+    prompt += `- Be helpful, friendly, and professional\n`;
+    prompt += `- ALWAYS respond in UK English (British spelling and terminology)\n`;
+    prompt += `- ALWAYS use the customer's name from quote data if available - this is mandatory\n`;
+    prompt += `- Use ALL available data to provide personalized responses\n`;
+    prompt += `- If customer has quote data, reference their specific property details, requirements, and progress\n`;
+    prompt += `- Reference their current page and progress in the quote process\n`;
+    prompt += `- If they've selected products/addons, mention those specifically\n`;
+    prompt += `- Use their property details (type, size, bedrooms, etc.) to give relevant advice\n`;
+    prompt += `- Reference their heating requirements and budget if available\n`;
+    prompt += `- Use their postcode/address for location-specific advice\n`;
+    prompt += `- If they have form answers, use those to understand their specific needs\n`;
+    prompt += `- ONLY provide contact information (phone, contact person) when specifically asked for it\n`;
+    prompt += `- DO NOT automatically include contact details in every response\n`;
+    prompt += `- If asked about pricing, reference their budget range if available\n`;
+    prompt += `- If asked about installation, mention professional installation services\n`;
+    prompt += `- If asked about their quote progress, explain where they are in the process\n`;
+    prompt += `- If they're on a specific page, help them understand what's next\n`;
+    prompt += `- Use their urgency level to prioritize responses appropriately\n`;
+    prompt += `- If they have special requirements, address those specifically\n`;
+    prompt += `- Keep responses concise but comprehensive\n`;
+    prompt += `- Always represent ${context.partnerInfo?.company_name || 'our company'} professionally\n`;
+    prompt += `- CRITICAL: When customers ask about costs, ALWAYS check the form questions data for additional costs in answer options\n`;
+    prompt += `- CRITICAL: Look for "additionalCost" and "hasAdditionalCost" fields in answer options to provide accurate pricing information\n`;
+    prompt += `- CRITICAL: If a customer asks about specific options (like "roof flue"), check the answer options for that question to find the exact additional cost\n`;
+    prompt += `- EXAMPLE: If customer asks "What's the extra charge for roof flue?", look for the "Where does your boiler's flue exit your home?" question and find the "Roof" option with its additionalCost value\n`;
 
     return prompt;
   }

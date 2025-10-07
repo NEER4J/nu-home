@@ -4,11 +4,12 @@ import { useState, useRef, useEffect, RefObject } from 'react';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
-import { MessageCircle, X, Send, Bot, User, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Loader2, Bug, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useOnClickOutside } from '@/hooks/use-click-outside';
 import ReactMarkdown from 'react-markdown';
@@ -34,9 +35,12 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
   const [partnerInfo, setPartnerInfo] = useState<PartnerProfile | null>(propPartnerInfo || null);
   const [partnerProducts, setPartnerProducts] = useState<any[]>([]);
   const [partnerAddons, setPartnerAddons] = useState<any[]>([]);
+  const [formQuestions, setFormQuestions] = useState<any[]>([]);
   const [leadData, setLeadData] = useState<any>(null);
   const [serviceCategory, setServiceCategory] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatWindowRef = useRef<HTMLDivElement | null>(null);
@@ -147,6 +151,34 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
     fetchPartnerData();
   }, [partnerInfo?.user_id, serviceCategory?.service_category_id]);
 
+  // Fetch form questions for the service category
+  useEffect(() => {
+    async function fetchFormQuestions() {
+      if (!partnerInfo?.user_id || !serviceCategory?.service_category_id) return;
+
+      try {
+        const supabase = createClient();
+        
+        // Fetch form questions for this specific service category and partner
+        const { data: questions } = await supabase
+          .from('FormQuestions')
+          .select('*')
+          .eq('service_category_id', serviceCategory.service_category_id)
+          .eq('user_id', partnerInfo.user_id)
+          .eq('status', 'active')
+          .eq('is_deleted', false)
+          .order('step_number', { ascending: true })
+          .order('display_order_in_step', { ascending: true });
+
+        setFormQuestions(questions || []);
+      } catch (error) {
+        console.error('Error fetching form questions:', error);
+      }
+    }
+
+    fetchFormQuestions();
+  }, [partnerInfo?.user_id, serviceCategory?.service_category_id]);
+
   // Fetch lead submission data if available
   useEffect(() => {
     async function fetchLeadData() {
@@ -173,6 +205,59 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
     fetchLeadData();
   }, [partnerInfo?.user_id]);
 
+  // Load chat history from database or local storage
+  useEffect(() => {
+    async function loadChatHistory() {
+      const submissionId = new URLSearchParams(window.location.search).get('submission');
+      
+      if (submissionId && partnerInfo?.user_id) {
+        // Load from database if submission ID exists
+        try {
+          const supabase = createClient();
+          const { data: chatData } = await supabase
+            .from('chat_messages')
+            .select('messages')
+            .eq('submission_id', submissionId)
+            .eq('partner_id', partnerInfo.user_id)
+            .single();
+
+          if (chatData && chatData.messages && Array.isArray(chatData.messages)) {
+            const formattedMessages: Message[] = chatData.messages.map((msg: any) => ({
+              id: String(msg.id),
+              content: String(msg.content),
+              role: msg.role as 'user' | 'assistant',
+              timestamp: new Date(String(msg.timestamp))
+            }));
+            setMessages(formattedMessages);
+          }
+        } catch (error) {
+          console.error('Error loading chat history from database:', error);
+        }
+      } else {
+        // Load from local storage if no submission ID
+        try {
+          const localChatKey = `chatbot_messages_${partnerInfo?.user_id || 'default'}`;
+          const localMessages = localStorage.getItem(localChatKey);
+          
+          if (localMessages) {
+            const parsedMessages = JSON.parse(localMessages);
+            const formattedMessages: Message[] = parsedMessages.map((msg: any) => ({
+              id: String(msg.id),
+              content: String(msg.content),
+              role: msg.role as 'user' | 'assistant',
+              timestamp: new Date(String(msg.timestamp))
+            }));
+            setMessages(formattedMessages);
+          }
+        } catch (error) {
+          console.error('Error loading chat history from local storage:', error);
+        }
+      }
+    }
+
+    loadChatHistory();
+  }, [partnerInfo?.user_id]);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -189,6 +274,126 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
     return partnerInfo?.company_color || '#2563eb';
   };
 
+  // Clear chat function
+  const clearChat = async () => {
+    const submissionId = new URLSearchParams(window.location.search).get('submission');
+    
+    // Clear messages in state
+    setMessages([]);
+    
+    if (submissionId && partnerInfo?.user_id) {
+      // Clear from database if submission ID exists
+      try {
+        const supabase = createClient();
+        
+        // Update database with empty messages array
+        const { data: existingChat } = await supabase
+          .from('chat_messages')
+          .select('id')
+          .eq('submission_id', submissionId)
+          .eq('partner_id', partnerInfo.user_id)
+          .maybeSingle();
+
+        if (existingChat && existingChat.id) {
+          // Update existing record with empty messages
+          await supabase
+            .from('chat_messages')
+            .update({
+              messages: [],
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', existingChat.id);
+        } else {
+          // Create new record with empty messages
+          await supabase
+            .from('chat_messages')
+            .insert({
+              submission_id: submissionId,
+              partner_id: partnerInfo.user_id,
+              messages: [],
+              last_updated: new Date().toISOString()
+            });
+        }
+      } catch (error) {
+        console.error('Error clearing chat from database:', error);
+      }
+    } else {
+      // Clear from local storage if no submission ID
+      try {
+        const localChatKey = `chatbot_messages_${partnerInfo?.user_id || 'default'}`;
+        localStorage.removeItem(localChatKey);
+      } catch (error) {
+        console.error('Error clearing chat from local storage:', error);
+      }
+    }
+  };
+
+  // Save all messages to database or local storage
+  const saveMessagesToStorage = async (messages: Message[]) => {
+    const submissionId = new URLSearchParams(window.location.search).get('submission');
+    
+    if (submissionId && partnerInfo?.user_id) {
+      // Save to database if submission ID exists
+      try {
+        const supabase = createClient();
+        
+        // Format messages for JSON storage
+        const messagesData = messages.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          role: msg.role,
+          timestamp: msg.timestamp.toISOString()
+        }));
+
+        // Check if chat record exists
+        const { data: existingChat } = await supabase
+          .from('chat_messages')
+          .select('id')
+          .eq('submission_id', submissionId)
+          .eq('partner_id', partnerInfo.user_id)
+          .maybeSingle();
+
+        if (existingChat && existingChat.id) {
+          // Update existing record
+          await supabase
+            .from('chat_messages')
+            .update({
+              messages: messagesData,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', existingChat.id);
+        } else {
+          // Create new record
+          await supabase
+            .from('chat_messages')
+            .insert({
+              submission_id: submissionId,
+              partner_id: partnerInfo.user_id,
+              messages: messagesData,
+              last_updated: new Date().toISOString()
+            });
+        }
+      } catch (error) {
+        console.error('Error saving messages to database:', error);
+      }
+    } else {
+      // Save to local storage if no submission ID
+      try {
+        const localChatKey = `chatbot_messages_${partnerInfo?.user_id || 'default'}`;
+        const messagesData = messages.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          role: msg.role,
+          timestamp: msg.timestamp.toISOString()
+        }));
+        
+        localStorage.setItem(localChatKey, JSON.stringify(messagesData));
+      } catch (error) {
+        console.error('Error saving messages to local storage:', error);
+      }
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
@@ -199,9 +404,13 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInputValue('');
     setIsLoading(true);
+
+    // Save all messages to storage (database or local storage)
+    await saveMessagesToStorage(updatedMessages);
 
     try {
       // Prepare context data
@@ -228,12 +437,51 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
           description: a.description,
           price: a.price,
         })),
+        formQuestions: formQuestions.map(q => ({
+          // Include ALL fields from FormQuestions table
+          questionId: q.question_id,
+          serviceCategoryId: q.service_category_id,
+          questionText: q.question_text,
+          stepNumber: q.step_number,
+          displayOrderInStep: q.display_order_in_step,
+          isMultipleChoice: q.is_multiple_choice,
+          answerOptions: q.answer_options,
+          hasHelperVideo: q.has_helper_video,
+          helperVideoUrl: q.helper_video_url,
+          isRequired: q.is_required,
+          conditionalDisplay: q.conditional_display,
+          status: q.status,
+          createdBy: q.created_by,
+          createdAt: q.created_at,
+          updatedAt: q.updated_at,
+          isDeleted: q.is_deleted,
+          allowMultipleSelections: q.allow_multiple_selections,
+          answerImages: q.answer_images,
+          positionX: q.position_x,
+          positionY: q.position_y,
+          userId: q.user_id,
+          // Include the entire raw question object for complete data access
+          rawQuestionData: q
+        })),
         leadData: leadData ? {
-          currentPage: leadData.current_page,
-          pagesCompleted: leadData.pages_completed,
-          quoteData: leadData.quote_data,
-          productsData: leadData.products_data,
-          addonsData: leadData.addons_data,
+          // Pass ALL data from the database record
+          ...leadData,
+          // Ensure nested objects are properly included
+          quoteData: leadData.quote_data || {},
+          productsData: leadData.products_data || {},
+          addonsData: leadData.addons_data || {},
+          surveyData: leadData.survey_data || {},
+          checkoutData: leadData.checkout_data || {},
+          enquiryData: leadData.enquiry_data || {},
+          successData: leadData.success_data || {},
+          formSubmissions: leadData.form_submissions || [],
+          saveQuoteData: leadData.save_quote_data || [],
+          esurveyData: leadData.esurvey_data || {},
+          callbackData: leadData.callback_data || {},
+          deviceInfo: leadData.device_info || {},
+          conversionEvents: leadData.conversion_events || [],
+          pageTimings: leadData.page_timings || {},
+          pagesCompleted: leadData.pages_completed || [],
         } : null,
         userMessage: inputValue.trim(),
       };
@@ -259,7 +507,11 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
         timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      const finalMessages = [...updatedMessages, assistantMessage];
+      setMessages(finalMessages);
+      
+      // Save all messages to storage (database or local storage)
+      await saveMessagesToStorage(finalMessages);
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
@@ -268,7 +520,11 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
         role: 'assistant',
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      const finalMessages = [...updatedMessages, errorMessage];
+      setMessages(finalMessages);
+      
+      // Save all messages to storage (database or local storage)
+      await saveMessagesToStorage(finalMessages);
     } finally {
       setIsLoading(false);
     }
@@ -332,12 +588,145 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
                  
                 </div>
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center space-x-2">
+                {/* Clear Chat Button */}
+                {messages.length > 0 && (
+                  <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+                    <DialogTrigger asChild>
+                      <button
+                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+                        title="Clear Chat"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Clear Chat History</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <p className="text-sm text-gray-600 mb-4">
+                          Are you sure you want to clear all chat messages? This action cannot be undone.
+                        </p>
+                        <div className="flex space-x-3">
+                          <Button
+                            onClick={() => {
+                              clearChat();
+                              setShowClearConfirm(false);
+                            }}
+                            variant="destructive"
+                            className="flex-1"
+                          >
+                            Clear Chat
+                          </Button>
+                          <Button
+                            onClick={() => setShowClearConfirm(false)}
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
+                {/* Debug Button */}
+                <Dialog open={showDebug} onOpenChange={setShowDebug}>
+                  <DialogTrigger asChild>
+                    <button
+                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+                      title="Debug Data"
+                    >
+                      <Bug className="h-4 w-4" />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Chatbot Debug Data</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      {/* Partner Info */}
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Partner Info</h3>
+                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                          {JSON.stringify(partnerInfo, null, 2)}
+                        </pre>
+                      </div>
+
+                      {/* Service Category */}
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Service Category</h3>
+                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                          {JSON.stringify(serviceCategory, null, 2)}
+                        </pre>
+                      </div>
+
+                      {/* Products */}
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Products ({partnerProducts.length})</h3>
+                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                          {JSON.stringify(partnerProducts, null, 2)}
+                        </pre>
+                      </div>
+
+                      {/* Addons */}
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Addons ({partnerAddons.length})</h3>
+                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                          {JSON.stringify(partnerAddons, null, 2)}
+                        </pre>
+                      </div>
+
+                      {/* Form Questions */}
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Form Questions ({formQuestions.length})</h3>
+                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto max-h-96 overflow-y-auto">
+                          {JSON.stringify(formQuestions, null, 2)}
+                        </pre>
+                      </div>
+
+                      {/* Lead Data */}
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Lead Data (All Nested Data)</h3>
+                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto max-h-96 overflow-y-auto">
+                          {JSON.stringify(leadData, null, 2)}
+                        </pre>
+                      </div>
+
+                      {/* URL Info */}
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">URL Info</h3>
+                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                          {JSON.stringify({
+                            pathname,
+                            hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+                            search: typeof window !== 'undefined' ? window.location.search : 'N/A',
+                            submissionId: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('submission') : 'N/A'
+                          }, null, 2)}
+                        </pre>
+                      </div>
+
+                      {/* Messages */}
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Messages ({messages.length})</h3>
+                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                          {JSON.stringify(messages, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Close Button */}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
