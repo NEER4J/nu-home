@@ -195,27 +195,33 @@ export default function DomainRestrictedPage() {
     );
   }
 
-  // Default 404 page for no partner or errors
+  // Show sign-in page when no partner is found
   return (
-    <div className="min-h-[90vh] flex items-center justify-start p-8 max-w-[600px] mx-auto">
-      <div className="text-left max-w-2xl">
-        <div className="text-gray-500 text-sm mb-4">
-          404 - PAGE NOT FOUND
+    <div className="min-h-[90vh] max-w-[700px] mx-auto flex flex-col items-center justify-center p-5">
+      <div className="w-full">
+        <div className="p-8">
+          <div className="mb-8 text-left">
+          <h1 className="text-3xl md:text-6xl font-bold text-gray-800 mb-4">
+            Oops! You're at the wrong place
+          </h1>
+            <p className="text-gray-500 mb-3">
+              Sign in to access your account
+            </p>
+            
+          </div>
+          
+          <div className="space-y-5">
+            <Link
+              href="/sign-in"
+              className="w-full h-12 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition duration-150 flex items-center justify-center"
+            >
+              Sign in
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </div>
         </div>
         
-        <h1 className="text-6xl font-bold text-blue-600 mb-4">
-          OOOPS!!
-        </h1>
         
-        <p className="text-2xl text-black mb-7">
-          This is not the page you are looking for
-        </p>
-        
-        {error && (
-          <div className="text-red-600 text-sm mt-4">
-            {error}
-          </div>
-        )}
       </div>
     </div>
   );
