@@ -95,30 +95,27 @@ export default async function DocumentationPage() {
                 Your Dashboard
               </a>
             )}
-            <a href="#auth-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
+             <a href="#technical-details" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
               <span className="mr-3">{isPartnerView ? '3' : '2'}</span>
+              Technical Details
+            </a>
+            <a href="#auth-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
+              <span className="mr-3">{isPartnerView ? '4' : '3'}</span>
               Authentication Flow
             </a>
             <a href="#admin-section" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">{isPartnerView ? '4' : '3'}</span>
+              <span className="mr-3">{isPartnerView ? '5' : '4'}</span>
               Admin Section
             </a>
             <a href="#partner-section" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">{isPartnerView ? '5' : '4'}</span>
+              <span className="mr-3">{isPartnerView ? '6' : '5'}</span>
               Partner Section
             </a>
             <a href="#boiler-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">{isPartnerView ? '6' : '5'}</span>
+              <span className="mr-3">{isPartnerView ? '7' : '6'}</span>
               Boiler Quote Flow
             </a>
-            <a href="#public-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">{isPartnerView ? '7' : '6'}</span>
-              Public Quote Flow
-            </a>
-            <a href="#technical-details" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">{isPartnerView ? '8' : '7'}</span>
-              Technical Details
-            </a>
+           
           </nav>
         </div>
 
@@ -1085,12 +1082,15 @@ export default async function DocumentationPage() {
           <h2 className="text-2xl font-semibold text-gray-900 mb-6">Boiler Quote Flow</h2>
 
           <p className="text-gray-700 leading-relaxed mb-8">
-            Comprehensive boiler services quote system with multi-step forms, OTP verification, and complete product showcase.
+            The boiler services quote system guides customers through a streamlined process: starting with a quote,
+            proceeding to OTP verification if enabled, and then presenting relevant product options. From there,
+            customers can either proceed to an enquiry and survey, or select add-ons and checkout.
           </p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div className="grid grid-cols-1 gap-8 mb-8">
+            {/* Quote Collection Process */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Quote Collection Process</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Quote Generation Flow</h3>
 
               <div className="space-y-4">
                 <div className="border border-gray-200 p-4">
@@ -1098,7 +1098,7 @@ export default async function DocumentationPage() {
                     <FileText className="w-4 h-4 text-gray-700 mr-2" />
                     <h4 className="font-medium text-gray-900">Multi-Step Quote Form</h4>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">Dynamic form with conditional logic and validation</p>
+                  <p className="text-sm text-gray-600 mb-3">Dynamic form with conditional logic and validation for initial quote collection.</p>
 
                   <div className="space-y-2 mb-3">
                     <div className="text-sm">
@@ -1110,7 +1110,6 @@ export default async function DocumentationPage() {
                         <li>Progress tracking across multiple steps</li>
                         <li>Address selection with Google Places integration</li>
                         <li>Contact information collection</li>
-                        <li>OTP verification for enhanced security</li>
                       </ul>
                     </div>
                   </div>
@@ -1120,10 +1119,32 @@ export default async function DocumentationPage() {
 
                 <div className="border border-gray-200 p-4">
                   <div className="flex items-center mb-2">
+                    <Shield className="w-4 h-4 text-gray-700 mr-2" />
+                    <h4 className="font-medium text-gray-900">OTP Verification (Optional)</h4>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Secure verification step for customer contact details, if enabled.</p>
+
+                  <div className="space-y-2 mb-3">
+                    <div className="text-sm">
+                      <strong className="text-gray-900">Features:</strong>
+                      <ul className="list-disc list-inside text-gray-600 mt-1 ml-2">
+                        <li>One-Time Password generation and sending</li>
+                        <li>Verification of customer phone number/email</li>
+                        <li>Configurable by partner settings</li>
+                        <li>Enhances lead quality and reduces spam</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded inline-block">Routes: /boiler/otp (conditional)</div>
+                </div>
+
+                <div className="border border-gray-200 p-4">
+                  <div className="flex items-center mb-2">
                     <Package className="w-4 h-4 text-gray-700 mr-2" />
                     <h4 className="font-medium text-gray-900">Products Display</h4>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">Comprehensive product showcase with financing options</p>
+                  <p className="text-sm text-gray-600 mb-3">Comprehensive product showcase with financing options presented after quote/OTP.</p>
 
                   <div className="space-y-2 mb-3">
                     <div className="text-sm">
@@ -1145,78 +1166,114 @@ export default async function DocumentationPage() {
               </div>
             </div>
 
+            {/* Post-Product Options */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Post-Quote Experience</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Post-Product Options</h3>
 
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Enquiry -> Survey Branch */}
                 <div className="border border-gray-200 p-4">
                   <div className="flex items-center mb-2">
-                    <CheckCircle className="w-4 h-4 text-gray-700 mr-2" />
-                    <h4 className="font-medium text-gray-900">Enquiry Confirmation</h4>
+                    <Mail className="w-4 h-4 text-gray-700 mr-2" />
+                    <h4 className="font-medium text-gray-900">Enquiry Submission</h4>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">Thank you page after successful quote submission</p>
+                  <p className="text-sm text-gray-600 mb-3">Customers can submit an enquiry to get more information or a custom quote.</p>
 
                   <div className="space-y-2 mb-3">
                     <div className="text-sm">
                       <strong className="text-gray-900">Features:</strong>
                       <ul className="list-disc list-inside text-gray-600 mt-1 ml-2">
-                        <li>Partner information display</li>
-                        <li>Next steps communication</li>
-                        <li>Contact method preferences</li>
-                        <li>Confirmation email notification</li>
-                        <li>Return to products option</li>
+                        <li>Detailed enquiry form</li>
+                        <li>Confirmation and next steps</li>
+                        <li>Partner notification of new enquiry</li>
+                        <li>Seamless transition to survey</li>
                       </ul>
                     </div>
                   </div>
-
                   <div className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded inline-block">Routes: /boiler/enquiry</div>
                 </div>
 
                 <div className="border border-gray-200 p-4">
                   <div className="flex items-center mb-2">
                     <CheckCircle className="w-4 h-4 text-gray-700 mr-2" />
-                    <h4 className="font-medium text-gray-900">Success Page</h4>
+                    <h4 className="font-medium text-gray-900">Survey Completion</h4>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">Final confirmation after completed quote process</p>
+                  <p className="text-sm text-gray-600 mb-3">Post-enquiry survey to gather additional feedback and customer preferences.</p>
 
                   <div className="space-y-2 mb-3">
                     <div className="text-sm">
                       <strong className="text-gray-900">Features:</strong>
                       <ul className="list-disc list-inside text-gray-600 mt-1 ml-2">
-                        <li>Quote completion confirmation</li>
-                        <li>Next steps guidance</li>
-                        <li>Contact information summary</li>
-                        <li>Return to partner dashboard</li>
+                        <li>Customizable survey questions</li>
+                        <li>Collection of valuable customer insights</li>
+                        <li>Improves service matching with partners</li>
+                        <li>Optional for customers</li>
                       </ul>
                     </div>
                   </div>
+                  <div className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded inline-block">Routes: /boiler/survey</div>
+                </div>
 
-                  <div className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded inline-block">Routes: /boiler/success</div>
+                {/* Addon -> Checkout Branch */}
+                <div className="border border-gray-200 p-4">
+                  <div className="flex items-center mb-2">
+                    <PlusCircle className="w-4 h-4 text-gray-700 mr-2" />
+                    <h4 className="font-medium text-gray-900">Add-on Selection</h4>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Customers can browse and select additional services or product add-ons.</p>
+
+                  <div className="space-y-2 mb-3">
+                    <div className="text-sm">
+                      <strong className="text-gray-900">Features:</strong>
+                      <ul className="list-disc list-inside text-gray-600 mt-1 ml-2">
+                        <li>Display of compatible add-ons</li>
+                        <li>Dynamic pricing updates</li>
+                        <li>Easy selection and deselection</li>
+                        <li>Integration with product options</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded inline-block">Routes: /boiler/addons</div>
+                </div>
+
+                <div className="border border-gray-200 p-4">
+                  <div className="flex items-center mb-2">
+                    <ShoppingCart className="w-4 h-4 text-gray-700 mr-2" />
+                    <h4 className="font-medium text-gray-900">Checkout Process</h4>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">Secure and streamlined process for completing the purchase of selected products and add-ons.</p>
+
+                  <div className="space-y-2 mb-3">
+                    <div className="text-sm">
+                      <strong className="text-gray-900">Features:</strong>
+                      <ul className="list-disc list-inside text-gray-600 mt-1 ml-2">
+                        <li>Secure payment gateway integration (Stripe)</li>
+                        <li>Order summary and breakdown</li>
+                        <li>Customer information confirmation</li>
+                        <li>Final order placement</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded inline-block">Routes: /boiler/checkout</div>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="border-t border-gray-200 pt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Boiler Features</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="border border-gray-200 p-4 text-center">
-                <div className="font-medium text-gray-900 mb-1">Survey System</div>
-                <div className="text-sm text-gray-600">Customer satisfaction surveys</div>
-                <div className="text-xs text-gray-500 mt-2 bg-gray-100 px-2 py-1 rounded">Routes: /boiler/survey</div>
-              </div>
-
-              <div className="border border-gray-200 p-4 text-center">
-                <div className="font-medium text-gray-900 mb-1">Checkout Process</div>
-                <div className="text-sm text-gray-600">Payment processing and order completion</div>
-                <div className="text-xs text-gray-500 mt-2 bg-gray-100 px-2 py-1 rounded">Routes: /boiler/checkout</div>
-              </div>
-
-              <div className="border border-gray-200 p-4 text-center">
-                <div className="font-medium text-gray-900 mb-1">Addon Services</div>
-                <div className="text-sm text-gray-600">Supplementary boiler services</div>
-                <div className="text-xs text-gray-500 mt-2 bg-gray-100 px-2 py-1 rounded">Routes: /boiler/addons</div>
-              </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Boiler Quote Flow Summary</h3>
+            <div className="bg-gray-50 p-4">
+              <ol className="list-decimal list-inside text-gray-700 space-y-2 text-sm">
+                <li><strong>Start Quote:</strong> Customer begins by filling out a multi-step quote form (/boiler/quote).</li>
+                <li><strong>OTP Verification:</strong> Optionally, customer verifies their contact details via OTP (/boiler/otp).</li>
+                <li><strong>Product Selection:</strong> Customer views and selects products from the catalogue (/boiler/products).</li>
+                <li><strong>Post-Product Decision:</strong>
+                  <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+                    <li><strong>Enquiry & Survey:</strong> Customer submits an enquiry (/boiler/enquiry) and optionally completes a survey (/boiler/survey).</li>
+                    <li><strong>Add-ons & Checkout:</strong> Customer selects additional add-ons (/boiler/addons) and proceeds to checkout (/boiler/checkout).</li>
+                  </ul>
+                </li>
+              </ol>
             </div>
           </div>
         </section>
@@ -1342,7 +1399,6 @@ export default async function DocumentationPage() {
         </div>
       </div>
     </div>
-  );
 
       {/* Smooth scroll script */}
       <script dangerouslySetInnerHTML={{
