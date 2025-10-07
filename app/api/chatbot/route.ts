@@ -153,7 +153,8 @@ export async function POST(request: NextRequest) {
       addons, 
       formQuestions,
       leadData, 
-      userMessage 
+      userMessage,
+      chatHistory
     } = await request.json();
 
     // Check if Gemini API key is configured
@@ -192,6 +193,7 @@ export async function POST(request: NextRequest) {
       products: products || [],
       addons: addons || [],
       formQuestions: formQuestions || [],
+      chatHistory: chatHistory || [],
       leadData: leadData ? {
         // Include all lead data fields
         id: leadData.id,

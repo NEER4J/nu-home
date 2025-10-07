@@ -41,6 +41,7 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
   const [isMobile, setIsMobile] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [debugContextData, setDebugContextData] = useState<any>(null); // Store context data sent to LLM
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatWindowRef = useRef<HTMLDivElement | null>(null);
@@ -427,10 +428,15 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
           description: serviceCategory.description,
         } : null,
         products: partnerProducts.map(p => ({
+          // Include ALL product fields including product_fields JSONB
+          id: p.id,
           name: p.name,
           description: p.description,
           price: p.price,
           slug: p.slug,
+          product_fields: p.product_fields, // Include full JSONB data
+          // Include any other product fields
+          ...p
         })),
         addons: partnerAddons.map(a => ({
           title: a.title,
@@ -484,7 +490,16 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
           pagesCompleted: leadData.pages_completed || [],
         } : null,
         userMessage: inputValue.trim(),
+        // Include chat history for context
+        chatHistory: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp.toISOString()
+        })),
       };
+
+      // Store context data for debug
+      setDebugContextData(contextData);
 
       const response = await fetch('/api/chatbot', {
         method: 'POST',
@@ -642,79 +657,23 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
                       <Bug className="h-4 w-4" />
                     </button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Chatbot Debug Data</DialogTitle>
+                      <DialogTitle>LLM Context Data (What's Sent to AI)</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
-                      {/* Partner Info */}
-                      <div>
-                        <h3 className="font-semibold text-lg mb-2">Partner Info</h3>
-                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-                          {JSON.stringify(partnerInfo, null, 2)}
-                        </pre>
-                      </div>
-
-                      {/* Service Category */}
-                      <div>
-                        <h3 className="font-semibold text-lg mb-2">Service Category</h3>
-                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-                          {JSON.stringify(serviceCategory, null, 2)}
-                        </pre>
-                      </div>
-
-                      {/* Products */}
-                      <div>
-                        <h3 className="font-semibold text-lg mb-2">Products ({partnerProducts.length})</h3>
-                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-                          {JSON.stringify(partnerProducts, null, 2)}
-                        </pre>
-                      </div>
-
-                      {/* Addons */}
-                      <div>
-                        <h3 className="font-semibold text-lg mb-2">Addons ({partnerAddons.length})</h3>
-                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-                          {JSON.stringify(partnerAddons, null, 2)}
-                        </pre>
-                      </div>
-
-                      {/* Form Questions */}
-                      <div>
-                        <h3 className="font-semibold text-lg mb-2">Form Questions ({formQuestions.length})</h3>
-                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto max-h-96 overflow-y-auto">
-                          {JSON.stringify(formQuestions, null, 2)}
-                        </pre>
-                      </div>
-
-                      {/* Lead Data */}
-                      <div>
-                        <h3 className="font-semibold text-lg mb-2">Lead Data (All Nested Data)</h3>
-                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto max-h-96 overflow-y-auto">
-                          {JSON.stringify(leadData, null, 2)}
-                        </pre>
-                      </div>
-
-                      {/* URL Info */}
-                      <div>
-                        <h3 className="font-semibold text-lg mb-2">URL Info</h3>
-                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-                          {JSON.stringify({
-                            pathname,
-                            hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
-                            search: typeof window !== 'undefined' ? window.location.search : 'N/A',
-                            submissionId: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('submission') : 'N/A'
-                          }, null, 2)}
-                        </pre>
-                      </div>
-
-                      {/* Messages */}
-                      <div>
-                        <h3 className="font-semibold text-lg mb-2">Messages ({messages.length})</h3>
-                        <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
-                          {JSON.stringify(messages, null, 2)}
-                        </pre>
-                      </div>
+                      {debugContextData ? (
+                        <div>
+                          <h3 className="font-semibold text-lg mb-2">Complete Context Data Sent to LLM</h3>
+                          <pre className="bg-gray-100 p-4 rounded text-sm overflow-x-auto max-h-[70vh] overflow-y-auto">
+                            {JSON.stringify(debugContextData, null, 2)}
+                          </pre>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500">No context data available yet. Send a message to see what data is sent to the LLM.</p>
+                        </div>
+                      )}
                     </div>
                   </DialogContent>
                 </Dialog>

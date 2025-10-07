@@ -24,10 +24,13 @@ export interface ChatContext {
     description?: string;
   };
   products?: Array<{
+    id?: string;
     name: string;
     description: string;
     price?: number;
     slug: string;
+    product_fields?: any; // JSONB field with full product specifications
+    [key: string]: any; // Allow any additional product fields
   }>;
   addons?: Array<{
     title: string;
@@ -91,6 +94,11 @@ export interface ChatContext {
     createdAt?: string;
     updatedAt?: string;
   };
+  chatHistory?: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+  }>;
   userMessage: string;
 }
 
@@ -165,48 +173,26 @@ export class GeminiService {
       prompt += `Our business: ${context.partnerInfo.business_description}. `;
     }
 
-    // CRITICAL: Extract and highlight cost information FIRST
-    if (context.formQuestions && context.formQuestions.length > 0) {
-      const costInfo: Array<{question: string, option: string, cost: number}> = [];
-      
-      context.formQuestions.forEach(question => {
-        if (question.answerOptions) {
-          question.answerOptions.forEach((option: any) => {
-            if (option.additionalCost !== undefined && option.additionalCost > 0) {
-              costInfo.push({
-                question: question.questionText,
-                option: option.text,
-                cost: option.additionalCost
-              });
-            }
-          });
-        }
-      });
-      
-      if (costInfo.length > 0) {
-        prompt += `\n\n💰 IMPORTANT COST INFORMATION:\n`;
-        costInfo.forEach(cost => {
-          prompt += `- ${cost.option}: +£${cost.cost} (from: ${cost.question})\n`;
-        });
-        prompt += `\n`;
-      }
-    }
-
     // Add products context
     if (context.products && context.products.length > 0) {
-      prompt += `\n\nAvailable products:\n`;
-      context.products.forEach((product) => {
-        prompt += `- ${product.name}: ${product.description}`;
+      prompt += `\n\nPRODUCTS:\n`;
+      context.products.forEach((product, index) => {
+        prompt += `${index + 1}. ${product.name}: ${product.description}`;
         if (product.price) {
           prompt += ` (Price: £${product.price})`;
         }
         prompt += `\n`;
+        
+        // Include all product data
+        if (product.product_fields) {
+          prompt += `   Specifications: ${JSON.stringify(product.product_fields)}\n`;
+        }
       });
     }
 
     // Add addons context
     if (context.addons && context.addons.length > 0) {
-      prompt += `\n\nAvailable addons:\n`;
+      prompt += `\n\nADDONS:\n`;
       context.addons.forEach((addon) => {
         prompt += `- ${addon.title}: ${addon.description}`;
         if (addon.price) {
@@ -216,36 +202,14 @@ export class GeminiService {
       });
     }
 
-        // Add form questions context (simplified)
-        if (context.formQuestions && context.formQuestions.length > 0) {
-          prompt += `\n\nFORM QUESTIONS (${context.formQuestions.length} questions):\n`;
-      
-      // Group questions by step
-      const questionsByStep = context.formQuestions.reduce((acc, question) => {
-        if (!acc[question.stepNumber]) {
-          acc[question.stepNumber] = [];
+    // Add form questions context
+    if (context.formQuestions && context.formQuestions.length > 0) {
+      prompt += `\n\nFORM QUESTIONS:\n`;
+      context.formQuestions.forEach((question, index) => {
+        prompt += `${index + 1}. ${question.questionText}\n`;
+        if (question.answerOptions) {
+          prompt += `   Options: ${JSON.stringify(question.answerOptions)}\n`;
         }
-        acc[question.stepNumber].push(question);
-        return acc;
-      }, {} as Record<number, typeof context.formQuestions>);
-
-      Object.entries(questionsByStep).forEach(([stepNumber, questions]) => {
-        prompt += `STEP ${stepNumber}:\n`;
-        questions.forEach((question, index) => {
-          prompt += `  ${index + 1}. ${question.questionText}\n`;
-          
-          if (question.answerOptions) {
-            prompt += `     Options:\n`;
-            question.answerOptions.forEach((option: any, optionIndex: number) => {
-              prompt += `       ${optionIndex + 1}. ${option.text}`;
-              if (option.additionalCost !== undefined && option.additionalCost > 0) {
-                prompt += ` - COST: +£${option.additionalCost}`;
-              }
-              prompt += `\n`;
-            });
-          }
-          prompt += `\n`;
-        });
       });
     }
 
@@ -390,41 +354,21 @@ export class GeminiService {
       }
     }
 
-    // Add guidelines
-    prompt += `\n\nPlease respond to the customer's question: "${context.userMessage}"\n\n`;
-    prompt += `CRITICAL: ALWAYS start your response by addressing the customer by their name if it's available in the quote data (customer_name field). Do NOT use generic greetings like "Hello there!" if you have their name.\n`;
-    prompt += `EXAMPLE: If customer_name is "John Smith", start with "Hi John!" or "Hello John!" - NOT "Hello there!"\n\n`;
-    
-    // CRITICAL: Cost-specific instructions
-    if (context.userMessage.toLowerCase().includes('cost') || context.userMessage.toLowerCase().includes('charge') || context.userMessage.toLowerCase().includes('price')) {
-      prompt += `\n🚨 COST QUERY DETECTED - You MUST use the exact cost information provided above. Do NOT give generic responses about "varying costs" or "detailed assessment needed". Use the specific £ amounts from the form data.\n`;
+    // Add chat history for context
+    if (context.chatHistory && context.chatHistory.length > 0) {
+      prompt += `\n\nCONVERSATION HISTORY:\n`;
+      context.chatHistory.forEach((msg, index) => {
+        prompt += `${msg.role === 'user' ? 'Customer' : 'Assistant'}: ${msg.content}\n`;
+      });
     }
-    prompt += `IMPORTANT GUIDELINES:\n`;
-    prompt += `- Be helpful, friendly, and professional\n`;
-    prompt += `- ALWAYS respond in UK English (British spelling and terminology)\n`;
-    prompt += `- ALWAYS use the customer's name from quote data if available - this is mandatory\n`;
-    prompt += `- Use ALL available data to provide personalized responses\n`;
-    prompt += `- If customer has quote data, reference their specific property details, requirements, and progress\n`;
-    prompt += `- Reference their current page and progress in the quote process\n`;
-    prompt += `- If they've selected products/addons, mention those specifically\n`;
-    prompt += `- Use their property details (type, size, bedrooms, etc.) to give relevant advice\n`;
-    prompt += `- Reference their heating requirements and budget if available\n`;
-    prompt += `- Use their postcode/address for location-specific advice\n`;
-    prompt += `- If they have form answers, use those to understand their specific needs\n`;
-    prompt += `- ONLY provide contact information (phone, contact person) when specifically asked for it\n`;
-    prompt += `- DO NOT automatically include contact details in every response\n`;
-    prompt += `- If asked about pricing, reference their budget range if available\n`;
-    prompt += `- If asked about installation, mention professional installation services\n`;
-    prompt += `- If asked about their quote progress, explain where they are in the process\n`;
-    prompt += `- If they're on a specific page, help them understand what's next\n`;
-    prompt += `- Use their urgency level to prioritize responses appropriately\n`;
-    prompt += `- If they have special requirements, address those specifically\n`;
-    prompt += `- Keep responses concise but comprehensive\n`;
-    prompt += `- Always represent ${context.partnerInfo?.company_name || 'our company'} professionally\n`;
-    prompt += `- CRITICAL: When customers ask about costs, ALWAYS check the form questions data for additional costs in answer options\n`;
-    prompt += `- CRITICAL: Look for "additionalCost" and "hasAdditionalCost" fields in answer options to provide accurate pricing information\n`;
-    prompt += `- CRITICAL: If a customer asks about specific options (like "roof flue"), check the answer options for that question to find the exact additional cost\n`;
-    prompt += `- EXAMPLE: If customer asks "What's the extra charge for roof flue?", look for the "Where does your boiler's flue exit your home?" question and find the "Roof" option with its additionalCost value\n`;
+
+    // Simple guidelines
+    prompt += `\n\nPlease respond to: "${context.userMessage}"\n`;
+    prompt += `Be helpful and use all the data provided above to answer the customer's question.\n`;
+    prompt += `Respond in UK English (British spelling and terminology).\n`;
+    
+    // Price calculation instruction
+    prompt += `\nIMPORTANT: When showing boiler prices, calculate total cost by adding base price + additional costs from user's selected options and show breakdown (e.g., "Boiler costs £2,500 + £200 (roof flue) = £2,700 total").\n`;
 
     return prompt;
   }
