@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  devIndicators: {
-    buildActivity: false,
-  },
   serverExternalPackages: ['pdf-parse'],
   typescript: {
     ignoreBuildErrors: true
@@ -35,4 +32,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
