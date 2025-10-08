@@ -45,6 +45,7 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatWindowRef = useRef<HTMLDivElement | null>(null);
+  const [showChatButton, setShowChatButton] = useState(true); // Default to true as chat is initially closed
 
   // Mobile detection
   useEffect(() => {
@@ -63,6 +64,19 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
       setIsOpen(false);
     }
   });
+
+  // Control chat button visibility
+  useEffect(() => {
+    if (isOpen) {
+      setShowChatButton(false); // Hide button immediately when chat opens
+    } else {
+      // Delay showing the chat button when closing
+      const timer = setTimeout(() => {
+        setShowChatButton(true); // Show button after transition when chat closes
+      }, 300); // Match transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   // Fetch partner info if not provided
   useEffect(() => {
@@ -558,13 +572,23 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
 
   return (
     <div className={cn(
-      "fixed z-50 flex flex-col items-end justify-end hidden",
+      "fixed z-50 flex flex-col-reverse items-end justify-end",
       isMobile 
         ? "inset-0" 
-        : "bottom-6 right-6"
-    , className)}>
+        : "bottom-6 right-6",
+      !isOpen && "pointer-events-none", // Apply pointer-events-none when closed
+      className
+    )}>
       {/* Chat Button */}
-     
+      {showChatButton && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="m-2 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center pointer-events-auto" // Override with pointer-events-auto
+          style={{ backgroundColor: getDynamicColor() }}
+        >
+          <MessageCircle className="h-5 w-5 text-white" />
+        </button>
+      )}
 
       {/* Chat Window */}
       <div 
@@ -784,17 +808,6 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
           </CardContent>
         </Card>
       </div>
-
-       {/* Chat Button - Only show when chat is closed */}
-       {!isOpen && (
-         <button
-           onClick={() => setIsOpen(true)}
-           className="m-2 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
-           style={{ backgroundColor: getDynamicColor() }}
-         >
-           <MessageCircle className="h-5 w-5 text-white" />
-         </button>
-       )}
     </div>
   );
 }

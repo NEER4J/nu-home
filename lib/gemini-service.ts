@@ -109,7 +109,7 @@ export class GeminiService {
 
   constructor(config: GeminiConfig) {
     this.config = {
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-flash-lite',
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
