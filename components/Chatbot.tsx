@@ -558,7 +558,7 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
 
   return (
     <div className={cn(
-      "fixed z-50 flex flex-col items-end justify-end",
+      "fixed z-50 flex flex-col items-end justify-end hidden",
       isMobile 
         ? "inset-0" 
         : "bottom-6 right-6"
