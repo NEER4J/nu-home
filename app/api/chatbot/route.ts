@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createGeminiService, type ChatContext } from '@/lib/gemini-service';
+import { QuoteSubmission, FormAnswer } from '@/types/database.types';
 
 // Helper function to format context data for better AI understanding
 function formatContextData(context: any) {
@@ -154,9 +155,125 @@ export async function POST(request: NextRequest) {
       formQuestions,
       leadData, 
       userMessage,
-      chatHistory
+      chatHistory,
+      isQuoteInProgress, // New from chatbot state
+      currentQuoteStep, // New from chatbot state
+      quoteFormValues, // New from chatbot state
+      selectedQuoteAddress, // New from chatbot state
+      quoteUserInfo // New from chatbot state
     } = await request.json();
 
+    // Handle quote submission if detected
+    if (isQuoteInProgress && currentQuoteStep === 'submitting') {
+      console.log('⚙️ [Chatbot API] Handling quote submission');
+      
+      if (!partnerInfo || !serviceCategory || !quoteUserInfo || !quoteFormValues || !selectedQuoteAddress) {
+        console.error('❌ [Chatbot API] Missing data for quote submission', {
+          partnerInfo: !!partnerInfo,
+          serviceCategory: !!serviceCategory,
+          quoteUserInfo: !!quoteUserInfo,
+          quoteFormValues: !!quoteFormValues,
+          selectedQuoteAddress: !!selectedQuoteAddress,
+        });
+        return NextResponse.json(
+          { error: 'Missing essential data for quote submission.' },
+          { status: 400 }
+        );
+      }
+
+      // Format form answers for submission
+      const formAnswers: FormAnswer[] = Object.entries(quoteFormValues).map(([questionId, answer]) => ({
+        question_id: questionId,
+        // We don't have question_text here, it will be resolved by /api/quote-submissions
+        question_text: '', 
+        answer: String(answer), // Ensure answer is string or string[]
+      }));
+
+      // Construct formData for /api/quote-submissions
+      const formData = {
+        service_category_id: serviceCategory.service_category_id,
+        first_name: quoteUserInfo.firstName,
+        last_name: quoteUserInfo.lastName,
+        email: quoteUserInfo.email,
+        phone: quoteUserInfo.fullPhoneNumber || quoteUserInfo.phone,
+        city: selectedQuoteAddress.town_or_city || null,
+        postcode: selectedQuoteAddress.postcode,
+        form_answers: formAnswers,
+        assigned_partner_id: partnerInfo.user_id,
+        submission_date: new Date().toISOString(),
+        status: 'new',
+        serviceCategoryName: serviceCategory.slug,
+        // Include selected address data
+        address_line_1: selectedQuoteAddress.address_line_1,
+        address_line_2: selectedQuoteAddress.address_line_2,
+        street_name: selectedQuoteAddress.street_name,
+        street_number: selectedQuoteAddress.street_number,
+        building_name: selectedQuoteAddress.building_name,
+        sub_building: selectedQuoteAddress.sub_building,
+        county: selectedQuoteAddress.county,
+        country: selectedQuoteAddress.country,
+        formatted_address: selectedQuoteAddress.formatted_address,
+        address_type: 'residential',
+      };
+
+      console.log('➡️ [Chatbot API] Submitting to /api/quote-submissions', formData);
+
+      const submissionResponse = await fetch(
+        `${request.nextUrl.origin}/api/quote-submissions?partner_id=${partnerInfo.user_id}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      const submissionResult = await submissionResponse.json();
+
+      if (!submissionResponse.ok) {
+        console.error('❌ [Chatbot API] Quote submission failed:', submissionResult);
+        throw new Error(submissionResult.error || 'Failed to submit quote');
+      }
+
+      console.log('✅ [Chatbot API] Quote submitted successfully:', submissionResult);
+      const newSubmissionId = submissionResult.data.submission_id;
+      const gtmEventName = submissionResult.gtm_event_name;
+
+      // Trigger email notification
+      if (gtmEventName) { // Check if GTM event name indicates success (e.g., partner assigned)
+        console.log('📧 [Chatbot API] Triggering email notification');
+        try {
+          const quoteLink = `${request.nextUrl.origin}/${serviceCategory.slug}/products?submission=${newSubmissionId}`;
+          const emailResponse = await fetch(`${request.nextUrl.origin}/api/email/boiler/quote-initial-v2`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              submissionId: newSubmissionId,
+              subdomain: partnerInfo.subdomain,
+              is_iframe: false, // Assuming chatbot is not in iframe for now
+              quoteLink: quoteLink,
+            }),
+          });
+
+          if (!emailResponse.ok) {
+            const emailErrorData = await emailResponse.json();
+            console.warn('⚠️ [Chatbot API] Failed to send initial quote email:', emailErrorData);
+          } else {
+            console.log('✅ [Chatbot API] Initial quote email sent');
+          }
+        } catch (emailErr) {
+          console.error('❌ [Chatbot API] Error sending email:', emailErr);
+        }
+      }
+
+      return NextResponse.json({
+        response: "Your quote has been submitted successfully! Redirecting you to the products page.",
+        submissionId: newSubmissionId,
+        redirectUrl: `${request.nextUrl.origin}/${serviceCategory.slug}/products?submission=${newSubmissionId}`,
+        quoteSubmitted: true,
+      });
+    }
+    
+    // Original LLM call logic for general chat
     // Check if Gemini API key is configured
     const geminiApiKey = process.env.GOOGLE_AI_API_KEY;
     if (!geminiApiKey) {
