@@ -270,16 +270,16 @@ export default function PartnerProductForm({
       setError(null);
       
       // First get the current user's ID
-      const { data: authData, error: authError } = await supabase.auth.getSession();
+      const { data: authData, error: authError } = await supabase.auth.getUser();
       
-      if (authError || !authData.session) {
+      if (authError || !authData.user) {
         console.error("Authentication error:", authError);
         setError("Authentication error: Your session may have expired. Please refresh the page and try again.");
         setIsSessionValid(false);
         return;
       }
       
-      const user = authData.session.user;
+      const user = authData.user;
       
       if (!user) {
         throw new Error('Authentication error: You need to be logged in to create a product.');

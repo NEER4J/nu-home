@@ -1113,7 +1113,7 @@ export default function PostcodeStep({
             }
           }}
           disabled={!selectedAddress}
-          className={`px-6 py-2 rounded-md transition-colors ${
+          className={`px-6 py-2 rounded-full transition-colors ${
             selectedAddress
               ? 'text-white hover:opacity-90'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'

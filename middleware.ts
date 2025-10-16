@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Handle protected paths that need subdomain/custom domain processing
-  const isProtectedPath = (path.includes('/boiler')) && 
+  const isProtectedPath = (path.includes('/boiler') || path.includes('/solar')) && 
     !path.includes('/products/addons');
   
   if (isProtectedPath) {
@@ -279,7 +279,7 @@ export async function middleware(request: NextRequest) {
   // Refresh session if expired - required for Server Components
   try {
     const supabase = createClient(request);
-    await supabase.auth.getSession();
+    await supabase.auth.getUser();
   } catch (error) {
     console.error('Session refresh error:', error);
   }

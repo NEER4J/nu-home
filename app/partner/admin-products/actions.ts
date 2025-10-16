@@ -12,19 +12,19 @@ export async function addAdminProductToMyList(adminProductId: string) {
     const cookieStore = cookies();
     const supabase = await createClient();
     
-    // Explicitly check the session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Explicitly check the user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (sessionError) {
-      console.error("Session error:", sessionError);
-      return { error: "Authentication error: Session verification failed. Please refresh and try again." };
+    if (userError) {
+      console.error("User error:", userError);
+      return { error: "Authentication error: User verification failed. Please refresh and try again." };
     }
     
-    if (!session) {
+    if (!user) {
       return { error: "Authentication error: You need to be logged in to create a product." };
     }
     
-    const user = session.user;
+    // User is already available from getUser() above
     
     // Fetch the admin product details
     const { data: adminProduct, error: productError } = await supabase

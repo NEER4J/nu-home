@@ -11,14 +11,14 @@ import { redirect } from 'next/navigation';
 
 export default async function Login(props: { searchParams: Promise<Message> }) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
   
-  // Only redirect if there's a valid session and no redirect_to parameter
-  if (session) {
+  // Only redirect if there's a valid user and no redirect_to parameter
+  if (user) {
     const { data: profile } = await supabase
       .from('UserProfiles')
       .select('role')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single();
     
     // Check if there's a redirect_to parameter in the URL

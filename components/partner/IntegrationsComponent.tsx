@@ -20,6 +20,7 @@ interface TwilioSettings {
   TWILIO_ACCOUNT_SID: string;
   TWILIO_AUTH_TOKEN: string;
   TWILIO_VERIFY_SID: string;
+  otp_enabled: boolean;
 }
 
 interface GHLIntegration {
@@ -42,6 +43,7 @@ const defaultTwilio: TwilioSettings = {
   TWILIO_ACCOUNT_SID: '',
   TWILIO_AUTH_TOKEN: '',
   TWILIO_VERIFY_SID: '',
+  otp_enabled: false,
 };
 
 export default function IntegrationsComponent() {
@@ -82,6 +84,7 @@ export default function IntegrationsComponent() {
     if (!merged.TWILIO_ACCOUNT_SID && raw?.account_sid) merged.TWILIO_ACCOUNT_SID = raw.account_sid;
     if (!merged.TWILIO_AUTH_TOKEN && raw?.auth_token) merged.TWILIO_AUTH_TOKEN = raw.auth_token;
     if (!merged.TWILIO_VERIFY_SID && (raw?.verify_sid || raw?.messaging_service_sid)) merged.TWILIO_VERIFY_SID = raw.verify_sid ?? raw.messaging_service_sid;
+    if (typeof merged.otp_enabled !== 'boolean' && typeof raw?.otp === 'boolean') merged.otp_enabled = raw.otp;
     return merged;
   };
 
@@ -362,6 +365,38 @@ export default function IntegrationsComponent() {
           </div>
         </div>
         <div className="p-6">
+          {/* OTP Toggle */}
+          <div className="mb-6">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-700">OTP Verification:</span>
+              <div className="flex bg-gray-200 rounded-lg p-1">
+                <button
+                  onClick={() => setTwilioSettings({ ...twilioSettings, otp_enabled: true })}
+                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                    twilioSettings.otp_enabled
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Enabled
+                </button>
+                <button
+                  onClick={() => setTwilioSettings({ ...twilioSettings, otp_enabled: false })}
+                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                    !twilioSettings.otp_enabled
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Disabled
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Enable or disable OTP verification for customer phone numbers.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

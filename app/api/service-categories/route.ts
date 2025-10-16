@@ -7,10 +7,10 @@ export async function GET() {
     const cookieStore = cookies();
     const supabase = await createClient();
 
-    // Get the current user's session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (sessionError || !session) {
+    if (userError || !user) {
       throw new Error('Authentication required');
     }
 
@@ -18,7 +18,7 @@ export async function GET() {
     const { data: approvedCategories, error: accessError } = await supabase
       .from('UserCategoryAccess')
       .select('service_category_id')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .eq('status', 'approved');
 
     if (accessError) {

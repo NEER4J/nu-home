@@ -106,8 +106,8 @@ export function ProductForm({
   useEffect(() => {
     const checkSession = async () => {
       const supabase = createClientComponentClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsSessionValid(!!session);
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsSessionValid(!!user);
     };
     checkSession();
   }, []);

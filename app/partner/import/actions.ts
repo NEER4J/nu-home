@@ -73,10 +73,10 @@ export async function importProducts(
 ) {
   const supabase = await createClient();
 
-  // Get the current session
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  // Get the current user
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
   
-  if (sessionError || !session) {
+  if (userError || !user) {
     throw new Error('Authentication required');
   }
 
@@ -87,7 +87,7 @@ export async function importProducts(
   const transformedProducts = await Promise.all(products.map(async (product) => {
     // Initialize the base product object with global fields
     const baseProduct: any = {
-      partner_id: session.user.id,
+      partner_id: user.id,
       service_category_id: serviceCategoryId,
       is_active: true, // Default to active
       product_fields: {} // Initialize empty product_fields
