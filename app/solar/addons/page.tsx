@@ -124,6 +124,7 @@ interface PartnerProduct {
     price: number
     additional_cost: number
   } | null
+  current_price?: number // For solar products with calculated pricing
   [key: string]: any // Allow additional fields from product_info
 }
 
@@ -331,7 +332,8 @@ function SolarAddonsPageContent() {
               ...rest,
               product_fields: product.product_fields || null,
               calculator_settings: calculatorInfo || null,
-              selected_power: pInfo.selected_power || null
+              selected_power: pInfo.selected_power || null,
+              current_price: pInfo.price || null // Use price from product_info
             }
             console.log('Product with settings (from URL):', productWithSettings)
             console.log('Calculator info being set:', calculatorInfo)
@@ -347,7 +349,8 @@ function SolarAddonsPageContent() {
             image_url: pInfo.image_url || null,
             product_fields: pInfo.product_fields || null,
             calculator_settings: calculatorInfo || null,
-            selected_power: pInfo.selected_power || null
+            selected_power: pInfo.selected_power || null,
+            current_price: pInfo.price || null // Use price from product_info
           }
           console.log('Product with settings (from database):', productWithSettings)
           console.log('Calculator info being set (from database):', calculatorInfo)
