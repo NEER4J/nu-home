@@ -13,12 +13,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { cn } from '@/lib/utils';
 import { useOnClickOutside } from '@/hooks/use-click-outside';
 import ReactMarkdown from 'react-markdown';
+import { FormQuestion } from '@/types/database.types';
 
 interface Message {
   id: string;
   content: string;
   role: 'user' | 'assistant';
   timestamp: Date;
+}
+
+enum QuoteStep {
+  INITIAL = 'initial',
+  QUESTIONS = 'questions',
+  POSTCODE = 'postcode',
+  USER_INFO = 'user_info',
+  SUBMITTING = 'submitting',
+  COMPLETED = 'completed',
 }
 
 interface ChatbotProps {
@@ -35,7 +45,7 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
   const [partnerInfo, setPartnerInfo] = useState<PartnerProfile | null>(propPartnerInfo || null);
   const [partnerProducts, setPartnerProducts] = useState<any[]>([]);
   const [partnerAddons, setPartnerAddons] = useState<any[]>([]);
-  const [formQuestions, setFormQuestions] = useState<any[]>([]);
+  const [formQuestions, setFormQuestions] = useState<FormQuestion[]>([]); // Use FormQuestion type
   const [leadData, setLeadData] = useState<any>(null);
   const [serviceCategory, setServiceCategory] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -47,6 +57,16 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
   const chatWindowRef = useRef<HTMLDivElement | null>(null);
   const [showChatButton, setShowChatButton] = useState(true); // Default to true as chat is initially closed
 
+  // New state variables for Quote Feature
+  const [isQuoteInProgress, setIsQuoteInProgress] = useState(false);
+  const [currentQuoteStep, setCurrentQuoteStep] = useState<QuoteStep>(QuoteStep.INITIAL);
+  const [quoteFormValues, setQuoteFormValues] = useState<Record<string, any>>({});
+  const [activeQuoteQuestions, setActiveQuoteQuestions] = useState<FormQuestion[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedQuoteAddress, setSelectedQuoteAddress] = useState<Address | null>(null);
+  const [quoteUserInfo, setQuoteUserInfo] = useState<any>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  
   // Mobile detection
   useEffect(() => {
     const checkMobile = () => {
@@ -57,6 +77,21 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Define Address type (since it's not exported from @/types/index)
+  interface Address {
+    address_line_1: string
+    address_line_2?: string
+    street_name?: string
+    street_number?: string
+    building_name?: string
+    sub_building?: string
+    town_or_city: string
+    county?: string
+    postcode: string
+    formatted_address: string
+    country?: string
+  }
 
   // Click outside to close
   useOnClickOutside(chatWindowRef as RefObject<HTMLElement>, () => {
@@ -123,7 +158,11 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
 
           if (categoryData) {
             setServiceCategory(categoryData);
+          } else {
+            console.log('No active service category found for slug:', serviceSlug);
           }
+        } else {
+          console.log('Service slug not recognized or not present:', serviceSlug);
         }
       } catch (error) {
         console.error('Error detecting service category:', error);
@@ -185,7 +224,7 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
           .order('step_number', { ascending: true })
           .order('display_order_in_step', { ascending: true });
 
-        setFormQuestions(questions || []);
+        setFormQuestions(questions as unknown as FormQuestion[] || []); // Aggressively cast to FormQuestion[]
       } catch (error) {
         console.error('Error fetching form questions:', error);
       }
@@ -273,10 +312,124 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
     loadChatHistory();
   }, [partnerInfo?.user_id]);
 
+  // Helper to send a bot message
+  const sendBotMessage = (content: string) => {
+    const botMessage: Message = {
+      id: Date.now().toString(),
+      content: content,
+      role: 'assistant',
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, botMessage]);
+    saveMessagesToStorage([...messages, botMessage]); // Save immediately
+  };
+
+  // Evaluate conditional display logic for form questions
+  const evaluateCondition = (
+    questionId: string, 
+    values: string[], 
+    operator: string, 
+    currentFormValues: Record<string, any>
+  ): boolean => {
+    const dependentAnswer = currentFormValues[questionId];
+    
+    if (!dependentAnswer) return false;
+    
+    if (operator === 'OR') {
+      if (Array.isArray(dependentAnswer)) {
+        return dependentAnswer.some(answer => values.includes(answer));
+      }
+      return values.includes(dependentAnswer);
+    } else {
+      // AND logic
+      if (Array.isArray(dependentAnswer)) {
+        return values.every(value => dependentAnswer.includes(value));
+      }
+      return values.every(value => dependentAnswer === value);
+    }
+  };
+
+  // Update active questions when quoteFormValues or formQuestions change
+  useEffect(() => {
+    if (formQuestions.length === 0) return;
+    
+    const updateActiveQuestions = () => {
+      const active = formQuestions.filter(question => {
+        if (!question.conditional_display) return true;
+        
+        const conditionalDisplay = question.conditional_display;
+        
+        if (!('conditions' in conditionalDisplay) || !Array.isArray((conditionalDisplay as any).conditions)) {
+          // Old format backward compatibility
+          const { dependent_on_question_id, show_when_answer_equals, logical_operator } = conditionalDisplay;
+          return evaluateCondition(dependent_on_question_id, show_when_answer_equals, logical_operator, quoteFormValues);
+        }
+        
+        // New format with multiple conditions
+        const conditions = (conditionalDisplay as any).conditions;
+        const group_logical_operator = (conditionalDisplay as any).group_logical_operator || 'AND';
+        
+        if (!conditions || conditions.length === 0) return true;
+        
+        const results = conditions.map((condition: any) => {
+          const { dependent_on_question_id, show_when_answer_equals, logical_operator } = condition;
+          return evaluateCondition(dependent_on_question_id, show_when_answer_equals, logical_operator, quoteFormValues);
+        });
+        
+        if (group_logical_operator === 'AND') {
+          return results.every((result: boolean) => result === true);
+        } else {
+          return results.some((result: boolean) => result === true);
+        }
+      });
+      
+      setActiveQuoteQuestions(active);
+    };
+    
+    updateActiveQuestions();
+  }, [formQuestions, quoteFormValues]);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Initiate quote flow when chatbot opens and service category is available
+  useEffect(() => {
+    if (isOpen && !isQuoteInProgress && serviceCategory && formQuestions.length > 0) {
+      setIsQuoteInProgress(true);
+      setCurrentQuoteStep(QuoteStep.QUESTIONS);
+      // Find the first active question based on initial empty form values
+      const initialActiveQuestions = formQuestions.filter(q => !q.conditional_display || (
+        !('conditions' in q.conditional_display) || !Array.isArray((q.conditional_display as any).conditions)
+          ? evaluateCondition(q.conditional_display?.dependent_on_question_id || '', q.conditional_display?.show_when_answer_equals || [], q.conditional_display?.logical_operator || 'AND', {})
+          : (q.conditional_display as any).group_logical_operator === 'AND'
+            ? (q.conditional_display as any).conditions.every((cond: any) => evaluateCondition(cond.dependent_on_question_id, cond.show_when_answer_equals, cond.logical_operator, {}))
+            : (q.conditional_display as any).conditions.some((cond: any) => evaluateCondition(cond.dependent_on_question_id, cond.show_when_answer_equals, cond.logical_operator, {}))
+      ));
+      
+      setActiveQuoteQuestions(initialActiveQuestions);
+
+      if (initialActiveQuestions.length > 0) {
+        const firstQuestion = initialActiveQuestions[0];
+        sendBotMessage(firstQuestion.question_text);
+      } else {
+        sendBotMessage("I'm sorry, I couldn't find any questions for this service category.");
+        setIsQuoteInProgress(false);
+        setCurrentQuoteStep(QuoteStep.INITIAL);
+      }
+    }
+  }, [isOpen, isQuoteInProgress, serviceCategory, formQuestions]);
+
+  // When active questions change, adjust currentQuestionIndex if needed
+  useEffect(() => {
+    if (isQuoteInProgress && currentQuoteStep === QuoteStep.QUESTIONS) {
+      // If current question is no longer active, reset index to 0 or first active question
+      if (activeQuoteQuestions.length > 0 && currentQuestionIndex >= activeQuoteQuestions.length) {
+        setCurrentQuestionIndex(0);
+      }
+    }
+  }, [activeQuoteQuestions, isQuoteInProgress, currentQuoteStep, currentQuestionIndex]);
 
   // Focus input when chat opens
   useEffect(() => {
@@ -287,6 +440,53 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
 
   const getDynamicColor = () => {
     return partnerInfo?.company_color || '#2563eb';
+  };
+
+  // State for available addresses during postcode step
+  const [availableAddresses, setAvailableAddresses] = useState<Address[]>([]);
+
+  // Function to perform postcode lookup
+  const fetchAddresses = async (postcode: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/postcode-lookup?postcode=${encodeURIComponent(postcode)}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch addresses');
+      }
+      const data = await response.json();
+      setAvailableAddresses(data.addresses || []);
+      if (data.success && data.addresses.length === 0) {
+        sendBotMessage("I couldn't find any addresses for that postcode. Please try again or enter manually (feature coming soon).");
+      } else if (data.success) {
+        sendBotMessage("Please select your address:");
+      } else {
+        sendBotMessage("Sorry, I encountered an error fetching addresses. Please try again.");
+      }
+    } catch (error) {
+      console.error('Error fetching addresses:', error);
+      sendBotMessage("Sorry, I encountered an error fetching addresses. Please try again.");
+      setAvailableAddresses([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to handle address selection by user
+  const handleAddressSelection = async (address: Address) => {
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: address.formatted_address,
+      role: 'user',
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    await saveMessagesToStorage([...messages, userMessage]);
+
+    setSelectedQuoteAddress(address);
+    setQuoteFormValues(prev => ({ ...prev, postcode: address.postcode }));
+    setAvailableAddresses([]); // Clear options after selection
+    setCurrentQuoteStep(QuoteStep.USER_INFO);
+    sendBotMessage("Thanks! Now, please tell us your first name, last name, email, and phone number.");
   };
 
   // Clear chat function
@@ -341,6 +541,16 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
         console.error('Error clearing chat from local storage:', error);
       }
     }
+    // Reset quote-related states
+    setIsQuoteInProgress(false);
+    setCurrentQuoteStep(QuoteStep.INITIAL);
+    setQuoteFormValues({});
+    setActiveQuoteQuestions([]);
+    setCurrentQuestionIndex(0);
+    setSelectedQuoteAddress(null);
+    setQuoteUserInfo(null);
+    setSubmissionId(null);
+    setAvailableAddresses([]);
   };
 
   // Save all messages to database or local storage
@@ -428,119 +638,181 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
     await saveMessagesToStorage(updatedMessages);
 
     try {
-      // Prepare context data
-      const contextData = {
-        partnerInfo: {
-          company_name: partnerInfo?.company_name,
-          business_description: partnerInfo?.business_description,
-          contact_person: partnerInfo?.contact_person,
-          phone: partnerInfo?.phone,
-        },
-        serviceCategory: serviceCategory ? {
-          name: serviceCategory.name,
-          slug: serviceCategory.slug,
-          description: serviceCategory.description,
-        } : null,
-        products: partnerProducts.map(p => ({
-          // Include ALL product fields including product_fields JSONB
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          price: p.price,
-          slug: p.slug,
-          product_fields: p.product_fields, // Include full JSONB data
-          // Include any other product fields
-          ...p
-        })),
-        addons: partnerAddons.map(a => ({
-          title: a.title,
-          description: a.description,
-          price: a.price,
-        })),
-        formQuestions: formQuestions.map(q => ({
-          // Include ALL fields from FormQuestions table
-          questionId: q.question_id,
-          serviceCategoryId: q.service_category_id,
-          questionText: q.question_text,
-          stepNumber: q.step_number,
-          displayOrderInStep: q.display_order_in_step,
-          isMultipleChoice: q.is_multiple_choice,
-          answerOptions: q.answer_options,
-          hasHelperVideo: q.has_helper_video,
-          helperVideoUrl: q.helper_video_url,
-          isRequired: q.is_required,
-          conditionalDisplay: q.conditional_display,
-          status: q.status,
-          createdBy: q.created_by,
-          createdAt: q.created_at,
-          updatedAt: q.updated_at,
-          isDeleted: q.is_deleted,
-          allowMultipleSelections: q.allow_multiple_selections,
-          answerImages: q.answer_images,
-          positionX: q.position_x,
-          positionY: q.position_y,
-          userId: q.user_id,
-          // Include the entire raw question object for complete data access
-          rawQuestionData: q
-        })),
-        leadData: leadData ? {
-          // Pass ALL data from the database record
-          ...leadData,
-          // Ensure nested objects are properly included
-          quoteData: leadData.quote_data || {},
-          productsData: leadData.products_data || {},
-          addonsData: leadData.addons_data || {},
-          surveyData: leadData.survey_data || {},
-          checkoutData: leadData.checkout_data || {},
-          enquiryData: leadData.enquiry_data || {},
-          successData: leadData.success_data || {},
-          formSubmissions: leadData.form_submissions || [],
-          saveQuoteData: leadData.save_quote_data || [],
-          esurveyData: leadData.esurvey_data || {},
-          callbackData: leadData.callback_data || {},
-          deviceInfo: leadData.device_info || {},
-          conversionEvents: leadData.conversion_events || [],
-          pageTimings: leadData.page_timings || {},
-          pagesCompleted: leadData.pages_completed || [],
-        } : null,
-        userMessage: inputValue.trim(),
-        // Include chat history for context
-        chatHistory: messages.map(msg => ({
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp.toISOString()
-        })),
-      };
+      // If in quote progression mode, handle answer
+      if (isQuoteInProgress) {
+        if (currentQuoteStep === QuoteStep.QUESTIONS) {
+          const currentQuestion = activeQuoteQuestions[currentQuestionIndex];
+          if (currentQuestion) {
+            // For text input questions, process the inputValue
+            if (!currentQuestion.is_multiple_choice) {
+              const newFormValues = { ...quoteFormValues, [currentQuestion.question_id]: inputValue.trim() };
+              setQuoteFormValues(newFormValues);
+              await processNextQuoteQuestion(newFormValues, currentQuestionIndex + 1);
+            } else {
+              // If it's a multiple-choice question and somehow handleSendMessage is called,
+              // it means the user typed an answer instead of clicking a button. 
+              // For now, we'll treat it as a text answer, but ideally, this path shouldn't be taken for MCQs.
+              sendBotMessage("Please select an option from the buttons above.");
+            }
+          }
+        } else if (currentQuoteStep === QuoteStep.POSTCODE) {
+          // Handle postcode input and trigger lookup
+          const postcode = inputValue.trim();
+          setQuoteFormValues(prev => ({ ...prev, postcode }));
+          await fetchAddresses(postcode);
+        } else if (currentQuoteStep === QuoteStep.USER_INFO) {
+          // Handle user info input: Expecting "FirstName LastName, Email, Phone"
+          const userInfoInput = inputValue.trim();
+          const parts = userInfoInput.split(',').map(s => s.trim());
 
-      // Store context data for debug
-      setDebugContextData(contextData);
+          if (parts.length >= 3) {
+            const [fullName, email, phone] = parts;
+            const [firstName, ...lastNameParts] = fullName.split(' ').map(s => s.trim());
+            const lastName = lastNameParts.join(' ');
 
-      const response = await fetch('/api/chatbot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(contextData),
-      });
+            // Basic validation (can be enhanced)
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const phoneRegex = /^\+?[0-9\s()-]+$/; // Simple phone regex
 
-      if (!response.ok) {
-        throw new Error('Failed to get response from chatbot');
+            if (!firstName || !lastName || !emailRegex.test(email) || !phoneRegex.test(phone)) {
+              sendBotMessage("I couldn't understand that. Please provide your details in the format: 'FirstName LastName, Email, Phone'.");
+              setIsLoading(false);
+              return;
+            }
+
+            const newUserInfo = {
+              firstName,
+              lastName,
+              email,
+              phone,
+              fullPhoneNumber: phone, // For now, treat phone as fullPhoneNumber
+              countryCode: "", // Placeholder, could add detection later
+            };
+            setQuoteUserInfo(newUserInfo);
+            setCurrentQuoteStep(QuoteStep.SUBMITTING);
+            sendBotMessage("Thank you for providing your details. We are now submitting your quote...");
+            // Trigger actual submission logic here (next step)
+          } else {
+            sendBotMessage("Please provide your details in the format: 'FirstName LastName, Email, Phone'.");
+          }
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        // Original LLM call logic for general chat
+        const contextData = {
+          partnerInfo: {
+            company_name: partnerInfo?.company_name,
+            business_description: partnerInfo?.business_description,
+            contact_person: partnerInfo?.contact_person,
+            phone: partnerInfo?.phone,
+          },
+          serviceCategory: serviceCategory ? {
+            name: serviceCategory.name,
+            slug: serviceCategory.slug,
+            description: serviceCategory.description,
+          } : null,
+          products: partnerProducts.map(p => ({
+            // Include ALL product fields including product_fields JSONB
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            price: p.price,
+            slug: p.slug,
+            product_fields: p.product_fields, // Include full JSONB data
+            // Include any other product fields
+            ...p
+          })),
+          addons: partnerAddons.map(a => ({
+            title: a.title,
+            description: a.description,
+            price: a.price,
+          })),
+          formQuestions: formQuestions.map(q => ({
+            // Include ALL fields from FormQuestions table
+            questionId: q.question_id,
+            serviceCategoryId: q.service_category_id,
+            questionText: q.question_text,
+            stepNumber: q.step_number,
+            displayOrderInStep: q.display_order_in_step,
+            isMultipleChoice: q.is_multiple_choice,
+            answerOptions: q.answer_options,
+            hasHelperVideo: q.has_helper_video,
+            helperVideoUrl: q.helper_video_url,
+            isRequired: q.is_required,
+            conditionalDisplay: q.conditional_display,
+            status: q.status,
+            createdBy: q.created_by,
+            createdAt: q.created_at,
+            updatedAt: q.updated_at,
+            isDeleted: q.is_deleted,
+            allowMultipleSelections: q.allow_multiple_selections,
+            answerImages: q.answer_images,
+            positionX: q.position_x,
+            positionY: q.position_y,
+            userId: q.user_id,
+            // Include the entire raw question object for complete data access
+            rawQuestionData: q
+          })),
+          leadData: leadData ? {
+            // Pass ALL data from the database record
+            ...leadData,
+            // Ensure nested objects are properly included
+            quoteData: leadData.quote_data || {},
+            productsData: leadData.products_data || {},
+            addonsData: leadData.addons_data || {},
+            surveyData: leadData.survey_data || {},
+            checkoutData: leadData.checkout_data || {},
+            enquiryData: leadData.enquiry_data || {},
+            successData: leadData.success_data || {},
+            formSubmissions: leadData.form_submissions || [],
+            saveQuoteData: leadData.save_quote_data || [],
+            esurveyData: leadData.esurvey_data || {},
+            callbackData: leadData.callback_data || {},
+            deviceInfo: leadData.device_info || {},
+            conversionEvents: leadData.conversion_events || [],
+            pageTimings: leadData.page_timings || {},
+            pagesCompleted: leadData.pages_completed || [],
+          } : null,
+          userMessage: inputValue.trim(),
+          // Include chat history for context
+          chatHistory: messages.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp.toISOString()
+          })),
+        };
+
+        // Store context data for debug
+        setDebugContextData(contextData);
+
+        const response = await fetch('/api/chatbot', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(contextData),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get response from chatbot');
+        }
+
+        const data = await response.json();
+        
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: data.response,
+          role: 'assistant',
+          timestamp: new Date(),
+        };
+
+        const finalMessages = [...updatedMessages, assistantMessage];
+        setMessages(finalMessages);
+        
+        // Save all messages to storage (database or local storage)
+        await saveMessagesToStorage(finalMessages);
       }
-
-      const data = await response.json();
-      
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: data.response,
-        role: 'assistant',
-        timestamp: new Date(),
-      };
-
-      const finalMessages = [...updatedMessages, assistantMessage];
-      setMessages(finalMessages);
-      
-      // Save all messages to storage (database or local storage)
-      await saveMessagesToStorage(finalMessages);
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
@@ -559,6 +831,61 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
     }
   };
 
+  // Helper to process to the next quote question or step
+  const processNextQuoteQuestion = async (currentFormValues: Record<string, any>, nextQuestionIndex: number) => {
+    if (nextQuestionIndex < activeQuoteQuestions.length) {
+      setCurrentQuestionIndex(nextQuestionIndex);
+      sendBotMessage(activeQuoteQuestions[nextQuestionIndex].question_text);
+    } else {
+      // All questions answered, move to postcode step
+      setCurrentQuoteStep(QuoteStep.POSTCODE);
+      sendBotMessage("Great! Now, what's your postcode?");
+    }
+    await saveMessagesToStorage(messages); // Save messages after bot replies
+    setIsLoading(false);
+  };
+
+  const handleSendMessageAsQuoteAnswer = async (questionId: string, option: any) => {
+    const optionText = typeof option === 'object' ? option.text : String(option);
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: optionText,
+      role: 'user',
+      timestamp: new Date(),
+    };
+
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    setInputValue('');
+    setIsLoading(true);
+    await saveMessagesToStorage(updatedMessages);
+
+    // Update form values
+    const currentQuestion = activeQuoteQuestions[currentQuestionIndex];
+    let newFormValues = { ...quoteFormValues };
+
+    if (currentQuestion?.is_multiple_choice && currentQuestion?.allow_multiple_selections) {
+      const currentAnswer = newFormValues[questionId] ? (newFormValues[questionId].split(', ') as string[]) : [];
+      if (currentAnswer.includes(optionText)) {
+        newFormValues[questionId] = currentAnswer.filter(item => item !== optionText).join(', ');
+      } else {
+        newFormValues[questionId] = [...currentAnswer, optionText].join(', ');
+      }
+    } else {
+      newFormValues[questionId] = optionText;
+    }
+    setQuoteFormValues(newFormValues);
+
+    // If multiple choice with multiple selections allowed, don't immediately go to next question on selection
+    if (currentQuestion?.is_multiple_choice && currentQuestion?.allow_multiple_selections) {
+      setIsLoading(false); // Stay on the same question, just update selection
+    } else {
+      // Process next question or step
+      await processNextQuoteQuestion(newFormValues, currentQuestionIndex + 1);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -566,10 +893,19 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const getPlaceholderText = () => {
+    if (isQuoteInProgress) {
+      if (currentQuoteStep === QuoteStep.QUESTIONS) {
+        return activeQuoteQuestions[currentQuestionIndex]?.question_text || "Type your answer...";
+      } else if (currentQuoteStep === QuoteStep.POSTCODE) {
+        return "Enter your postcode...";
+      } else if (currentQuoteStep === QuoteStep.USER_INFO) {
+        return "Enter your details (e.g., John Doe, john@example.com, 07...)";
+      }
+    }
+    return "Type your message...";
   };
-
+  
   return (
     <div className={cn(
       "fixed z-50 flex flex-col-reverse items-end justify-end",
@@ -580,16 +916,16 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
       className
     )}>
       {/* Chat Button */}
-      {showChatButton && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="m-2 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center pointer-events-auto" // Override with pointer-events-auto
-          style={{ backgroundColor: getDynamicColor() }}
-        >
-          <MessageCircle className="h-5 w-5 text-white" />
-        </button>
-      )}
-
+       {showChatButton && (
+         <button
+           onClick={() => setIsOpen(true)}
+           className="m-2 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center pointer-events-auto" // Override with pointer-events-auto
+           style={{ backgroundColor: getDynamicColor() }}
+         >
+           <MessageCircle className="h-5 w-5 text-white" />
+         </button>
+       )}
+  
       {/* Chat Window */}
       <div 
         ref={chatWindowRef}
@@ -778,8 +1114,56 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
               )}
             </ScrollArea>
 
-            {/* Input */}
+            {/* Input / Quote Buttons */}
             <div className="px-6 py-4 pt-0 border-gray-100">
+              {/* Render quote-specific buttons or inputs */}
+              {isQuoteInProgress && currentQuoteStep === QuoteStep.QUESTIONS && activeQuoteQuestions.length > 0 && (
+                <div className="flex flex-col space-y-2 mb-4">
+                  {activeQuoteQuestions[currentQuestionIndex]?.answer_options?.map((option: any, idx: number) => (
+                    <Button
+                      key={idx}
+                      variant="outline"
+                      onClick={() => handleSendMessageAsQuoteAnswer(activeQuoteQuestions[currentQuestionIndex].question_id, option)}
+                      className={cn(
+                        "w-full justify-start text-left",
+                        quoteFormValues[activeQuoteQuestions[currentQuestionIndex].question_id] === (option.text || option) || 
+                        (Array.isArray(quoteFormValues[activeQuoteQuestions[currentQuestionIndex].question_id]) && quoteFormValues[activeQuoteQuestions[currentQuestionIndex].question_id]?.includes(option.text || option))
+                          ? "bg-blue-50 text-blue-700 border-blue-200" : "hover:bg-gray-50"
+                      )}
+                    >
+                      {option.text || option}
+                    </Button>
+                  ))}
+                  {currentQuestionIndex > 0 && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+                      className="w-full justify-center text-sm text-gray-500 hover:bg-gray-100"
+                    >
+                      Previous Question
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Render postcode options if available */}
+              {isQuoteInProgress && currentQuoteStep === QuoteStep.POSTCODE && availableAddresses.length > 0 && (
+                <div className="flex flex-col space-y-2 mb-4">
+                  <p className="text-sm text-gray-500 mb-2">Please select your address:</p>
+                  {availableAddresses.map((address, idx) => (
+                    <Button
+                      key={idx}
+                      variant="outline"
+                      onClick={() => handleAddressSelection(address)}
+                      className="w-full justify-start text-left hover:bg-gray-50"
+                    >
+                      {address.formatted_address}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              
+              {/* Always render the input field and send button */}
               <div className="flex items-center space-x-3">
                 <div className="flex-1 relative">
                   <Input
@@ -787,7 +1171,7 @@ export default function Chatbot({ partnerInfo: propPartnerInfo, className }: Cha
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Type your message..."
+                    placeholder={getPlaceholderText()}
                     disabled={isLoading}
                     className="w-full px-4 py-3 pr-12 rounded-2xl border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                   />

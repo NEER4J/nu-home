@@ -53,6 +53,7 @@ export interface SelectedProductLite {
     price: number
     additional_cost: number
   } | null
+  current_price?: number // For solar products with calculated pricing
   [key: string]: any
 }
 
@@ -467,11 +468,17 @@ export default function OrderSummarySidebar({
   const [showCart, setShowCart] = useState(false)
 
   const basePrice = useMemo(() => {
+    // For solar products, use current_price if available (calculated with panel count)
+    if (selectedProduct?.current_price) {
+      return selectedProduct.current_price
+    }
+    // For boiler products, use selected_power price
     if (selectedProduct?.selected_power?.price) {
       return selectedProduct.selected_power.price
     }
+    // Fallback to product price
     return (typeof selectedProduct?.price === 'number' ? selectedProduct.price : 0)
-  }, [selectedProduct?.price, selectedProduct?.selected_power?.price])
+  }, [selectedProduct?.price, selectedProduct?.selected_power?.price, selectedProduct?.current_price])
 
   const addonsTotal = useMemo(() => selectedAddons.reduce((sum, a) => sum + a.quantity * a.price, 0), [selectedAddons])
   const bundlesTotal = useMemo(() => selectedBundles.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0), [selectedBundles])

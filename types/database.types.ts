@@ -120,7 +120,6 @@ export interface ConditionalDisplay {
   
 export interface FormQuestion {
   
-  conditions: any[];
   question_id: string;
   service_category_id: string;
   question_text: string;
@@ -147,6 +146,9 @@ export interface FormQuestion {
   ServiceCategories?: {
     name: string;
   };
+  position_x?: number; // Added property
+  position_y?: number; // Added property
+  user_id?: string; // Added property
 }
   
 export interface FormAnswer {

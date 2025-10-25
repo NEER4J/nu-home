@@ -71,6 +71,7 @@ export interface SelectedProductLite {
     price: number
     additional_cost: number
   } | null
+  current_price?: number // For solar products with calculated pricing
   [key: string]: any // Allow additional fields from product_info
 }
 
@@ -184,11 +185,17 @@ export default function AddonsLayout({
 
   const addonsTotal = useMemo(() => selectedAddonsList.reduce((sum, a) => sum + a.quantity * a.price, 0), [selectedAddonsList])
   const basePrice = useMemo(() => {
+    // For solar products, use current_price if available (calculated with panel count)
+    if (selectedProduct?.current_price) {
+      return selectedProduct.current_price
+    }
+    // For boiler products, use selected_power price
     if (selectedProduct?.selected_power?.price) {
       return selectedProduct.selected_power.price
     }
+    // Fallback to product price
     return (typeof selectedProduct?.price === 'number' ? selectedProduct.price : 0)
-  }, [selectedProduct?.price, selectedProduct?.selected_power?.price])
+  }, [selectedProduct?.price, selectedProduct?.selected_power?.price, selectedProduct?.current_price])
 
   const getBundleUnitPrice = (bundle: BundleLite): number => {
     const items = bundle.BundlesAddons || []
