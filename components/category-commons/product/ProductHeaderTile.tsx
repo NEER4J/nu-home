@@ -18,18 +18,19 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { FilterIcon, RotateCcw, ChevronDown, CheckIcon, CheckCircle, CheckCircle2 } from "lucide-react"
+import { FilterIcon, RotateCcw, ChevronDown, CheckIcon, CheckCircle, CheckCircle2, Plus, Minus } from "lucide-react"
 
 interface ProductHeaderTileProps {
   count: number
   postcode?: string | null
-  filterBedroom: string | null
-  filterBathroom: string | null
-  filterBoilerType: string | null
-  setFilterBedroom: (value: string | null) => void
-  setFilterBathroom: (value: string | null) => void
-  setFilterBoilerType: (value: string | null) => void
-  clearFilters: () => void
+  category?: 'boiler' | 'solar'
+  filterBedroom?: string | null
+  filterBathroom?: string | null
+  filterBoilerType?: string | null
+  setFilterBedroom?: (value: string | null) => void
+  setFilterBathroom?: (value: string | null) => void
+  setFilterBoilerType?: (value: string | null) => void
+  clearFilters?: () => void
   resetFiltersToSubmission?: () => void
   includedItems?: Array<any> | null
   nonIncludedItems?: Array<any> | null
@@ -46,6 +47,9 @@ interface ProductHeaderTileProps {
   // Layout controls
   isHorizontalLayout?: boolean
   onLayoutChange?: (isHorizontal: boolean) => void
+  // Solar panel count controls
+  panelCount?: number
+  onPanelCountChange?: (count: number) => void
 }
 
 function normalizeIncludedItem(entry: any) {
@@ -57,10 +61,29 @@ function normalizeIncludedItem(entry: any) {
   return { image, title, subtitle }
 }
 
+function getCategoryContent(category: string) {
+  switch (category.toLowerCase()) {
+    case 'solar':
+      return {
+        title: 'Thank You for Sharing Your Solar Needs With Us!',
+        description: (count: number) => `We found ${count} solar system${count !== 1 ? 's' : ''} tailored for you. Find information, customer testimonials, and easy online purchase options all in one place.`,
+        productLabel: 'solar system'
+      }
+    case 'boiler':
+    default:
+      return {
+        title: 'Thank You for Sharing Your Boiler Needs With Us!',
+        description: (count: number) => `We found ${count} boiler${count !== 1 ? 's' : ''} tailored for you. Find information, customer testimonials, and easy online purchase options all in one place.`,
+        productLabel: 'boiler'
+      }
+  }
+}
+
 export default function ProductHeaderTile(props: ProductHeaderTileProps) {
   const {
     count,
     postcode,
+    category = 'boiler',
     filterBedroom,
     filterBathroom,
     filterBoilerType,
@@ -82,6 +105,8 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
     onSaveQuoteOpen,
     isHorizontalLayout = true,
     onLayoutChange,
+    panelCount = 9,
+    onPanelCountChange,
   } = props
 
   const [showIncluded, setShowIncluded] = useState(false)
@@ -92,6 +117,9 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
   const [saveType, setSaveType] = useState<'all_products' | 'single_product'>('all_products')
   const [detailedProductData, setDetailedProductData] = useState<any>(null)
   const [detailedAllProductsData, setDetailedAllProductsData] = useState<any[]>([])
+
+  // Get category-specific content
+  const categoryContent = getCategoryContent(category)
 
   // Handle custom event for opening save quote dialog
   useEffect(() => {
@@ -149,136 +177,175 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
     <div className="max-w-[1500px] mx-auto md:px-6 px-4 py-6 ">
               <div className="md:mb-7 mb-4">
                 <h1 className="md:text-2xl text-xl font-semibold text-gray-900 mb-2">
-                  Thank You for Sharing Your Boiler Needs With Us!
+                  {categoryContent.title}
                 </h1>
                 <p className="md:text-lg text-base text-gray-700">
-                  We found <span className="font-semibold text-gray-900">{count}</span> boiler{count !== 1 ? 's' : ''} tailored for you. Find information, customer testimonials, and easy online purchase options all in one place.
+                  {categoryContent.description(count)}
                 </p>
               </div>
 
       <div className="flex gap-4 justify-between flex-wrap">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full md:w-auto">
 
-          <div className='flex gap-2 items-center w-full'>
-            <div className="flex items-center gap-2 bg-white rounded-full p-1 border border-gray-100 w-full">
-              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm hover:bg-gray-200 cursor-default">
-                <span className="hidden sm:inline text-nowrap">{bedroomLabel.full}</span>
-                <span className="sm:hidden">{bedroomLabel.short}</span>
-              </Badge>
-              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm hover:bg-gray-200 cursor-default">
-                <span className="hidden sm:inline text-nowrap">{bathroomLabel.full}</span>
-                <span className="sm:hidden">{bathroomLabel.short}</span>
-              </Badge>
-              <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm hover:bg-gray-200 cursor-default">
-                <span className="hidden sm:inline text-nowrap">in {postcode || 'your area'}</span>
-                <span className="sm:hidden">in {postcode ? postcode.substring(0, 4) : 'area'}</span>
-              </Badge>
-              
-              <DropdownMenu onOpenChange={setIsFilterOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    aria-label="Edit filters"
-                    variant="ghost"
-                    size="sm"
-                    className="px-2 w-8 md:h-8 h-6"
-                  >
-                    {isFilterOpen ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <FilterIcon className="w-4 h-4" />
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  className="w-[calc(100vw-2rem)] md:w-96 p-4 bg-white border border-gray-200 rounded-lg shadow-lg max-w-[320px] md:max-w-none"
-                  sideOffset={8}
-                  side="bottom"
-                  align="start"
+          {/* Panel Count Selector for Solar */}
+          {category === 'solar' && onPanelCountChange && (
+            <div className="flex gap-2 items-center">
+              <h3 className="">
+                  <span className="text-sm font-medium text-gray-700">Recommended system size</span>
+              </h3>
+              <div className="flex items-center gap-2 bg-white rounded-full p-1 border border-gray-100">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => onPanelCountChange(Math.max(1, panelCount - 1))}
+                  className="w-10 h-10 rounded-full p-0 bg-gray-300 hover:bg-gray-400"
+                  disabled={panelCount <= 1}
                 >
-                  <div className="space-y-4">
-                    {/* Boiler Type */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Boiler type:</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {['combi', 'regular', 'system'].map((type) => (
-                          <Button
-                            key={type}
-                            onClick={() => setFilterBoilerType(filterBoilerType === type ? null : type)}
-                            variant={filterBoilerType === type ? "default" : "outline"}
-                            size="sm"
-                            className="px-2 py-1 rounded-full text-xs font-medium"
-                            style={filterBoilerType === type ? { backgroundColor: brandColor } : {}}
-                          >
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </Button>
-                        ))}
+                  <Minus className="w-4 h-4" />
+                </Button>
+                <div className="px-6 py-1 text-center">
+                  <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{panelCount}x panels</span>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => onPanelCountChange(panelCount + 1)}
+                  className="w-10 h-10 rounded-full p-0 bg-gray-300 hover:bg-gray-400"
+                  disabled={panelCount >= 50}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+          <div className='flex gap-2 items-center w-full'>
+            {category === 'boiler' ? (
+              <div className="flex items-center gap-2 bg-white rounded-full p-1 border border-gray-100 w-full">
+                <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm hover:bg-gray-200 cursor-default">
+                  <span className="hidden sm:inline text-nowrap">{bedroomLabel.full}</span>
+                  <span className="sm:hidden">{bedroomLabel.short}</span>
+                </Badge>
+                <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm hover:bg-gray-200 cursor-default">
+                  <span className="hidden sm:inline text-nowrap">{bathroomLabel.full}</span>
+                  <span className="sm:hidden">{bathroomLabel.short}</span>
+                </Badge>
+                {category === 'boiler' && (
+                  <Badge variant="secondary" className="inline-flex items-center justify-center px-3 py-2 bg-gray-200 text-gray-600 w-full text-center text-sm hover:bg-gray-200 cursor-default">
+                    <span className="hidden sm:inline text-nowrap">in {postcode || 'your area'}</span>
+                    <span className="sm:hidden">in {postcode ? postcode.substring(0, 4) : 'area'}</span>
+                  </Badge>
+                )}
+                
+                <DropdownMenu onOpenChange={setIsFilterOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      aria-label="Edit filters"
+                      variant="ghost"
+                      size="sm"
+                      className="px-2 w-8 md:h-8 h-6"
+                    >
+                      {isFilterOpen ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <FilterIcon className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    className="w-[calc(100vw-2rem)] md:w-96 p-4 bg-white border border-gray-200 rounded-lg shadow-lg max-w-[320px] md:max-w-none"
+                    sideOffset={8}
+                    side="bottom"
+                    align="start"
+                  >
+                    <div className="space-y-4">
+                      {/* Boiler Type */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Boiler type:</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {['combi', 'regular', 'system'].map((type) => (
+                            <Button
+                              key={type}
+                              onClick={() => setFilterBoilerType?.(filterBoilerType === type ? null : type)}
+                              variant={filterBoilerType === type ? "default" : "outline"}
+                              size="sm"
+                              className="px-2 py-1 rounded-full text-xs font-medium"
+                              style={filterBoilerType === type ? { backgroundColor: brandColor } : {}}
+                            >
+                              {type.charAt(0).toUpperCase() + type.slice(1)}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Bedrooms */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Bedrooms:</label>
-                      <div className="grid grid-cols-6 gap-2">
-                        {['1', '2', '3', '4', '5', '6+'].map((b) => (
-                          <Button
-                            key={b}
-                            onClick={() => setFilterBedroom(filterBedroom === b ? null : b)}
-                            variant={filterBedroom === b ? "default" : "outline"}
-                            size="sm"
-                            className="px-2 py-1 rounded-full text-xs font-medium"
-                            style={filterBedroom === b ? { backgroundColor: brandColor } : {}}
-                          >
-                            {b}
-                          </Button>
-                        ))}
+                      {/* Bedrooms */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Bedrooms:</label>
+                        <div className="grid grid-cols-6 gap-2">
+                          {['1', '2', '3', '4', '5', '6+'].map((b) => (
+                            <Button
+                              key={b}
+                              onClick={() => setFilterBedroom?.(filterBedroom === b ? null : b)}
+                              variant={filterBedroom === b ? "default" : "outline"}
+                              size="sm"
+                              className="px-2 py-1 rounded-full text-xs font-medium"
+                              style={filterBedroom === b ? { backgroundColor: brandColor } : {}}
+                            >
+                              {b}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Bathrooms */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Bathrooms:</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {['1', '2', '3', '4+'].map((b) => (
-                          <Button
-                            key={b}
-                            onClick={() => setFilterBathroom(filterBathroom === b ? null : b)}
-                            variant={filterBathroom === b ? "default" : "outline"}
-                            size="sm"
-                            className="px-2 py-1 rounded-full text-xs font-medium"
-                            style={filterBathroom === b ? { backgroundColor: brandColor } : {}}
-                          >
-                            {b}
-                          </Button>
-                        ))}
+                      {/* Bathrooms */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Bathrooms:</label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {['1', '2', '3', '4+'].map((b) => (
+                            <Button
+                              key={b}
+                              onClick={() => setFilterBathroom?.(filterBathroom === b ? null : b)}
+                              variant={filterBathroom === b ? "default" : "outline"}
+                              size="sm"
+                              className="px-2 py-1 rounded-full text-xs font-medium"
+                              style={filterBathroom === b ? { backgroundColor: brandColor } : {}}
+                            >
+                              {b}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100">
-                      {resetFiltersToSubmission && (
+                      {/* Action Buttons */}
+                      <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100">
+                        {resetFiltersToSubmission && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={resetFiltersToSubmission}
+                            className="text-xs"
+                          >
+                            Reset to submission
+                          </Button>
+                        )}
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={resetFiltersToSubmission}
+                          onClick={clearFilters}
                           className="text-xs"
                         >
-                          Reset to submission
+                          Clear filters
                         </Button>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={clearFilters}
-                        className="text-xs"
-                      >
-                        Clear filters
-                      </Button>
+                      </div>
                     </div>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-             
-            </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+               
+              </div>
+            ) : (
+              <div className="">
+                {/* No postcode display for solar category */}
+              </div>
+            )}
             {onRestart && (
               <Button variant="outline" className='border-none bg-gray-200 rounded-full p-3 hover:bg-gray-300' onClick={handleRestart}>
                 <RotateCcw className="w-4 h-4" />

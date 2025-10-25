@@ -8,7 +8,7 @@ import { ChevronLeft } from 'lucide-react';
 import PostcodeStep from '@/components/category-commons/quote/PostcodeStep';
 import UserInfoForm from '@/components/category-commons/quote/UserInfoForm';
 import QuoteFormSteps from '@/components/category-commons/quote/QuoteFormSteps';
-import RoofMappingStep from '@/components/category-commons/quote/RoofMappingStep';
+// RoofMappingStep import removed - component kept for future use
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles';
 import { resolvePartnerByHost, type PartnerProfile } from '@/lib/partner';
 import { QuoteLoader } from '@/components/category-commons/Loader';
@@ -191,7 +191,7 @@ export default function SolarQuotePage({
   const [showOtpScreen, setShowOtpScreen] = useState<boolean>(false);
   const [pageStartTime, setPageStartTime] = useState<number>(Date.now());
   const [emailSent, setEmailSent] = useState<boolean>(false);
-  const [roofMappingData, setRoofMappingData] = useState<any>(null);
+  // roofMappingData state removed - no longer needed
   const supabase = createClient();
 
   // Background database save function (non-blocking)
@@ -369,33 +369,7 @@ export default function SolarQuotePage({
   const effectivePartner = partnerInfo || partnerInfoFromDomain;
   const classes = useDynamicStyles(effectivePartner?.company_color || null);
 
-  // Upload roof mapping image to Supabase
-  const uploadRoofMappingImage = async (submissionId: string, imageData: string) => {
-    try {
-      const response = await fetch('/api/roof-mapping/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          submissionId,
-          imageData
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload image');
-      }
-
-      const result = await response.json();
-      console.log('Roof mapping image uploaded:', result.imageUrl);
-      return result.imageUrl;
-    } catch (error) {
-      console.error('Error uploading roof mapping image:', error);
-      throw error;
-    }
-  }; 
+  // Roof mapping image upload function removed - no longer needed 
 
   // Initialize session tracking
   useEffect(() => {
@@ -558,8 +532,8 @@ export default function SolarQuotePage({
   // Compute the list of step numbers with active questions
   const activeSteps = Array.from(new Set(activeQuestions.map(q => q.step_number))).sort((a, b) => a - b);
   
-  // Get total steps (active question steps + postcode + roof mapping + contact details)
-  const totalSteps = activeSteps.length + 3;
+  // Get total steps (active question steps + postcode + contact details)
+  const totalSteps = activeSteps.length + 2;
 
 
   // Handle value changes
@@ -664,11 +638,7 @@ export default function SolarQuotePage({
     }
   };
 
-  // Handle roof mapping completion
-  const handleRoofMappingComplete = (mappingData: any) => {
-    setRoofMappingData(mappingData);
-    console.log('Roof mapping completed:', mappingData);
-  };
+  // Roof mapping completion handler removed - no longer needed
 
   // Handle next step
   const handleNextStep = () => {
@@ -743,10 +713,7 @@ export default function SolarQuotePage({
           formatted_address: selectedAddress.formatted_address,
           address_type: 'residential'
         }),
-        // Include roof mapping data if available
-        ...(roofMappingData && {
-          roof_mapping_data: roofMappingData
-        })
+        // Roof mapping data removed - no longer included
       };
       
       const apiUrl = new URL('/api/quote-submissions', window.location.origin);
@@ -773,15 +740,7 @@ export default function SolarQuotePage({
       // Set submission ID for tracking
       setSubmissionId(result.data.submission_id);
 
-      // Upload roof mapping image to Supabase if available
-      if (roofMappingData?.roofImage) {
-        try {
-          await uploadRoofMappingImage(result.data.submission_id, roofMappingData.roofImage);
-          console.log('✅ Roof mapping image uploaded successfully');
-        } catch (error) {
-          console.error('❌ Failed to upload roof mapping image:', error);
-        }
-      }
+      // Roof mapping image upload removed - no longer needed
 
       // Save initial quote data to lead_submission_data in background (non-blocking)
       const finalEffectivePartnerId = partnerInfo?.user_id || partnerId || partnerInfoFromDomain?.user_id;
@@ -1056,16 +1015,6 @@ export default function SolarQuotePage({
       );
     } else if (currentStep === activeSteps.length + 2) {
       return (
-        <RoofMappingStep
-          selectedAddress={selectedAddress}
-          onNext={handleNextStep}
-          onPrevious={handlePrevStep}
-          companyColor={getDynamicColor()}
-          onRoofMappingComplete={handleRoofMappingComplete}
-        />
-      );
-    } else if (currentStep === activeSteps.length + 3) {
-      return (
         <div className="mt-6 lg:mt-8 max-w-lg mx-auto">
           <UserInfoForm
             initialUserInfo={userInfo}
@@ -1134,23 +1083,15 @@ export default function SolarQuotePage({
       </div>
 
       {/* Main Content */}
-      {currentStep === activeSteps.length + 2 ? (
-        // Full screen for roof mapping
-        <main className="flex-1">
+      <main className="flex-1 flex items-start justify-center px-6 py-16 lg:py-24">
+        <div className="w-full max-w-3xl">
+          {/* Question/Step Content */}
+          {getCurrentStepContent()}
+          
+          {/* Form */}
           {getCurrentStepForm()}
-        </main>
-      ) : (
-        // Normal layout for other steps
-        <main className="flex-1 flex items-start justify-center px-6 py-16 lg:py-24">
-          <div className="w-full max-w-3xl">
-            {/* Question/Step Content */}
-            {getCurrentStepContent()}
-            
-            {/* Form */}
-            {getCurrentStepForm()}
-          </div>
-        </main>
-      )}
+        </div>
+      </main>
 
       {/* Back Button - Bottom Left Corner */}
       {currentStep > 1 && (

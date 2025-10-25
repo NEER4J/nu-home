@@ -71,3 +71,40 @@ export async function exportLeadsToCSV(filters: {
     throw error;
   }
 }
+
+export async function deletePartnerProduct(formData: FormData) {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    const productId = formData.get('productId') as string;
+    
+    if (!productId) {
+      return { success: false, error: 'Product ID is required' };
+    }
+
+    // Delete the partner product (RLS policy ensures user can only delete their own products)
+    const { error } = await supabase
+      .from('PartnerProducts')
+      .delete()
+      .eq('partner_product_id', productId)
+      .eq('partner_id', user.id); // Extra safety check
+    
+    if (error) {
+      console.error('Error deleting partner product:', error);
+      return { success: false, error: error.message };
+    }
+    
+    revalidatePath('/partner/my-products');
+    return { success: true };
+  } catch (error) {
+    console.error('Error:', error);
+    return { success: false, error: 'Failed to delete product' };
+  }
+}

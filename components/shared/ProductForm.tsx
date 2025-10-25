@@ -6,7 +6,7 @@ import { createProduct, updateProduct } from '@/lib/products-actions';
 import { Product } from '@/types/product.types';
 import { ServiceCategory } from '@/types/database.types';
 import { CategoryField } from '@/types/product.types';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import Image from 'next/image';
 import { Loader2, PlusCircle, X, Upload, Save, AlertTriangle, Settings, ImageIcon } from 'lucide-react';
 import { SubmitButton } from '@/components/submit-button';
@@ -105,9 +105,17 @@ export function ProductForm({
   // Check session validity
   useEffect(() => {
     const checkSession = async () => {
-      const supabase = createClientComponentClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsSessionValid(!!user);
+      const supabase = createClient();
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error || !user) {
+        console.error("Authentication error:", error);
+        setIsSessionValid(false);
+        router.push('/sign-in');
+        return;
+      }
+      
+      setIsSessionValid(true);
     };
     checkSession();
   }, []);
@@ -690,11 +698,12 @@ export function ProductForm({
       
       if (isPartner) {
         // Partner-specific form handling using Supabase directly
-        const supabase = createClientComponentClient();
+        const supabase = createClient();
         
         // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          console.error("Authentication error:", authError);
           throw new Error('User not authenticated');
         }
         
