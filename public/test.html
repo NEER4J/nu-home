@@ -1,67 +1,1810 @@
-[webuildtrades@mimosa ~]$ sed -n '1,100p' public_html/wp-content/maintenance.php
 <?php
+/**
+ * Template Name: App Part II Ram with new question
+ * @package kadence
+ */
 
-//  ATTENTION!
-//
-//  DO NOT MODIFY THIS FILE BECAUSE IT WAS GENERATED AUTOMATICALLY,
-//  SO ALL YOUR CHANGES WILL BE LOST THE NEXT TIME THE FILE IS GENERATED.
-//  IF YOU REQUIRE TO APPLY CUSTOM MODIFICATIONS, PERFORM THEM IN THE FOLLOWING FILE:
-//  /home/webuildtrades/public_html/wp-content/maintenance/template.phtml
+get_header();
 
-
-$protocol = $_SERVER['SERVER_PROTOCOL'];
-if ('HTTP/1.1' != $protocol && 'HTTP/1.0' != $protocol) {
-    $protocol = 'HTTP/1.0';
-}
-
-header("{$protocol} 503 Service Unavailable", true, 503);
-header('Content-Type: text/html; charset=utf-8');
-header('Retry-After: 600');
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
-    <link rel="icon" href="https://webuildtrades.com/wp-content/uploads/cropped-wbt-favicon-32x32.png">
-    <link rel="stylesheet" href="https://webuildtrades.com/wp-content/maintenance/assets/styles.css">
-    <script src="https://webuildtrades.com/wp-content/maintenance/assets/timer.js"></script>
-    <title>Scheduled Maintenance</title>
-</head>
+    <style>
+        .content-area{
+            background-image: url(/wp-content/uploads/bg1.png);
+            padding: 1px;
+            padding-top: 65px;
+            min-height: 100vh;
+        }
 
-<body>
+        .content-container{
+            max-width: 1100px !important;
+            margin: auto !important;
+        }
 
-    <div class="container">
+        .remove-in-call{
+            display: none !important;
+        }
 
-    <header class="header">
-        <h1>The website is undergoing scheduled maintenance.</h1>
-        <h2>Sorry for the inconvenience. Come back a bit later, we will be ready soon!</h2>
-    </header>
+        .radionBtnWithImg label .img-flag1.lpg_mt img{
+            width: 40%;
+        }
 
-    <!--START_TIMER_BLOCK-->
-        <!--END_TIMER_BLOCK-->
+        .CurrnyIsNow {
+            font-family: 'Roboto';
+            font-size: 18px !important;
+            margin-right: 0 !important;
+            font-weight: normal !important;
+        }
 
-    <!--START_SOCIAL_LINKS_BLOCK-->
-    <section class="social-links">
-                    <a class="social-links__link" href="https://www.facebook.com/cPanel" target="_blank" title="Facebook">
-                <span class="icon"><img src="https://webuildtrades.com/wp-content/maintenance/assets/images/facebook.svg" alt="Facebook"></span>
-            </a>
-                    <a class="social-links__link" href="https://x.com/cPanel" target="_blank" title="Twitter">
-                <span class="icon"><img src="https://webuildtrades.com/wp-content/maintenance/assets/images/twitter.svg" alt="Twitter"></span>
-            </a>
-                    <a class="social-links__link" href="https://instagram.com/cPanel" target="_blank" title="Instagram">
-                <span class="icon"><img src="https://webuildtrades.com/wp-content/maintenance/assets/images/instagram.svg" alt="Instagram"></span>
-            </a>
-            </section>
-    <!--END_SOCIAL_LINKS_BLOCK-->
+       #section2{
+       display:none;
+     }
+    </style>
 
-</div>
+    <link rel="stylesheet" href="<?= get_stylesheet_directory_uri() ?>/css/quote-updt.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" referrerpolicy="no-referrer" />
 
-<footer class="footer">
-    <div class="footer__content">
-        Powered by WP Toolkit    </div>
-</footer>
+  
 
-</body>
-</html>
+    <div id="primary" class="content-area" >
+        <div class="content-container site-container">
+            <main id="main" class="site-main" role="main">
+                <div class="content-wrap">
+                    <div class="bg_main">
+                        <!-- multistep form -->
+                        
+                        <form id="msform" method="post">
+            
+                            <div class="dq_progress">
+                                <div class="progressbar-container">
+                                    <ul class="progressbar">                                    
+                                        <!-- <li style="display: none;" id="step1"><span class="step_txt">Step 1</span></li> -->
+                                        <li id="step2" name="business" class="active"><!-- <span class="step_txt">Step 1</span> --></li>
+                                        <li id="step3" name="marketing"><!-- <span class="step_txt">Step 2</span> --></li>
+                                        <li id="step4" name="country"><!-- <span class="step_txt">Step 3</span> --></li>
+                                        <li id="step5"name="monthlyRevenue"><!-- <span class="step_txt">Step 4</span> --></li>
+                                        <li id="step6"name="targetRevenue"><!-- <span class="step_txt">Step 5</span> --></li>
+                                        <li id="step7" name="newLead"><!-- <span class="step_txt">Step 6</span> --></li>
+                                        <li id="step8" name="LeadCustomer"><!-- <span class="step_txt">Step 7</span> --></li>
+                                        <li id="step9" name="customerWorth"><!-- <span class="step_txt">Step 8</span> --></li>
+                                        <li id="step10" name="bestDescribe"><!-- <span class="step_txt">Step 9</span> --></li>
+                                        <!-- <li id="step11" name="biggestThing"><span class="step_txt"  >Step 10</span></li> -->
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div id="topup-message">
+							<div class="formQuestionTab content-is-centered">
+                                <div id="bg_subtil">EXCLUSIVELY FOR TRADE BUSINESS OWNERS</div>
+                            
+                            
+                                    <h2 class="formQuestionTitle">FREE 20-MINUTE BUSINESS GROWTH DISCOVERY CALL</h2>
+<p class="first-p">All information is kept confidential and will only be used for our team to access if we are a good fit.
+
+</p>	</div>
+                                 <button class="action-button get-start btn-float" onclick="startQuestions()"> Get Started </button>  
+                              <span class="btm-pp"><i class="fa-solid fa-clock"></i>  Takes 2 minutes to complete</span>
+
+                            </div>
+
+
+                            <!--1. Select industry start -->
+                            <fieldset class=""  id="section2" >
+                                <!--<div class="chart-img"><img class="aligncenter" src="/img/industry-business.png"></div>-->
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">To begin your application, can you tell us what industry your business is in?</h3>
+                                    <!-- <p class="form-para">begin your application, can you tell us what industry your business is in?</p> -->
+                                </div>
+                                <div class="select-box grid-4 radionBtnWithImg industry-business">
+                                    <label title="Plumbing">
+                                        <input type="radio" name="business_industry" class="liveRadio" value="Plumbing">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/plumbing-icon.png" alt="Plumbing"> Plumbing </div>
+                                    </label>
+                                    <label title="HVAC">
+                                        <input type="radio" name="business_industry" class="liveRadio" value="HVAC">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/hvac-icon.png" alt="HVAC"> HVAC </div>
+                                    </label>
+                                    <label title="Electrical">
+                                        <input type="radio" name="business_industry" class="liveRadio" value="Electrical">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/electrical-icon.png" alt="Electrical"> Electrical </div>
+                                    </label>
+                                    <label title="Roofing">
+                                        <input type="radio" name="business_industry" class="liveRadio" value="Roofing">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/roofing-icon.png" alt="Roofing"> Roofing </div>
+                                    </label>
+                                    <label title="Moving Services">
+                                        <input type="radio" name="business_industry" class="liveRadio" value="Moving Services">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/moving-service-icon.png" alt="Moving Services"> Moving Services </div>
+                                    </label>
+                                    <label title="Landscaping">
+                                        <input type="radio" name="business_industry" class="liveRadio" value="Landscaping">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/landscaping-icon.png" alt="Landscaping"> Landscaping </div>
+                                    </label>
+                                    <label title="Restoration Services">
+                                        <input type="radio" name="business_industry" class="liveRadio" value="Restoration Services">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/restroration-service-icon.png" alt="Restoration Services"> Restoration Services </div>
+                                    </label>
+                                    <label title="Other Home Services">
+                                        <input type="radio" name="business_industry" class="liveRadio" value="Other Home Services">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/home-service-icon.png" alt="Other Home Services"> Other Home Services </div>
+                                    </label>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <!-- <button type="button" name="section2previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </button> -->
+                                    <!-- <input type="button" name="next" class="next action-button custom_next liveRadio" value="Next" /> -->
+                                </div>
+                            </fieldset>
+
+                            <!--2. Marketing Type -->
+                            <fieldset style="display:none" id="section3">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">Which types of marketing do you currently use?</h3>
+                                    <p class="form-para">(Select more than one if applicable:)</p>
+                                </div>
+                                                                
+                                <div class="select-box radionBtnWithImg grid-4">                                
+                                    <label title="Facebook Ads">
+                                        <input type="checkbox" name="marketing_type[]" value="Facebook Ads" class="liveCheckbox">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/facebook-icon.png" alt="Facebook"> Facebook Ads </div>
+                                    </label>
+                                    <label title="Google Ads">
+                                        <input type="checkbox" name="marketing_type[]" value="Google Ads" class="liveCheckbox">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/google-icon.png" alt="Google Ads"> Google Ads </div>
+                                    </label>
+                                    <label title="SEO">
+                                        <input type="checkbox" name="marketing_type[]" value="SEO" class="liveCheckbox">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/seo-icon.png" alt="SEO"> SEO </div>
+                                    </label>
+                                    <label title="ONLINE DIRECTORIES">
+                                        <input type="checkbox" name="marketing_type[]" value="Online Directories" class="liveCheckbox">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/online-directory.png" alt="online-directory"> Online Directories </div>
+                                    </label>
+                                    <label title="LEAD GEN COMPANY">
+                                        <input type="checkbox" name="marketing_type[]" value="LEAD GEN COMPANY" class="liveCheckbox">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/led-gen.png" alt="led-gen"> Lead Gen Company</div>
+                                    </label>
+                                    <label title="Print">
+                                        <input type="checkbox" name="marketing_type[]" value="Print" class="liveCheckbox">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/print-icon.png" alt="Print"> Print </div>
+                                    </label>
+                                    <label title="Other">
+                                        <input type="checkbox" name="marketing_type[]" value="Other" class="liveCheckbox">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/other-icon.png" alt="Other"> Other </div>
+                                    </label>
+                                    <label title="None">
+                                        <input type="checkbox" name="marketing_type[]" value="None" class="liveCheckbox">
+                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/img/none-icon.png" alt="None"> None </div>
+                                    </label>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section3previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <input type="button" name="section3next" class="next action-button custom_next liveRadio" value="Next" /> </div>
+                            </fieldset>
+
+                            <!-- 3.1 Country -->
+                            <fieldset style="display:none" id="section3_1">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">We can only currently work with companies in the following countries.</h3>
+                                    <p class="form-para">(Please select where you are based:)</p>
+                                </div>
+
+                                <div class="select-box radionBtnWithImg grid-3 m_goal">
+                                    
+                                    <label title="UnitedKingdom">                                       
+                                        <div class="img-flag1 lpg_mt" onclick="getctype('£', 'united-kingdom')"> 
+                                            <img src="<?= get_stylesheet_directory_uri(); ?>/Flags/united-kingdom.jpg"> <span>United Kingdom</span>
+                                        </div>
+                                    </label>    
+
+                                    <label title="united-states">                                       
+                                        <div class="img-flag1 lpg_mt" onclick="getctype('$', 'united-states')"> 
+                                            <img src="<?= get_stylesheet_directory_uri(); ?>/Flags/united-states.jpg">
+                                            <span>United States</span> 
+                                        </div>
+                                    </label>
+                                    <label title="canada">                                      
+                                        <div class="img-flag1 lpg_mt" onclick="getctype('$', 'canada')"> <img src="<?= get_stylesheet_directory_uri(); ?>/Flags/canada.jpg"><span>Canada</span></div>
+                                    </label>
+                                    <label title="australia">                                       
+                                        <div class="img-flag1 lpg_mt" onclick="getctype('$', 'australia')"> <img src="<?= get_stylesheet_directory_uri(); ?>/Flags/australia.jpg"><span>Australia</span></div>
+                                    </label>
+                                    <label title="new-zealand">                                     
+                                        <div class="img-flag1 lpg_mt" onclick="getctype('$', 'New-Zealand')"> <img src="<?= get_stylesheet_directory_uri(); ?>/Flags/new-zealand.jpg"><span>New Zealand</span></div>
+                                    </label>
+                                    <label title="new-zealand">                                     
+                                        <div class="img-flag1 lpg_mt" onclick="getctype('€', 'Ireland')"> <img src="<?= get_stylesheet_directory_uri(); ?>/Flags/ireland-flag.png"><span>Ireland</span></div>
+                                    </label>
+                                    <label title="other">                                       
+                                        <div class="img-flag1 lpg_mt" onclick="getctype('0', 'other')"> <img src="<?= get_stylesheet_directory_uri(); ?>/Flags/other-location.jpg"><span>Other</span></div>
+                                    </label>                                    
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section3-1previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <!-- <input type="button" name="section3_1next" class="next action-button custom_next liveRadio" value="Next" /> </div> -->
+                            </fieldset>
+
+                            <!--4 monthly_revenue-->
+                            <fieldset style="display:none" id="section4">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">What is your average monthly revenue?</h3>
+                                </div>
+
+                                <div class="select-box">
+                                    <div class="range-slider-value-caontainer">
+                                        <div id="range-slide-value">
+                                            <span class='CurrnyIsNow'></span>0000</div>
+                                    </div>
+                                    <div class="slidecontainer">
+                                        <input type="range" min="1000" max="100000" value="1000" class="slider" id="customer_monthly_revenue" step="50"> </div>
+                                </div>
+                                
+                                <p style="font-size: 16px;">Adjust your revenue by sliding the bar left or right.</p>
+                                
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section4previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <input type="button" name="section4next" class="next action-button custom_next1 liveRadio monthly_revenue" value="Next" /> </div>
+                            </fieldset>
+
+                            <!--5 monthly_revenue_goal-->
+                            <fieldset style="display:none" id="section5">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">What is your target monthly revenue goal?</h3>
+                                </div>
+
+                                <div class="select-box grid-2 m_goal">
+                                    <label title="<span class='CurrnyIsNow'></span>5,000-<span class='CurrnyIsNow'></span>20,000">
+                                        <input type="radio" name="monthly_revenue_goal" class="liveRadio" value="5,000-20,000" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>5,000 - <span class='CurrnyIsNow'></span>20,000</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>20,000-<span class='CurrnyIsNow'></span>50,000">
+                                        <input type="radio" name="monthly_revenue_goal" class="liveRadio" value="20,000-50,000" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>20,000 - <span class='CurrnyIsNow'></span>50,000</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>50,000-<span class='CurrnyIsNow'></span>100,000">
+                                        <input type="radio" name="monthly_revenue_goal" class="liveRadio" value="50,000-100,000" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>50,000 - <span class='CurrnyIsNow'></span>100,000</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>100,000-<span class='CurrnyIsNow'></span>250,000">
+                                        <input type="radio" name="monthly_revenue_goal" class="liveRadio" value="100,000-250,000" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>100,000 - <span class='CurrnyIsNow'></span>250,000</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>250,000-<span class='CurrnyIsNow'></span>500,000">
+                                        <input type="radio" name="monthly_revenue_goal" class="liveRadio" value="250,000-500,000" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>250,000 - <span class='CurrnyIsNow'></span>500,000</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>500,000+">
+                                        <input type="radio" name="monthly_revenue_goal" class="liveRadio" value="500,000+" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>500,000 + </span> </div>
+                                    </label>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section5previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <!--<input type="button" name="section5next" class="next action-button custom_next monthly_revenue_" value="Next" />-->
+                                    <div>
+                            </fieldset>
+                            
+                            <!--6 average leads-->
+                            <fieldset style="display:none" id="section6">
+                               
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">On average, how many new leads are you getting per month?</h3>
+                                </div>
+
+                                <div class="select-box grid-2 m_goal">
+                                    <label title="Less than 10">
+                                        <input type="radio" name="monthly_marketing_budget" class="liveRadio" value="Less than 10" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">Less than 10</span> </div>
+                                    </label>
+                                    <label title="10-20">
+                                        <input type="radio" name="monthly_marketing_budget" class="liveRadio" value="10-20" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">10 - 20</span> </div>
+                                    </label>
+                                    <label title="20-30">
+                                        <input type="radio" name="monthly_marketing_budget" class="liveRadio" value="20-30" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">20 - 30</span> </div>
+                                    </label>
+                                    <label title="30-40">
+                                        <input type="radio" name="monthly_marketing_budget" class="liveRadio" value="30-40" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"> 30 - 40 </div>
+                                    </label>
+                                    <label title="40-50">
+                                        <input type="radio" name="monthly_marketing_budget" class="liveRadio" value="40-50" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"> 40 - 50 </div>
+                                    </label>
+                                    <label title="50+">
+                                        <input type="radio" name="monthly_marketing_budget" class="liveRadio" value="50+" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">50 +</span> </div>
+                                    </label>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section6previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                </div>
+                            </fieldset>
+
+                            <!-- 7. % Lead Convert to customers -->
+                            <fieldset style="display:none" id="section7">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">Based on your answer to the previous question, out of those new leads, how many do you convert into customers?</h3>
+                                </div>
+                                
+                                <div class="select-box grid-2 m_goal">
+                                    <label title="Less than 10%">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="Less than 10%" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">Less than 10%</span> </div>
+                                    </label>
+                                    <label title="10%">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="10%" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">10%</span> </div>
+                                    </label>
+                                    <label title="20%">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="20%" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">20%</span> </div>
+                                    </label>
+                                    <label title="30%">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="30%" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">30%</span> </div>
+                                    </label>
+                                    <label title="40%">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="40%" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">40%</span> </div>
+                                    </label>
+                                    <label title="50%">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="50%" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">50%</span> </div>
+                                    </label>
+                                    <label title="60%">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="60%" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">60%</span> </div>
+                                    </label>
+                                    <label title="70%">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="70%" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">70%</span> </div>
+                                    </label>
+                                    <label title="80%+">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="80%+" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">80%+</span> </div>
+                                    </label>
+                                    <label title="Not sure">
+                                        <input type="radio" name="percentage_leads" class="liveRadio" value="Not sure" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">Not sure</span> </div>
+                                    </label>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section7previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <!--<input type="button" name="section8next" class="next action-button custom_next" value="Next" />-->
+                                </div>
+                            </fieldset>
+
+                            <!-- 8. Customer Worth -->
+                            <fieldset style="display:none" id="section8">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">How much is a customer worth to you over their lifetime?</h3>
+                                </div>
+
+                                <div class="select-box grid-2 m_goal">
+                                    <label title="Less than <span class='CurrnyIsNow'></span>500">
+                                        <input type="radio" name="average_client" class="liveRadio" value="Less than 500" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp">Less than <span class='CurrnyIsNow'></span>500</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>1,000">
+                                        <input type="radio" name="average_client" class="liveRadio" value="1,000" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>1,000</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>1,000-5,000">
+                                        <input type="radio" name="average_client" class="liveRadio" value="1,000-5,000" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>1,000 - 5,000</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>5-10k">
+                                        <input type="radio" name="average_client" class="liveRadio" value="5,000-10,000" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>5,000 - 10,000</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>10,000-20,000">
+                                        <input type="radio" name="average_client" class="liveRadio" value="10,000-20,000" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>10,000 - 20,000</span> </div>
+                                    </label>
+                                    <label title="<span class='CurrnyIsNow'></span>20,000 +">
+                                        <input type="radio" name="average_client" class="liveRadio" value="20,000 +" class="liveRadio">
+                                        <div class="lpg_mt"> <span class="box_sp"><span class='CurrnyIsNow'></span>20,000 +</span> </div>
+                                    </label>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section8previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <!--<input type="button" name="section6next" class="next action-button custom_next monthly_revenue_" value="Next" />-->
+                                </div>
+                            </fieldset>
+
+                            <!--9 best_describe-->
+                            <fieldset style="display:none" id="section9">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">Which best describes you?</h3>
+                                </div>
+                                
+                                <div class="select-box grid-1">
+                                    <label title="I have the financial resources to invest in my business.">
+                                        <input type="radio" name="describe_you" data-value="1" value="I have the financial resources to invest in my business." class="liveRadio best_description">
+                                        <div class="lpg_mt"> <span class="box_sp"> I have the financial resources to invest in my business.</span> </div>
+                                    </label>
+                                    <label title="I'm resourceful and can access financial resources (stocks, savings, personal credit) to invest in my business">
+                                        <input type="radio" name="describe_you" data-value="2" value="I'm resourceful and can access financial resources (stocks, savings, personal credit) to invest in my business." class="liveRadio best_description">
+                                        <div class="lpg_mt"> <span class="box_sp">I'm resourceful and can access financial resources (stocks, savings, personal credit) to invest in my business.</span> </div>
+                                    </label>
+                                    <label onclick="window.location.href='/not-eligible/'" >
+                                        <div class="lpg_mt"> <span class="box_sp">Unfortunately, I don't have the financial resources at this time to invest in my business.</span> </div>
+                                    </label>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section9previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <!--<input type="button" name="section9next" class="next action-button custom_next" value="Next" />-->
+                                    <div>
+                            </fieldset>
+
+                            <!--10 BiggestGrowthObstacle -->
+                            <fieldset style="display:none" id="section10">
+                               
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">What is the #1 biggest thing you would like us to help you with?</h3>
+                                    <p class="below-paragraph-call" style="font-size:16px;" >(Please be as detailed as possible here so we can tailor the call for you and your situation)</p>
+                                </div>
+                                
+                                <div class="select-box">
+                                    <textarea rows="5" cols="24" name="BiggestGrowthObstacle" id="BiggestGrowthObstacle"></textarea>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section10previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <input type="button" name="section10next" class="next action-button custom_next liveRadio" value="Next" /> </div>
+                            </fieldset>
+
+                            <!-- 11. Website -->
+                            <fieldset style="display:none" id="section11">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">Do you have a website?</h3>
+                                </div>
+                                
+                                <div class="select-box grid-2 m_goal websiteInfo">
+                                    <label id="websiteYes" title="Yes">
+                                        <input type="radio" name="have_website" class="liveRadio haveWebsite" value="Yes">
+                                        <div class="lpg_mt"> <span class="box_sp">Yes</span> </div>
+                                    </label>
+                                    <label id="websiteNo" title="No">
+                                        <input type="radio" name="have_website" class="liveRadio haveWebsite" value="No">
+                                        <div class="lpg_mt"> <span class="box_sp">No</span> </div>
+                                    </label>
+                                    <div id="websiteInfo" class="formQuestionTab" style="display: none;">
+                                    <h3 class="formQuestionTitle">What’s your website URL?</h3>
+                                        <div class="select-box">
+                                            <input type="text" name="Websiteurl" id="Websiteurl" required placeholder="www.yourdomain.com" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section11previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <input type="button" name="section11next" class="next action-button custom_next liveRadio" value="Next" /> 
+                                </div>
+                            </fieldset>
+
+                            <!-- 12. Scale your business -->
+
+                            <fieldset style="display:none" id="section12">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">For these calls and our commitment to reviewing your website and social media beforehand, can we count on you to attend as scheduled, or reschedule if necessary?
+                                    </h3>
+                                </div>  
+
+
+                                <div class="select-box grid-1 m_goal ">
+
+                                    <label  title="Yes">
+                                        <input type="radio" name="show_up_on_time" class="liveRadio haveWebsite" value="Yes"  id="yes-showUpOnTime">
+                                        <div class="lpg_mt"> <span class="box_sp" style="padding-left:78px!; " >
+                                            Yes, I respect people time and will reschedule if I am unable to attend.  </span> </div>
+                                    </label>
+                                    <label  title="No">
+                                        <input type="radio" name="show_up_on_time" id="no-showUpOnTime" class="liveRadio haveWebsite" value="No">
+                                        <div class="lpg_mt" > <span class="box_sp"> No, I don't respect people's time </span> </div>
+                                    </label>  
+                                </div> 
+
+                                <!-- <div class="select-box">
+                                    <textarea rows="5" cols="24" name="scalebusiness" id="scalebusiness"></textarea>
+                                </div> -->
+
+
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section12previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <input type="button" name="section12next" class="next action-button custom_next liveRadio"  style="display:none" value="Next" /> </div>
+                            </fieldset>
+
+                            <!--10 Phone Call Or zoomCall -->
+                        <!-- Removed section12-PZ fieldset start -->
+                        <!-- Removed section12-PZ fieldset end -->
+                            <!-- ====================================================================     -->
+
+                              <!-- 13. job management software -->
+                              <fieldset style="display: none;" id="section12-B">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle"> Are you currently using any job management software within your business? </h3>
+                                </div>
+
+
+                                <div class="select-box grid-2 m_goal"> 
+
+                                    <label title="Yes">
+                                        <input type="radio" name="jobsoftware" class="liveRadio" value="Yes">
+                                        <div class="lpg_mt"> <span class="box_sp"> Yes </span> </div>
+                                    </label>  
+                                 
+                                    <label title="No">
+                                        <input type="radio" name="jobsoftware" class="liveRadio" value="No">
+                                        <div class="lpg_mt"> <span class="box_sp"> No </span> </div>
+                                    </label> 
+                                    </div>  
+ 
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section12-B-previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <input type="button" name="section12-B-next" id="section12-B-next" class="next action-button custom_next liveRadio" value="Next" style="display:none"  /> </div>
+
+
+                            </fieldset>
+
+
+                             <!-- ====================================================================     -->
+
+                              <!-- 12 c. job management software -->
+                              <fieldset style="display: none;" id="section12-C">
+                               
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">   Please select the software you use from below option.  </h3>
+                                </div>
+ 
+
+                                            <section class="select-box grid-4 radionBtnWithImg" id="jobsoftware_names"  > 
+                                            
+                                                
+                                                <label>
+                                                        <input type="radio" class="liveRadio demo-video" name="job_management_software" data-value="ServiceM8" value="ServiceM8" />
+                                                      <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/icons/sericem8-icon.png" alt="ServiceM8" /> ServiceM8 </div> 
+                                                     
+                                                </label>
+
+                                                <label>
+                                                    <input type="radio" class="liveRadio demo-video" name="job_management_software" data-value="Simpro" value="Simpro" />
+                                                    <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/icons/simpro-icon.png" alt="Simpro" /> Simpro   </div>
+                                                </label>
+
+
+                                                <label>
+                                                        <input type="radio" class="liveRadio demo-video" name="job_management_software" data-value="Commusoft" value="Commusoft" />
+                                                    <div class="lpg_mt">  <img src="<?= get_stylesheet_directory_uri() ?>/icons/commusoft-icon.png" alt="Commusoft" /> Commusoft   </div>
+                                                </label>
+                                                <label>
+                                                        <input type="radio" class="liveRadio demo-video" name="job_management_software" data-value="Tradify" value="Tradify" />
+                                                    <div class="lpg_mt">  <img src="<?= get_stylesheet_directory_uri() ?>/icons/tradify-icon.png" alt="Tradify" /> Tradify  </div>
+                                                </label>
+                                                <label>
+                                                        <input type="radio" class="liveRadio demo-video" name="job_management_software" data-value="Job Logic" value="Job Logic" />
+                                                    <div class="lpg_mt">  <img src="<?= get_stylesheet_directory_uri() ?>/icons/joblogin-icon.png" alt="Job Logic" /> Job Logic  </div>
+                                                </label>
+                                                <label>
+                                                        <input type="radio" class="liveRadio demo-video" name="job_management_software" data-value="Service Titan" value="Service Titan" />
+                                                    <div class="lpg_mt">  <img src="<?= get_stylesheet_directory_uri() ?>/icons/serice-titan-icon.png" alt="Service Titan" /> Service Titan  </div>
+                                                </label>
+                                                <label>
+                                                        <input type="radio" class="liveRadio demo-video" name="job_management_software" data-value="Gas Engineer App" value="Gas Engineer App" />
+                                                    <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/icons/gas-eng-icon.png" alt="Gas Engineer App" />  Gas Engineer App  </div>
+                                                </label>
+
+                                                <label>
+                                                        <input type="radio" class="liveRadio demo-video" name="job_management_software" data-value="Other" value="Other" /> 
+                                                        <div class="lpg_mt"> <img src="<?= get_stylesheet_directory_uri() ?>/icons/other-icon.png" alt="Other" />  Other  </div>
+                                                    
+                                                </label>
+                                                
+                                            </section>
+
+                               
+                                            <div >
+                                                            <input type="text"   name="job_management_software_input"  placeholder="Enter name"
+                                                            id="job_management_software_input"  value="" style="display:none" /> 
+                                            </div>
+
+
+ 
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section12-C-previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <input type="button" name="section12-C-next" id="section12-C-next" class="next action-button custom_next liveRadio" value="Next" style="display:none"  /> </div>
+
+
+                            </fieldset>
+
+
+
+                            <!-- 13. Hear about us -->
+
+                             
+                            <fieldset style="display: none;" id="section13">
+                                
+                                <div class="formQuestionTab">
+                                    <h3 class="formQuestionTitle">And finally, where did you hear about us?</h3>
+                                </div>
+
+                                <div class="hear_about select-box grid-1">
+                                    <label id="hear_about_facebook">
+                                        <input type="radio" class="liveRadio demo-video" name="hear_about_us" data-value="1" value="Facebook">
+                                        <div class="lpg_mt"> <span class="box_sp">Facebook</span> </div>
+                                    </label>
+                                    <label id="hear_about_instagram">
+                                        <input type="radio" class="liveRadio" name="hear_about_us" data-value="0" value="Instagram">
+                                        <div class="lpg_mt"> <span class="box_sp">Instagram</span> </div>
+                                    </label>
+                                    <label id="hear_about_google">
+                                        <input type="radio" class="liveRadio" name="hear_about_us" data-value="0" value="Google">
+                                        <div class="lpg_mt"> <span class="box_sp">Google</span> </div>
+                                    </label>
+                                    <label id="hear_about_referral">
+                                        <input type="radio" class="liveRadio" name="hear_about_us" data-value="0" value="Referral">
+                                        <div class="lpg_mt"> <span class="box_sp">Referral</span> </div>
+                                        <div class="referral-person-name">
+                                            <input placeholder="Please write the full name of the person who referred you" 
+                                                type="text" class="liveField" name="referral-name" id="referral-name-input" style="display:none;" required> </div>
+                                    </label>
+                                    <label id="hear_about_other">
+                                        <input type="radio" class="liveRadio" name="hear_about_us" data-value="0" value="Other">
+                                        <div class="lpg_mt"> <span class="box_sp">Other</span> </div>
+                                        <div class="referral-other">
+                                            <input placeholder="Please write where you heard about us." type="text" class="liveField" name="referral-other" id="referral-other-input" style="display:none;" required> </div>
+                                    </label>
+                                </div>
+                                <div class="custom-wizard-next-pre">
+                                    <button type="button" name="section13previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                    <input type="button" name="section14next" class="next action-button custom_next liveRadio" value="Next" /> </div>
+                            </fieldset>
+
+                               
+
+
+
+
+
+                            <!--14. About You -->
+                            <fieldset style="display:none" id="section14">
+                                <h2>CONGRATULATIONS!</h2>
+                                <p class="form-para">It appears we can dramatically help you grow your business using our proven frameworks and marketing strategies. Simply enter your details below to access our scheduling calendar!</p>
+                                <div class="select-form about_customer_field">
+                                    <label> <i class="fa fa-user" aria-hidden="true"></i>
+                                        <input type="text" placeholder="First Name*" id="firstName" name="firstName" class="liveField" required>
+                                    </label>
+                                     <label>
+                                        <i class="fa fa-user" aria-hidden="true"></i>
+                                        <input type="text" placeholder="Last Name*" name="lastName" id="lastName" class="liveField" required>
+                                    </label>
+                                    <label> <i class="fa fa-envelope" aria-hidden="true"></i>
+                                        <input type="email" placeholder="Business Email*" name="email" id="customer-email" class="liveField" required>
+                                    </label>
+                                    <label> <i class="fa fa-phone-volume" aria-hidden="true"></i>
+                                        <input type="tel" placeholder="Phone No. *" name="phone" id="phone" class="liveField" required>
+                                    </label>
+                                    <label> <i class="fa fa-solid fa-building"></i>
+                                        <input type="text" placeholder="Business Name*" name="businessname" id="businessname" class="liveField" required>
+                                    </label>
+                                    <label> <i class="fa fa-solid fa-user-tie"></i>
+                                        <input type="text" placeholder="Role within the company*" name="rolewitincompany" id="rolewitincompany" class="liveField" required>
+                                    </label>
+                                    
+                                    <div class="custom-wizard-next-pre">
+                                        <button type="button" name="section14previous" class="previous action-button"> <i class="fas fa-chevron-left"></i> <span class="btn_txt"> Back </span></button>
+                                        <div class="wbt_form_button"> <a class="form_submit_button" onclick="on_submit_btn_click()"><span class="subBtnTxt">SUBMIT APPLICATION</span></a>
+                                            <div class="form_loader" id="loader-hp" style="display:none"></div>
+                                        </div>
+                                        <div class="form_loader" id="loader-bmdc" style="display:none"></div>
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                        </form> 
+
+
+                        <div id="monthly_revenue_popup" class="dcq_popup-container" style="display: none;">
+                            <div class="dcq_popup-content">
+                                <div class="icon_wrap"><img class="aligncenter" src="/wp-content/uploads/exclamation.png"></div>
+                                <div class="dcr_desc_content" style="display: block;">If you don't have the resources to invest in your business - could you really afford to implement a digital marketing strategy?</div>
+                                <div class="dcq_pop_btn"> <a class="dcq_btn_one button_styl" href="/not-eligible/">Probably not</a> 
+                                
+                                <a class="dcq_btn_two button_styl" onclick="monthly_revenue_popup_yes_click()">Yes</a> </div>
+                            </div>
+                        </div>
+
+                        <div id="dcq_yes" class="dcq_popup-container" style="display: none;">
+                            <div class="dcq_popup-content">
+                                <div class="icon_wrap"><img class="aligncenter" src="/wp-content/uploads/check-mark.png"></div>
+                                <h4>Gotcha!</h4>
+                                <div class="dcr_desc_content" style="display: block;">We`ll keep going</div>
+                                <div class="dcq_pop_btn"> <a class="dcq_btn_one button_styl" onclick="dcq_yes_click()">Ok</a> </div>
+                            </div>
+                        </div>
+                        <div id="step4_monthly_revenue_popup" class="dcq_popup-container" style="display:none">
+                            <div class="dcq_popup-content">
+                                <div class="icon_wrap"><img class="aligncenter" src="/wp-content/uploads/exclamation.png"></div>
+                                <div class="dcr_desc_content" style="display: block;">Your monthly revenue is under
+                                    <span class='CurrnyIsNow'></span><span id="SetAmountRan"></span>. Although we have helped many companies starting from scratch, our system works best for more established businesses who are in a better financial position to invest back into their business. Based on this, do you want to continue with your application?</div>
+                                <div class="dcq_pop_btn"> <a class="dcq_btn_one button_styl" href="/not-eligible/"> Not right now</a> <a class="dcq_btn_two button_styl" onclick="step4_monthly_revenue_popup_yes_click()">Yes</a> </div>
+                            </div>
+                        </div>
+                        <div id="step4_dcq_yes" class="dcq_popup-container" style="display:none">
+                            <div class="dcq_popup-content">
+                                <div class="icon_wrap"><img class="aligncenter" src="/wp-content/uploads/check-mark.png"></div>
+                                <h4>Gotcha!</h4>
+                                <div class="dcr_desc_content" style="display: block;">We`ll keep going</div>
+                                <div class="dcq_pop_btn"> <a class="dcq_btn_one button_styl" onclick="step4_dcq_ok_click()">Ok</a> </div>
+                            </div>
+                        </div>
+                        <div id="step14_discovery_call_commit" class="dcq_popup-container" style="display:none">
+                            <div class="dcq_popup-content">
+                                <div class="icon_wrap"><img class="aligncenter" src="/wp-content/uploads/exclamation.png"></div>
+                                <div class="dcr_desc_content" style="display: block;">We know things can get busy but our time is valuable and we are only looking for serious people who can follow through with their commitments.</div>
+                                <div class="dcq_pop_btn"> <a class="dcq_btn_two button_styl" href="/not-eligible/">Sorry, I can't commit</a> <a class="dcq_btn_one button_styl" onclick="step14_discovery_call_commit_popup_yes_click()">I'm ready and CAN commit!</a> </div>
+                            </div>
+                        </div>
+                        <div id="step1_watch_video_no_popup" class="dcq_popup-container" style="display: none;">
+                            <div class="dcq_popup-content">
+                                <div class="icon_wrap"><img class="aligncenter" src="/wp-content/uploads/exclamation.png"></div>
+                                <div class="dcr_desc_content" style="display: block;">Before you book your discovery call, it is important that you watch our demo video. Please click the button below to watch the demo now.</div>
+                                <div class="dcq_pop_btn"> <a class="dcq_btn_one button_styl" href="/marketing-demo/">Watch the demo video</a> </div>
+                            </div>
+                        </div>
+
+
+                        <div id="show_up_on_time_popup" class="dcq_popup-container" style="display: none;">
+                            <div class="dcq_popup-content">
+                                <div class="icon_wrap"><img class="aligncenter" src="/wp-content/uploads/exclamation.png"></div>
+                                <div class="dcr_desc_content" style="display: block;"> 
+                                Look we get you are busy, but if you honestly cannot commit to showing up 
+                                to a 20-minute call that could dramatically improve your results, then this is not for you. </div> 
+
+
+                                <div class="dcq_pop_btn"> <a class="dcq_btn_two button_styl" onclick="show_up_on_time_commit_click()">   This is important, I will commit </a>
+                                 <a class="dcq_btn_one button_styl" href="/not-eligible/"> Sorry, I can't commit </a> 
+                                
+                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- #Container -->
+                        </div>
+                        <!-- #Content Wrap -->
+            </main>
+            <!-- #main -->
+            </div>
+            <!-- #Site Container -->
+            </div>
+            <!-- #primary -->
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
+            <script>
+
+
+        function startQuestions() 
+        {
+            jQuery("#topup-message").hide();  
+            jQuery("#section2").show(); 
+            jQuery("#section2").addClass("active");
+        }
+
+
+        sessionStorage.setItem('SmIs', '£')
+            jQuery(".CurrnyIsNow").text(sessionStorage.getItem('SmIs'));        
+            let customer_firstname = sessionStorage.getItem("customer_firstname");
+            let customer_lastname = sessionStorage.getItem("customer_lastname");
+            let customer_email = sessionStorage.getItem("customer_email");
+            let phoneNum = sessionStorage.getItem("customer_phoneNum");
+            let businessname = sessionStorage.getItem("customer_phoneNum");
+            let rolewitincompany = sessionStorage.getItem("customer_phoneNum");
+            // jQuery("#UserNameIs").html(sessionStorage.getItem("customer_name"));
+            let selected_marketing_type = ""
+            let selected_business_industry = ""
+            let selected_monthly_revenue_goal = ""
+            let selected_average_client = ""
+            let selected_monthly_marketing_budget = ""
+            let selected_percentage_leads = ""
+            let selected_describe_you = ""
+            let BiggestGrowthObstacle_text = ""
+            let customer_monthly_revenue = 1000;
+            let wbt_help = "";
+            let ScaleYourBusiness = ""
+            let WebsiteURL = ""
+            let selected_commit_date_time = ""
+            
+            let is_job_management_software_use = "" ; 
+            let job_management_software_name = "" ; 
+
+            let job_management_software_name2 = "" ; 
+            
+            let show_up_on_time = "" ; 
+
+            let CallType = "";
+
+
+
+            jQuery(document).ready(function() {
+               
+
+                // jQuery("#customer-name-span").text(customer_name);
+                // jQuery("#customer-name-span2").text(customer_name);
+                jQuery("#firstName").val(customer_firstname);
+                jQuery("#lastName").val(customer_lastname);
+                jQuery("#customer-email").val(customer_email);
+                jQuery("#phone").val(phoneNum);
+                customer_monthly_revenue = 1000;
+                jQuery("#customer_monthly_revenue").val(1000);
+                jQuery("#range-slide-value").html(sessionStorage.getItem('SmIs')+"1,000");
+                jQuery("#BiggestGrowthObstacle").val()
+                jQuery("#website-url").val()
+                jQuery("#wbt-help").val()
+                jQuery("#scale-your-business").val()
+                jQuery("#website-url").val()
+                jQuery('input[name="section3next"]').hide();
+
+                //----------------------------
+
+                jQuery("#section2").hide();
+               /// jQuery("#topup-message").show();
+            });
+            jQuery("#customer_monthly_revenue").on("change", function(e) {
+                //let val = jQuery( "#customer_monthly_revenue" ).val();   
+                customer_monthly_revenue = e.target.value;
+                let revenue = String(customer_monthly_revenue).substring(0, String(customer_monthly_revenue).length - 3) + "," + "000";
+                if(customer_monthly_revenue >= 100000) {
+                    jQuery("#range-slide-value").html(sessionStorage.getItem('SmIs')+" " + revenue + "+")
+                } else {
+                    jQuery("#range-slide-value").html(sessionStorage.getItem('SmIs')+" " + revenue)
+                }
+            });
+            jQuery("#customer_monthly_revenue").on("input", function(e) {
+                //let val = jQuery( "#customer_monthly_revenue" ).val();   
+                customer_monthly_revenue = e.target.value;
+                let revenue = String(customer_monthly_revenue).substring(0, String(customer_monthly_revenue).length - 3) + "," + "000";
+                if(customer_monthly_revenue >= 100000) {
+                    jQuery("#range-slide-value").html(sessionStorage.getItem('SmIs')+" "+ revenue + "+")
+                } else {
+                    jQuery("#range-slide-value").html(sessionStorage.getItem('SmIs')+" " + revenue)
+                }
+            });
+
+            function on_ftf_click() {
+                jQuery("#step1_watch_video_no_popup").show();
+            }
+            jQuery("input[name='section2next']").on("click", function() {
+                jQuery("#section1").hide();
+                jQuery("#section2").show();
+                jQuery("#section1").removeClass("active");
+                jQuery("#section2").addClass("active");
+                jQuery("#step2").addClass("active");
+            })
+            //-------------------------- 1 ---------------------------
+            jQuery("#watch_video_yes").on("click", function() {
+                    jQuery("#section1").hide();
+                    jQuery("#section2").show();
+                    jQuery("#section1").removeClass("active");
+                    jQuery("#section2").addClass("active");
+                    jQuery("#step2").addClass("active");
+                })
+                //-------------------------- 2 ---------------------------
+            jQuery("button[name='section2previous']").on("click", function() {
+                jQuery("#section2").hide();
+                jQuery("#section1").show();
+                jQuery("#section2").removeClass("active");
+                jQuery("#section1").addClass("active");
+                jQuery("#step2").removeClass("active");
+            })
+            jQuery("input[name='business_industry']").on("click", function() {
+                    jQuery("#section2").hide();
+                    jQuery("#section3").show();
+                    jQuery("#section2").removeClass("active");
+                    jQuery("#section3").addClass("active");
+                    jQuery("#step3").addClass("active");
+                    selected_business_industry = jQuery('input[name=business_industry]:checked').val();
+                })
+                //---------------------------------   3   ----------------------------------
+            jQuery("button[name='section3previous']").on("click", function() {
+                jQuery("#section3").hide();
+                jQuery("#section2").show();
+                jQuery("#section3").removeClass("active");
+                jQuery("#section2").addClass("active");
+                jQuery("#step3").removeClass("active");
+            })
+            jQuery("input[name='section3next']").on("click", function() {
+                jQuery("#section3").hide();
+                jQuery("#section3_1").show();
+                jQuery("#section3").removeClass("active");
+                jQuery("#section3_1").addClass("active");
+                jQuery("#step4").addClass("active");
+            })
+             function getctype(sm, cname) {
+                sessionStorage.setItem('SmIs', sm);
+                sessionStorage.setItem('cname', cname);
+                if(sm === '0'){
+                    document.location.href = "../not-eligible/";
+                }else{
+                    jQuery("#section3_1").hide();
+                    jQuery("#section12-B").show();
+                    jQuery("#section3_1").removeClass("active");
+                    jQuery("#section12-B").addClass("active");
+                    jQuery("#step5").addClass("active");
+                    jQuery(".CurrnyIsNow").html(sessionStorage.getItem('SmIs'));
+                }
+                jQuery("#range-slide-value").html(sessionStorage.getItem('SmIs')+"1,000");
+            }
+            // jQuery("input[name='marketing_type[]']").on("change", function() {
+            //         selected_marketing_type = "";
+            //         jQuery('input[name="marketing_type[]"]:checked').each(function() {
+            //             //console.log(this.value);
+            //             if(selected_marketing_type == "") {
+            //                 selected_marketing_type = this.value;
+            //             } else {
+            //                 selected_marketing_type = selected_marketing_type + "," + this.value;
+            //             }
+            //         });
+            //         if(selected_marketing_type == "") {
+            //             jQuery('input[name="section3next"]').hide()
+            //         } else {
+            //             jQuery('input[name="section3next"]').show()
+            //         }
+            //         //alert( selected_marketing_type );  
+            //     })
+
+
+
+                jQuery("input[name='marketing_type[]']").on("change", function() {
+                    selected_marketing_type = "";
+                    let isNoneSelected = false;
+                
+                  // If "None" is selected, uncheck all checkboxes and hide the "Next" button
+                    if (isNoneSelected) {
+                        jQuery('input[name="marketing_type[]"]').prop('checked', false); // Uncheck all checkboxes
+                         jQuery('label[title]').each(function () {
+                                jQuery(this).removeClass("marketingselected"); // Remove the 'marketingselected' class
+                            });
+                        // jQuery('input[name="section3next"]').hide(); // Hide the "Next" button
+                    } else {
+                        // Add or remove 'marketingselected' class on the title attribute based on the checkbox state
+                        const label = jQuery(this).closest("label");
+                        if (this.checked) {
+                            label.addClass("marketingselected"); // Add the class
+                        } else {
+                            label.removeClass("marketingselected"); // Remove the class
+                        }
+                        // Loop through the checked checkboxes and build the selected_marketing_type string
+                        jQuery('input[name="marketing_type[]"]:checked').each(function() {
+                            if (selected_marketing_type == "") {
+                                selected_marketing_type = this.value;
+                            } else {
+                                selected_marketing_type = selected_marketing_type + "," + this.value;
+                            }
+                        });
+                
+                        // If no other checkboxes are selected, hide the "Next" button
+                        if (selected_marketing_type === "") {
+                            jQuery('input[name="section3next"]').hide(); // Hide the "Next" button
+                        } else {
+                            jQuery('input[name="section3next"]').show(); // Show the "Next" button
+                        }
+                    }
+                
+                    // Uncomment the line below if you want to see the selected values for debugging
+                    // alert(selected_marketing_type);
+                });
+
+                //------------------------------------------ 4 ----------------------------------------------
+            jQuery("button[name='section3-1previous']").on("click", function() {
+                jQuery("#section3_1").hide();
+                jQuery("#section3").show();
+                jQuery("#section3_1").removeClass("active");
+                jQuery("#section3").addClass("active");
+                jQuery("#step4").removeClass("active");
+            })
+            jQuery("button[name='section4previous']").on("click", function() {
+                jQuery("#section4").hide();
+                jQuery("#section12-B").show();
+                jQuery("#section4").removeClass("active");
+                jQuery("#section12-B").addClass("active");
+                jQuery("#step5").removeClass("active");
+            })
+      
+            jQuery("input[name='section4next']").on("click", function() {
+            	if(sessionStorage.getItem('SmIs') == '$' || sessionStorage.getItem('SmIs') == '€')
+                {
+            		  if(customer_monthly_revenue > 11000) {
+	                    jQuery("#section4").hide();
+	                    jQuery("#section5").show();
+	                    jQuery("#section4").removeClass("active");
+	                    jQuery("#section5").addClass("active");
+	                    jQuery("#step6").addClass("active");
+		                } else {
+		                	jQuery("#SetAmountRan").text('10,000');
+		                    jQuery("#step4_monthly_revenue_popup").show();
+		                }
+                        
+            	}
+                else if(sessionStorage.getItem('SmIs') == '£'){
+            		  if(customer_monthly_revenue > 9000) {
+	                    jQuery("#section4").hide();
+	                    jQuery("#section5").show();
+	                    jQuery("#section4").removeClass("active");
+	                    jQuery("#section5").addClass("active");
+	                    jQuery("#step6").addClass("active");
+		                } else {
+		                	jQuery("#SetAmountRan").text('8,000');
+		                    jQuery("#step4_monthly_revenue_popup").show();
+		                }
+                        
+            	}
+               
+              
+            })
+
+            function step4_monthly_revenue_popup_yes_click() {
+                jQuery("#step4_monthly_revenue_popup").hide();
+                jQuery("#step4_dcq_yes").show();
+                customer_monthly_revenue = 1000;
+            }
+
+ 
+            
+
+            function step4_dcq_ok_click() {
+                jQuery("#step4_dcq_yes").hide();
+                jQuery("#section4").hide();
+                jQuery("#section5").show();
+                jQuery("#section4").removeClass("active");
+                jQuery("#section5").addClass("active");
+                jQuery("#step6").addClass("active");
+            }
+            //------------------------------------------ 5 ----------------------------------------------
+            jQuery("button[name='section5previous']").on("click", function() {
+                jQuery("#section5").hide();
+                jQuery("#section4").show();
+                jQuery("#section5").removeClass("active");
+                jQuery("#section4").addClass("active");
+                jQuery("#step6").removeClass("active");
+            })
+            jQuery("input[name='monthly_revenue_goal']").on("click", function() {
+                    jQuery("#section5").hide();
+                    jQuery("#section6").show();
+                    jQuery("#section5").removeClass("active");
+                    jQuery("#section6").addClass("active");
+                    jQuery("#step7").addClass("active");
+                    selected_monthly_revenue_goal = jQuery('input[name=monthly_revenue_goal]:checked').val();
+                })
+                //------------------------------------------ 6 ----------------------------------------------
+            jQuery("button[name='section6previous']").on("click", function() {
+                jQuery("#section6").hide();
+                jQuery("#section5").show();
+                jQuery("#section6").removeClass("active");
+                jQuery("#section5").addClass("active");
+                jQuery("#step7").removeClass("active");
+            })
+            jQuery("input[name='average_client']").on("click", function() {
+                    jQuery("#section8").hide();
+                    jQuery("#section9").show();
+                    jQuery("#section8").removeClass("active");
+                    jQuery("#section9").addClass("active");
+                    jQuery("#step10").addClass("active");
+                    selected_average_client = jQuery('input[name=average_client]:checked').val();
+                })
+                //--------------------------------------------- 7 --------------------------------------
+            jQuery("button[name='section8previous']").on("click", function() {
+                jQuery("#section8").hide();
+                jQuery("#section6").show();
+                jQuery("#section8").removeClass("active");
+                jQuery("#section6").addClass("active");
+                jQuery("#step8").removeClass("active");
+            })
+            jQuery("input[name='monthly_marketing_budget']").on("click", function() {
+                    jQuery("#section6").hide();
+                    jQuery("#section8").show();
+                    jQuery("#section6").removeClass("active");
+                    jQuery("#section8").addClass("active");
+                    jQuery("#step8").addClass("active");
+                    selected_monthly_marketing_budget = jQuery('input[name=monthly_marketing_budget]:checked').val();
+                })
+                //--------------------------------------------- 8 --------------------------------------
+            // jQuery("button[name='section8previous']").on("click", function() {
+            //     jQuery("#section8").hide();
+            //     jQuery("#section7").show();
+            //     jQuery("#section8").removeClass("active");
+            //     jQuery("#section7").addClass("active");
+            //     jQuery("#step9").removeClass("active");
+            // })
+            jQuery("input[name='percentage_leads']").on("click", function() {
+                    jQuery("#section7").hide();
+                    jQuery("#section8").show();
+                    jQuery("#section7").removeClass("active");
+                    jQuery("#section8").addClass("active");
+                    jQuery("#step9").addClass("active");
+                    selected_percentage_leads = jQuery('input[name=percentage_leads]:checked').val();
+                })
+                //--------------------------------------------- 9 --------------------------------------
+            jQuery("button[name='section9previous']").on("click", function() {
+                jQuery("#section9").hide();
+                jQuery("#section8").show();
+                jQuery("#section9").removeClass("active");
+                jQuery("#section8").addClass("active");
+                jQuery("#step10").removeClass("active");
+            })
+            jQuery("input[name='describe_you']").on("click", function() {
+                let sr_no = jQuery('input[name=describe_you]:checked').data('value');
+                selected_describe_you = jQuery('input[name=describe_you]:checked').val();
+                if(sr_no == 3) {
+                    //  
+                    jQuery("#monthly_revenue_popup").show();
+                    //jQuery("#step11").addClass("active");
+
+                } else {
+                    jQuery("#section9").hide();
+                    jQuery("#section10").show();
+                    jQuery("#section9").removeClass("active");
+                    jQuery("#section10").addClass("active");
+
+                  //  jQuery("#step11").addClass("active");
+                    if(BiggestGrowthObstacle_text != "") {
+                        jQuery("input[name='section10next']").show();
+                    } else {
+                        jQuery("input[name='section10next']").hide();
+                    }
+                }
+            })
+
+            function monthly_revenue_popup_yes_click() {
+                jQuery("#monthly_revenue_popup").hide();
+                jQuery("#dcq_yes").show();
+            }
+
+            function dcq_yes_click() {
+                jQuery("#dcq_yes").hide();
+                jQuery("#section9").hide();
+                jQuery("#section10").show();
+                jQuery("#section9").removeClass("active");
+                jQuery("#section10").addClass("active");
+               // jQuery("#step11").addClass("active");
+                if(BiggestGrowthObstacle_text != "") {
+                    jQuery("input[name='section10next']").show();
+                } else {
+                    jQuery("input[name='section10next']").hide();
+                }
+            }
+            //--------------------------------------------- 10 --------------------------------------
+            jQuery("button[name='section10previous']").on("click", function() {
+                jQuery("#section10").hide();
+                jQuery("#section9").show();
+                jQuery("#section10").removeClass("active");
+                jQuery("#section9").addClass("active");
+              //  jQuery("#step11").removeClass("active");
+            })
+            jQuery("#BiggestGrowthObstacle").bind('input propertychange', function() {
+                BiggestGrowthObstacle_text = jQuery("#BiggestGrowthObstacle").val();
+                if(BiggestGrowthObstacle_text != "") {
+                    jQuery("input[name='section10next']").show();
+                } else {
+                    jQuery("input[name='section10next']").hide();
+                }
+            })
+            jQuery("input[name='section10next']").on("click", function() {
+                    jQuery("#section10").hide();
+                    jQuery("#section11").show();
+                    jQuery("#section10").removeClass("active");
+                    jQuery("#section11").addClass("active");
+                  //  jQuery("#step12").addClass("active");
+                })
+                //--------------------------------------------- 11 --------------------------------------
+            jQuery("button[name='section11previous']").on("click", function() {
+                    jQuery("#section11").hide();
+                    jQuery("#section10").show();
+                    jQuery("#section11").removeClass("active");
+                    jQuery("#section10").addClass("active");
+                  //  jQuery("#step12").removeClass("active");
+                })
+                /* Get Domain */
+            jQuery("input[name='section11next']").hide();
+            jQuery("#Websiteurl").on('input ', function() {
+                wbt_help = jQuery("#Websiteurl").val();
+                if(wbt_help != "") {
+                    jQuery("input[name='section11next']").show();
+                } else {
+                    jQuery("input[name='section11next']").hide();
+                }
+            })
+            
+            jQuery("input[name='section11next']").on("click", function() {
+                    jQuery("#section11").hide();
+                    jQuery("#section13").show();
+                    jQuery("#section11").removeClass("active");
+                    jQuery("#section13").addClass("active");
+                })
+
+
+     //--------------------------------------------- 12 --------------------------------------
+
+          
+
+            jQuery("button[name='section12previous']").on("click", function() {
+                jQuery("#section12").hide();
+                jQuery("#section11").show();
+                jQuery("#section12").removeClass("active");
+                jQuery("#section11").addClass("active");
+              //  jQuery("#step13").removeClass("active");
+            })
+
+
+
+            /// jQuery("input[name='section12next']").hide();
+
+           /* jQuery("#scalebusiness").on('input', function() {
+                ScaleYourBusiness = jQuery("#scalebusiness").val();
+                if(ScaleYourBusiness != "") {
+                    jQuery("input[name='section12next']").show();
+                } else {
+                    jQuery("input[name='section12next']").hide();
+                }
+            })
+            */
+
+
+
+          /*  
+               ///  old one  will be use in 12-b se // 
+          jQuery("input[name='section12next']").on("click", function() {
+                    jQuery("#section12").hide();
+                    jQuery("#section13").show();
+                    jQuery("#section12").removeClass("active");
+                    jQuery("#section13").addClass("active");
+                    jQuery("#step14").addClass("active");
+                })
+        */
+       
+            jQuery("input[name='section12next']").on("click", function() {
+                    jQuery("#section12").hide();
+                    jQuery("#section12-B").show();
+                    jQuery("#section12").removeClass("active");
+                    jQuery("#section12-B").addClass("active"); 
+                })
+
+             jQuery("#yes-showUpOnTime").on('click', function() {
+
+                    show_up_on_time = "Yes" ;
+                    jQuery("#section12").hide();
+                    jQuery("#section13").show(); 
+                    jQuery("#section12").removeClass("active");
+                    jQuery("#section13").addClass("active"); 
+
+                });
+
+               jQuery("#no-showUpOnTime").on('click', function() {  
+                    jQuery("#show_up_on_time_popup").show();  
+                });
+    
+
+
+        function show_up_on_time_commit_click() {
+
+                show_up_on_time = "Yes" ;
+                jQuery("#show_up_on_time_popup").hide(); 
+                jQuery("#section12").hide();
+                jQuery("#section13").show();
+                jQuery("#section12").removeClass("active");
+                jQuery("#section13").addClass("active"); 
+                
+            }
+
+
+                 
+            //------------------------------------------  12  b ----------------------------------------------
+                 
+
+            jQuery("input[name='jobsoftware']").on("click", function() {  
+
+                    let t =  jQuery('input[name="jobsoftware"]:checked').val() ; 
+
+                    jQuery("#section12-B-next").hide();
+
+                    if( t == 'Yes')
+                    { 
+                        is_job_management_software_use = 'Yes' ;
+                        ShowSection12C(); 
+                     
+                    }
+                    else if ( t == 'No' )
+                    {
+                        
+                        is_job_management_software_use = 'No' ;
+                        ShowSection4();  
+                    }
+               
+             });
+            // removed previous handler for deleted section12-PZ
+
+             jQuery("button[name='section12-B-previous']").on("click", function() {
+                jQuery("#section12-B").hide();
+                jQuery("#section3_1").show();
+                jQuery("#section12-B").removeClass("active");
+                jQuery("#section3_1").addClass("active");
+               /// jQuery("#step13").removeClass("active");
+            })
+
+            //------------------------------------------  12 c ----------------------------------------------  
+
+            function ShowSection12C () 
+            {
+                jQuery("#section12-B").hide();
+                jQuery("#section12-C").show();
+                jQuery("#section12-B").removeClass("active");
+                jQuery("#section12-C").addClass("active"); 
+
+            } 
+
+             jQuery("input[name='job_management_software']").on("click", function() { 
+                
+                jQuery("#section12-C-next").hide();
+                jQuery('input[name="job_management_software_input"]').hide() ;
+                jQuery('input[name="job_management_software_input"]').val('') ;
+
+                job_management_software_name =  jQuery('input[name="job_management_software"]:checked').val() ;  
+                     
+
+                    if( job_management_software_name == 'Other' ) 
+                    {
+                        jQuery('input[name="job_management_software_input"]').show() ;
+                        jQuery("#section12-C-next").show();
+                    }
+                    else 
+                    {  
+                        ShowSection4();  
+                    }  
+
+            })
+
+
+            jQuery("#section12-C-next").on("click", function() { 
+
+                job_management_software_name2 = jQuery('input[name="job_management_software_input"]').val() ;
+                if(  job_management_software_name == 'Other'  &&   job_management_software_name2 == '')
+                         {
+                            jQuery('input[name="job_management_software_input"]').focus() ;
+                            alert("Please enter software name")
+                         }
+                         else
+                         {
+                            ShowSection4 () 
+                         }
+            
+            }) 
+
+
+            jQuery("button[name='section12-C-previous']").on("click", function() {
+                jQuery("#section12-C").hide();
+                jQuery("#section12-B").show();
+                jQuery("#section12-C").removeClass("active");
+                jQuery("#section12-B").addClass("active");
+               /// jQuery("#step13").removeClass("active");
+            })
+
+           
+
+            function ShowSection4 () 
+            {
+
+                jQuery("#section12-B").hide(); 
+                jQuery("#section12-B").removeClass("active"); 
+
+                jQuery("#section12-C").hide();
+                jQuery("#section4").show();
+                jQuery("#section12-C").removeClass("active");
+                jQuery("#section4").addClass("active");
+                ///jQuery("#step14").addClass("active"); 
+
+            }  
+
+            /* new Function code add by me for call Type */
+            function ShowThehearAbout(CallTypeVal){
+                CallType = CallTypeVal;
+                jQuery("#section13").show();
+                jQuery("#section13").addClass("active");
+            }
+           
+
+
+            //--------------------------------------------- 13 --------------------------------------
+
+             
+            jQuery("button[name='section13previous']").on("click", function() {
+                    jQuery("#section13").hide();
+                    jQuery("#section12").show();
+                    jQuery("#section13").removeClass("active");
+                    jQuery("#section12").addClass("active");
+            })
+
+
+            /* jQuery("button[name='section13previous']").on("click", function() {
+                jQuery("#section13").hide();
+                jQuery("#section12").show();
+                jQuery("#section13").removeClass("active");
+                jQuery("#section12").addClass("active");
+                jQuery("#step14").removeClass("active");
+            })
+            */
+
+
+
+            jQuery("#website-url").bind('input propertychange', function() {
+                WebsiteURL = jQuery("#website-url").val();
+                if(WebsiteURL != "") {
+                    jQuery("input[name='section13next']").show();
+                } else {
+                    jQuery("input[name='section13next']").hide();
+                }
+            })
+
+
+              //--------------------------------------------- 13 --------------------------------------
+
+
+
+            function ShowSection14(valuseIs) {
+                sessionStorage.setItem("ShowSection14_name", valuseIs);
+                jQuery("#section13").hide();
+                jQuery("#section14").show();
+                jQuery("#section13").removeClass("active");
+                jQuery("#section14").addClass("active");
+               // jQuery("#step14").addClass("active");
+            }
+            //------------------------------------------ 14 ----------------------------------------------
+            jQuery("button[name='section14previous']").on("click", function() {
+                jQuery("#section14").hide();
+                jQuery("#section13").show();
+                jQuery("#section14").removeClass("active");
+                jQuery("#section13").addClass("active");
+                jQuery("#step15").removeClass("active");
+            })
+            jQuery("#commit_date_time_yes").on("click", function() {
+                jQuery("#section14").hide();
+                jQuery("#section15").show();
+                jQuery("#section14").removeClass("active");
+                jQuery("#section15").addClass("active");
+                jQuery("#step15").addClass("active");
+                selected_commit_date_time = 'yes';
+            })
+            jQuery("#commit_date_time_no").on("click", function() {
+                //  jQuery("#section14").hide();
+                //  jQuery("#section15").show();  
+                //  jQuery("#step14").addClass("active") ;  
+                jQuery("#step14_discovery_call_commit").show();
+                selected_commit_date_time = 'no';
+                //document.location.href = "/not-eligible/" ;  
+            })
+
+            function step14_discovery_call_commit_popup_yes_click() {
+                jQuery("#step14_discovery_call_commit").hide();
+                jQuery("#section14").hide();
+                jQuery("#section15").show();
+                jQuery("#section14").removeClass("active");
+                jQuery("#section15").addClass("active");
+               /// jQuery("#step14").addClass("active");
+            }
+
+            //------------------------------------------ 15 ----------------------------------------------
+
+            jQuery("input[name='hear_about_us']").on("change", function() {
+                selected_reference_type = "";
+                jQuery('input[name="hear_about_us"]:checked').each(function() {
+                    if(selected_reference_type == "") {
+                        selected_reference_type = this.value;
+                    }
+                });
+                if(selected_reference_type == "") {
+                    jQuery('input[name="section15next"]').hide()
+                } else {
+                    jQuery('input[name="section15next"]').show()
+                }
+            })
+
+            jQuery("button[name='section15previous']").on("click", function() {
+                jQuery("#section15").hide();
+                jQuery("#section14").show();
+                jQuery("#section15").removeClass("active");
+                jQuery("#section14").addClass("active");
+                jQuery("#step15").removeClass("active");
+            })
+            jQuery("input[name='section14next']").on("click", function() 
+            {
+
+
+                
+                if( selected_reference_type == 'Referral' &&
+                jQuery("#referral-name-input").val() == ""  )
+                {  
+                    alert("Please enter referral name.")
+                    jQuery("#referral-name-input").focus();
+                    return;
+                }
+
+                if( selected_reference_type == 'Other' &&
+                jQuery("#referral-other-input").val() == ""  )
+                {  
+                    alert("Please enter the details.")
+                    jQuery("#referral-other-input").focus();
+                    return;
+                }
+
+
+                jQuery("#section13").hide();
+                jQuery("#section14").show();
+                jQuery("#section13").removeClass("active");
+                jQuery("#section14").addClass("active");
+                jQuery("#step15").addClass("active");
+            });
+
+            jQuery(".hear_about input[type='radio']").on("click", function() {
+                jQuery("#hear_about_referral input[type='text']").hide();
+                jQuery("#hear_about_other input[type='text']").hide();
+            });
+            jQuery("#hear_about_referral input[type='radio']").on("click", function() {
+                jQuery("#hear_about_referral input[type='text']").show();
+            });
+            jQuery("#hear_about_other input[type='radio']").on("click", function() {
+                jQuery("#hear_about_other input[type='text']").show();
+            });
+
+            jQuery("#websiteYes input[type='radio']").on("click", function() {
+                jQuery("#websiteInfo").show();
+            });
+
+            jQuery("#websiteNo input[type='radio']").on("click", function() {
+                jQuery("#websiteInfo").hide();
+                jQuery("#section11").hide();
+                jQuery("#section13").show();
+                jQuery("#section11").removeClass("active");
+                jQuery("#section13").addClass("active");
+                jQuery("#step13").addClass("active");
+            });
+
+
+
+            //------------------------------------------ 16 ----------------------------------------------
+            jQuery("button[name='section16previous']").on("click", function() {
+                jQuery("#section16").hide();
+                jQuery("#section15").show();
+                jQuery("#section16").removeClass("active");
+                jQuery("#section15").addClass("active");
+                jQuery("#step16").removeClass("active");
+            })
+
+            function on_submit_btn_click() {
+                if(jQuery("#firstName").val() == "") {
+                    alert("Please enter first name.")
+                    return false;
+                }
+                if(jQuery("#lastName").val() == "") {
+                    alert("Please enter last name.")
+                    return false;
+                }
+                if(jQuery("#customer-email").val() == "") {
+                    alert("Please enter valid email id.")
+                    return false;
+                }
+                if(jQuery("#businessname").val() == "") {
+                    alert("Please enter your business name.")
+                    return false;
+                }
+                if(jQuery("#phone").val() == "") {
+                    alert("Please enter your phone number.")
+                    return false;
+                }
+                if(jQuery("#rolewitincompany").val() == "") {
+                    alert("Please enter your role with in the company.")
+                    return false;
+                }
+                jQuery("#loader-bmdc").show();
+                check_valid_email();
+            }
+
+            function check_valid_email() {
+                if(jQuery.trim(jQuery("#customer-email").val()) == "test@webuildassets.co.uk") {
+                    call_zapier_api();
+                }
+                if(jQuery.trim(jQuery("#customer-email").val()) == "") return;
+                // Send data here
+                let post_deta = {
+                    email: jQuery.trim(jQuery("#customer-email").val())
+                };
+                // jQuery("#email-error-msg").hide();
+                fetch("../email-validator/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(post_deta),
+                }).then(function(result) {
+                    return result.json();
+                }).then(function(data) {
+                    //console.log(' mail validate Success:', data.status );
+                    if(data.status != 'invalid') {
+                        call_zapier_api()
+                    } else {
+                        alert("Please enter valid email id!");
+                        jQuery("#loader-bmdc").hide();
+                    }
+                }).catch(function(error) {
+                    console.log('error:', error);
+                })
+            }
+    // function call_zapier_api() {
+    //     var formdata = new FormData();
+    //     formdata.append("Fname", jQuery("#firstName").val());
+    //     formdata.append("Email_id", jQuery("#customer-email").val());
+    //     formdata.append("PhonNo", jQuery("#phone").val());
+    //     formdata.append("Con_code", sessionStorage.getItem('SmIs'));
+    //     formdata.append("Con_name", sessionStorage.getItem('cname'));
+
+    //     var requestOptions = {
+    //         method: 'POST',
+    //         body: formdata,
+    //         redirect: 'follow'
+    //     };
+
+    //     fetch("https://webuildtrades.com/v1api/Api_control/postUserinfo", requestOptions)
+    //         .then(response => response.text())
+    //         .then(result => call_zapier_api1(result))
+    //         .catch(error => console.log('error', error));
+    // }
+            function call_zapier_api($id = 1) { 
+
+                let revenue = String(customer_monthly_revenue).substring(0, String(customer_monthly_revenue).length - 3) + "," + "000";
+
+                customer_monthly_revenue =  sessionStorage.getItem('SmIs') + revenue; //// "<span class='CurrnyIsNow'></span>" + revenue;
+
+                let customer_name = jQuery("#firstName").val();
+                let customer_email = jQuery("#customer-email").val();
+                let referral_source = jQuery(".hear_about input[type='radio']:checked").val();
+                let referral_person_name = "";
+                let referral_other = "";
+                if(referral_source == 'Referral') {
+                    referral_person_name = jQuery("#referral-name-input").val() ;  //jQuery(".referral-person-name input[type='text']").val();
+                } else if(referral_source == 'Other') {
+                    referral_other = jQuery("#referral-other-input").val();  ///jQuery(".referral-other input[type='text']").val();
+                }
+                let referral_obj = {
+                        'referral_source': referral_source,
+                        'referral_person_name': referral_person_name,
+                        'referral_other': referral_other
+                    }
+                    //referral_obj = JSON.stringify();
+                sessionStorage.setItem("customer_name", customer_name);
+                sessionStorage.setItem("customer_email", customer_email);
+                sessionStorage.setItem("marketing_type", selected_marketing_type);
+                sessionStorage.setItem("business_industry", selected_business_industry);
+                sessionStorage.setItem("monthly_revenue_goal", selected_monthly_revenue_goal);
+                sessionStorage.setItem("average_client", selected_average_client);
+                sessionStorage.setItem("monthly_marketing_budget", selected_monthly_marketing_budget);
+                sessionStorage.setItem("percentage_leads", selected_percentage_leads);
+                sessionStorage.setItem("describe_you", selected_describe_you);
+                sessionStorage.setItem("BiggestGrowthObstacle_text", BiggestGrowthObstacle_text);
+                sessionStorage.setItem("monthly_revenue", customer_monthly_revenue);
+                sessionStorage.setItem("wbt_help", wbt_help);
+                sessionStorage.setItem("ScaleYourBusiness", ScaleYourBusiness);
+                sessionStorage.setItem("WebsiteURL", WebsiteURL);
+                sessionStorage.setItem("commit_date_time", selected_commit_date_time);
+                sessionStorage.setItem("referral_source", referral_source);
+                sessionStorage.setItem("referral_person_name", referral_person_name);
+                sessionStorage.setItem("referral_other", referral_other);
+
+
+                sessionStorage.setItem("is_job_management_software_use", is_job_management_software_use);
+                sessionStorage.setItem("job_management_software_name", job_management_software_name);
+                sessionStorage.setItem("job_management_software_name2", job_management_software_name2);
+                sessionStorage.setItem("show_up_on_time", show_up_on_time);
+                sessionStorage.setItem("CallType", CallType);
+
+               
+
+
+
+                   
+
+                  temp_monthly_revenue = String(selected_monthly_revenue_goal).split("-");
+
+                  if ( temp_monthly_revenue[0] == undefined ) { 
+                    temp_monthly_revenue[0] = '' ;
+                  }
+
+                  if ( temp_monthly_revenue[1] == undefined ) {  
+                    temp_monthly_revenue[1]= '' ;
+                  }
+                  
+
+                //sessionStorage.setItem("referral_details",referral_obj);
+                //sessionStorage.setItem("referral_details", referral_obj);
+                let customer_info = {
+                    "customer_name": customer_name,
+                    "last_name" : jQuery('#lastName').val(),
+                    "business_name" : jQuery('#businessname').val(),
+                    "role_witin_company" : jQuery('#rolewitincompany').val(),
+                    "customer_email": customer_email,
+                    "customer_phone": jQuery("#phone").val(),
+                    "marketing_type": selected_marketing_type,
+                    "business_industry": selected_business_industry,
+                    "Currency_Symbol" : sessionStorage.getItem('SmIs'),
+					"Country_Name" : sessionStorage.getItem('cname'),
+                    "monthly_revenue_goal": sessionStorage.getItem('SmIs') +  temp_monthly_revenue[0]   + '-' + sessionStorage.getItem('SmIs')  + temp_monthly_revenue[1], ////// selected_monthly_revenue_goal,
+                    "customer_worth":  selected_average_client,
+                    "new_leads": selected_monthly_marketing_budget,
+                    "lead_convert_customers": selected_percentage_leads,
+                    "describe_you": selected_describe_you,
+                    "biggest_growth_obstacle": BiggestGrowthObstacle_text,
+                    "monthly_revenue": customer_monthly_revenue,
+                    "selected_reference_type" :  selected_reference_type ,     
+                    "scale_your_business" :  ScaleYourBusiness ,    
+                    "website_yesorno" : jQuery(".haveWebsite:checked").val(),
+                    "website_url" :  jQuery("#Websiteurl").val(),      
+                    "commit_date_time": selected_commit_date_time,
+                    "scale_of_1_10":  sessionStorage.getItem("ShowSection14_name"),
+                    "referral_source": referral_source,
+                    "referral_person_name": referral_person_name,
+                    "referral_other": referral_other,
+
+                    "is_job_management_software_use": is_job_management_software_use,
+                    "job_management_software_name": job_management_software_name,
+                    "job_management_software_name2": job_management_software_name2,
+                    "show_up_on_time": show_up_on_time,
+                    "CallType": CallType,
+                    "tag": "HOT LEAD: Discovery Call Requested",
+                    "lead_Source": sessionStorage.getItem("lead_source"),
+                    "refURL": 'https://solutions.webuildtrades.com/loading?ref=' + $id,
+                }
+                let json_string = JSON.stringify(customer_info);
+                console.log(json_string); 
+
+
+                // //return;
+                // fetch("https://hooks.zapier.com/hooks/catch/2299769/bkfjwzh/", {
+
+              fetch("https://hooks.zapier.com/hooks/catch/2299769/b77hpl4/", {
+                    method: "POST",
+                    // headers: {
+                    //  "Content-Type": "application/json",
+                    // },
+                    body: JSON.stringify(customer_info),
+                }).then(function(result) {
+                    console.log(result)
+                    return result.json();
+                }).then(function(data) {
+                    document.location.href = "/funnel/book/";
+                    console.log(data)
+                });
+
+
+                
+            }
+            
+            
+              const urlParams = new URLSearchParams(window.location.search);
+  const lead_source = urlParams.get('lead_source');
+  sessionStorage.setItem("lead_source",lead_source)
+  
+  
+  
+  
+
+  
+  
+            
+            </script>
+            <?php
+get_footer();
+?>

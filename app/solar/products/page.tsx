@@ -1789,7 +1789,7 @@ function SolarProductsContent() {
                        {/* Survey Button */}
                        <Button
                          variant="outline"
-                         className={`w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                         className={`hidden w-full py-3 px-4 font-medium transition-colors border-gray-300 text-gray-700 hover:bg-gray-50 ${isLoading ? 'opacity-75 cursor-not-allowed' : ''}`}
                          onClick={() => persistProductAndGo(product)}
                          disabled={isLoading}
                        >
@@ -2016,6 +2016,7 @@ function SolarProductsContent() {
         submissionId={submissionId}
         additionalCosts={getTotalAnswersCost()}
         questionDetails={questionDetails}
+        category="solar"
       />
 
       {/* FAQs at bottom */}

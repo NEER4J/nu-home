@@ -54,9 +54,10 @@ interface UserInfoSectionProps {
   submissionId?: string | null
   additionalCosts?: number
   questionDetails?: Record<string, any>
+  category?: string
 }
 
-export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart, brandColor = '#2563eb', submissionId, additionalCosts = 0, questionDetails = {} }: UserInfoSectionProps) {
+export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart, brandColor = '#2563eb', submissionId, additionalCosts = 0, questionDetails = {}, category = 'boiler' }: UserInfoSectionProps) {
   const [showRestartConfirm, setShowRestartConfirm] = useState(false)
   const [showESurvey, setShowESurvey] = useState(false)
   const [showCallbackForm, setShowCallbackForm] = useState(false)
@@ -103,8 +104,15 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
     }
   }
 
-  // eSurvey image upload areas
-  const esurveyImageUploadAreas: ESurveyImageUploadArea[] = [
+  // eSurvey image upload areas based on category
+  const esurveyImageUploadAreas: ESurveyImageUploadArea[] = category === 'solar' ? [
+    { title: "Side of your home", description: "Upload a picture, showing the side", icon: Camera, required: true },
+    { title: "Electricity bill", description: "Upload a picture, showing most recent bill", icon: Camera, required: true },
+    { title: "Rear of your home", description: "Upload a picture, from back", icon: Camera, required: true },
+    { title: "Electrical meter (stood back)", description: "Upload a picture, showing the meter and enclosure", icon: Camera, required: true },
+    { title: "Consumer unit/fuseboard", description: "Upload a picture, clearly showing the switches", icon: Camera, required: true },
+    { title: "Front of your home", description: "Upload a picture, head on", icon: Camera, required: true }
+  ] : [
     { title: "Current boiler setup", description: "Show your existing boiler and surrounding area", icon: Camera, required: true },
     { title: "Installation area", description: "Where you'd like the new boiler installed", icon: Camera, required: true },
     { title: "Gas meter", description: "Your gas meter and pipework", icon: Camera, required: false },
@@ -148,20 +156,20 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
         };
 
         // Get service category ID
-        const { data: boilerCategory } = await supabase
+        const { data: serviceCategory } = await supabase
           .from('ServiceCategories')
           .select('service_category_id')
-          .eq('slug', 'boiler')
+          .eq('slug', category)
           .single()
 
-        if (boilerCategory) {
+        if (serviceCategory) {
           // Save to lead_submission_data
           const { error } = await supabase
             .from('lead_submission_data')
             .upsert({
               submission_id: submissionId,
               partner_id: partnerInfo.user_id,
-              service_category_id: boilerCategory.service_category_id,
+              service_category_id: serviceCategory.service_category_id,
               esurvey_data: esurveyData,
               current_page: 'esurvey',
               pages_completed: ['quote', 'products', 'esurvey'],
@@ -192,14 +200,14 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
               phone: submissionInfo.phone,
               postcode: submissionInfo.postcode,
               submission_id: submissionId,
-              category: 'boiler',
+              category: category,
               uploaded_image_urls: uploadedImageUrls,
               subdomain,
               is_iframe: isIframe
             };
 
-            console.log('Sending eSurvey email to: /api/email/boiler/esurvey-submitted')
-            const emailResponse = await fetch('/api/email/boiler/esurvey-submitted', {
+            console.log(`Sending eSurvey email to: /api/email/${category}/esurvey-submitted`)
+            const emailResponse = await fetch(`/api/email/${category}/esurvey-submitted`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(emailData),
@@ -481,7 +489,7 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
          }}
          onBack={() => setShowESurvey(false)}
          backLabel="Close"
-         category="boiler"
+         category={category}
          imageUploadAreas={esurveyImageUploadAreas}
          submissionId={submissionId || 'temp-' + Date.now()}
          onImageUpload={handleESurveyImageUpload}
