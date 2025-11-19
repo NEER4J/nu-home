@@ -170,6 +170,14 @@ export class FieldMappingEngine {
       }
     } else {
       // For email and other integrations, use the existing logic
+      // First, extract common template field values as fallback
+      const templateFieldValues = this.extractTemplateFieldValues(enhancedSubmissionData)
+      this.log('📋 Extracted fallback template field values:', Object.keys(templateFieldValues))
+      
+      // Add fallback values to processed data (will be overridden by explicit mappings if they exist)
+      Object.assign(processedData, templateFieldValues)
+      
+      // Process explicit field mappings (these override fallback values)
       for (const mapping of mappings || []) {
         try {
           const value = await this.processFieldMapping(enhancedSubmissionData, mapping)

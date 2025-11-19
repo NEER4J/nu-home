@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, RefreshCw, Info } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, Info, Bug } from 'lucide-react'
 import { startOfMonth, format } from 'date-fns'
 
 interface GHLCalendarTimeSelectorProps {

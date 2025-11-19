@@ -149,14 +149,14 @@ function SurveyContent() {
         setLoading(true)
 
         // Load service category ID
-        const { data: boilerCategory } = await supabase
+        const { data: solarCategory } = await supabase
           .from('ServiceCategories')
           .select('service_category_id')
-          .eq('slug', 'boiler')
+          .eq('slug', 'solar')
           .single()
         
-        if (boilerCategory) {
-          setServiceCategoryId(boilerCategory.service_category_id as string)
+        if (solarCategory) {
+          setServiceCategoryId(solarCategory.service_category_id as string)
         }
 
         // Get partner info from URL or submission
@@ -315,77 +315,17 @@ function SurveyContent() {
          console.log('Loading partner settings for partnerId:', partnerId, 'serviceCategoryId:', serviceCategoryId)
          
          if (serviceCategoryId && partnerId) {
-           console.log('🔍 Querying PartnerSettings with:', {
-             partner_id: partnerId,
-             service_category_id: serviceCategoryId
-           })
-           
            const { data: settingsData, error: settingsError } = await supabase
              .from('PartnerSettings')
-             .select('apr_settings, calendar_settings, setting_id, partner_id, service_category_id')
+             .select('apr_settings, calendar_settings')
              .eq('partner_id', partnerId)
              .eq('service_category_id', serviceCategoryId)
              .single()
 
-           console.log('📊 Partner settings query result:', { 
-             settingsData, 
-             settingsError,
-             hasData: !!settingsData,
-             rowCount: settingsData ? 1 : 0
-           })
-           
-           if (settingsData) {
-             console.log('📋 Raw settingsData object:', settingsData)
-             console.log('📋 Raw calendar_settings from DB:', settingsData.calendar_settings)
-             console.log('📋 calendar_settings type:', typeof settingsData.calendar_settings)
-             console.log('📋 calendar_settings value:', settingsData.calendar_settings)
-             console.log('📋 Is calendar_settings null?', settingsData.calendar_settings === null)
-             console.log('📋 Is calendar_settings undefined?', settingsData.calendar_settings === undefined)
-             console.log('📋 calendar_settings stringified:', JSON.stringify(settingsData.calendar_settings))
-             console.log('📋 Is calendar_settings empty object?', JSON.stringify(settingsData.calendar_settings) === '{}')
-             
-             if (settingsData.calendar_settings) {
-               console.log('📋 Calendar settings keys:', Object.keys(settingsData.calendar_settings))
-               console.log('📋 Calendar settings entries:', Object.entries(settingsData.calendar_settings))
-             } else {
-               console.log('⚠️ calendar_settings is falsy (null/undefined/empty)')
-             }
-           }
+           console.log('Partner settings query result:', { settingsData, settingsError })
 
            if (!settingsError && settingsData) {
              // Convert APR settings keys from string to number
-             let calendarSettings = settingsData.calendar_settings
-             
-             // Debug: Check if calendar_settings is actually populated
-             console.log('🔧 Processing calendar_settings...')
-             
-             // Handle different cases: null, undefined, empty object, or actual data
-             if (calendarSettings === null || calendarSettings === undefined) {
-               console.warn('⚠️ calendar_settings is null or undefined - using empty object')
-               calendarSettings = {}
-             } else if (typeof calendarSettings === 'object') {
-               const calendarKeys = Object.keys(calendarSettings)
-               console.log('📦 Calendar settings has keys:', calendarKeys)
-               console.log('📦 Full calendar_settings object:', JSON.stringify(calendarSettings, null, 2))
-               
-               // Check if it's an empty object or has data
-               if (calendarKeys.length === 0) {
-                 console.warn('⚠️ calendar_settings is an empty object {} - no calendar data found in DB for this service category!')
-                 console.warn('💡 Make sure calendar_settings is configured in the partner configuration page for the "boiler" service category')
-               } else {
-                 console.log('✅ calendar_settings has data with keys:', calendarKeys)
-                 // Verify survey_booking exists
-                 if (calendarSettings.survey_booking) {
-                   console.log('✅ survey_booking config found:', calendarSettings.survey_booking)
-                 } else {
-                   console.warn('⚠️ survey_booking config not found in calendar_settings')
-                 }
-               }
-             } else {
-               console.warn('⚠️ calendar_settings is not an object:', typeof calendarSettings, calendarSettings)
-               calendarSettings = {}
-             }
-             
              const convertedSettings = {
                apr_settings: settingsData.apr_settings ? 
                  Object.fromEntries(
@@ -394,13 +334,10 @@ function SurveyContent() {
                      typeof value === 'number' ? value : parseFloat(String(value))
                    ])
                  ) : null,
-               calendar_settings: calendarSettings
+               calendar_settings: settingsData.calendar_settings || {}
              }
-             
-             console.log('✅ Final converted settings:', convertedSettings)
-             console.log('✅ Final calendar_settings:', JSON.stringify(convertedSettings.calendar_settings, null, 2))
              setPartnerSettings(convertedSettings)
-             console.log('✅ Partner settings loaded and set successfully')
+             console.log('Partner settings loaded successfully:', convertedSettings)
            } else {
              console.log('Partner settings not found or error:', settingsError)
              setPartnerSettings(null)
@@ -488,7 +425,7 @@ function SurveyContent() {
           <div className="text-red-600 text-lg font-medium mb-2">Error</div>
           <p className="text-gray-600">{error}</p>
           <button 
-            onClick={() => window.location.href = '/boiler/products'} 
+            onClick={() => window.location.href = '/solar/products'} 
             className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
           >
             Back to Products
@@ -505,7 +442,7 @@ function SurveyContent() {
           <div className="text-red-600 text-lg font-medium mb-2">Partner Not Found</div>
           <p className="text-gray-600">Unable to find partner information.</p>
           <button 
-            onClick={() => window.location.href = '/boiler/products'} 
+            onClick={() => window.location.href = '/solar/products'} 
             className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
           >
             Back to Products
@@ -735,8 +672,8 @@ function SurveyContent() {
             }
           };
 
-          console.log('Sending survey email to: /api/email/boiler/survey-submitted-v2')
-          const emailResponse = await fetch('/api/email/boiler/survey-submitted-v2', {
+          console.log('Sending survey email to: /api/email/solar/survey-submitted-v2')
+          const emailResponse = await fetch('/api/email/solar/survey-submitted-v2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(emailData),
@@ -756,7 +693,7 @@ function SurveyContent() {
         
         // Redirect to enquiry page after email is sent
         console.log('=== REDIRECTING TO ENQUIRY PAGE ===')
-        const url = new URL('/boiler/enquiry', window.location.origin);
+        const url = new URL('/solar/enquiry', window.location.origin);
         if (submissionId) url.searchParams.set('submission', submissionId);
         window.location.href = url.toString();
       } else {
@@ -772,7 +709,7 @@ function SurveyContent() {
   return (
     <>
       {/* Iframe Navigation Tracker */}
-      <IframeNavigationTracker categorySlug="boiler" />
+      <IframeNavigationTracker categorySlug="solar" />
       
       <SurveyLayout
         selectedProduct={selectedProduct}
@@ -784,8 +721,8 @@ function SurveyContent() {
         prefillUserInfo={prefillUserInfo}
         submissionId={submissionId || undefined}
         onSurveySubmit={handleSurveySubmit}
-        backHref="/boiler/products"
-        backLabel="Back to Products"
+        backHref={submissionId ? `/solar/addons?submission=${submissionId}` : '/solar/addons'}
+        backLabel="Back to Add-ons"
         showBack={true}
       />
     </>
@@ -806,3 +743,4 @@ export default function SurveyPage() {
     </Suspense>
   )
 }
+

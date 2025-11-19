@@ -18,7 +18,7 @@ const partnerNavItems = [
   { href: '/partner/highlights', label: 'Announcements', icon: Megaphone, section: 'Marketing' },
   { href: '/partner/key-points', label: 'Key Points', icon: Star, section: 'Marketing' },
   { href: '/partner/leads', label: 'Leads', icon: UserRound, section: 'Leads' },
-  { href: '/partner/category-access', label: 'Services', icon: Grid, section: 'Account' },
+  // { href: '/partner/category-access', label: 'Services', icon: Grid, section: 'Account' },
   { href: '/partner/notifications', label: 'Emails', icon: Mail },
   { href: '/partner/configuration', label: 'Service Configuration', icon: Settings2 },
   { href: '/partner/settings', label: 'Settings', icon: Settings },

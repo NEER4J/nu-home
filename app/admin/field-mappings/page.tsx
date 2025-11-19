@@ -140,6 +140,33 @@ const EMAIL_TYPES_BY_CATEGORY = {
       description: 'Sent when a customer requests a callback',
     },
   ],
+  solar: [
+    {
+      id: 'quote-initial',
+      name: 'Initial Quote Request',
+      description: 'Sent when a customer submits a solar quote request',
+    },
+    {
+      id: 'quote-verified',
+      name: 'Quote Verified',
+      description: 'Sent when a customer completes phone verification',
+    },
+    {
+      id: 'save-quote',
+      name: 'Save Quote',
+      description: 'Sent when a customer saves their quote for later',
+    },
+    {
+      id: 'survey-submitted',
+      name: 'Survey Submitted',
+      description: 'Sent when a customer completes a survey',
+    },
+    {
+      id: 'enquiry-submitted',
+      name: 'Enquiry Submitted',
+      description: 'Sent when a customer submits a general enquiry',
+    },
+  ],
   aircon: [
     {
       id: 'aircon-quote-initial',

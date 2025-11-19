@@ -830,7 +830,7 @@ function SolarAddonsPageContent() {
                   {
                     addons_data: addonData
                   },
-                  'checkout',
+                  'survey',
                   ['quote', 'products', 'addons']
                 ).catch(err => 
                   console.warn('Failed to save addon data to lead_submission_data:', err)
@@ -868,16 +868,16 @@ function SolarAddonsPageContent() {
                     price: 0, // Bundles don't have direct price
                     quantity: b.quantity
                   })),
-                  progress_step: 'checkout',
+                  progress_step: 'survey',
                   last_seen_at: new Date().toISOString(),
                 })
                 .eq('submission_id', submissionId)
             }
           } catch (e) {
-            console.warn('Failed to persist cart before checkout', e)
+            console.warn('Failed to persist cart before survey', e)
           }
           
-          const url = new URL('/solar/checkout', window.location.origin)
+          const url = new URL('/solar/survey', window.location.origin)
                     if (submissionId) url.searchParams.set('submission', submissionId)
                     window.location.href = url.toString()
                   }}

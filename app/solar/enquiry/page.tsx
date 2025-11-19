@@ -1,0 +1,595 @@
+'use client'
+
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { createClient } from '@/utils/supabase/client'
+import { Home, Zap, Building, Sun, Settings, Camera } from 'lucide-react'
+import EnquiryLayout, { ImageUploadArea, FormField } from '@/components/category-commons/enquiry/EnquiryLayout'
+
+// Helper function to save data to lead_submission_data table
+const saveLeadSubmissionData = async (
+  supabase: any,
+  submissionId: string,
+  partnerId: string,
+  serviceCategoryId: string,
+  data: any,
+  currentPage: string,
+  pagesCompleted: string[] = []
+) => {
+  console.log('=== saveLeadSubmissionData CALLED ===')
+  console.log('Parameters:', { submissionId, partnerId, serviceCategoryId, currentPage, pagesCompleted })
+  
+  try {
+    // Validate required fields
+    if (!submissionId) {
+      console.error('Missing submissionId');
+      return;
+    }
+    if (!partnerId) {
+      console.error('Missing partnerId');
+      return;
+    }
+    if (!serviceCategoryId) {
+      console.error('Missing serviceCategoryId');
+      return;
+    }
+
+    // Get existing form submissions to append new ones
+    let existingFormSubmissions = []
+    if (data.form_submissions) {
+      try {
+        const { data: existingData } = await supabase
+          .from('lead_submission_data')
+          .select('form_submissions')
+          .eq('submission_id', submissionId)
+          .single()
+        
+        if (existingData?.form_submissions) {
+          existingFormSubmissions = Array.isArray(existingData.form_submissions) 
+            ? existingData.form_submissions 
+            : []
+        }
+      } catch (err) {
+        console.warn('Could not fetch existing form submissions:', err)
+      }
+    }
+
+    // Prepare the payload
+    const payload = {
+      submission_id: submissionId,
+      partner_id: partnerId,
+      service_category_id: serviceCategoryId,
+      ...data,
+      current_page: currentPage,
+      pages_completed: pagesCompleted,
+      last_activity_at: new Date().toISOString(),
+      session_id: typeof window !== 'undefined' ? 
+        (window as any).sessionStorage?.getItem('session_id') || 
+        `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+        `server_${Date.now()}`,
+      device_info: typeof window !== 'undefined' ? {
+        user_agent: navigator.userAgent,
+        screen_resolution: `${screen.width}x${screen.height}`,
+        viewport_size: `${window.innerWidth}x${window.innerHeight}`,
+        language: navigator.language,
+        platform: navigator.platform,
+        cookie_enabled: navigator.cookieEnabled,
+        online_status: navigator.onLine
+      } : {},
+      updated_at: new Date().toISOString()
+    };
+
+    // Append new form submissions to existing ones
+    if (data.form_submissions && Array.isArray(data.form_submissions)) {
+      payload.form_submissions = [...existingFormSubmissions, ...data.form_submissions]
+      console.log('Form submissions count:', payload.form_submissions.length)
+    }
+
+    console.log('Saving lead submission data with payload:', payload);
+
+    const { error } = await supabase
+      .from('lead_submission_data')
+      .upsert(payload, {
+        onConflict: 'submission_id'
+      });
+
+    if (error) {
+      console.error('Error saving lead submission data:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+    } else {
+      console.log('Successfully saved lead submission data for page:', currentPage);
+    }
+  } catch (error) {
+    console.error('Error in saveLeadSubmissionData:', error);
+  }
+};
+
+interface PartnerInfo {
+  user_id: string
+  company_name: string
+  company_color: string | null
+  logo_url: string | null
+  phone: string | null
+}
+
+interface CustomerDetails {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  postcode: string
+  notes: string
+}
+
+// Configuration for solar enquiry
+const solarImageUploadAreas: ImageUploadArea[] = [
+  { title: "Roof area", description: "Showing the roof structure and available space", icon: Home, required: true },
+  { title: "Front of property (stood back)", description: "Showing as much of it as possible", icon: Building, required: true },
+  { title: "Electrical panel/service entrance", description: "Showing the main electrical panel and service entrance", icon: Zap, required: true },
+  { title: "Current meter location", description: "Showing where your electricity meter is located", icon: Settings, required: false },
+  { title: "Rear of property (stood back)", description: "Showing as much of it as possible", icon: Building, required: false },
+  { title: "Any existing solar equipment", description: "If you have any existing solar panels or equipment", icon: Sun, required: false }
+]
+
+const solarFormFields: FormField[] = [
+  {
+    name: "roofType",
+    label: "Roof type/material",
+    description: "What type of roof do you have? (e.g. Tile, Slate, Metal, Flat)",
+    placeholder: "e.g. Tile, Slate, Metal",
+    required: true
+  },
+  {
+    name: "roofOrientation",
+    label: "Roof orientation",
+    description: "Which direction does your roof face? (e.g. South, East, West)",
+    placeholder: "e.g. South facing",
+    required: true
+  },
+  {
+    name: "currentEnergyUsage",
+    label: "Current energy usage",
+    description: "Approximate monthly electricity bill or kWh usage",
+    placeholder: "e.g. £150/month or 500 kWh",
+    required: false
+  },
+  {
+    name: "existingSolarSystem",
+    label: "Do you have an existing solar system?",
+    description: "If yes, please provide details",
+    placeholder: "e.g. No, or Yes - 3kW system installed in 2020",
+    required: false
+  },
+  {
+    name: "preferredInstallationLocation",
+    label: "Preferred installation location",
+    description: "Where would you like the panels installed?",
+    placeholder: "e.g. Main roof, Garage roof, Ground mount",
+    required: true
+  },
+  {
+    name: "shadingConcerns",
+    label: "Shading concerns",
+    description: "Are there any trees, buildings, or other objects that shade your roof?",
+    placeholder: "Enter answer here",
+    required: false
+  }
+]
+
+function EnquiryContent() {
+  const supabase = createClient()
+  const searchParams = useSearchParams()
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [partnerInfo, setPartnerInfo] = useState<PartnerInfo | null>(null)
+  const [customerDetails, setCustomerDetails] = useState<CustomerDetails | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [serviceCategoryId, setServiceCategoryId] = useState<string | null>(null)
+  const [pageStartTime, setPageStartTime] = useState<number>(Date.now())
+
+  const submissionId = searchParams?.get('submission') ?? null
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true)
+
+        // Load service category ID
+        const { data: solarCategory } = await supabase
+          .from('ServiceCategories')
+          .select('service_category_id')
+          .eq('slug', 'solar')
+          .single()
+        
+        if (solarCategory) {
+          setServiceCategoryId(solarCategory.service_category_id as string)
+        }
+
+        let partnerId: string | null = null
+
+        if (submissionId) {
+          const { data: submissionData, error: submissionError } = await supabase
+            .from('partner_leads')
+            .select('assigned_partner_id, first_name, last_name, email, phone, postcode, notes')
+            .eq('submission_id', submissionId)
+            .single()
+
+          if (submissionError) {
+            console.error('Error loading submission:', submissionError)
+            setError('Failed to load submission data')
+            return
+          }
+
+          if (submissionData) {
+            partnerId = submissionData.assigned_partner_id
+            setCustomerDetails({
+              first_name: submissionData.first_name || '',
+              last_name: submissionData.last_name || '',
+              email: submissionData.email || '',
+              phone: submissionData.phone || '',
+              postcode: submissionData.postcode || '',
+              notes: submissionData.notes || ''
+            })
+          }
+        }
+
+        if (!partnerId) {
+          setError('No partner information found')
+          return
+        }
+
+        const { data: partnerData, error: partnerError } = await supabase
+          .from('UserProfiles')
+          .select('user_id, company_name, company_color, logo_url, phone')
+          .eq('user_id', partnerId as string)
+          .single()
+
+        if (partnerError) {
+          console.error('Error loading partner:', partnerError)
+          setError('Failed to load partner information')
+          return
+        }
+
+        setPartnerInfo(partnerData)
+
+        // Update progress to 'enquiry' when user reaches enquiry page
+        if (submissionId) {
+          try {
+            await fetch('/api/partner-leads/update-enquiry', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                submissionId,
+                progressStep: 'enquiry'
+              }),
+            })
+          } catch (progressError) {
+            console.error('Failed to update progress to enquiry:', progressError)
+          }
+        }
+      } catch (err) {
+        console.error('Error in loadData:', err)
+        setError('An unexpected error occurred')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [submissionId, supabase])
+
+  const handleBack = () => {
+    window.location.href = '/solar/survey' + (submissionId ? `?submission=${submissionId}` : '')
+  }
+
+  const handleImageUpload = (areaIndex: number, files: FileList) => {
+    console.log(`Uploaded ${files.length} files for area ${areaIndex}`)
+  }
+
+  const handleFormSubmit = async (formData: Record<string, any>, uploadedImages: Record<number, File[]>, uploadedImageUrls: Record<number, string[]>) => {
+    setIsSubmitting(true)
+
+    try {
+      console.log('=== ENQUIRY FORM SUBMISSION HANDLER CALLED ===')
+      console.log('Form data:', formData)
+      console.log('Uploaded images:', uploadedImages)
+      console.log('Uploaded image URLs:', uploadedImageUrls)
+      
+      if (submissionId && partnerInfo && serviceCategoryId) {
+        const totalTimeOnPage = Date.now() - pageStartTime;
+        
+        // Prepare enquiry data for lead_submission_data
+        const enquiryData = {
+          enquiry_details: {
+            user_details: {
+              first_name: customerDetails?.first_name || '',
+              last_name: customerDetails?.last_name || '',
+              email: customerDetails?.email || '',
+              phone: customerDetails?.phone || '',
+              postcode: customerDetails?.postcode || '',
+              notes: customerDetails?.notes || ''
+            },
+            form_responses: formData,
+            uploaded_images: Object.keys(uploadedImageUrls).map(areaIndex => {
+              const imageUrls = uploadedImageUrls[parseInt(areaIndex)] || [];
+              const area = solarImageUploadAreas[parseInt(areaIndex)];
+              return {
+                label: area?.title || `Image ${parseInt(areaIndex) + 1}`,
+                url: imageUrls[0] || null
+              };
+            }).filter(img => img.url), // Store image with label and URL
+            enquiry_completed_at: new Date().toISOString(),
+            total_time_on_page_ms: totalTimeOnPage
+          }
+        };
+
+        // Prepare form submission data
+        const formSubmissionData = {
+          form_type: 'enquiry',
+          submitted_at: new Date().toISOString(),
+          form_data: {
+            user_details: {
+              first_name: customerDetails?.first_name || '',
+              last_name: customerDetails?.last_name || '',
+              email: customerDetails?.email || '',
+              phone: customerDetails?.phone || '',
+              postcode: customerDetails?.postcode || '',
+              notes: customerDetails?.notes || ''
+            },
+            form_responses: formData,
+            uploaded_images: Object.keys(uploadedImageUrls).map(areaIndex => {
+              const imageUrls = uploadedImageUrls[parseInt(areaIndex)] || [];
+              const area = solarImageUploadAreas[parseInt(areaIndex)];
+              return {
+                label: area?.title || `Image ${parseInt(areaIndex) + 1}`,
+                url: imageUrls[0] || null
+              };
+            }).filter(img => img.url) // Store image with label and URL
+          },
+          submission_metadata: {
+            page_url: typeof window !== 'undefined' ? window.location.href : '',
+            user_agent: typeof window !== 'undefined' ? navigator.userAgent : '',
+            timestamp: Date.now(),
+            session_id: typeof window !== 'undefined' ? 
+              (window as any).sessionStorage?.getItem('session_id') || 
+              `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : 
+              `server_${Date.now()}`
+          }
+        };
+
+        console.log('Prepared enquiry data:', enquiryData);
+        console.log('Form submission data:', formSubmissionData);
+
+        // Save enquiry data to lead_submission_data
+        await saveLeadSubmissionData(
+          supabase,
+          submissionId,
+          partnerInfo.user_id,
+          serviceCategoryId,
+          {
+            enquiry_data: enquiryData,
+            form_submissions: [formSubmissionData]
+          },
+          'success',
+          ['quote', 'products', 'addons', 'survey', 'enquiry']
+        );
+
+        console.log('Enquiry data saved successfully');
+
+        // Send enquiry email and wait for completion
+        console.log('=== SENDING ENQUIRY EMAIL ===')
+        try {
+          const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+          const subdomain = hostname || null
+          const isIframe = typeof window !== 'undefined' ? window.self !== window.top : false
+
+          const emailData = {
+            first_name: customerDetails?.first_name,
+            last_name: customerDetails?.last_name,
+            email: customerDetails?.email,
+            phone: customerDetails?.phone,
+            postcode: customerDetails?.postcode,
+            enquiry_details: formData,
+            submission_id: submissionId,
+            category: 'solar',
+            uploaded_image_urls: uploadedImageUrls,
+            subdomain,
+            is_iframe: isIframe
+          };
+
+          console.log('Sending enquiry email to: /api/email/solar/enquiry-submitted-v2')
+          const emailResponse = await fetch('/api/email/solar/enquiry-submitted-v2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailData),
+          });
+
+          const responseData = await emailResponse.json().catch(() => ({}))
+          
+          if (emailResponse.ok) {
+            console.log('Enquiry email sent successfully')
+            
+            // Create GHL lead from frontend (visible in network tab)
+            if (responseData?.partnerId || responseData?.debug?.partnerId) {
+              try {
+                console.log('🚀 Creating GHL lead from frontend for enquiry-submitted...');
+                
+                const ghlResponse = await fetch('/api/ghl/create-lead-client', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    partnerId: responseData.partnerId || responseData.debug?.partnerId,
+                    submissionId: submissionId,
+                    emailType: 'enquiry-submitted',
+                    contactData: {
+                      firstName: customerDetails?.first_name || '',
+                      lastName: customerDetails?.last_name || '',
+                      email: customerDetails?.email || '',
+                      phone: customerDetails?.phone || '',
+                      address1: customerDetails?.postcode || '',
+                      city: customerDetails?.postcode || '',
+                      country: 'United Kingdom'
+                    },
+                    customFields: {},
+                    pipelineId: null,
+                    stageId: null
+                  })
+                })
+
+                if (ghlResponse.ok) {
+                  const ghlResult = await ghlResponse.json()
+                  console.log('✅ GHL lead created from frontend:', ghlResult)
+                } else {
+                  console.warn('⚠️ GHL lead creation failed:', ghlResponse.status)
+                }
+              } catch (ghlError) {
+                console.warn('⚠️ GHL lead creation error:', ghlError)
+              }
+            }
+          } else {
+            console.warn('Failed to send enquiry email:', await emailResponse.text())
+          }
+        } catch (emailError) {
+          console.warn('Error sending enquiry email:', emailError)
+        }
+
+        // Update partner_leads progress to enquiry_completed
+        if (submissionId) {
+          try {
+            await fetch('/api/partner-leads/update-enquiry', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                submissionId,
+                enquiryDetails: formData,
+                progressStep: 'enquiry_completed'
+              }),
+            })
+          } catch (progressError) {
+            console.error('Failed to update progress:', progressError)
+          }
+        }
+
+        // Images are already uploaded to Supabase storage and tracked in database
+        console.log('Enquiry submitted successfully', { 
+          formData, 
+          uploadedImages: Object.keys(uploadedImages).length,
+          uploadedImageUrls: Object.keys(uploadedImageUrls).length
+        })
+
+        // Redirect to enquiry success page
+        const successUrl = new URL('/solar/enquiry/success', window.location.origin)
+        if (submissionId) {
+          successUrl.searchParams.set('submission', submissionId)
+        }
+        window.location.href = successUrl.toString()
+      } else {
+        console.error('Missing submissionId, partnerInfo, or serviceCategoryId for enquiry');
+        alert('Error: Missing required information for enquiry submission');
+      }
+      
+    } catch (error) {
+      console.error('Failed to submit enquiry:', error)
+      alert('Failed to submit enquiry. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading enquiry...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-lg font-medium mb-2">Error</div>
+          <p className="text-gray-600">{error}</p>
+          <button 
+            onClick={() => window.location.href = '/solar/products'} 
+            className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+          >
+            Back to Products
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!partnerInfo || !customerDetails) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-lg font-medium mb-2">Information Not Found</div>
+          <p className="text-gray-600">Unable to find enquiry information.</p>
+          <button 
+            onClick={() => window.location.href = '/solar/products'} 
+            className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
+          >
+            Back to Products
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <EnquiryLayout
+      companyColor={partnerInfo.company_color}
+      partnerPhone={partnerInfo.phone}
+      customerName={customerDetails.first_name}
+      customerDetails={{
+        name: `${customerDetails.first_name} ${customerDetails.last_name}`,
+        phone: customerDetails.phone,
+        email: customerDetails.email,
+        postcode: customerDetails.postcode
+      }}
+      onBack={handleBack}
+      backLabel="Back to Survey"
+      category="solar"
+      imageUploadAreas={solarImageUploadAreas}
+      formFields={solarFormFields}
+      submissionId={submissionId || 'temp-' + Date.now()}
+      onImageUpload={handleImageUpload}
+      onFormSubmit={handleFormSubmit}
+      currentStep={1}
+      onStepChange={() => {}}
+      isSubmitting={isSubmitting}
+    />
+  )
+}
+
+export default function EnquiryPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading enquiry...</p>
+        </div>
+      </div>
+    }>
+      <EnquiryContent />
+    </Suspense>
+  )
+}
+

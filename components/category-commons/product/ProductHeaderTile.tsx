@@ -493,6 +493,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
           saveType={saveType}
           detailedProductData={detailedProductData}
           detailedAllProductsData={detailedAllProductsData}
+          serviceCategorySlug={category || 'boiler'}
         />
       )}
 

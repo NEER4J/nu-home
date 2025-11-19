@@ -93,9 +93,11 @@ import {
 } from '@/lib/email-templates/checkout-stripe'
 
 // Helper function to get templates based on category and email type
+// Templates are category-agnostic and use dynamic fields, so we can reuse them across categories
 const getTemplatesByType = (categorySlug: string, emailType: string, recipientType: 'customer' | 'admin', templateType: 'html' | 'text') => {
-  // For boiler category, use existing templates
-  if (categorySlug === 'boiler') {
+  // Handle all email types that are shared across categories (boiler, solar, etc.)
+  // These templates use dynamic fields so they work for any category
+  
     if (emailType === 'quote-initial') {
       if (recipientType === 'customer') {
         return templateType === 'html' ? getDefaultCustomerTemplate() : getDefaultCustomerTextTemplate()
@@ -155,19 +157,18 @@ const getTemplatesByType = (categorySlug: string, emailType: string, recipientTy
         return templateType === 'html' ? getDefaultCustomerCallbackRequestedTemplate() : getDefaultCustomerCallbackRequestedTextTemplate()
       } else {
         return templateType === 'html' ? getDefaultAdminCallbackRequestedTemplate() : getDefaultAdminCallbackRequestedTextTemplate()
-      }
     }
   }
   
-  // For other categories, return placeholder templates for now
-  // TODO: Create category-specific template files
+  // For category-specific email types (like aircon-quote-initial), return placeholder templates
+  // TODO: Create category-specific template files for these
   if (categorySlug === 'aircon') {
     const placeholderHtml = `<h1>Placeholder ${recipientType} template for ${emailType}</h1><p>This template needs to be implemented for ${categorySlug} category.</p>`
     const placeholderText = `Placeholder ${recipientType} template for ${emailType}. This template needs to be implemented for ${categorySlug} category.`
     return templateType === 'html' ? placeholderHtml : placeholderText
   }
   
-  // Default fallback
+  // Default fallback for unknown email types
   const fallbackHtml = `<h1>Default ${recipientType} template</h1><p>Template for ${emailType} in ${categorySlug} category.</p>`
   const fallbackText = `Default ${recipientType} template for ${emailType} in ${categorySlug} category.`
   return templateType === 'html' ? fallbackHtml : fallbackText
@@ -272,8 +273,34 @@ const EMAIL_TYPES_BY_CATEGORY = {
       description: 'Sent to remind customers about AC maintenance',
     },
   ],
+  solar: [
+    {
+      id: 'quote-initial',
+      name: 'Initial Quote Request',
+      description: 'Sent when a customer submits a solar quote request',
+    },
+    {
+      id: 'quote-verified',
+      name: 'Quote Verified',
+      description: 'Sent when a customer completes phone verification',
+    },
+    {
+      id: 'save-quote',
+      name: 'Save Quote',
+      description: 'Sent when a customer saves their quote for later',
+    },
+    {
+      id: 'survey-submitted',
+      name: 'Survey Submitted',
+      description: 'Sent when a customer completes a survey',
+    },
+    {
+      id: 'enquiry-submitted',
+      name: 'Enquiry Submitted',
+      description: 'Sent when a customer submits a general enquiry',
+    },
+  ],
   // TODO: Add email types for other categories as they're implemented
-  // solar: [],
   // 'heat-pump': [],
 }
 
@@ -752,6 +779,7 @@ export default function NotificationsPage() {
           'enquiry-submitted': { customer: 'Customer Enquiry Confirmation', admin: 'Admin Enquiry Notification' },
           'survey-submitted': { customer: 'Customer Survey Confirmation', admin: 'Admin Survey Notification' },
           'esurvey-submitted': { customer: 'Customer eSurvey Confirmation', admin: 'Admin eSurvey Notification' },
+          'callback-requested': { customer: 'Customer Callback Request Confirmation', admin: 'Admin Callback Request Notification' },
           'aircon-quote-initial': { customer: 'AC Quote Confirmation', admin: 'Admin AC Quote Notification' },
           'aircon-installation-scheduled': { customer: 'AC Installation Scheduled', admin: 'Admin AC Installation Notification' },
           'aircon-maintenance-reminder': { customer: 'AC Maintenance Reminder', admin: 'Admin AC Maintenance Notification' },
@@ -770,6 +798,7 @@ export default function NotificationsPage() {
           'enquiry-submitted': { customer: 'Email sent when customer submits a general enquiry', admin: 'Notification sent to admin when enquiry is submitted' },
           'survey-submitted': { customer: 'Email sent when customer completes a survey', admin: 'Notification sent to admin when survey is submitted' },
           'esurvey-submitted': { customer: 'Email sent when customer submits photos via eSurvey', admin: 'Notification sent to admin when eSurvey is submitted' },
+          'callback-requested': { customer: 'Email sent when customer requests a callback', admin: 'Notification sent to admin when callback is requested' },
           'aircon-quote-initial': { customer: 'Email sent to customers after AC quote request', admin: 'Notification sent to admin when new AC quote is submitted' },
           'aircon-installation-scheduled': { customer: 'Email sent when AC installation is scheduled', admin: 'Notification sent to admin about scheduled AC installation' },
           'aircon-maintenance-reminder': { customer: 'Reminder sent to customers about AC maintenance', admin: 'Notification to admin about maintenance reminders sent' },
@@ -784,10 +813,11 @@ export default function NotificationsPage() {
           'save-quote': { customer: 'Quote Saved Successfully - {{companyName}}', admin: 'Customer Saved Quote - Follow Up - {{companyName}}' },
           'checkout-monthly': { customer: 'Monthly Payment Plan Confirmed - {{companyName}}', admin: 'New Monthly Payment Plan Booking - {{companyName}}' },
           'checkout-pay-later': { customer: 'Installation Booked - Pay After Completion - {{companyName}}', admin: 'New Pay After Installation Booking - {{companyName}}' },
-          'checkout-stripe': { customer: 'Payment Confirmed - Your Boiler Installation - {{companyName}}', admin: 'Payment Confirmed - Installation Booking - {{companyName}}' },
+          'checkout-stripe': { customer: 'Payment Confirmed - Your Installation - {{companyName}}', admin: 'Payment Confirmed - Installation Booking - {{companyName}}' },
           'enquiry-submitted': { customer: 'Enquiry Submitted Successfully - {{companyName}}', admin: 'New Enquiry Submitted - {{companyName}}' },
           'survey-submitted': { customer: 'Survey Submitted Successfully - {{companyName}}', admin: 'New Survey Response Received - {{companyName}}' },
           'esurvey-submitted': { customer: 'eSurvey Submitted Successfully - {{companyName}}', admin: 'New eSurvey Submitted - {{companyName}}' },
+          'callback-requested': { customer: 'Callback Request Received - {{companyName}}', admin: 'New Callback Request - {{companyName}}' },
           'aircon-quote-initial': { customer: 'Your AC Quote Request - {{companyName}}', admin: 'New AC Quote Request - {{companyName}}' },
           'aircon-installation-scheduled': { customer: 'AC Installation Scheduled - {{companyName}}', admin: 'AC Installation Scheduled - {{companyName}}' },
           'aircon-maintenance-reminder': { customer: 'AC Maintenance Reminder - {{companyName}}', admin: 'AC Maintenance Reminder Sent - {{companyName}}' },

@@ -34,6 +34,7 @@ interface SaveQuoteDialogProps {
   saveType?: 'all_products' | 'single_product'
   detailedProductData?: any
   detailedAllProductsData?: any[]
+  serviceCategorySlug?: string
 }
 
 export default function SaveQuoteDialog({
@@ -50,6 +51,7 @@ export default function SaveQuoteDialog({
   saveType = 'all_products',
   detailedProductData,
   detailedAllProductsData,
+  serviceCategorySlug = 'boiler',
 }: SaveQuoteDialogProps) {
   const [firstName, setFirstName] = useState<string>(defaultFirstName || '')
   const [lastName, setLastName] = useState<string>(defaultLastName || '')
@@ -73,7 +75,7 @@ export default function SaveQuoteDialog({
       // Detect if running in iframe
       const isIframe = window.self !== window.top;
 
-      const res = await fetch('/api/email/boiler/save-quote-v2', {
+      const res = await fetch(`/api/email/${serviceCategorySlug}/save-quote-v2`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
