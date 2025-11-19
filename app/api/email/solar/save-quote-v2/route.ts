@@ -5,6 +5,7 @@ import { resolvePartnerByHostname } from '@/lib/partner'
 import { FieldMappingEngine } from '@/lib/field-mapping-engine'
 import { getNotificationSettingsForType } from '@/lib/email-notification-settings'
 import { getDefaultCustomerSaveQuoteTemplate, getDefaultAdminSaveQuoteTemplate } from '@/lib/email-templates/save-quote'
+import { getDefaultSolarCustomerSaveQuoteTemplate, getDefaultSolarAdminSaveQuoteTemplate } from '@/lib/email-templates/solar/save-quote'
 import nodemailer from 'nodemailer'
 
 export const runtime = 'nodejs'
@@ -379,7 +380,7 @@ export async function POST(request: NextRequest) {
         email_type: 'save-quote',
         recipient_type: 'customer',
         subject_template: 'Your Quote Has Been Saved - {{companyName}}',
-        html_template: getDefaultCustomerSaveQuoteTemplate(),
+        html_template: getDefaultSolarCustomerSaveQuoteTemplate(),
         text_template: 'Your quote has been saved. Email: {{email}}',
         is_active: true,
         created_at: new Date().toISOString(),
@@ -405,7 +406,7 @@ export async function POST(request: NextRequest) {
         email_type: 'save-quote',
         recipient_type: 'admin',
         subject_template: 'New Quote Saved - {{companyName}}',
-        html_template: getDefaultAdminSaveQuoteTemplate(),
+        html_template: getDefaultSolarAdminSaveQuoteTemplate(),
         text_template: 'New quote saved. Customer: {{email}}',
         is_active: true,
         created_at: new Date().toISOString(),

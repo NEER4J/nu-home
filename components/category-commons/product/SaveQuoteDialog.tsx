@@ -102,7 +102,7 @@ export default function SaveQuoteDialog({
       if (data?.debug?.partnerId || data?.partnerId) {
         try {
           console.log('🚀 Creating GHL lead from frontend for save-quote...');
-          
+
           const ghlResponse = await fetch('/api/ghl/create-lead-client', {
             method: 'POST',
             headers: {

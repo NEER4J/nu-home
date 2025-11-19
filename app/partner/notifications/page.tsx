@@ -10,8 +10,8 @@ import LeadsMapping from '@/components/partner/notifications/LeadsMapping'
 import { toast } from 'sonner'
 
 import { FieldMappingEngine } from '@/lib/field-mapping-engine'
-import { 
-  getAllEmailNotificationSettings, 
+import {
+  getAllEmailNotificationSettings,
   updateEmailNotificationSettings,
   type EmailNotificationSettings as EmailNotificationSettingsType,
   type EmailNotificationConfig
@@ -39,6 +39,13 @@ import {
   getDefaultAdminSaveQuoteTemplate,
   getDefaultAdminSaveQuoteTextTemplate
 } from '@/lib/email-templates/save-quote'
+
+import {
+  getDefaultSolarCustomerSaveQuoteTemplate,
+  getDefaultSolarCustomerSaveQuoteTextTemplate,
+  getDefaultSolarAdminSaveQuoteTemplate,
+  getDefaultSolarAdminSaveQuoteTextTemplate
+} from '@/lib/email-templates/solar/save-quote'
 
 import {
   getDefaultCustomerEnquirySubmittedTemplate,
@@ -97,69 +104,75 @@ import {
 const getTemplatesByType = (categorySlug: string, emailType: string, recipientType: 'customer' | 'admin', templateType: 'html' | 'text') => {
   // Handle all email types that are shared across categories (boiler, solar, etc.)
   // These templates use dynamic fields so they work for any category
-  
-    if (emailType === 'quote-initial') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerTemplate() : getDefaultCustomerTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminTemplate() : getDefaultAdminTextTemplate()
+
+  if (emailType === 'quote-initial') {
+    if (recipientType === 'customer') {
+      return templateType === 'html' ? getDefaultCustomerTemplate() : getDefaultCustomerTextTemplate()
+    } else {
+      return templateType === 'html' ? getDefaultAdminTemplate() : getDefaultAdminTextTemplate()
+    }
+  } else if (emailType === 'quote-verified') {
+    if (recipientType === 'customer') {
+      return templateType === 'html' ? getDefaultCustomerVerifiedTemplate() : getDefaultCustomerVerifiedTextTemplate()
+    } else {
+      return templateType === 'html' ? getDefaultAdminVerifiedTemplate() : getDefaultAdminVerifiedTextTemplate()
+    }
+  } else if (emailType === 'save-quote') {
+    if (recipientType === 'customer') {
+      if (categorySlug === 'solar') {
+        return templateType === 'html' ? getDefaultSolarCustomerSaveQuoteTemplate() : getDefaultSolarCustomerSaveQuoteTextTemplate()
       }
-    } else if (emailType === 'quote-verified') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerVerifiedTemplate() : getDefaultCustomerVerifiedTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminVerifiedTemplate() : getDefaultAdminVerifiedTextTemplate()
+      return templateType === 'html' ? getDefaultCustomerSaveQuoteTemplate() : getDefaultCustomerSaveQuoteTextTemplate()
+    } else {
+      if (categorySlug === 'solar') {
+        return templateType === 'html' ? getDefaultSolarAdminSaveQuoteTemplate() : getDefaultSolarAdminSaveQuoteTextTemplate()
       }
-    } else if (emailType === 'save-quote') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerSaveQuoteTemplate() : getDefaultCustomerSaveQuoteTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminSaveQuoteTemplate() : getDefaultAdminSaveQuoteTextTemplate()
-      }
-    } else if (emailType === 'checkout-monthly') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerCheckoutMonthlyTemplate() : getDefaultCustomerCheckoutMonthlyTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminCheckoutMonthlyTemplate() : getDefaultAdminCheckoutMonthlyTextTemplate()
-      }
-    } else if (emailType === 'checkout-pay-later') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerCheckoutPayLaterTemplate() : getDefaultCustomerCheckoutPayLaterTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminCheckoutPayLaterTemplate() : getDefaultAdminCheckoutPayLaterTextTemplate()
-      }
-    } else if (emailType === 'checkout-stripe') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerCheckoutStripeTemplate() : getDefaultCustomerCheckoutStripeTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminCheckoutStripeTemplate() : getDefaultAdminCheckoutStripeTextTemplate()
-      }
-    } else if (emailType === 'enquiry-submitted') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerEnquirySubmittedTemplate() : getDefaultCustomerEnquirySubmittedTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminEnquirySubmittedTemplate() : getDefaultAdminEnquirySubmittedTextTemplate()
-      }
-    } else if (emailType === 'survey-submitted') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerSurveySubmittedTemplate() : getDefaultCustomerSurveySubmittedTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminSurveySubmittedTemplate() : getDefaultAdminSurveySubmittedTextTemplate()
-      }
-    } else if (emailType === 'esurvey-submitted') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerESurveySubmittedTemplate() : getDefaultCustomerESurveySubmittedTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminESurveySubmittedTemplate() : getDefaultAdminESurveySubmittedTextTemplate()
-      }
-    } else if (emailType === 'callback-requested') {
-      if (recipientType === 'customer') {
-        return templateType === 'html' ? getDefaultCustomerCallbackRequestedTemplate() : getDefaultCustomerCallbackRequestedTextTemplate()
-      } else {
-        return templateType === 'html' ? getDefaultAdminCallbackRequestedTemplate() : getDefaultAdminCallbackRequestedTextTemplate()
+      return templateType === 'html' ? getDefaultAdminSaveQuoteTemplate() : getDefaultAdminSaveQuoteTextTemplate()
+    }
+  } else if (emailType === 'checkout-monthly') {
+    if (recipientType === 'customer') {
+      return templateType === 'html' ? getDefaultCustomerCheckoutMonthlyTemplate() : getDefaultCustomerCheckoutMonthlyTextTemplate()
+    } else {
+      return templateType === 'html' ? getDefaultAdminCheckoutMonthlyTemplate() : getDefaultAdminCheckoutMonthlyTextTemplate()
+    }
+  } else if (emailType === 'checkout-pay-later') {
+    if (recipientType === 'customer') {
+      return templateType === 'html' ? getDefaultCustomerCheckoutPayLaterTemplate() : getDefaultCustomerCheckoutPayLaterTextTemplate()
+    } else {
+      return templateType === 'html' ? getDefaultAdminCheckoutPayLaterTemplate() : getDefaultAdminCheckoutPayLaterTextTemplate()
+    }
+  } else if (emailType === 'checkout-stripe') {
+    if (recipientType === 'customer') {
+      return templateType === 'html' ? getDefaultCustomerCheckoutStripeTemplate() : getDefaultCustomerCheckoutStripeTextTemplate()
+    } else {
+      return templateType === 'html' ? getDefaultAdminCheckoutStripeTemplate() : getDefaultAdminCheckoutStripeTextTemplate()
+    }
+  } else if (emailType === 'enquiry-submitted') {
+    if (recipientType === 'customer') {
+      return templateType === 'html' ? getDefaultCustomerEnquirySubmittedTemplate() : getDefaultCustomerEnquirySubmittedTextTemplate()
+    } else {
+      return templateType === 'html' ? getDefaultAdminEnquirySubmittedTemplate() : getDefaultAdminEnquirySubmittedTextTemplate()
+    }
+  } else if (emailType === 'survey-submitted') {
+    if (recipientType === 'customer') {
+      return templateType === 'html' ? getDefaultCustomerSurveySubmittedTemplate() : getDefaultCustomerSurveySubmittedTextTemplate()
+    } else {
+      return templateType === 'html' ? getDefaultAdminSurveySubmittedTemplate() : getDefaultAdminSurveySubmittedTextTemplate()
+    }
+  } else if (emailType === 'esurvey-submitted') {
+    if (recipientType === 'customer') {
+      return templateType === 'html' ? getDefaultCustomerESurveySubmittedTemplate() : getDefaultCustomerESurveySubmittedTextTemplate()
+    } else {
+      return templateType === 'html' ? getDefaultAdminESurveySubmittedTemplate() : getDefaultAdminESurveySubmittedTextTemplate()
+    }
+  } else if (emailType === 'callback-requested') {
+    if (recipientType === 'customer') {
+      return templateType === 'html' ? getDefaultCustomerCallbackRequestedTemplate() : getDefaultCustomerCallbackRequestedTextTemplate()
+    } else {
+      return templateType === 'html' ? getDefaultAdminCallbackRequestedTemplate() : getDefaultAdminCallbackRequestedTextTemplate()
     }
   }
-  
+
   // For category-specific email types (like aircon-quote-initial), return placeholder templates
   // TODO: Create category-specific template files for these
   if (categorySlug === 'aircon') {
@@ -167,7 +180,7 @@ const getTemplatesByType = (categorySlug: string, emailType: string, recipientTy
     const placeholderText = `Placeholder ${recipientType} template for ${emailType}. This template needs to be implemented for ${categorySlug} category.`
     return templateType === 'html' ? placeholderHtml : placeholderText
   }
-  
+
   // Default fallback for unknown email types
   const fallbackHtml = `<h1>Default ${recipientType} template</h1><p>Template for ${emailType} in ${categorySlug} category.</p>`
   const fallbackText = `Default ${recipientType} template for ${emailType} in ${categorySlug} category.`
@@ -319,7 +332,7 @@ export default function NotificationsPage() {
   const [adminEmail, setAdminEmail] = useState<string | null>(null)
   const [selectedEmailType, setSelectedEmailType] = useState('quote-initial')
   const [emailNotificationSettings, setEmailNotificationSettings] = useState<EmailNotificationSettingsType>({})
-  
+
   // GHL integration states
   const [ghlIntegration, setGhlIntegration] = useState<any>(null)
   const [ghlFieldMappings, setGhlFieldMappings] = useState<any[]>([])
@@ -330,7 +343,7 @@ export default function NotificationsPage() {
   const [ghlLoading, setGhlLoading] = useState(false)
   const [ghlSaving, setGhlSaving] = useState(false)
   const [loadingStages, setLoadingStages] = useState<string | null>(null)
-  
+
   const supabase = createClient()
 
   // Get email types for the selected category
@@ -338,7 +351,7 @@ export default function NotificationsPage() {
     return EMAIL_TYPES_BY_CATEGORY[categorySlug as keyof typeof EMAIL_TYPES_BY_CATEGORY] || []
   }
 
-  const availableEmailTypes = selectedCategoryId 
+  const availableEmailTypes = selectedCategoryId
     ? getEmailTypesForCategory(categories.find(c => c.service_category_id === selectedCategoryId)?.slug || '')
     : []
 
@@ -351,7 +364,7 @@ export default function NotificationsPage() {
     if (selectedCategoryId) {
       const categorySlug = categories.find(c => c.service_category_id === selectedCategoryId)?.slug || ''
       const categoryEmailTypes = getEmailTypesForCategory(categorySlug)
-      
+
       // Reset email type if current selection isn't available for this category
       if (categoryEmailTypes.length === 0) {
         setSelectedEmailType('')
@@ -362,12 +375,12 @@ export default function NotificationsPage() {
       } else if (!categoryEmailTypes.find(type => type.id === selectedEmailType)) {
         setSelectedEmailType(categoryEmailTypes[0].id)
       }
-      
+
       loadTemplates()
       loadAdminEmail()
       loadFieldMappings()
       loadEmailNotificationSettings()
-      
+
       // Load GHL field mappings if GHL is connected
       if (ghlIntegration) {
         loadGHLFieldMappings()
@@ -450,7 +463,7 @@ export default function NotificationsPage() {
       setLoading(false)
       return
     }
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -466,22 +479,6 @@ export default function NotificationsPage() {
         .eq('service_category_id', selectedCategoryId)
         .eq('email_type', selectedEmailType)
         .eq('is_active', true)
-
-      // If service_category_id query fails, try with old category approach
-      if (error || !existingTemplates || existingTemplates.length === 0) {
-        console.log('Trying fallback category approach for templates')
-        const { data: fallbackTemplates, error: fallbackError } = await supabase
-          .from('email_templates')
-          .select('*')
-          .eq('partner_id', user.id)
-          .eq('category', 'boiler') // fallback
-          .eq('email_type', selectedEmailType)
-          .eq('is_active', true)
-
-        if (!fallbackError && fallbackTemplates) {
-          existingTemplates = fallbackTemplates
-        }
-      }
 
       if (existingTemplates && existingTemplates.length > 0) {
         setTemplates(existingTemplates)
@@ -530,7 +527,7 @@ export default function NotificationsPage() {
 
   const loadAdminEmail = async () => {
     if (!selectedCategoryId) return
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -552,7 +549,7 @@ export default function NotificationsPage() {
 
   const loadEmailNotificationSettings = async () => {
     if (!selectedCategoryId) return
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -562,7 +559,7 @@ export default function NotificationsPage() {
         user.id,
         selectedCategoryId
       )
-      
+
       setEmailNotificationSettings(settings)
     } catch (error) {
       console.error('Error loading email notification settings:', error)
@@ -572,7 +569,7 @@ export default function NotificationsPage() {
 
   const handleSaveEmailNotificationSettings = async (emailType: string, config: EmailNotificationConfig) => {
     if (!selectedCategoryId) return
-    
+
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
@@ -730,7 +727,7 @@ export default function NotificationsPage() {
   const getSampleValueForMapping = (mapping: any): string => {
     // Generate sample values based on mapping type and field name
     const fieldName = mapping.template_field_name.toLowerCase()
-    
+
     if (fieldName.includes('name')) return 'John Smith'
     if (fieldName.includes('email')) return 'john.smith@example.com'
     if (fieldName.includes('phone')) return '07123456789'
@@ -740,7 +737,7 @@ export default function NotificationsPage() {
     if (fieldName.includes('price') || fieldName.includes('amount')) return '£2,500.00'
     if (fieldName.includes('company')) return 'Your Company Name'
     if (fieldName.includes('website')) return 'https://www.yourcompany.com'
-    
+
     return 'Sample Value'
   }
 
@@ -921,10 +918,10 @@ export default function NotificationsPage() {
     try {
       // Get category slug for template selection
       const categorySlug = categories.find(c => c.service_category_id === selectedCategoryId)?.slug || ''
-      
+
       const defaultHtml = getTemplatesByType(categorySlug, selectedEmailType, selectedTemplate.recipient_type, 'html')
       const defaultText = getTemplatesByType(categorySlug, selectedEmailType, selectedTemplate.recipient_type, 'text')
-      
+
       // Generate appropriate subject template based on category and email type
       const getResetSubjectTemplate = (recipientType: 'customer' | 'admin', categorySlug: string, emailType: string) => {
         const subjectMap: Record<string, Record<string, { customer: string; admin: string }>> = {
@@ -977,17 +974,17 @@ export default function NotificationsPage() {
   const loadGHLIntegration = async () => {
     setGhlLoading(true)
     console.log('🔄 Starting GHL integration load...')
-    
+
     try {
       const { getGHLIntegration, getGHLOpportunities, getGHLCustomFields } = await import('@/lib/ghl-api-client')
       console.log('✅ GHL API client imported successfully')
-      
+
       const integration = await getGHLIntegration()
       console.log('🔍 GHL Integration response:', integration)
-      
+
       if (integration) {
         setGhlIntegration(integration)
-        
+
         // Load custom fields and pipelines
         try {
           const customFields = await getGHLCustomFields()
@@ -996,7 +993,7 @@ export default function NotificationsPage() {
           console.error('Error loading custom fields:', fieldsError)
           setGhlCustomFields([])
         }
-        
+
         try {
           const { getGHLPipelines } = await import('@/lib/ghl-api-client')
           const pipelines = await getGHLPipelines()
@@ -1005,7 +1002,7 @@ export default function NotificationsPage() {
           console.error('Error loading pipelines:', pipelinesError)
           setGhlPipelines([])
         }
-        
+
         // Load GHL tags
         try {
           await loadGHLTags()
@@ -1013,7 +1010,7 @@ export default function NotificationsPage() {
           console.error('Error loading GHL tags:', tagsError)
           setGhlTags([])
         }
-        
+
         // Load field mappings for current category and email type
         await loadGHLFieldMappings()
       } else {
@@ -1115,14 +1112,14 @@ export default function NotificationsPage() {
   }
 
   const updateGHLFieldMapping = (mappingId: string, updates: any) => {
-    setGhlFieldMappings(prev => 
+    setGhlFieldMappings(prev =>
       prev.map(m => m.mapping_id === mappingId ? { ...m, ...updates } : m)
     )
   }
 
   const saveGHLFieldMappings = async (mapping: any) => {
     setGhlSaving(true)
-    
+
     try {
       console.log('💾 Saving GHL field mapping:', {
         mapping_id: mapping.mapping_id,
@@ -1131,7 +1128,7 @@ export default function NotificationsPage() {
         tags_type: typeof mapping.tags,
         tags_is_array: Array.isArray(mapping.tags)
       })
-      
+
       const { error } = await supabase
         .from('ghl_field_mappings')
         .update({
@@ -1166,7 +1163,7 @@ export default function NotificationsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Email Notifications</h1>
           <p className="mt-1 text-sm text-gray-600">Customise your email templates for different notifications</p>
         </div>
-        
+
       </div>
 
       {/* Category filter tabs */}
@@ -1180,16 +1177,15 @@ export default function NotificationsPage() {
                   setSelectedCategoryId(category.service_category_id)
                   setSelectedTemplate(null)
                 }}
-                className={`whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                  selectedCategoryId === category.service_category_id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center space-x-2 ${selectedCategoryId === category.service_category_id
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 {category.icon_url && (
-                  <img 
-                    src={category.icon_url} 
-                    alt={category.name} 
+                  <img
+                    src={category.icon_url}
+                    alt={category.name}
                     className="h-4 w-4"
                   />
                 )}
@@ -1243,16 +1239,16 @@ export default function NotificationsPage() {
                         <div className="mt-2 space-y-1">
                           {(() => {
                             const currentSettings = emailNotificationSettings[selectedEmailType]
-                            
+
                             // Handle new structure with admin/customer/ghl
                             const adminConfig = currentSettings?.admin
                             const customerConfig = currentSettings?.customer
                             const ghlConfig = currentSettings?.ghl
-                            
+
                             const hasSpecificEmails = adminConfig?.emails && adminConfig.emails.length > 0
                             const adminEnabled = adminConfig?.enabled !== false
                             const displayEmails = hasSpecificEmails ? adminConfig.emails : (adminEmail ? [adminEmail] : [])
-                            
+
                             return (
                               <>
                                 {/* Admin Email Status */}
@@ -1277,12 +1273,12 @@ export default function NotificationsPage() {
                                     )}
                                   </div>
                                 )}
-                                
+
                                 {/* Customer Email Status */}
                                 <p className="text-xs text-gray-600">
                                   👤 Customer: <span className="font-medium">{customerConfig?.enabled !== false ? 'Enabled' : 'Disabled'}</span>
                                 </p>
-                                
+
                                 {/* GHL Status */}
                                 <p className="text-xs text-gray-600">
                                   ⚡ GHL: <span className="font-medium">{ghlConfig?.enabled !== false ? 'Enabled' : 'Disabled'}</span>
@@ -1323,11 +1319,10 @@ export default function NotificationsPage() {
                   setActiveTab('customer')
                   selectTemplateByType('customer')
                 }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'customer'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'customer'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 Customer Email
               </button>
@@ -1336,22 +1331,20 @@ export default function NotificationsPage() {
                   setActiveTab('admin')
                   selectTemplateByType('admin')
                 }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'admin'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'admin'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 Admin Email
               </button>
               {ghlIntegration && (
                 <button
                   onClick={() => setActiveTab('leads')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${
-                    activeTab === 'leads'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${activeTab === 'leads'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
                 >
                   <Users className="h-4 w-4" />
                   <span>Leads</span>
@@ -1359,11 +1352,10 @@ export default function NotificationsPage() {
               )}
               <button
                 onClick={() => setActiveTab('email-settings')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${
-                  activeTab === 'email-settings'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${activeTab === 'email-settings'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 <Settings className="h-4 w-4" />
                 <span>Email Settings</span>
@@ -1407,7 +1399,7 @@ export default function NotificationsPage() {
             <div className="flex-1">
               <h3 className="text-sm font-medium text-blue-900">No Field Mappings Found</h3>
               <p className="mt-1 text-sm text-blue-700">
-                You haven't configured any field mappings for this email type yet. 
+                You haven't configured any field mappings for this email type yet.
                 Field mappings allow you to use dynamic data from your lead submissions in your email templates.
               </p>
               <div className="mt-3">
@@ -1498,7 +1490,7 @@ export default function NotificationsPage() {
               <div className="flex-1">
                 <h3 className="text-sm font-medium text-blue-900">Email Notification Settings</h3>
                 <p className="mt-1 text-sm text-blue-700">
-                  Configure which admin emails should receive notifications for this email type. 
+                  Configure which admin emails should receive notifications for this email type.
                   You can specify multiple emails and enable/disable notifications individually.
                   {adminEmail && (
                     <> If no specific emails are configured, notifications will be sent to your default admin email: <span className="font-medium">{adminEmail}</span></>

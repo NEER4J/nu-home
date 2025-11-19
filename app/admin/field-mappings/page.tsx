@@ -210,7 +210,7 @@ export default function FieldMappingsPage() {
     return EMAIL_TYPES_BY_CATEGORY[categorySlug as keyof typeof EMAIL_TYPES_BY_CATEGORY] || []
   }
 
-  const availableEmailTypes = selectedCategoryId 
+  const availableEmailTypes = selectedCategoryId
     ? getEmailTypesForCategory(categories.find(c => c.service_category_id === selectedCategoryId)?.slug || '')
     : []
 
@@ -231,7 +231,7 @@ export default function FieldMappingsPage() {
     if (selectedPartnerId && selectedCategoryId) {
       const categorySlug = categories.find(c => c.service_category_id === selectedCategoryId)?.slug || ''
       const categoryEmailTypes = getEmailTypesForCategory(categorySlug)
-      
+
       // Reset email type if current selection isn't available for this category
       if (categoryEmailTypes.length === 0) {
         setSelectedEmailType('')
@@ -241,11 +241,11 @@ export default function FieldMappingsPage() {
       } else if (!categoryEmailTypes.find(type => type.id === selectedEmailType)) {
         setSelectedEmailType(categoryEmailTypes[0].id)
       }
-      
+
       // Reset tab selection when category changes
       setActiveDataTab('')
       setLastSelectedTab('')
-      
+
       loadMappings()
       loadSampleData()
     }
@@ -362,7 +362,7 @@ export default function FieldMappingsPage() {
       toast.error('Please select a partner first')
       return
     }
-    
+
     setEditingMapping({
       id: '',
       partner_id: selectedPartnerId,
@@ -415,7 +415,7 @@ export default function FieldMappingsPage() {
         service_category_id: selectedCategoryId,
         email_type: selectedEmailType
       }
-      
+
       // Remove fields that shouldn't be sent for new records
       if (!editingMapping.id) {
         delete (mappingData as any).id
@@ -578,7 +578,7 @@ export default function FieldMappingsPage() {
   const generateArrayTemplate = (fieldPath: string, arrayData: any[]) => {
     const fieldName = fieldPath.split('.').pop() || 'items'
     const displayName = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-    
+
     if (arrayData.length === 0) {
       return `<!-- Auto-generated template for ${fieldPath} -->\n<div class="${fieldName}-container" style="margin: 20px 0;">\n  <h3>${displayName}</h3>\n  <p>No items available</p>\n</div>`
     }
@@ -586,7 +586,7 @@ export default function FieldMappingsPage() {
     // Analyze the first item to understand the structure
     const firstItem = arrayData[0]
     let itemFields: string[] = []
-    
+
     if (typeof firstItem === 'object' && firstItem !== null) {
       itemFields = Object.keys(firstItem).slice(0, 5) // Limit to first 5 fields
     }
@@ -653,16 +653,16 @@ export default function FieldMappingsPage() {
   const generateFormAnswersTemplate = (fieldPath: string, formAnswersData: any) => {
     const fieldName = fieldPath.split('.').pop() || 'form_answers'
     const displayName = fieldName.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
-    
+
     // Get the first form answer to understand the structure
     const firstAnswer = Object.values(formAnswersData)[0] as any
-    
+
     let template = `<!-- Auto-generated template for ${fieldPath} -->\n`
     template += `<div class="${fieldName}-container" style="margin: 20px 0;">\n`
     template += `  <h3 style="margin-bottom: 15px; color: #333;">${displayName}</h3>\n`
     template += `  {{#each ${fieldName}}}\n`
     template += `    <div class="${fieldName}-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 4px; background: #f9f9f9;">\n`
-    
+
     if (firstAnswer && typeof firstAnswer === 'object') {
       // Generate fields based on the form answer structure
       const answerFields = Object.keys(firstAnswer)
@@ -674,7 +674,7 @@ export default function FieldMappingsPage() {
         template += `      </div>\n`
       })
     }
-    
+
     template += `    </div>\n`
     template += `  {{/each}}\n`
     template += `</div>`
@@ -706,8 +706,8 @@ export default function FieldMappingsPage() {
         for (const record of allRecords) {
           const dataFields = Object.keys(record).filter(key => {
             const value = record[key]
-            return value !== null && value !== undefined && 
-                   (typeof value === 'object' ? Object.keys(value).length > 0 : true)
+            return value !== null && value !== undefined &&
+              (typeof value === 'object' ? Object.keys(value).length > 0 : true)
           }).length
 
           if (dataFields > maxDataFields) {
@@ -717,13 +717,13 @@ export default function FieldMappingsPage() {
         }
 
         setPreviewData(bestRecord)
-        
+
         // Set active tab - prefer last selected tab if it exists in the new data, otherwise use first available
         const recordData = bestRecord
-        const availableSources = Object.keys(recordData).filter(sourceKey => 
+        const availableSources = Object.keys(recordData).filter(sourceKey =>
           ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'esurvey_data', 'success_data', 'form_submissions', 'save_quote_data', 'callback_data'].includes(sourceKey)
         )
-        
+
         if (lastSelectedTab && availableSources.includes(lastSelectedTab)) {
           // Keep the previously selected tab if it's still available
           setActiveDataTab(lastSelectedTab)
@@ -731,6 +731,10 @@ export default function FieldMappingsPage() {
           // Use first available tab if no previous selection or previous tab not available
           setActiveDataTab(availableSources[0])
         }
+      } else {
+        // No records found for this category
+        setPreviewData(null)
+        setActiveDataTab('')
       }
     } catch (error) {
       console.error('Error loading sample data:', error)
@@ -769,7 +773,7 @@ export default function FieldMappingsPage() {
         const isArray = Array.isArray(value)
         const isObject = typeof value === 'object' && value !== null && !isArray
         const isComplexObject = isObject && Object.keys(value).length > 0
-        
+
         items.push(
           <div key={key} className="mb-2">
             <div className="flex items-center gap-2">
@@ -864,16 +868,15 @@ export default function FieldMappingsPage() {
                   setSelectedCategoryId(category.service_category_id)
                   setEditingMapping(null)
                 }}
-                className={`whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                  selectedCategoryId === category.service_category_id
+                className={`whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center space-x-2 ${selectedCategoryId === category.service_category_id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 {category.icon_url && (
-                  <img 
-                    src={category.icon_url} 
-                    alt={category.name} 
+                  <img
+                    src={category.icon_url}
+                    alt={category.name}
                     className="h-4 w-4"
                   />
                 )}
@@ -963,7 +966,7 @@ export default function FieldMappingsPage() {
                       </div>
                       <p className="text-sm text-gray-600 mb-1">{mapping.description}</p>
                       <p className="text-xs text-gray-500">
-                        <code className="bg-gray-100 px-1 py-0.5 rounded">{mapping.database_source}</code> → 
+                        <code className="bg-gray-100 px-1 py-0.5 rounded">{mapping.database_source}</code> →
                         <code className="bg-gray-100 px-1 py-0.5 rounded ml-1">{mapping.template_field_name}</code>
                       </p>
                     </div>
@@ -1016,7 +1019,7 @@ export default function FieldMappingsPage() {
       {/* Create/Edit Form Modal - Fullscreen */}
       {showCreateForm && editingMapping && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-0 z-50">
-          <div className="bg-white w-[calc(100vw-4rem)] h-[calc(100vh-4rem)] overflow-y-auto p-4 rounded-lg"> 
+          <div className="bg-white w-[calc(100vw-4rem)] h-[calc(100vh-4rem)] overflow-y-auto p-4 rounded-lg">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
@@ -1030,221 +1033,221 @@ export default function FieldMappingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
                 {/* Left Side - Form */}
                 <div className="md:col-span-2 space-y-6">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="display_name">Display Name</Label>
-                      <Input
-                        id="display_name"
-                        value={editingMapping.display_name}
+                  {/* Basic Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="display_name">Display Name</Label>
+                        <Input
+                          id="display_name"
+                          value={editingMapping.display_name}
+                          onChange={(e) => setEditingMapping({
+                            ...editingMapping,
+                            display_name: e.target.value
+                          })}
+                          placeholder="e.g., Customer Name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="template_field_name">Template Field Name</Label>
+                        <Input
+                          id="template_field_name"
+                          value={editingMapping.template_field_name}
+                          onChange={(e) => setEditingMapping({
+                            ...editingMapping,
+                            template_field_name: e.target.value
+                          })}
+                          placeholder="e.g., customer_name"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="hidden">
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        value={editingMapping.description}
                         onChange={(e) => setEditingMapping({
                           ...editingMapping,
-                          display_name: e.target.value
+                          description: e.target.value
                         })}
-                        placeholder="e.g., Customer Name"
+                        placeholder="Brief description of this field mapping"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="template_field_name">Template Field Name</Label>
-                      <Input
-                        id="template_field_name"
-                        value={editingMapping.template_field_name}
-                        onChange={(e) => setEditingMapping({
-                          ...editingMapping,
-                          template_field_name: e.target.value
-                        })}
-                        placeholder="e.g., customer_name"
-                      />
+
+                    <div className="grid grid-cols-3 gap-4 hidden">
+                      <div>
+                        <Label htmlFor="field_category">Field Category</Label>
+                        <Input
+                          id="field_category"
+                          value={editingMapping.field_category}
+                          onChange={(e) => setEditingMapping({
+                            ...editingMapping,
+                            field_category: e.target.value
+                          })}
+                          placeholder="e.g., Contact"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="is_required"
+                          checked={editingMapping.is_required}
+                          onCheckedChange={(checked) => setEditingMapping({
+                            ...editingMapping,
+                            is_required: checked
+                          })}
+                        />
+                        <Label htmlFor="is_required">Required</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="is_active"
+                          checked={editingMapping.is_active}
+                          onCheckedChange={(checked) => setEditingMapping({
+                            ...editingMapping,
+                            is_active: checked
+                          })}
+                        />
+                        <Label htmlFor="is_active">Active</Label>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="hidden">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={editingMapping.description}
-                      onChange={(e) => setEditingMapping({
-                        ...editingMapping,
-                        description: e.target.value
-                      })}
-                      placeholder="Brief description of this field mapping"
-                    />
-                  </div>
+                  {/* Data Mapping */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-gray-900">Data Mapping</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="database_source">Database Source</Label>
+                        <Select
+                          value={editingMapping.database_source}
+                          onValueChange={(value) => setEditingMapping({
+                            ...editingMapping,
+                            database_source: value
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DATABASE_SOURCES.map(source => (
+                              <SelectItem key={source.value} value={source.value}>
+                                <div>
+                                  <div className="font-medium">{source.label}</div>
+                                  <div className="text-xs text-gray-500">{source.description}</div>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="database_path">Database Path</Label>
+                        <Input
+                          id="database_path"
+                          placeholder="e.g., contact_details.first_name"
+                          value={editingMapping.database_path.path}
+                          onChange={(e) => setEditingMapping({
+                            ...editingMapping,
+                            database_path: { path: e.target.value }
+                          })}
+                        />
+                      </div>
+                    </div>
 
-                  <div className="grid grid-cols-3 gap-4 hidden">
                     <div>
-                      <Label htmlFor="field_category">Field Category</Label>
-                      <Input
-                        id="field_category"
-                        value={editingMapping.field_category}
-                        onChange={(e) => setEditingMapping({
-                          ...editingMapping,
-                          field_category: e.target.value
-                        })}
-                        placeholder="e.g., Contact"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="is_required"
-                        checked={editingMapping.is_required}
-                        onCheckedChange={(checked) => setEditingMapping({
-                          ...editingMapping,
-                          is_required: checked
-                        })}
-                      />
-                      <Label htmlFor="is_required">Required</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="is_active"
-                        checked={editingMapping.is_active}
-                        onCheckedChange={(checked) => setEditingMapping({
-                          ...editingMapping,
-                          is_active: checked
-                        })}
-                      />
-                      <Label htmlFor="is_active">Active</Label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Data Mapping */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900">Data Mapping</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="database_source">Database Source</Label>
+                      <Label htmlFor="template_type">Template Type</Label>
                       <Select
-                        value={editingMapping.database_source}
+                        value={editingMapping.template_type}
                         onValueChange={(value) => setEditingMapping({
                           ...editingMapping,
-                          database_source: value
+                          template_type: value
                         })}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {DATABASE_SOURCES.map(source => (
-                            <SelectItem key={source.value} value={source.value}>
+                          {TEMPLATE_TYPES.map(type => (
+                            <SelectItem key={type.value} value={type.value}>
                               <div>
-                                <div className="font-medium">{source.label}</div>
-                                <div className="text-xs text-gray-500">{source.description}</div>
+                                <div className="font-medium">{type.label}</div>
+                                <div className="text-xs text-gray-500">{type.description}</div>
                               </div>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label htmlFor="database_path">Database Path</Label>
-                      <Input
-                        id="database_path"
-                        placeholder="e.g., contact_details.first_name"
-                        value={editingMapping.database_path.path}
-                        onChange={(e) => setEditingMapping({
-                          ...editingMapping,
-                          database_path: { path: e.target.value }
-                        })}
-                      />
-                    </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="template_type">Template Type</Label>
-                    <Select
-                      value={editingMapping.template_type}
-                      onValueChange={(value) => setEditingMapping({
-                        ...editingMapping,
-                        template_type: value
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TEMPLATE_TYPES.map(type => (
-                          <SelectItem key={type.value} value={type.value}>
-                            <div>
-                              <div className="font-medium">{type.label}</div>
-                              <div className="text-xs text-gray-500">{type.description}</div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                  {/* HTML Template */}
+                  {editingMapping.template_type === 'html_template' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-medium text-gray-900">HTML Template</h3>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (editingMapping && previewData) {
+                                const generatedTemplate = generateHtmlTemplate(
+                                  editingMapping.database_source,
+                                  editingMapping.database_path.path,
+                                  previewData
+                                )
+                                setEditingMapping({
+                                  ...editingMapping,
+                                  html_template: generatedTemplate
+                                })
+                                toast.success('HTML template auto-generated!')
+                              }
+                            }}
+                            className="text-sm"
+                          >
+                            🤖 Auto-Generate
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowHtmlGuide(true)}
+                            className="text-sm"
+                          >
+                            📖 Guide
+                          </Button>
+                        </div>
+                      </div>
 
-                {/* HTML Template */}
-                {editingMapping.template_type === 'html_template' && (
-                  <div className="space-y-4">
-                     <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900">HTML Template</h3>
-                       <div className="flex gap-2">
-                         <Button
-                           type="button"
-                           variant="outline"
-                           size="sm"
-                           onClick={() => {
-                             if (editingMapping && previewData) {
-                               const generatedTemplate = generateHtmlTemplate(
-                                 editingMapping.database_source, 
-                                 editingMapping.database_path.path, 
-                                 previewData
-                               )
-                               setEditingMapping({
-                                 ...editingMapping,
-                                 html_template: generatedTemplate
-                               })
-                               toast.success('HTML template auto-generated!')
-                             }
-                           }}
-                           className="text-sm"
-                         >
-                           🤖 Auto-Generate
-                         </Button>
-                         <Button
-                           type="button"
-                           variant="outline"
-                           size="sm"
-                           onClick={() => setShowHtmlGuide(true)}
-                           className="text-sm"
-                         >
-                           📖 Guide
-                         </Button>
+                      <div>
+                        <Label htmlFor="html_template">HTML Template</Label>
+                        <Editor
+                          className="border border-gray-200"
+                          height="300px"
+                          language="html"
+                          value={editingMapping.html_template || ''}
+                          onChange={(value) => setEditingMapping({
+                            ...editingMapping,
+                            html_template: value || ''
+                          })}
+                          options={{
+                            minimap: { enabled: false },
+                            wordWrap: 'on',
+                            lineNumbers: 'on',
+                            folding: true,
+                            automaticLayout: true,
+                          }}
+                        />
                       </div>
                     </div>
-
-                    <div>
-                      <Label htmlFor="html_template">HTML Template</Label>
-                      <Editor
-                        className="border border-gray-200"
-                        height="300px"
-                        language="html"
-                        value={editingMapping.html_template || ''}
-                        onChange={(value) => setEditingMapping({
-                          ...editingMapping,
-                          html_template: value || ''
-                        })}
-                        options={{
-                          minimap: { enabled: false },
-                          wordWrap: 'on',
-                          lineNumbers: 'on',
-                          folding: true,
-                          automaticLayout: true,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
+                  )}
                 </div>
 
                 {/* Right Side - Data Browser */}
-                 <div className="space-y-6 sticky top-6 self-start">
+                <div className="space-y-6 sticky top-6 self-start">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1252,47 +1255,46 @@ export default function FieldMappingsPage() {
                         <p className="text-sm text-gray-600">Click on any field to automatically populate the database path</p>
                       </div>
                       <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={loadSampleData}
-                        disabled={loading}
-                      >
-                        <RefreshCw className="h-4 w-4 mr-2" />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={loadSampleData}
+                          disabled={loading}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
                           Refresh
-                      </Button>
+                        </Button>
                       </div>
                     </div>
-                    
-                    
+
+
                     {previewData ? (
                       <div className="border border-gray-200">
                         {/* Data Source Tabs */}
                         <div className="border-b border-gray-200">
                           <nav className="flex overflow-x-auto" aria-label="Data Sources">
                             {Object.entries(previewData)
-                              .filter(([sourceKey]) => 
+                              .filter(([sourceKey]) =>
                                 ['quote_data', 'products_data', 'addons_data', 'survey_data', 'checkout_data', 'enquiry_data', 'esurvey_data', 'success_data', 'form_submissions', 'save_quote_data', 'callback_data'].includes(sourceKey)
                               )
                               .map(([sourceKey, sourceData]) => (
-                              <button
-                                key={sourceKey}
-                                onClick={() => {
-                                  setActiveDataTab(sourceKey)
-                                  setLastSelectedTab(sourceKey)
-                                }}
-                                className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm ${
-                                  activeDataTab === sourceKey
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                              >
-                                {sourceKey.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                              </button>
-                            ))}
+                                <button
+                                  key={sourceKey}
+                                  onClick={() => {
+                                    setActiveDataTab(sourceKey)
+                                    setLastSelectedTab(sourceKey)
+                                  }}
+                                  className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm ${activeDataTab === sourceKey
+                                      ? 'border-blue-500 text-blue-600'
+                                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                                >
+                                  {sourceKey.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                </button>
+                              ))}
                           </nav>
                         </div>
-                        
+
                         {/* Data Content */}
                         <div className="p-4 max-h-[62vh] overflow-y-auto">
                           {activeDataTab && previewData ? (
@@ -1356,115 +1358,115 @@ export default function FieldMappingsPage() {
               </div>
             </div>
           </div>
-         </div>
-       )}
+        </div>
+      )}
 
-       {/* HTML Guide Popup */}
-       {showHtmlGuide && (
-         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-             <div className="p-6">
-               <div className="flex items-center justify-between mb-6">
-                 <h2 className="text-xl font-semibold text-gray-900">📝 HTML Template Guide</h2>
-                 <Button variant="outline" onClick={() => setShowHtmlGuide(false)}>
-                   Close
-                 </Button>
-               </div>
+      {/* HTML Guide Popup */}
+      {showHtmlGuide && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">📝 HTML Template Guide</h2>
+                <Button variant="outline" onClick={() => setShowHtmlGuide(false)}>
+                  Close
+                </Button>
+              </div>
 
-               <div className="space-y-6">
-                 {/* Basic Usage */}
-                 <div>
-                   <h3 className="text-lg font-semibold text-gray-800 mb-4">Basic Usage</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                       <h4 className="font-semibold text-green-800 mb-2">Simple Text Fields</h4>
-                       <div className="space-y-2">
-                         <div className="text-sm">
-                           <strong>Syntax:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{fieldName}}`}</code>
-                         </div>
-                         <div className="text-sm">
-                           <strong>Example:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{firstName}}`}</code>
-                         </div>
-                         <div className="text-sm text-gray-600">
-                           Use for: Names, emails, phone numbers, simple text values
-                         </div>
-                       </div>
-                     </div>
+              <div className="space-y-6">
+                {/* Basic Usage */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Basic Usage</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                      <h4 className="font-semibold text-green-800 mb-2">Simple Text Fields</h4>
+                      <div className="space-y-2">
+                        <div className="text-sm">
+                          <strong>Syntax:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{fieldName}}`}</code>
+                        </div>
+                        <div className="text-sm">
+                          <strong>Example:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{firstName}}`}</code>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          Use for: Names, emails, phone numbers, simple text values
+                        </div>
+                      </div>
+                    </div>
 
-                     <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                       <h4 className="font-semibold text-purple-800 mb-2">HTML Content Fields</h4>
-                       <div className="space-y-2">
-                         <div className="text-sm">
-                           <strong>Syntax:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{{fieldName}}}`}</code>
-                         </div>
-                         <div className="text-sm">
-                           <strong>Example:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{{productList}}}`}</code>
-                         </div>
-                         <div className="text-sm text-gray-600">
-                           Use for: Complex HTML content, product lists, formatted data
-                         </div>
-                       </div>
-                     </div>
-                   </div>
-                 </div>
+                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                      <h4 className="font-semibold text-purple-800 mb-2">HTML Content Fields</h4>
+                      <div className="space-y-2">
+                        <div className="text-sm">
+                          <strong>Syntax:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{{fieldName}}}`}</code>
+                        </div>
+                        <div className="text-sm">
+                          <strong>Example:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{`{{{productList}}}`}</code>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          Use for: Complex HTML content, product lists, formatted data
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                 {/* Common Patterns */}
-                 <div>
-                   <h3 className="text-lg font-semibold text-gray-800 mb-4">Common Patterns</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                       <h4 className="font-semibold text-blue-800 mb-2">Loops</h4>
-                       <pre className="text-sm bg-gray-100 p-3 rounded overflow-x-auto">
-{`{{#each products}}
+                {/* Common Patterns */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Common Patterns</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="font-semibold text-blue-800 mb-2">Loops</h4>
+                      <pre className="text-sm bg-gray-100 p-3 rounded overflow-x-auto">
+                        {`{{#each products}}
   <div class="product">
     <h3>{{name}}</h3>
     <p>Price: £{{price}}</p>
   </div>
 {{/each}}`}
-                       </pre>
-                       <div className="text-sm text-gray-600 mt-2">
-                         Loop through arrays of data like products, images, or form answers
-                       </div>
-                     </div>
+                      </pre>
+                      <div className="text-sm text-gray-600 mt-2">
+                        Loop through arrays of data like products, images, or form answers
+                      </div>
+                    </div>
 
-                     <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-                       <h4 className="font-semibold text-orange-800 mb-2">Conditionals</h4>
-                       <pre className="text-sm bg-gray-100 p-3 rounded overflow-x-auto">
-{`{{#if warranty}}
+                    <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                      <h4 className="font-semibold text-orange-800 mb-2">Conditionals</h4>
+                      <pre className="text-sm bg-gray-100 p-3 rounded overflow-x-auto">
+                        {`{{#if warranty}}
   <p>Warranty: {{warranty}}</p>
 {{/if}}
 
 {{#unless warranty}}
   <p>No warranty information</p>
 {{/unless}}`}
-                       </pre>
-                       <div className="text-sm text-gray-600 mt-2">
-                         Show content only when conditions are met
-                       </div>
-                     </div>
-                   </div>
-                 </div>
+                      </pre>
+                      <div className="text-sm text-gray-600 mt-2">
+                        Show content only when conditions are met
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                 {/* Quick Examples */}
-                 <div>
-                   <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Examples</h3>
-                   <div className="space-y-4">
-                     <div className="p-4 bg-gray-50 rounded-lg border">
-                       <h4 className="font-semibold text-gray-800 mb-2">Uploaded Images</h4>
-                       <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
-{`{{#each uploaded_images}}
+                {/* Quick Examples */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Examples</h3>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gray-50 rounded-lg border">
+                      <h4 className="font-semibold text-gray-800 mb-2">Uploaded Images</h4>
+                      <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
+                        {`{{#each uploaded_images}}
   <div style="margin:10px 0;">
     <strong>{{label}}:</strong>
     <img src="{{url}}" style="max-width:200px; border:1px solid #ddd;" />
   </div>
 {{/each}}`}
-                       </pre>
-                     </div>
+                      </pre>
+                    </div>
 
-                     <div className="p-4 bg-gray-50 rounded-lg border">
-                       <h4 className="font-semibold text-gray-800 mb-2">Form Answers Table</h4>
-                       <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
-{`<table style="width:100%; border-collapse:collapse;">
+                    <div className="p-4 bg-gray-50 rounded-lg border">
+                      <h4 className="font-semibold text-gray-800 mb-2">Form Answers Table</h4>
+                      <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
+                        {`<table style="width:100%; border-collapse:collapse;">
   {{#each form_answers}}
     <tr style="border-bottom:1px solid #eee;">
       <td style="padding:8px; font-weight:bold;">{{question_text}}:</td>
@@ -1472,13 +1474,13 @@ export default function FieldMappingsPage() {
     </tr>
   {{/each}}
 </table>`}
-                       </pre>
-                     </div>
+                      </pre>
+                    </div>
 
-                     <div className="p-4 bg-gray-50 rounded-lg border">
-                       <h4 className="font-semibold text-gray-800 mb-2">Product Cards</h4>
-                       <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
-{`{{#each products}}
+                    <div className="p-4 bg-gray-50 rounded-lg border">
+                      <h4 className="font-semibold text-gray-800 mb-2">Product Cards</h4>
+                      <pre className="text-sm bg-white p-3 rounded border overflow-x-auto">
+                        {`{{#each products}}
   <div style="border:1px solid #ddd; padding:16px; margin:8px 0; border-radius:4px;">
     <h3 style="margin:0 0 8px 0;">{{name}}</h3>
     <p><strong>Price:</strong> £{{price}}</p>
@@ -1488,36 +1490,36 @@ export default function FieldMappingsPage() {
     {{/if}}
   </div>
 {{/each}}`}
-                       </pre>
-                     </div>
-                   </div>
-                 </div>
+                      </pre>
+                    </div>
+                  </div>
+                </div>
 
-                 {/* Tips */}
-                 <div>
-                   <h3 className="text-lg font-semibold text-gray-800 mb-4">💡 Tips & Best Practices</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                       <h4 className="font-semibold text-yellow-800 mb-2">Email Compatibility</h4>
-                       <ul className="text-sm text-gray-700 space-y-1">
-                         <li>• Use inline CSS for styling</li>
-                         <li>• Test with different email clients</li>
-                         <li>• Keep HTML structure simple</li>
-                         <li>• Use tables for complex layouts</li>
-                       </ul>
-                     </div>
+                {/* Tips */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">💡 Tips & Best Practices</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <h4 className="font-semibold text-yellow-800 mb-2">Email Compatibility</h4>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        <li>• Use inline CSS for styling</li>
+                        <li>• Test with different email clients</li>
+                        <li>• Keep HTML structure simple</li>
+                        <li>• Use tables for complex layouts</li>
+                      </ul>
+                    </div>
 
-                     <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                       <h4 className="font-semibold text-green-800 mb-2">Testing & Debugging</h4>
-                       <ul className="text-sm text-gray-700 space-y-1">
-                         <li>• Use "Send Test" in notifications</li>
-                         <li>• Field name = template variable name</li>
-                         <li>• Use triple braces for HTML content</li>
-                         <li>• Check data exists in sample data</li>
-                       </ul>
-                     </div>
-                   </div>
-                 </div>
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                      <h4 className="font-semibold text-green-800 mb-2">Testing & Debugging</h4>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        <li>• Use "Send Test" in notifications</li>
+                        <li>• Field name = template variable name</li>
+                        <li>• Use triple braces for HTML content</li>
+                        <li>• Check data exists in sample data</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

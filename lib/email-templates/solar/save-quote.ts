@@ -1,7 +1,7 @@
-// Default templates for save-quote email type
+// Default templates for solar save-quote email type
 
-export function getDefaultCustomerSaveQuoteTemplate() {
-  return `<!DOCTYPE html>
+export function getDefaultSolarCustomerSaveQuoteTemplate() {
+    return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -32,7 +32,7 @@ export function getDefaultCustomerSaveQuoteTemplate() {
               </h2>
               
               <p style="margin: 0 0 20px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                Great news! Your boiler quote has been successfully saved. You can return anytime to complete your booking or make changes to your selection.
+                Great news! Your solar quote has been successfully saved. You can return anytime to complete your booking or make changes to your selection.
               </p>
 
               <!-- Quote Details -->
@@ -66,7 +66,7 @@ export function getDefaultCustomerSaveQuoteTemplate() {
               </div>
 
               <p style="margin: 20px 0 0 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                Thank you for choosing {{companyName}}! We're here whenever you're ready to proceed with your boiler installation.
+                Thank you for choosing {{companyName}}! We're here whenever you're ready to proceed with your solar installation.
               </p>
 
               <p style="margin: 20px 0 0 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
@@ -98,12 +98,12 @@ export function getDefaultCustomerSaveQuoteTemplate() {
 </html>`
 }
 
-export function getDefaultCustomerSaveQuoteTextTemplate() {
-  return `Quote Saved Successfully - {{companyName}}
+export function getDefaultSolarCustomerSaveQuoteTextTemplate() {
+    return `Quote Saved Successfully - {{companyName}}
 
 Hi {{firstName}},
 
-Great news! Your boiler quote has been successfully saved. You can return anytime to complete your booking or make changes to your selection.
+Great news! Your solar quote has been successfully saved. You can return anytime to complete your booking or make changes to your selection.
 
 Your Saved Quote:
 Name: {{firstName}} {{lastName}}
@@ -116,7 +116,7 @@ Selected Products:
 
 View & Complete Your Quote: {{quoteLink}}
 
-Thank you for choosing {{companyName}}! We're here whenever you're ready to proceed with your boiler installation.
+Thank you for choosing {{companyName}}! We're here whenever you're ready to proceed with your solar installation.
 
 If you have any questions or need assistance, please don't hesitate to contact us.
 
@@ -126,8 +126,8 @@ Email: {{companyEmail}}
 ©{{currentYear}} {{companyName}}. All rights reserved.`
 }
 
-export function getDefaultAdminSaveQuoteTemplate() {
-  return `<!DOCTYPE html>
+export function getDefaultSolarAdminSaveQuoteTemplate() {
+    return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -158,7 +158,7 @@ export function getDefaultAdminSaveQuoteTemplate() {
               </h2>
               
               <p style="margin: 0 0 20px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                A customer has saved their boiler quote - this is a great opportunity to follow up and help them complete their booking.
+                A customer has saved their solar quote - this is a great opportunity to follow up and help them complete their booking.
               </p>
 
               <!-- Customer Information -->
@@ -216,12 +216,12 @@ export function getDefaultAdminSaveQuoteTemplate() {
 </html>`
 }
 
-export function getDefaultAdminSaveQuoteTextTemplate() {
-  return `Customer Saved Quote - Follow Up - {{companyName}}
+export function getDefaultSolarAdminSaveQuoteTextTemplate() {
+    return `Customer Saved Quote - Follow Up - {{companyName}}
 
 Great Follow-Up Opportunity!
 
-A customer has saved their boiler quote - this is a great opportunity to follow up and help them complete their booking.
+A customer has saved their solar quote - this is a great opportunity to follow up and help them complete their booking.
 
 Customer Information:
 Name: {{firstName}} {{lastName}}
@@ -239,5 +239,3 @@ This is an automated notification from {{companyName}}.
 
 ©{{currentYear}} {{companyName}}. All rights reserved.`
 }
-
-
