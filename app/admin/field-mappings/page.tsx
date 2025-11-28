@@ -687,11 +687,13 @@ export default function FieldMappingsPage() {
 
     try {
       // Load all records from the service category to find the one with most data
+      // Order by most recent first to get latest records with new fields like quote_link
       const { data: allRecords, error } = await supabase
         .from('lead_submission_data')
         .select('*')
         .eq('service_category_id', selectedCategoryId)
-        .limit(10) // Get multiple records to compare
+        .order('last_activity_at', { ascending: false })
+        .limit(20) // Get more records to compare, ordered by most recent
 
       if (error) {
         console.error('Error loading sample data:', error)
@@ -699,20 +701,36 @@ export default function FieldMappingsPage() {
       }
 
       if (allRecords && allRecords.length > 0) {
-        // Find the record with the most non-null data fields
+        // Prioritize records that have quote_link in quote_data (for quote-related email types)
+        // Then find the record with the most non-null data fields
         let bestRecord = allRecords[0]
         let maxDataFields = 0
+        let bestRecordScore = 0
 
         for (const record of allRecords) {
+          // Calculate score: prioritize records with quote_link fields
+          let score = 0
+          if (record.quote_data && typeof record.quote_data === 'object') {
+            if (record.quote_data.quote_link) score += 10
+            if (record.quote_data.original_quote_link) score += 5
+            if (record.quote_data.conditional_quote_link) score += 5
+            if (record.quote_data.main_page_url) score += 3
+            if (record.quote_data.is_iframe !== undefined) score += 2
+          }
+
           const dataFields = Object.keys(record).filter(key => {
             const value = record[key]
             return value !== null && value !== undefined &&
               (typeof value === 'object' ? Object.keys(value).length > 0 : true)
           }).length
 
-          if (dataFields > maxDataFields) {
-            maxDataFields = dataFields
+          // Combine score with data field count
+          const totalScore = score * 100 + dataFields
+
+          if (totalScore > bestRecordScore) {
+            bestRecordScore = totalScore
             bestRecord = record
+            maxDataFields = dataFields
           }
         }
 

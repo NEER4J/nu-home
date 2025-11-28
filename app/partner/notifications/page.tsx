@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2, Mail, Edit, Eye, Save, RotateCcw, Users, Settings, MapPin } from 'lucide-react'
+import { Loader2, Save, RotateCcw, Mail, Settings, Users, MapPin } from 'lucide-react'
 import EmailTemplateEditor from '@/components/partner/notifications/EmailTemplateEditor'
 import LeadsMapping from '@/components/partner/notifications/LeadsMapping'
 import { toast } from 'sonner'
@@ -318,7 +319,7 @@ const EMAIL_TYPES_BY_CATEGORY = {
 }
 
 
-export default function NotificationsPage() {
+function NotificationsContent() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
@@ -345,6 +346,16 @@ export default function NotificationsPage() {
   const [loadingStages, setLoadingStages] = useState<string | null>(null)
 
   const supabase = createClient()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const updateUrl = (categorySlug: string | null, emailType: string | null) => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    if (categorySlug) params.set('category', categorySlug)
+    if (emailType) params.set('type', emailType)
+    router.replace(`${pathname}?${params.toString()}`)
+  }
 
   // Get email types for the selected category
   const getEmailTypesForCategory = (categorySlug: string) => {
@@ -365,6 +376,8 @@ export default function NotificationsPage() {
       const categorySlug = categories.find(c => c.service_category_id === selectedCategoryId)?.slug || ''
       const categoryEmailTypes = getEmailTypesForCategory(categorySlug)
 
+      const typeParam = searchParams?.get('type')
+
       // Reset email type if current selection isn't available for this category
       if (categoryEmailTypes.length === 0) {
         setSelectedEmailType('')
@@ -372,6 +385,13 @@ export default function NotificationsPage() {
         setSelectedTemplate(null)
         setLoading(false)
         return
+      }
+
+      // If type param exists and is valid, use it
+      if (typeParam && categoryEmailTypes.find(type => type.id === typeParam)) {
+        if (selectedEmailType !== typeParam) {
+          setSelectedEmailType(typeParam)
+        }
       } else if (!categoryEmailTypes.find(type => type.id === selectedEmailType)) {
         setSelectedEmailType(categoryEmailTypes[0].id)
       }
@@ -444,8 +464,13 @@ export default function NotificationsPage() {
 
       setCategories(categories || [])
 
-      // Select first category by default
-      if (categories && categories.length > 0 && !selectedCategoryId) {
+      const categoryParam = searchParams?.get('category')
+      const foundCategory = categoryParam ? categories.find(c => c.slug === categoryParam) : null
+
+      // Select category from URL or default to first
+      if (foundCategory) {
+        setSelectedCategoryId(foundCategory.service_category_id)
+      } else if (categories && categories.length > 0 && !selectedCategoryId) {
         setSelectedCategoryId(categories[0].service_category_id)
       } else if (categories.length === 0) {
         // No categories found, stop loading
@@ -459,6 +484,7 @@ export default function NotificationsPage() {
   }
 
   const loadTemplates = async () => {
+    setLoading(true)
     if (!selectedCategoryId) {
       setLoading(false)
       return
@@ -1174,8 +1200,10 @@ export default function NotificationsPage() {
               <button
                 key={category.service_category_id}
                 onClick={() => {
+                  setLoading(true)
                   setSelectedCategoryId(category.service_category_id)
                   setSelectedTemplate(null)
+                  updateUrl(category.slug, null)
                 }}
                 className={`whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center space-x-2 ${selectedCategoryId === category.service_category_id
                   ? 'border-blue-500 text-blue-600'
@@ -1207,8 +1235,11 @@ export default function NotificationsPage() {
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Select Email Type</label>
                       <Select value={selectedEmailType} onValueChange={(value) => {
+                        setLoading(true)
                         setSelectedEmailType(value)
                         setSelectedTemplate(null)
+                        const categorySlug = categories.find(c => c.service_category_id === selectedCategoryId)?.slug
+                        updateUrl(categorySlug || null, value)
                       }}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select email type">
@@ -1316,8 +1347,10 @@ export default function NotificationsPage() {
             <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto pb-px" aria-label="Email Types">
               <button
                 onClick={() => {
+                  setLoading(true)
                   setActiveTab('customer')
                   selectTemplateByType('customer')
+                  setTimeout(() => setLoading(false), 500)
                 }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'customer'
                   ? 'border-blue-500 text-blue-600'
@@ -1328,8 +1361,10 @@ export default function NotificationsPage() {
               </button>
               <button
                 onClick={() => {
+                  setLoading(true)
                   setActiveTab('admin')
                   selectTemplateByType('admin')
+                  setTimeout(() => setLoading(false), 500)
                 }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'admin'
                   ? 'border-blue-500 text-blue-600'
@@ -1340,7 +1375,11 @@ export default function NotificationsPage() {
               </button>
               {ghlIntegration && (
                 <button
-                  onClick={() => setActiveTab('leads')}
+                  onClick={() => {
+                    setLoading(true)
+                    setActiveTab('leads')
+                    setTimeout(() => setLoading(false), 500)
+                  }}
                   className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${activeTab === 'leads'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -1351,7 +1390,11 @@ export default function NotificationsPage() {
                 </button>
               )}
               <button
-                onClick={() => setActiveTab('email-settings')}
+                onClick={() => {
+                  setLoading(true)
+                  setActiveTab('email-settings')
+                  setTimeout(() => setLoading(false), 500)
+                }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${activeTab === 'email-settings'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -1417,99 +1460,115 @@ export default function NotificationsPage() {
       )}
 
       {/* Template Content */}
-      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && activeTab !== 'email-settings' && templateFields.length > 0 && (
-        <EmailTemplateEditor
-          template={selectedTemplate}
-          templateFields={templateFields}
-          onChange={handleTemplateChange}
-        />
-      )}
-
-      {/* No Field Mappings Message */}
-      {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && activeTab !== 'email-settings' && templateFields.length === 0 && (
-        <div className="text-center py-12">
-          <MapPin className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No Field Mappings Available</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            You need to create field mappings for this email type before you can Customise the template.
-          </p>
-          <div className="mt-6">
-            <Button
-              onClick={() => window.open('/admin/field-mappings', '_blank')}
-            >
-              <MapPin className="h-4 w-4 mr-2" />
-              Create Field Mappings
-            </Button>
-          </div>
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
         </div>
-      )}
+      ) : (
+        <>
+          {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && activeTab !== 'email-settings' && templateFields.length > 0 && (
+            <EmailTemplateEditor
+              template={selectedTemplate}
+              templateFields={templateFields}
+              onChange={handleTemplateChange}
+            />
+          )}
 
-      {/* Leads Tab Content */}
-      {activeTab === 'leads' && ghlIntegration && availableEmailTypes.length > 0 && selectedEmailType && (
-        <LeadsMapping
-          ghlIntegration={ghlIntegration}
-          ghlFieldMappings={ghlFieldMappings}
-          ghlPipelines={ghlPipelines}
-          ghlCustomFields={ghlCustomFields}
-          ghlTags={ghlTags}
-          templateFields={templateFields}
-          ghlLoading={ghlLoading}
-          ghlSaving={ghlSaving}
-          onSaveMapping={saveGHLFieldMappings}
-          onRefresh={loadGHLIntegration}
-          onRefreshTags={loadGHLTags}
-          onUpdateMapping={updateGHLFieldMapping}
-        />
-      )}
-
-      {/* GHL Not Connected Message */}
-      {activeTab === 'leads' && !ghlIntegration && (
-        <div className="text-center py-12">
-          <Settings className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">GoHighLevel Not Connected</h3>
-          <p className="mt-2 text-sm text-gray-500">
-            Please connect your GoHighLevel account in Settings to configure lead mappings.
-          </p>
-          <div className="mt-6">
-            <Button
-              onClick={() => window.open('/partner/configuration', '_blank')}
-              variant="outline"
-            >
-              Go to Settings
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Email Settings Tab Content */}
-      {activeTab === 'email-settings' && selectedEmailType && availableEmailTypes.length > 0 && (
-        <div className="space-y-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex items-start">
-              <Mail className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-blue-900">Email Notification Settings</h3>
-                <p className="mt-1 text-sm text-blue-700">
-                  Configure which admin emails should receive notifications for this email type.
-                  You can specify multiple emails and enable/disable notifications individually.
-                  {adminEmail && (
-                    <> If no specific emails are configured, notifications will be sent to your default admin email: <span className="font-medium">{adminEmail}</span></>
-                  )}
-                </p>
+          {/* No Field Mappings Message */}
+          {selectedTemplate && availableEmailTypes.length > 0 && selectedEmailType && activeTab !== 'leads' && activeTab !== 'email-settings' && templateFields.length === 0 && (
+            <div className="text-center py-12">
+              <MapPin className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-4 text-lg font-medium text-gray-900">No Field Mappings Available</h3>
+              <p className="mt-2 text-sm text-gray-500">
+                You need to create field mappings for this email type before you can Customise the template.
+              </p>
+              <div className="mt-6">
+                <Button
+                  onClick={() => window.open('/admin/field-mappings', '_blank')}
+                >
+                  <MapPin className="h-4 w-4 mr-2" />
+                  Create Field Mappings
+                </Button>
               </div>
             </div>
-          </div>
+          )}
 
-          <EmailNotificationSettings
-            emailType={selectedEmailType}
-            emailTypeName={availableEmailTypes.find(et => et.id === selectedEmailType)?.name || selectedEmailType}
-            currentSettings={emailNotificationSettings[selectedEmailType] || null}
-            fallbackEmail={adminEmail}
-            onSave={(config) => handleSaveEmailNotificationSettings(selectedEmailType, config)}
-          />
-        </div>
+          {/* Leads Tab Content */}
+          {activeTab === 'leads' && ghlIntegration && availableEmailTypes.length > 0 && selectedEmailType && (
+            <LeadsMapping
+              ghlIntegration={ghlIntegration}
+              ghlFieldMappings={ghlFieldMappings}
+              ghlPipelines={ghlPipelines}
+              ghlCustomFields={ghlCustomFields}
+              ghlTags={ghlTags}
+              templateFields={templateFields}
+              ghlLoading={ghlLoading}
+              ghlSaving={ghlSaving}
+              onSaveMapping={saveGHLFieldMappings}
+              onRefresh={loadGHLIntegration}
+              onRefreshTags={loadGHLTags}
+              onUpdateMapping={updateGHLFieldMapping}
+            />
+          )}
+
+          {/* GHL Not Connected Message */}
+          {activeTab === 'leads' && !ghlIntegration && (
+            <div className="text-center py-12">
+              <Settings className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-4 text-lg font-medium text-gray-900">GoHighLevel Not Connected</h3>
+              <p className="mt-2 text-sm text-gray-500">
+                Please connect your GoHighLevel account in Settings to configure lead mappings.
+              </p>
+              <div className="mt-6">
+                <Button
+                  onClick={() => window.open('/partner/configuration', '_blank')}
+                  variant="outline"
+                >
+                  Go to Settings
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Email Settings Tab Content */}
+          {activeTab === 'email-settings' && selectedEmailType && availableEmailTypes.length > 0 && (
+            <div className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start">
+                  <Mail className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-blue-900">Email Notification Settings</h3>
+                    <p className="mt-1 text-sm text-blue-700">
+                      Configure which admin emails should receive notifications for this email type.
+                      You can specify multiple emails and enable/disable notifications individually.
+                      {adminEmail && (
+                        <> If no specific emails are configured, notifications will be sent to your default admin email: <span className="font-medium">{adminEmail}</span></>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <EmailNotificationSettings
+                emailType={selectedEmailType}
+                emailTypeName={availableEmailTypes.find(et => et.id === selectedEmailType)?.name || selectedEmailType}
+                currentSettings={emailNotificationSettings[selectedEmailType] || null}
+                fallbackEmail={adminEmail}
+                onSave={(config) => handleSaveEmailNotificationSettings(selectedEmailType, config)}
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
+  )
+}
+
+export default function NotificationsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <NotificationsContent />
+    </Suspense>
   )
 }
 
