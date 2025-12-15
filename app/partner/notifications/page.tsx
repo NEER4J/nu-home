@@ -47,6 +47,18 @@ import {
   getDefaultSolarAdminSaveQuoteTemplate,
   getDefaultSolarAdminSaveQuoteTextTemplate
 } from '@/lib/email-templates/solar/save-quote'
+import {
+  getDefaultSolarCustomerCallbackRequestedTemplate,
+  getDefaultSolarCustomerCallbackRequestedTextTemplate,
+  getDefaultSolarAdminCallbackRequestedTemplate,
+  getDefaultSolarAdminCallbackRequestedTextTemplate
+} from '@/lib/email-templates/solar/callback-requested'
+import {
+  getDefaultSolarCustomerESurveySubmittedTemplate,
+  getDefaultSolarCustomerESurveySubmittedTextTemplate,
+  getDefaultSolarAdminESurveySubmittedTemplate,
+  getDefaultSolarAdminESurveySubmittedTextTemplate
+} from '@/lib/email-templates/solar/esurvey-submitted'
 
 import {
   getDefaultCustomerEnquirySubmittedTemplate,
@@ -162,14 +174,26 @@ const getTemplatesByType = (categorySlug: string, emailType: string, recipientTy
     }
   } else if (emailType === 'esurvey-submitted') {
     if (recipientType === 'customer') {
+      if (categorySlug === 'solar') {
+        return templateType === 'html' ? getDefaultSolarCustomerESurveySubmittedTemplate() : getDefaultSolarCustomerESurveySubmittedTextTemplate()
+      }
       return templateType === 'html' ? getDefaultCustomerESurveySubmittedTemplate() : getDefaultCustomerESurveySubmittedTextTemplate()
     } else {
+      if (categorySlug === 'solar') {
+        return templateType === 'html' ? getDefaultSolarAdminESurveySubmittedTemplate() : getDefaultSolarAdminESurveySubmittedTextTemplate()
+      }
       return templateType === 'html' ? getDefaultAdminESurveySubmittedTemplate() : getDefaultAdminESurveySubmittedTextTemplate()
     }
   } else if (emailType === 'callback-requested') {
     if (recipientType === 'customer') {
+      if (categorySlug === 'solar') {
+        return templateType === 'html' ? getDefaultSolarCustomerCallbackRequestedTemplate() : getDefaultSolarCustomerCallbackRequestedTextTemplate()
+      }
       return templateType === 'html' ? getDefaultCustomerCallbackRequestedTemplate() : getDefaultCustomerCallbackRequestedTextTemplate()
     } else {
+      if (categorySlug === 'solar') {
+        return templateType === 'html' ? getDefaultSolarAdminCallbackRequestedTemplate() : getDefaultSolarAdminCallbackRequestedTextTemplate()
+      }
       return templateType === 'html' ? getDefaultAdminCallbackRequestedTemplate() : getDefaultAdminCallbackRequestedTextTemplate()
     }
   }
@@ -312,6 +336,16 @@ const EMAIL_TYPES_BY_CATEGORY = {
       id: 'enquiry-submitted',
       name: 'Enquiry Submitted',
       description: 'Sent when a customer submits a general enquiry',
+    },
+    {
+      id: 'esurvey-submitted',
+      name: 'eSurvey Submitted',
+      description: 'Sent when a customer submits photos via eSurvey',
+    },
+    {
+      id: 'callback-requested',
+      name: 'Callback Request',
+      description: 'Sent when a customer requests a callback',
     },
   ],
   // TODO: Add email types for other categories as they're implemented

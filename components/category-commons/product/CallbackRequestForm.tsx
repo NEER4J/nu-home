@@ -54,15 +54,17 @@ interface CallbackRequestFormProps {
   partnerInfo: PartnerInfo | null
   submissionId: string | null
   brandColor?: string
+  category?: string
 }
 
-export default function CallbackRequestForm({ 
-  isOpen, 
-  onClose, 
-  submissionInfo, 
-  partnerInfo, 
-  submissionId, 
-  brandColor = '#2563eb' 
+export default function CallbackRequestForm({
+  isOpen,
+  onClose,
+  submissionInfo,
+  partnerInfo,
+  submissionId,
+  brandColor = '#2563eb',
+  category = 'boiler'
 }: CallbackRequestFormProps) {
   const [formData, setFormData] = useState({
     first_name: submissionInfo?.first_name || '',
@@ -92,13 +94,13 @@ export default function CallbackRequestForm({
       }
 
       // Get service category ID
-      const { data: boilerCategory } = await supabase
+      const { data: serviceCategory } = await supabase
         .from('ServiceCategories')
         .select('service_category_id')
-        .eq('slug', 'boiler')
+        .eq('slug', category)
         .single()
 
-      if (!boilerCategory) {
+      if (!serviceCategory) {
         throw new Error('Service category not found')
       }
 
@@ -126,7 +128,7 @@ export default function CallbackRequestForm({
         .upsert({
           submission_id: submissionId,
           partner_id: partnerInfo.user_id,
-          service_category_id: boilerCategory.service_category_id,
+          service_category_id: serviceCategory.service_category_id,
           callback_data: callbackData,
           current_page: 'callback_request',
           pages_completed: ['quote', 'products', 'callback_request'],
@@ -157,13 +159,13 @@ export default function CallbackRequestForm({
           postcode: submissionInfo?.postcode || '',
           submissionId: submissionId,
           notes: formData.notes,
-          category: 'boiler',
+          category: category,
           subdomain,
           is_iframe: isIframe
         }
 
-        console.log('Sending callback request email to: /api/email/boiler/callback-requested')
-        const emailResponse = await fetch('/api/email/boiler/callback-requested', {
+        console.log(`Sending callback request email to: /api/email/${category}/callback-requested`)
+        const emailResponse = await fetch(`/api/email/${category}/callback-requested`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(emailData),
@@ -173,12 +175,12 @@ export default function CallbackRequestForm({
 
         if (emailResponse.ok) {
           console.log('Callback request email sent successfully')
-          
+
           // Create GHL lead from frontend (visible in network tab)
           if (responseData?.partnerId || responseData?.debug?.partnerId) {
             try {
               console.log('🚀 Creating GHL lead from frontend for callback-requested...');
-              
+
               const ghlResponse = await fetch('/api/ghl/create-lead-client', {
                 method: 'POST',
                 headers: {
@@ -215,13 +217,13 @@ export default function CallbackRequestForm({
           }
         } else {
           console.warn('Failed to send callback request email:', await emailResponse.text())
-        } 
+        }
       } catch (emailError) {
         console.warn('Error sending callback request email:', emailError)
       }
 
       setIsSubmitted(true)
-      
+
       // Auto-close after 2 seconds
       setTimeout(() => {
         setIsSubmitted(false)
@@ -335,15 +337,15 @@ export default function CallbackRequestForm({
           </div>
 
           <DialogFooter className="flex gap-3">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               type="submit"
               disabled={isSubmitting}
               style={{ backgroundColor: brandColor }}

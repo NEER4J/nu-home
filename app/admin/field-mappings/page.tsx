@@ -166,6 +166,16 @@ const EMAIL_TYPES_BY_CATEGORY = {
       name: 'Enquiry Submitted',
       description: 'Sent when a customer submits a general enquiry',
     },
+    {
+      id: 'esurvey-submitted',
+      name: 'eSurvey Submitted',
+      description: 'Sent when a customer submits photos via eSurvey',
+    },
+    {
+      id: 'callback-requested',
+      name: 'Callback Request',
+      description: 'Sent when a customer requests a callback',
+    },
   ],
   aircon: [
     {
@@ -887,8 +897,8 @@ export default function FieldMappingsPage() {
                   setEditingMapping(null)
                 }}
                 className={`whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center space-x-2 ${selectedCategoryId === category.service_category_id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 {category.icon_url && (
@@ -1303,8 +1313,8 @@ export default function FieldMappingsPage() {
                                     setLastSelectedTab(sourceKey)
                                   }}
                                   className={`whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm ${activeDataTab === sourceKey
-                                      ? 'border-blue-500 text-blue-600'
-                                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                                 >
                                   {sourceKey.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}

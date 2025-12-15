@@ -63,7 +63,7 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
   const [showCallbackForm, setShowCallbackForm] = useState(false)
   const [isSubmittingESurvey, setIsSubmittingESurvey] = useState(false)
   const supabase = createClient()
-  
+
   if (!submissionInfo) {
     return null
   }
@@ -77,17 +77,17 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
     if (!question || !question.is_multiple_choice || !question.answer_options) {
       return 0;
     }
-    
+
     const answers = Array.isArray(answer) ? answer : [answer];
     let totalCost = 0;
-    
+
     answers.forEach(answerText => {
       const option = question.answer_options?.find((opt: any) => opt.text === answerText);
       if (option?.hasAdditionalCost && option.additionalCost) {
         totalCost += option.additionalCost;
       }
     });
-    
+
     return totalCost;
   };
 
@@ -131,7 +131,7 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
       console.log('=== eSurvey SUBMISSION HANDLER CALLED ===')
       console.log('Uploaded images:', uploadedImages)
       console.log('Uploaded image URLs:', uploadedImageUrls)
-      
+
       if (submissionId && partnerInfo) {
         // Save eSurvey data to lead_submission_data
         const esurveyData = {
@@ -217,12 +217,12 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
 
             if (emailResponse.ok) {
               console.log('eSurvey email sent successfully')
-              
+
               // Create GHL lead from frontend (visible in network tab)
               if (responseData?.partnerId || responseData?.debug?.partnerId) {
                 try {
                   console.log('🚀 Creating GHL lead from frontend for esurvey-submitted...');
-                  
+
                   const ghlResponse = await fetch('/api/ghl/create-lead-client', {
                     method: 'POST',
                     headers: {
@@ -232,15 +232,15 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
                       partnerId: responseData.partnerId || responseData.debug?.partnerId,
                       submissionId: submissionId,
                       emailType: 'esurvey-submitted',
-                    contactData: {
-                      firstName: submissionInfo.first_name || '',
-                      lastName: submissionInfo.last_name || '',
-                      email: submissionInfo.email || '',
-                      phone: submissionInfo.phone || '',
-                      address1: submissionInfo.postcode || '',
-                      city: submissionInfo.postcode || '',
-                      country: 'United Kingdom'
-                    },
+                      contactData: {
+                        firstName: submissionInfo.first_name || '',
+                        lastName: submissionInfo.last_name || '',
+                        email: submissionInfo.email || '',
+                        phone: submissionInfo.phone || '',
+                        address1: submissionInfo.postcode || '',
+                        city: submissionInfo.postcode || '',
+                        country: 'United Kingdom'
+                      },
                       customFields: {},
                       pipelineId: null,
                       stageId: null
@@ -272,7 +272,7 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
         console.error('Missing submissionId or partnerInfo for eSurvey');
         alert('Error: Missing required information for eSurvey submission');
       }
-      
+
     } catch (error) {
       console.error('Failed to submit eSurvey:', error)
       alert('Failed to submit eSurvey. Please try again.')
@@ -289,27 +289,27 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
           <Card className="!bg-gray-100 rounded-2xl border md:p-8 p-5 flex flex-col justify-between">
             <CardHeader className="!p-0 mb-3">
               <CardTitle className="!text-2xl font-medium text-gray-900">Get help & advice</CardTitle>
-              <p className="text-gray-600">From our team of experts.</p>  
+              <p className="text-gray-600">From our team of experts.</p>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Call our team */}
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border">
-                                 <div 
-                   className="w-8 h-8 rounded-full flex items-center justify-center"
-                   style={{ backgroundColor: `${brandColor}20` }}
-                 >
-                   <Phone 
-                     className="w-4 h-4" 
-                     style={{ color: brandColor }}
-                   />
-                 </div>
-                 <div className="flex-1">
-                   <p className="text-sm text-gray-700">Call our team</p>
-                   <a 
-                     href={`tel:${partnerPhone}`}
-                     className="text-sm font-semibold underline hover:opacity-80"
-                     style={{ color: brandColor }}
-                   >
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${brandColor}20` }}
+                >
+                  <Phone
+                    className="w-4 h-4"
+                    style={{ color: brandColor }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-700">Call our team</p>
+                  <a
+                    href={`tel:${partnerPhone}`}
+                    className="text-sm font-semibold underline hover:opacity-80"
+                    style={{ color: brandColor }}
+                  >
                     {partnerPhone}
                   </a>
                 </div>
@@ -317,22 +317,22 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
 
               {/* Email contact */}
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border">
-                                 <div 
-                   className="w-8 h-8 rounded-full flex items-center justify-center"
-                   style={{ backgroundColor: `${brandColor}20` }}
-                 >
-                   <ArrowRight 
-                     className="w-4 h-4" 
-                     style={{ color: brandColor }}
-                   />
-                 </div>
-                 <div className="flex-1">
-                   <p className="text-sm text-gray-700">Email us</p>
-                   <a 
-                     href={`mailto:${partnerEmail}`}
-                     className="text-sm font-semibold underline hover:opacity-80"
-                     style={{ color: brandColor }}
-                   >
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${brandColor}20` }}
+                >
+                  <ArrowRight
+                    className="w-4 h-4"
+                    style={{ color: brandColor }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-700">Email us</p>
+                  <a
+                    href={`mailto:${partnerEmail}`}
+                    className="text-sm font-semibold underline hover:opacity-80"
+                    style={{ color: brandColor }}
+                  >
                     {partnerEmail}
                   </a>
                 </div>
@@ -340,18 +340,18 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
 
               {/* Callback request button */}
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border">
-                <div 
+                <div
                   className="w-8 h-8 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: `${brandColor}20` }}
                 >
-                  <Clock 
-                    className="w-4 h-4" 
+                  <Clock
+                    className="w-4 h-4"
                     style={{ color: brandColor }}
                   />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-700">Need help choosing?</p>
-                  <button 
+                  <button
                     onClick={() => setShowCallbackForm(true)}
                     className="text-sm font-semibold underline hover:opacity-80"
                     style={{ color: brandColor }}
@@ -363,18 +363,18 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
 
               {/* eSurvey button */}
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl border">
-                <div 
+                <div
                   className="w-8 h-8 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: `${brandColor}20` }}
                 >
-                  <Camera 
-                    className="w-4 h-4" 
+                  <Camera
+                    className="w-4 h-4"
                     style={{ color: brandColor }}
                   />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-gray-700">For peace of mind</p>
-                  <button 
+                  <button
                     onClick={() => setShowESurvey(true)}
                     className="text-sm font-semibold underline hover:opacity-80"
                     style={{ color: brandColor }}
@@ -423,81 +423,82 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
                   </div>
                 )}
               </div>
-              
-                             {/* Restart questions link */}
-               <div className="mt-6 border-t border-gray-100">
-                                   <button 
-                    onClick={handleRestart}
-                    className="inline-flex items-center gap-2 text-sm transition-colors hover:opacity-80"
-                    style={{ color: brandColor }}
-                  >
-                   <RotateCcw className="w-4 h-4" />
-                   Restart questions
-                 </button>
-               </div>
+
+              {/* Restart questions link */}
+              <div className="mt-6 border-t border-gray-100">
+                <button
+                  onClick={handleRestart}
+                  className="inline-flex items-center gap-2 text-sm transition-colors hover:opacity-80"
+                  style={{ color: brandColor }}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Restart questions
+                </button>
+              </div>
             </CardContent>
-                     </Card>
-         </div>
-       </div>
+          </Card>
+        </div>
+      </div>
 
-       {/* Restart Confirmation Modal */}
-       <Dialog open={showRestartConfirm} onOpenChange={setShowRestartConfirm} >
-         <DialogContent variant="center">
-           <DialogHeader>
-             <DialogTitle>
-               Restart Quote Form?
-             </DialogTitle>
-             <DialogDescription>
-               This will take you back to the beginning of the quote form and you'll need to fill out your requirements again.
-             </DialogDescription>
-           </DialogHeader>
-           <DialogFooter className="flex gap-3">
-             <Button variant="outline" onClick={() => setShowRestartConfirm(false)}>
-               Cancel
-             </Button>
-             <Button 
-                onClick={confirmRestart}
-                style={{ backgroundColor: brandColor }}
-                className="hover:opacity-90"
-              >
-               Restart
-             </Button>
-           </DialogFooter>
-         </DialogContent>
-       </Dialog>
+      {/* Restart Confirmation Modal */}
+      <Dialog open={showRestartConfirm} onOpenChange={setShowRestartConfirm} >
+        <DialogContent variant="center">
+          <DialogHeader>
+            <DialogTitle>
+              Restart Quote Form?
+            </DialogTitle>
+            <DialogDescription>
+              This will take you back to the beginning of the quote form and you'll need to fill out your requirements again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-3">
+            <Button variant="outline" onClick={() => setShowRestartConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmRestart}
+              style={{ backgroundColor: brandColor }}
+              className="hover:opacity-90"
+            >
+              Restart
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-       {/* Callback Request Form */}
-       <CallbackRequestForm
-         isOpen={showCallbackForm}
-         onClose={() => setShowCallbackForm(false)}
-         submissionInfo={submissionInfo}
-         partnerInfo={partnerInfo}
-         submissionId={submissionId || null}
-         brandColor={brandColor}
-       />
+      {/* Callback Request Form */}
+      <CallbackRequestForm
+        isOpen={showCallbackForm}
+        onClose={() => setShowCallbackForm(false)}
+        submissionInfo={submissionInfo}
+        partnerInfo={partnerInfo}
+        submissionId={submissionId || null}
+        brandColor={brandColor}
+        category={category}
+      />
 
-       {/* eSurvey Popup */}
-       <ESurveyLayout
-         companyColor={partnerInfo?.company_color}
-         partnerPhone={partnerInfo?.phone}
-         customerName={submissionInfo.first_name}
-         customerDetails={{
-           name: `${submissionInfo.first_name} ${submissionInfo.last_name}`,
-           phone: submissionInfo.phone || '',
-           email: submissionInfo.email,
-           postcode: submissionInfo.postcode
-         }}
-         onBack={() => setShowESurvey(false)}
-         backLabel="Close"
-         category={category}
-         imageUploadAreas={esurveyImageUploadAreas}
-         submissionId={submissionId || 'temp-' + Date.now()}
-         onImageUpload={handleESurveyImageUpload}
-         onFormSubmit={handleESurveySubmit}
-         isSubmitting={isSubmittingESurvey}
-         isOpen={showESurvey}
-         onClose={() => setShowESurvey(false)}
-       />
-     </div>
-   )
- }
+      {/* eSurvey Popup */}
+      <ESurveyLayout
+        companyColor={partnerInfo?.company_color}
+        partnerPhone={partnerInfo?.phone}
+        customerName={submissionInfo.first_name}
+        customerDetails={{
+          name: `${submissionInfo.first_name} ${submissionInfo.last_name}`,
+          phone: submissionInfo.phone || '',
+          email: submissionInfo.email,
+          postcode: submissionInfo.postcode
+        }}
+        onBack={() => setShowESurvey(false)}
+        backLabel="Close"
+        category={category}
+        imageUploadAreas={esurveyImageUploadAreas}
+        submissionId={submissionId || 'temp-' + Date.now()}
+        onImageUpload={handleESurveyImageUpload}
+        onFormSubmit={handleESurveySubmit}
+        isSubmitting={isSubmittingESurvey}
+        isOpen={showESurvey}
+        onClose={() => setShowESurvey(false)}
+      />
+    </div>
+  )
+}
