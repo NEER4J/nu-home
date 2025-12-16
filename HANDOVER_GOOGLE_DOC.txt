@@ -1,0 +1,762 @@
+Overview
+
+Git repo - (add your remote URL here, e.g. GitHub)
+
+Link - (add your staging/production URL here)
+
+
+
+Project Overview: nu-home
+
+Project Summary
+
+nu-home is a Next.js + Supabase application for home services (e.g. boilers, solar) that powers marketing/quote/survey flows, a partner portal, and an admin back office. It handles customer quotes and enquiries, survey bookings, roof-mapping, automated email notifications, CRM sync via GoHighLevel (GHL), and payments via Stripe/Kanda. Partners can manage their products, branding, notifications, calendars, and domains; admins configure categories, questions, and field mappings that drive the customer flows.
+
+
+
+Technology Stack
+
+
+
+Core Framework
+
+• Next.js (App Router, in app/ directory)
+
+• React (with TypeScript)
+
+• Tailwind CSS for styling
+
+• shadcn/ui-style components (components/ui)
+
+
+
+Backend & Database
+
+• Supabase (PostgreSQL) for database and authentication
+
+• Supabase client helpers in utils/supabase and lib/supabase
+
+• Next.js Route Handlers under app/api/* for backend endpoints
+
+
+
+Integrations & Services
+
+• GoHighLevel (GHL) – CRM, opportunities, tags, and calendars
+
+• Stripe – payment intents and checkout flows
+
+• Kanda – finance/loan requests
+
+• Twilio – OTP / SMS verification
+
+• Google Maps + property APIs – roof mapping and postcode/places lookup
+
+• Apify – Google Reviews scraping
+
+• Email sending via nodemailer-like flows plus custom templates
+
+• Google Gemini / OpenAI-style AI: chatbot + field-mapping AI
+
+
+
+Key Libraries
+
+• @supabase/supabase-js – database and auth
+
+• @google/generative-ai – Gemini integration
+
+• stripe / @stripe/stripe-js / @stripe/react-stripe-js – payments
+
+• html2canvas – client-side screenshots (roof mapping)
+
+• handlebars – advanced template/field-mapping engine
+
+• lucide-react – icons
+
+• react-hook-form + zod – form handling and validation (in various places)
+
+• next-themes, framer-motion, react-markdown, swiper, etc. for UI polish
+
+
+
+Project Structure
+
+
+
+nu-home/
+
+├── app/                         # Next.js App Router
+
+│   ├── (auth-pages)/            # Auth pages: sign-in, sign-up, forgot-password, layout
+
+│   ├── auth/                    # OAuth style callbacks (e.g. CRM callback)
+
+│   ├── boiler/                  # Boiler flows: enquiry, quote, survey, checkout, success
+
+│   ├── solar/                   # Solar flows: enquiry, quote, survey, products
+
+│   ├── services/                # Generic service flows with [slug] routing
+
+│   ├── partner/                 # Partner portal (dashboard, leads, products, settings, notifications, import, addons, highlights, key-points, etc.)
+
+│   ├── admin/                   # Admin panel (dashboard, service-categories, products, form-questions, field-mappings, addons, partners)
+
+│   ├── api/                     # API routes (emails, GHL, Stripe, Kanda, postcode, places, roof-mapping, chatbot, field-mapping AI, reviews, etc.)
+
+│   ├── docs/                    # In-app documentation page
+
+│   ├── protected/               # Auth-protected misc pages (e.g. reset-password)
+
+│   ├── domain-restricted/       # Domain-locked pages
+
+│   ├── layout.tsx               # Root layout, global shell and user profile lookup
+
+│   └── page.tsx                 # Root redirect (currently redirects to /sign-in)
+
+├── components/                  # React components
+
+│   ├── category-commons/        # Shared flows for quote, enquiry, survey, checkout, product UI
+
+│   ├── partner/                 # Partner portal components (dashboard widgets, forms, notifications UI, branding, integrations, payments)
+
+│   ├── admin/                   # Admin components (service categories, questions, field mappings, products, conditional logic editors)
+
+│   ├── shared/                  # GHL calendar components, shared product forms, search, etc.
+
+│   ├── ui/                      # shadcn/ui-style primitives (button, card, dialog, input, etc.)
+
+│   └── ...                      # Chatbot, headers, sidebar, loaders, tutorial components
+
+├── lib/                         # Library / domain logic
+
+│   ├── supabase/                # Supabase client (lib/supabase/client.ts)
+
+│   ├── email-templates/         # Default email templates (boiler + solar) and helpers
+
+│   ├── email-templates.ts       # Partner-specific template processing, quote link builder
+
+│   ├── email-notification-settings.ts # Notification config helpers
+
+│   ├── field-mapping-engine.ts  # Advanced template engine for field mappings
+
+│   ├── ghl-api.ts               # GHL API service + token handling and DB persistence
+
+│   ├── ghl-api-client.ts        # Client-side helpers for GHL-related data
+
+│   ├── ghl-appointments.ts      # Helpers to create GHL appointments
+
+│   ├── ghl-contact-helper.ts    # Helpers to create/update GHL contacts
+
+│   ├── partner.ts               # Partner profile/host resolution helpers
+
+│   ├── partner-settings.ts      # Partner settings model and helpers
+
+│   ├── partner-settings-client.ts # Client utilities for reading/updating settings
+
+│   ├── products.ts / products-actions.ts # Product-related logic
+
+│   ├── encryption.ts            # Symmetric encryption for secrets
+
+│   ├── gemini-service.ts        # AI/chatbot helper
+
+│   ├── gtm.ts                   # Google Tag Manager event helpers
+
+│   └── ...                      # Upload helpers, CSV utils, etc.
+
+├── utils/                       # Utility functions
+
+│   ├── supabase/                # Supabase server/client/middleware helpers and env checks
+
+│   ├── dynamic-styles.ts        # Dynamic styling helpers
+
+│   ├── cn.ts                    # className merge helper
+
+│   └── utils.ts                 # Misc utilities
+
+├── hooks/                       # Custom hooks (e.g. use-ghl-calendar, use-dynamic-styles)
+
+├── supabase/                    # Supabase migrations
+
+│   └── migrations/              # Database migrations (email templates, partner_leads, GHL tables, mappings, bundles, etc.)
+
+├── sql/                         # Extra SQL scripts (e.g. lead-related helpers)
+
+├── public/                      # Static assets, custom scripts (postcode.js, quote-script.js, roof-drawing tool)
+
+├── scripts/                     # Utility scripts (e.g. migrations)
+
+├── README.md                    # Original starter kit README (mostly superseded)
+
+├── ROOF_MAPPING_SETUP.md        # Roof mapping feature setup
+
+└── TEMPLATE_PROCESSING_EXAMPLES.md  # Field-mapping engine examples
+
+
+
+Core Features
+
+
+
+1. User Management & Authentication
+
+• Supabase Auth for user accounts.
+
+• Authentication flows under app/(auth-pages) and auth callback routes (e.g. CRM/GHL callback).
+
+• Role-based behavior is inferred from Supabase tables like UserProfiles (e.g. admin vs partner).
+
+• Middleware and layout-level checks protect admin/partner routes.
+
+
+
+2. Partner Portal
+
+• Dashboard (app/partner/page.tsx) with metrics: products count, leads count, recent leads.
+
+• Category access: manages which service categories a partner can sell (UserCategoryAccess).
+
+• Products: PartnerProducts management via app/partner/my-products/* and components/partner/PartnerProductForm.tsx.
+
+• Leads: partner_leads views with filters and actions (components/partner/LeadCard.tsx, LeadFilters.tsx).
+
+• Settings: branding, payment settings, integrations (GHL/Stripe/etc.), domain and calendar configuration (app/partner/settings/page.tsx and components/partner/*Setting components).
+
+• Notifications page: configure which emails go where and edit templates (app/partner/notifications/page.tsx, components/partner/notifications/*).
+
+
+
+3. Admin Panel
+
+• Admin dashboard (app/admin/page.tsx) with counts for questions, categories, partners, products.
+
+• Service categories: CRUD for ServiceCategories (app/admin/service-categories/*, components/admin/NewCategoryForm.tsx, EditCategoryForm.tsx).
+
+• Form questions: manage FormQuestions and flows with conditional logic (app/admin/form-questions/*, components/admin/FieldForm.tsx, QuestionForm.tsx, SimpleFormQuestionsEditor.jsx, FormFlowEditor.jsx).
+
+• Field mappings: configure how form/lead data maps into external systems and templates (app/admin/field-mappings/page.tsx, lib/field-mapping-engine.ts).
+
+• Products & addons: manage Products and admin Addons via app/admin/products/*, app/admin/addons/* and related tables.
+
+
+
+4. Customer Quote, Enquiry, and Survey Flows
+
+• Boiler quote: app/boiler/quote/page.tsx with steps like postcode lookup, user info, and dynamic quote form (components/category-commons/quote/*).
+
+• Boiler enquiry: app/boiler/enquiry/page.tsx with EnquiryLayout, image upload areas, and detailed boiler questions (images and answers stored in Supabase).
+
+• Solar flows: similar structure under app/solar/* using shared category-commons components.
+
+• Services flows: generic service configuration via app/services/[slug] and components/category-commons; driven by ServiceCategories and FormQuestions.
+
+• Lead tracking: flows store progress in lead_submission_data (submission id, current_page, pages_completed, quote_data, conversion_events, device_info, etc.).
+
+• OTP verification (optional): app/api/otp/send and app/api/otp/verify plus helpers that update verification stages in lead_submission_data.
+
+
+
+5. Email Templates & Notifications
+
+• Default templates for different events and verticals (boiler vs solar) in lib/email-templates and lib/email-templates/solar.
+
+• Per-partner overrides in the email_templates table, processed via lib/email-templates.ts (getProcessedEmailTemplate, buildQuoteLink).
+
+• Email events: enquiry submitted, quote initial/verified, save-quote, survey submitted, callback requested, checkout confirmations, etc.
+
+• Email routes under app/api/email/* (boiler and solar subtrees) build email context and send messages.
+
+• Partner-facing UI (app/partner/notifications/page.tsx and components/partner/notifications/*) allows enabling/disabling notifications and editing templates.
+
+
+
+6. GHL (GoHighLevel) Integration
+
+• OAuth flow: auth URLs and callbacks in app/api/ghl/auth-url/route.ts and app/auth/crm/callback/route.ts.
+
+• Token storage: ghl_integrations table managed via lib/ghl-api.ts (saveGHLIntegration, getGHLIntegration, refreshGHLIntegration, getGHLService).
+
+• CRM data: app/api/ghl/custom-fields, tags, pipelines, opportunities, debug endpoints.
+
+• Calendar: app/api/ghl/calendar-slots and appointments for survey bookings.
+
+• Frontend calendar components: hooks/use-ghl-calendar.ts and components/shared/GHLCalendar.tsx, GHLTimeSlots.tsx (documented in components/shared/GHL_CALENDAR_README.md).
+
+• Opportunity creation: lib/ghl-appointments.ts and methods in lib/ghl-api.ts create opportunities in specified pipelines/stages.
+
+
+
+7. Payments & Finance
+
+• Stripe:
+
+  – Client integration in components/category-commons/checkout/CheckoutLayout.tsx and StripePaymentForm.tsx.
+
+  – Server-side payment intent via app/api/stripe/create-payment-intent/route.ts.
+
+• Kanda:
+
+  – API integration in app/api/kanda/* plus components/FinanceCalculator.tsx to show finance options and submit applications.
+
+• Payment data is also stored alongside leads (partner_leads, lead_submission_data payment fields and payment_settings).
+
+
+
+8. Roof Mapping & Media Upload
+
+• Roof mapping step in the quote journey via components/category-commons/quote/RoofMappingStep.tsx.
+
+• Uses NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to embed Google Maps, allow drawing a polygon over the roof, and capture a screenshot using html2canvas.
+
+• Screenshots uploaded via app/api/roof-mapping/upload/route.ts to a Supabase storage bucket (roof-mappings).
+
+• Configuration and setup details in ROOF_MAPPING_SETUP.md.
+
+• Enquiry flows also support required/optional image uploads for boiler installations (via EnquiryLayout and ImageUploadArea).
+
+
+
+9. Chatbot & AI (Field Mapping / Chatbot)
+
+• Chatbot and AI endpoints under app/api/chatbot/*, driven by lib/gemini-service.ts and GOOGLE_AI_API_KEY.
+
+• Field-mapping AI endpoint at app/api/field-mapping-ai/route.ts to help map fields automatically.
+
+• Template processing and nested loop examples documented in TEMPLATE_PROCESSING_EXAMPLES.md.
+
+
+
+10. Analytics & Tracking
+
+• GTM events triggered via lib/gtm.ts from key user actions (e.g. quote submission, survey completion).
+
+• Partner-specific GTM event names configured via migrations and settings (e.g. gtm_event_name in partner_settings).
+
+• lead_submission_data includes conversion_events to record important funnel milestones (e.g. otp_verified).
+
+
+
+Database Schema (Key Tables)
+
+
+
+Core / Identity
+
+• UserProfiles – user/partner profile data, status, company info, domain_verified, etc.
+
+• UserCategoryAccess – which service categories a user/partner has access to, with status (approved/pending/rejected).
+
+• ServiceCategories – high-level service categories (e.g. boiler, solar, etc.).
+
+
+
+Products & Offers
+
+• Products – admin-managed product catalog.
+
+• PartnerProducts – products a partner has attached and configured.
+
+• AdminAddons / related addon tables – additional items partners can attach to offers.
+
+
+
+Leads & Submissions
+
+• partner_leads – core lead records for partners, including address and payment fields, plus JSONB fields like product_info, addon_info, bundle_info.
+
+• lead_submission_data – detailed session-like record of ongoing submissions (form_submissions, current_page, pages_completed, quote_data, conversion_events, device_info, session_id, etc.).
+
+
+
+Email & Notifications
+
+• email_templates – per-partner, per-category, per-email-type templates (HTML, text, subject, styling, recipient_type).
+
+• email_notification_settings – partner-level settings for which notifications are active and where they send.
+
+
+
+Integrations & Settings
+
+• partner_settings – per-partner global settings, including branding, payment settings, GTM config, survey booking options, calendar_settings, etc.
+
+• ghl_integrations – GHL OAuth tokens, company/location IDs, token expiry, user_type, scopes.
+
+• various mapping tables – default and partner-specific mappings (e.g. quote field mappings, save quote mappings, email field mappings, GHL mappings, tags, pipelines).
+
+
+
+Content & Misc
+
+• content_sections / partner_highlights / partner_key_points – content used on partner landing pages.
+
+• product_images / product image bucket setup – for product and media assets.
+
+
+
+Environment Variables Required
+
+
+
+Supabase
+
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+SUPABASE_URL=your_supabase_url (server-side where needed)
+
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key (server-side only, never public)
+
+
+
+Domains & Base URLs
+
+NEXT_PUBLIC_SITE_URL=primary_site_domain (e.g. aifortrades.co.uk)
+
+NEXT_PUBLIC_APP_URL=app_base_url_for_redirects (e.g. https://app.example.com)
+
+NEXT_PUBLIC_BASE_DOMAIN=base_domain_for_partner_subdomains (e.g. yourdomain.com)
+
+
+
+GHL (GoHighLevel)
+
+GHL_CLIENT_ID=your_ghl_client_id
+
+GHL_CLIENT_SECRET=your_ghl_client_secret
+
+GHL_SHARED_SECRET=your_ghl_shared_secret
+
+
+
+Stripe & Kanda
+
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+
+STRIPE_SECRET_KEY=your_stripe_secret_key
+
+KANDA_* (see app/api/kanda and FinanceCalculator.tsx for exact names)
+
+
+
+OTP / SMS
+
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+
+TWILIO_VERIFY_SID=your_twilio_verify_sid
+
+
+
+AI Services
+
+GOOGLE_AI_API_KEY=your_gemini_api_key
+
+NEXT_PUBLIC_OPENAI_API_KEY=your_openai_key (ideally proxied/backended in production)
+
+
+
+Maps, Postcode & Places
+
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+
+WEBUILD_API_KEY=your_property_api_key
+
+NEXT_PUBLIC_WEBUILD_API_KEY=public_variant_if_used
+
+
+
+Reviews / Scraping
+
+APIFY_TOKEN=your_apify_token
+
+
+
+Encryption & Security
+
+ENCRYPTION_KEY=32_byte_symmetric_key_for_encryption
+
+
+
+Vercel / Deployment
+
+VERCEL_AUTH_TOKEN=vercel_api_token_for_domain_management
+
+VERCEL_PROJECT_ID=vercel_project_id
+
+
+
+(There may be additional env vars for specific features; search for “process.env” in the repo to confirm.)
+
+
+
+Setup Instructions
+
+
+
+1. Install Dependencies
+
+• npm install
+
+
+
+2. Set Up Supabase
+
+1) Create a Supabase project at https://supabase.com
+
+2) Run all SQL migrations from supabase/migrations/ (via Supabase CLI or dashboard)
+
+3) Run any additional helper SQL scripts from sql/ and run_migration.sql if needed
+
+4) Configure storage buckets (e.g. roof-mappings, product images)
+
+5) Configure Row Level Security (RLS) – many tables already assume RLS is enabled
+
+
+
+3. Configure Environment Variables
+
+• Create .env.local with all required environment variables listed above.
+
+• Ensure production/staging environments (e.g. Vercel) have the same keys configured.
+
+
+
+4. Run Development Server
+
+• npm run dev
+
+• Open http://localhost:3000
+
+
+
+5. Verify Key Flows
+
+• Visit /docs for in-app documentation.
+
+• Run through a boiler/solar quote or enquiry flow from a partner domain to check env, mapping, and email sending.
+
+• Test GHL connection, Stripe payments, and roof mapping (if configured).
+
+
+
+Key Documentation Files
+
+
+
+• HANDOVER.md – main project handover (this content is mirrored there as Markdown).
+
+• README.md – original Next.js + Supabase starter (generic).
+
+• ROOF_MAPPING_SETUP.md – detailed docs for roof mapping, Google Maps API setup, and Supabase storage.
+
+• TEMPLATE_PROCESSING_EXAMPLES.md – field-mapping engine and Handlebars template examples.
+
+• components/shared/GHL_CALENDAR_README.md – GHL calendar hooks and components usage.
+
+• app/docs/page.tsx – in-app documentation and tutorial content.
+
+
+
+Important API Endpoints (Examples)
+
+
+
+Leads & Flows
+
+• POST /api/enquiry/save-image – save enquiry images to storage.
+
+• POST /api/quote-submissions – persist quote submissions.
+
+• POST /api/roof-mapping/upload – upload roof screenshot.
+
+
+
+OTP & Verification
+
+• POST /api/otp/send – send OTP via Twilio.
+
+• POST /api/otp/verify – verify OTP and update lead_submission_data.
+
+
+
+Email & Notifications
+
+• POST /api/email/boiler/enquiry-submitted-v2 – boiler enquiry email.
+
+• POST /api/email/boiler/quote-initial-v2 – initial quote email.
+
+• POST /api/email/boiler/quote-verified-v2 – verified quote email.
+
+• POST /api/email/boiler/save-quote-v2 – save-quote email.
+
+• (Equivalent solar routes under /api/email/solar/*)
+
+• GET/POST /api/email/test – test email sending (if present).
+
+
+
+GHL Integration
+
+• GET /api/ghl/integration – check GHL connection status.
+
+• GET /api/ghl/custom-fields – fetch GHL custom fields.
+
+• GET /api/ghl/tags – fetch tags.
+
+• GET /api/ghl/pipelines – fetch pipelines and stages.
+
+• GET /api/ghl/calendar-slots – GHL calendar availability.
+
+• POST /api/ghl/appointments – create GHL appointment.
+
+• GET /api/ghl/debug / debug-mappings / debug-opportunities – debug endpoints.
+
+
+
+Payments & Finance
+
+• POST /api/stripe/create-payment-intent – create Stripe payment intent.
+
+• POST /api/kanda/generate-request (or similar) – initiate Kanda finance.
+
+
+
+Places & Reviews
+
+• GET /api/postcode-lookup – property/postcode data.
+
+• GET /api/places and /api/places/suggestions – address/places suggestions.
+
+• GET /api/google-reviews – fetch and cache Google reviews via Apify.
+
+
+
+Security Features
+
+
+
+• Row Level Security (RLS) enforced on Supabase tables.
+
+• Sensitive tokens (GHL, Stripe, etc.) are stored server-side, often encrypted via ENCRYPTION_KEY.
+
+• OAuth 2.0 for GHL and domain-related flows; strict redirect URIs.
+
+• Middleware-based route protection for partner and admin sections.
+
+• Partner-scoped data access (e.g. partner_leads, PartnerProducts, ghl_integrations).
+
+ 
+
+Development Workflow
+
+
+
+1. Database Changes
+
+• Add new migrations under supabase/migrations with timestamped filenames.
+
+• Test migrations locally or in a dev project before production.
+
+
+
+2. API Routes
+
+• Place new backend logic under app/api/* using Next.js Route Handlers.
+
+• Factor business logic into lib/* modules when possible, not directly in handlers.
+
+
+
+3. Components
+
+• Add reusable UI to components/ui or components/shared.
+
+• Add domain components under components/category-commons, components/partner, or components/admin as appropriate.
+
+
+
+4. Pages & Layouts
+
+• Add new flows under app/boiler, app/solar, or app/services for customer-facing experiences.
+
+• Extend app/partner or app/admin for portal features.
+
+
+
+5. Integrations
+
+• Wrap new external services in lib/* helper modules and keep secrets in env vars.
+
+• Store long-lived OAuth tokens or keys in Supabase tables via structured helpers (similar to GHL).
+
+
+
+Deployment
+
+
+
+• Typically deployed to Vercel with Supabase as the database/auth backend.
+
+• Environment variables must be set in the Vercel dashboard for each environment.
+
+• Domain management for partner/custom domains is handled via /api/domain/add, /api/domain/verify, and /api/domain/debug using Vercel API tokens.
+
+
+
+Notes for New Team Member
+
+
+
+1. Always check Supabase migrations and schema before changing flows – many features depend on specific JSONB columns and tables.
+
+2. lead_submission_data is the central place for tracking multi-step lead journeys; review how it’s used in both boiler/solar quote and enquiry flows.
+
+3. GHL integration is non-trivial; read lib/ghl-api.ts and components/shared/GHL_CALENDAR_README.md before making changes.
+
+4. Email templates exist both as code defaults and in the email_templates table; changes may require updating both template logic and partner settings.
+
+5. When adding new env vars, always update local .env.local and deployment environment variables in sync.
+
+6. Use existing patterns (partner_settings, email_notification_settings, calendar_settings) when adding partner-specific toggles or features.
+
+
+
+Common Issues & Solutions
+
+
+
+1. “Things don’t load”: check NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY and Supabase connectivity.
+
+2. Email not sending: verify SMTP or email provider configuration in your environment and ensure email_templates entries exist and are active.
+
+3. GHL errors: confirm GHL_CLIENT_ID / GHL_CLIENT_SECRET and check ghl_integrations for valid tokens; use /api/ghl/debug* endpoints.
+
+4. Roof mapping not working: ensure NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set and Google Maps JavaScript + Places APIs are enabled; follow ROOF_MAPPING_SETUP.md.
+
+5. OTP issues: confirm all Twilio env vars and sender configuration.
+
+6. Partner can’t see categories/products: check UserCategoryAccess and relevant RLS policies; ensure admin has approved access.
+
+7. Domain/iframe issues: verify VERCEL_AUTH_TOKEN/VERCEL_PROJECT_ID and use /api/domain/debug to inspect domain status.
+
+
+
+Support & Resources
+
+
+
+• Supabase Docs: https://supabase.com/docs
+
+• Next.js Docs: https://nextjs.org/docs
+
+• GoHighLevel API Docs: https://highlevel.stoplight.io/
+
+• Stripe Docs: https://stripe.com/docs
+
+• Twilio Docs: https://www.twilio.com/docs
+
+• Google Maps Platform Docs: https://developers.google.com/maps/documentation
+

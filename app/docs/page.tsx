@@ -8,12 +8,8 @@ import {
   Shield,
   Settings,
   Users,
-  Globe,
-  Database,
   ArrowRight,
   CheckCircle,
-  Clock,
-  AlertTriangle,
   Package,
   Layers,
   User,
@@ -22,17 +18,10 @@ import {
   Tag,
   Gift,
   Mail,
-  Settings2,
-  UserRound,
-  Grid,
   Megaphone,
   Star,
   ShoppingCart,
-  Home,
-  AtSign,
-  LockIcon,
   ArrowUpRight,
-  Search,
   PlusCircle
 } from 'lucide-react';
 
@@ -60,7 +49,8 @@ export default async function DocumentationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <>
+      <div className="min-h-screen bg-white">
       <div className="flex">
         {/* Sidebar */}
         <div className="w-80 bg-gray-50 border-r border-gray-200 p-6 sticky top-0 h-screen overflow-y-auto">
@@ -99,20 +89,24 @@ export default async function DocumentationPage() {
               <span className="mr-3">{isPartnerView ? '3' : '2'}</span>
               Technical Details
             </a>
-            <a href="#auth-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
+            <a href="#developer-handover" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
               <span className="mr-3">{isPartnerView ? '4' : '3'}</span>
+              Developer Handover
+            </a>
+            <a href="#auth-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
+              <span className="mr-3">{isPartnerView ? '5' : '4'}</span>
               Authentication Flow
             </a>
             <a href="#admin-section" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">{isPartnerView ? '5' : '4'}</span>
+              <span className="mr-3">{isPartnerView ? '6' : '5'}</span>
               Admin Section
             </a>
             <a href="#partner-section" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">{isPartnerView ? '6' : '5'}</span>
+              <span className="mr-3">{isPartnerView ? '7' : '6'}</span>
               Partner Section
             </a>
             <a href="#boiler-flow" className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
-              <span className="mr-3">{isPartnerView ? '7' : '6'}</span>
+              <span className="mr-3">{isPartnerView ? '8' : '7'}</span>
               Boiler Quote Flow
             </a>
            
@@ -396,6 +390,7 @@ export default async function DocumentationPage() {
 
           {/* Partner-Specific Information */}
           {isPartnerView && (
+            <>
             <section id="partner-dashboard" className="mb-16">
               <h2 className="text-2xl font-semibold text-gray-900 mb-6">Your Partner Dashboard</h2>
               
@@ -476,6 +471,52 @@ export default async function DocumentationPage() {
                 </div>
               </div>
             </section>
+
+            {/* Developer Handover */}
+            <section id="developer-handover" className="mb-16">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Developer Handover</h2>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                This section is for engineers who need to understand, maintain, or extend the Quote AI codebase.
+                It summarises the main handover information and links to the full developer guide.
+              </p>
+              <div className="border border-gray-200 rounded-lg p-5 mb-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">High‑level overview</h3>
+                <ul className="list-disc list-inside text-gray-700 space-y-1 text-sm">
+                  <li>Next.js App Router app in <code className="px-1 rounded bg-gray-100 text-xs">app/</code> with Supabase for auth and data.</li>
+                  <li>Customer quote, enquiry, survey, checkout and roof‑mapping flows share components under <code className="px-1 rounded bg-gray-100 text-xs">components/category-commons/</code>.</li>
+                  <li>Partner and admin portals live under <code className="px-1 rounded bg-gray-100 text-xs">app/partner/</code> and <code className="px-1 rounded bg-gray-100 text-xs">app/admin/</code> with their own component sets.</li>
+                  <li>Business logic and integrations (GHL, Stripe, Kanda, email, templates, field‑mapping, GTM) live under <code className="px-1 rounded bg-gray-100 text-xs">lib/</code> and <code className="px-1 rounded bg-gray-100 text-xs">utils/</code>.</li>
+                  <li>Database schema and important tables are defined in <code className="px-1 rounded bg-gray-100 text-xs">supabase/migrations/</code> and <code className="px-1 rounded bg-gray-100 text-xs">sql/</code>.</li>
+                </ul>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-5 mb-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Key environment & integrations</h3>
+                <ul className="list-disc list-inside text-gray-700 space-y-1 text-sm">
+                  <li>Supabase: <code className="px-1 rounded bg-gray-100 text-xs">NEXT_PUBLIC_SUPABASE_URL</code>, <code className="px-1 rounded bg-gray-100 text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>.</li>
+                  <li>Domains: <code className="px-1 rounded bg-gray-100 text-xs">NEXT_PUBLIC_SITE_URL</code>, <code className="px-1 rounded bg-gray-100 text-xs">NEXT_PUBLIC_APP_URL</code>, <code className="px-1 rounded bg-gray-100 text-xs">NEXT_PUBLIC_BASE_DOMAIN</code>.</li>
+                  <li>GHL: <code className="px-1 rounded bg-gray-100 text-xs">GHL_CLIENT_ID</code>, <code className="px-1 rounded bg-gray-100 text-xs">GHL_CLIENT_SECRET</code>, <code className="px-1 rounded bg-gray-100 text-xs">GHL_SHARED_SECRET</code>.</li>
+                  <li>Payments: <code className="px-1 rounded bg-gray-100 text-xs">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> (+ corresponding Stripe secret), and Kanda finance keys.</li>
+                  <li>Messaging & AI: Twilio OTP keys, <code className="px-1 rounded bg-gray-100 text-xs">GOOGLE_AI_API_KEY</code>, and optional OpenAI key.</li>
+                  <li>Maps, postcode, reviews: Google Maps, WeBuild property API, and Apify tokens.</li>
+                </ul>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-5">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Full handover guide</h3>
+                <p className="text-gray-700 text-sm mb-3">
+                  For a complete walkthrough (setup, architecture diagram, environments, core flows, database and troubleshooting),
+                  see the dedicated developer handover document in the repository:
+                </p>
+                <a
+                  href="/HANDOVER.md"
+                  className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Open <span className="ml-1">HANDOVER.md</span>
+                  <ArrowUpRight className="w-4 h-4 ml-1" />
+                </a>
+              </div>
+            </section>
+            </>
           )}
 
           {/* Authentication Flow */}
@@ -1305,24 +1346,7 @@ export default async function DocumentationPage() {
         </div>
       </div>
     </div>
-
-      {/* Smooth scroll script */}
-      <script dangerouslySetInnerHTML={{
-        __html: `
-          document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-              e.preventDefault();
-              const target = document.querySelector(this.getAttribute('href'));
-              if (target) {
-                target.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'start'
-                });
-              }
-            });
-          });
-        `
-      }} />
-    </div>
+      </div>
+    </>
   );
 }
