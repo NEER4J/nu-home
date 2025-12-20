@@ -26,30 +26,70 @@ export function useGHLCalendar({ partnerSettings, enabled = true, calendarType =
 
   // Check if GHL calendar is enabled and properly configured
   const ghlCalendarEnabled = useMemo(() => {
-    if (!enabled || !partnerSettings?.calendar_settings) return false
+    console.log('[useGHLCalendar] Checking calendar enabled status:', {
+      enabled,
+      hasPartnerSettings: !!partnerSettings,
+      hasCalendarSettings: !!partnerSettings?.calendar_settings,
+      calendarType,
+      partnerSettings: partnerSettings
+    })
+    
+    if (!enabled || !partnerSettings?.calendar_settings) {
+      console.log('[useGHLCalendar] Calendar disabled - enabled:', enabled, 'hasCalendarSettings:', !!partnerSettings?.calendar_settings)
+      return false
+    }
     
     const targetCalendar = partnerSettings.calendar_settings[calendarType]
-    const hasTargetCalendar = targetCalendar?.enabled && targetCalendar?.calendar_id
+    console.log('[useGHLCalendar] Target calendar config:', {
+      calendarType,
+      targetCalendar,
+      hasCalendarId: !!targetCalendar?.calendar_id,
+      enabled: targetCalendar?.enabled
+    })
+    
+    // Consider enabled if calendar_id is set (even if enabled flag is false - auto-enable when calendar is selected)
+    // OR if enabled flag is explicitly true and calendar_id is set
+    const hasTargetCalendar = targetCalendar?.calendar_id ? true : (targetCalendar?.enabled && targetCalendar?.calendar_id)
     const hasAvailableCalendars = partnerSettings.calendar_settings.available_calendars?.length > 0
     
-    return hasTargetCalendar || hasAvailableCalendars
+    const result = hasTargetCalendar || hasAvailableCalendars
+    console.log('[useGHLCalendar] Final enabled status:', {
+      hasTargetCalendar,
+      hasAvailableCalendars,
+      result
+    })
+    
+    return result
   }, [partnerSettings?.calendar_settings, enabled, calendarType])
 
   // Get calendar ID - only if GHL is properly configured
   const calendarId = useMemo(() => {
-    if (!ghlCalendarEnabled) return null
+    console.log('[useGHLCalendar] Getting calendar ID:', {
+      ghlCalendarEnabled,
+      calendarType,
+      targetCalendar: partnerSettings?.calendar_settings?.[calendarType]
+    })
+    
+    if (!ghlCalendarEnabled) {
+      console.log('[useGHLCalendar] Calendar not enabled, returning null')
+      return null
+    }
     
     const targetCalendar = partnerSettings?.calendar_settings?.[calendarType]
-    // Only use calendar ID if it's properly configured
-    if (targetCalendar?.enabled && targetCalendar?.calendar_id) {
+    // Use calendar ID if it's set (even if enabled flag is false - auto-enable when calendar is selected)
+    if (targetCalendar?.calendar_id) {
+      console.log('[useGHLCalendar] Using target calendar ID:', targetCalendar.calendar_id)
       return targetCalendar.calendar_id
     }
     
     // Fallback to available calendars if target calendar not configured
     if (partnerSettings?.calendar_settings?.available_calendars?.length > 0) {
-      return partnerSettings.calendar_settings.available_calendars[0]?.id
+      const fallbackId = partnerSettings.calendar_settings.available_calendars[0]?.id
+      console.log('[useGHLCalendar] Using fallback calendar ID:', fallbackId)
+      return fallbackId
     }
     
+    console.log('[useGHLCalendar] No calendar ID found, returning null')
     return null
   }, [ghlCalendarEnabled, partnerSettings?.calendar_settings, calendarType])
 

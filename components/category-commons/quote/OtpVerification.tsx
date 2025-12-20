@@ -243,6 +243,13 @@ export default function OtpVerification({
       // Detect if running in iframe
       const isIframe = window.self !== window.top;
 
+      // Determine service category from current pathname
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+      const isSolar = pathname.includes('/solar/')
+      const emailEndpoint = isSolar 
+        ? '/api/email/solar/quote-verified-v2'
+        : '/api/email/boiler/quote-verified-v2'
+
       const emailData = {
         submissionId: submissionId,
         subdomain,
@@ -252,12 +259,12 @@ export default function OtpVerification({
       // Use sendBeacon for critical email sending (persists through page navigation)
       if (typeof window !== 'undefined' && navigator.sendBeacon) {
         const blob = new Blob([JSON.stringify(emailData)], { type: 'application/json' })
-        const success = navigator.sendBeacon('/api/email/boiler/quote-verified-v2', blob)
+        const success = navigator.sendBeacon(emailEndpoint, blob)
         if (success) {
           console.log('Verification email queued with sendBeacon')
         } else {
           // Fallback to fetch if sendBeacon fails
-          const res = await fetch('/api/email/boiler/quote-verified-v2', {
+          const res = await fetch(emailEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(emailData),
@@ -269,7 +276,7 @@ export default function OtpVerification({
         }
       } else {
         // Fallback to regular fetch
-        const res = await fetch('/api/email/boiler/quote-verified-v2', {
+        const res = await fetch(emailEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(emailData),

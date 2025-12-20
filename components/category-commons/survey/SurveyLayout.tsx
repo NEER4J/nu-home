@@ -3,7 +3,7 @@
 
 import { useMemo, useState, type ReactNode, useEffect } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, Info, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Info, RefreshCw, Bug, X } from 'lucide-react'
 import { useDynamicStyles } from '@/hooks/use-dynamic-styles'
 import { useRouter } from 'next/navigation'
 import OrderSummarySidebar from '@/components/category-commons/checkout/OrderSummarySidebar'
@@ -118,6 +118,7 @@ export default function SurveyLayout({
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showFinanceCalculator, setShowFinanceCalculator] = useState(false)
+  const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [calculatorSettings, setCalculatorSettings] = useState<{
     selected_plan?: { months: number; apr: number } | null
     selected_deposit?: number
@@ -439,7 +440,88 @@ export default function SurveyLayout({
         {step === 2 && (
           <div className="grid lg:grid-cols-2 gap-8 bg-transparent md:bg-white rounded-xl p-0 md:p-8 mb-20">
             {/* GHL Calendar & Time Selector */}
-            <div className="bg-gray-100 rounded-xl p-4 md:p-6 md:bg-gray-100 bg-white">
+            <div className="bg-gray-100 rounded-xl p-4 md:p-6 md:bg-gray-100 bg-white relative">
+              {/* Debug Button */}
+              <button
+                onClick={() => setShowDebugPanel(!showDebugPanel)}
+                className="absolute top-2 right-2 z-10 p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"
+                title="Debug Calendar Settings"
+              >
+                <Bug className="w-4 h-4" />
+              </button>
+              
+              {/* Debug Panel */}
+              {showDebugPanel && (
+                <div className="absolute top-12 right-2 z-20 bg-white border-2 border-blue-500 rounded-lg shadow-xl p-4 max-w-md max-h-96 overflow-y-auto">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900">Debug Info</h3>
+                    <button
+                      onClick={() => setShowDebugPanel(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <div className="font-semibold text-gray-700 mb-1">ghlCalendarEnabled:</div>
+                      <div className="bg-gray-50 p-2 rounded font-mono">
+                        {ghlCalendarEnabled ? '✅ true' : '❌ false'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-700 mb-1">calendarId:</div>
+                      <div className="bg-gray-50 p-2 rounded font-mono break-all">
+                        {calendarId || 'null'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-700 mb-1">calendarType:</div>
+                      <div className="bg-gray-50 p-2 rounded font-mono">
+                        survey_booking
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-700 mb-1">partnerSettings (full):</div>
+                      <pre className="bg-gray-50 p-2 rounded font-mono text-xs overflow-x-auto">
+                        {JSON.stringify(partnerSettings, null, 2)}
+                      </pre>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-700 mb-1">calendar_settings:</div>
+                      <pre className="bg-gray-50 p-2 rounded font-mono text-xs overflow-x-auto">
+                        {JSON.stringify(partnerSettings?.calendar_settings, null, 2)}
+                      </pre>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-700 mb-1">survey_booking config:</div>
+                      <pre className="bg-gray-50 p-2 rounded font-mono text-xs overflow-x-auto">
+                        {JSON.stringify(partnerSettings?.calendar_settings?.survey_booking, null, 2)}
+                      </pre>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-700 mb-1">GHL Slots Count:</div>
+                      <div className="bg-gray-50 p-2 rounded font-mono">
+                        {ghlSlots.length} slots loaded
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-700 mb-1">isLoadingSlots:</div>
+                      <div className="bg-gray-50 p-2 rounded font-mono">
+                        {isLoadingSlots ? '⏳ true' : '✅ false'}
+                      </div>
+                    </div>
+                    <button
+                      onClick={syncCalendar}
+                      disabled={isSyncing}
+                      className="w-full mt-3 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm"
+                    >
+                      {isSyncing ? 'Syncing...' : '🔄 Refresh Calendar Data'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <GHLCalendarTimeSelector
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}

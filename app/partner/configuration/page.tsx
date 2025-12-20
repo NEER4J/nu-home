@@ -546,13 +546,39 @@ export default function PartnerSettingsPage() {
         setGtmEventName(result.data.gtm_event_name || '');
         setMainPageUrl(result.data.main_page_url || '');
         
-        // Load calendar settings
+        // Load calendar settings - reset if not found to ensure service-category-specific settings
         if (result.data.calendar_settings) {
+          const surveyBooking = result.data.calendar_settings.survey_booking || { enabled: false, calendar_id: '', calendar_name: '' }
+          const checkoutBooking = result.data.calendar_settings.checkout_booking || { enabled: false, calendar_id: '', calendar_name: '' }
+          const appointments = result.data.calendar_settings.appointments || { enabled: false, calendar_id: '', calendar_name: '' }
+          const consultations = result.data.calendar_settings.consultations || { enabled: false, calendar_id: '', calendar_name: '' }
+          
+          // Auto-enable if calendar_id is set (even if enabled flag is false)
           setCalendarSettings({
-            survey_booking: result.data.calendar_settings.survey_booking || { enabled: false, calendar_id: '', calendar_name: '' },
-            checkout_booking: result.data.calendar_settings.checkout_booking || { enabled: false, calendar_id: '', calendar_name: '' },
-            appointments: result.data.calendar_settings.appointments || { enabled: false, calendar_id: '', calendar_name: '' },
-            consultations: result.data.calendar_settings.consultations || { enabled: false, calendar_id: '', calendar_name: '' }
+            survey_booking: {
+              ...surveyBooking,
+              enabled: surveyBooking.calendar_id ? true : surveyBooking.enabled
+            },
+            checkout_booking: {
+              ...checkoutBooking,
+              enabled: checkoutBooking.calendar_id ? true : checkoutBooking.enabled
+            },
+            appointments: {
+              ...appointments,
+              enabled: appointments.calendar_id ? true : appointments.enabled
+            },
+            consultations: {
+              ...consultations,
+              enabled: consultations.calendar_id ? true : consultations.enabled
+            }
+          });
+        } else {
+          // Reset calendar settings if not found for this service category
+          setCalendarSettings({
+            survey_booking: { enabled: false, calendar_id: '', calendar_name: '' },
+            checkout_booking: { enabled: false, calendar_id: '', calendar_name: '' },
+            appointments: { enabled: false, calendar_id: '', calendar_name: '' },
+            consultations: { enabled: false, calendar_id: '', calendar_name: '' }
           });
         }
         
@@ -588,6 +614,13 @@ export default function PartnerSettingsPage() {
         setAdminEmail('');
         setGtmEventName('');
         setMainPageUrl('');
+        // Reset calendar settings when no settings found for this category
+        setCalendarSettings({
+          survey_booking: { enabled: false, calendar_id: '', calendar_name: '' },
+          checkout_booking: { enabled: false, calendar_id: '', calendar_name: '' },
+          appointments: { enabled: false, calendar_id: '', calendar_name: '' },
+          consultations: { enabled: false, calendar_id: '', calendar_name: '' }
+        });
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -1202,7 +1235,7 @@ export default function PartnerSettingsPage() {
                               />
                             </div>
                             
-                            {calendarSettings.survey_booking.enabled && (
+                            {(calendarSettings.survey_booking.enabled || calendarSettings.survey_booking.calendar_id) && (
                               <select
                                 value={calendarSettings.survey_booking.calendar_id}
                                 onChange={(e) => {
@@ -1212,7 +1245,8 @@ export default function PartnerSettingsPage() {
                                     survey_booking: {
                                       ...prev.survey_booking,
                                       calendar_id: e.target.value,
-                                      calendar_name: selectedCalendar?.name || ''
+                                      calendar_name: selectedCalendar?.name || '',
+                                      enabled: e.target.value ? true : prev.survey_booking.enabled // Auto-enable when calendar is selected
                                     }
                                   }));
                                 }}
@@ -1246,7 +1280,7 @@ export default function PartnerSettingsPage() {
                               />
                             </div>
                             
-                            {calendarSettings.checkout_booking.enabled && (
+                            {(calendarSettings.checkout_booking.enabled || calendarSettings.checkout_booking.calendar_id) && (
                               <select
                                 value={calendarSettings.checkout_booking.calendar_id}
                                 onChange={(e) => {
@@ -1256,7 +1290,8 @@ export default function PartnerSettingsPage() {
                                     checkout_booking: {
                                       ...prev.checkout_booking,
                                       calendar_id: e.target.value,
-                                      calendar_name: selectedCalendar?.name || ''
+                                      calendar_name: selectedCalendar?.name || '',
+                                      enabled: e.target.value ? true : prev.checkout_booking.enabled // Auto-enable when calendar is selected
                                     }
                                   }));
                                 }}
