@@ -108,3 +108,44 @@ export async function deletePartnerProduct(formData: FormData) {
     return { success: false, error: 'Failed to delete product' };
   }
 }
+
+export async function requestCategoryAccess(formData: FormData) {
+  try {
+    const supabase = await createClient();
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const categoryId = formData.get('categoryId') as string;
+    const notes = formData.get('notes') as string;
+
+    if (!categoryId) {
+      throw new Error('Category ID is required');
+    }
+
+    // Insert access request
+    const { error } = await supabase
+      .from('UserCategoryAccess')
+      .insert({
+        user_id: user.id,
+        service_category_id: categoryId,
+        status: 'pending',
+        notes: notes,
+        requested_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('Error requesting category access:', error);
+      throw new Error(error.message);
+    }
+
+    revalidatePath('/partner/category-access');
+  } catch (error) {
+    console.error('Error in requestCategoryAccess:', error);
+    throw error;
+  }
+}

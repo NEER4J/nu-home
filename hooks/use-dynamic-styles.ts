@@ -135,6 +135,8 @@ export function useDynamicStyles(companyColor: string | null) {
     badge: companyColor ? 'company-badge' : 'bg-blue-50 text-blue-700',
     borderAccent: companyColor ? 'company-border-accent' : 'border-blue-200',
     highlight: companyColor ? 'company-highlight' : 'bg-blue-50',
-    highlightBorder: companyColor ? 'company-highlight-border' : 'border-l-blue-500'
+    highlightBorder: companyColor ? 'company-highlight-border' : 'border-l-blue-500',
+    bg: companyColor ? 'company-bg' : 'bg-blue-600',
+    bgHover: companyColor ? 'company-bg-hover' : 'hover:bg-blue-700'
   };
 }

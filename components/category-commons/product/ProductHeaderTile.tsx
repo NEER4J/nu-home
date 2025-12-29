@@ -23,7 +23,7 @@ import { FilterIcon, RotateCcw, ChevronDown, CheckIcon, CheckCircle, CheckCircle
 interface ProductHeaderTileProps {
   count: number
   postcode?: string | null
-  category?: 'boiler' | 'solar'
+  category?: 'boiler' | 'solar' | 'ashp'
   filterBedroom?: string | null
   filterBathroom?: string | null
   filterBoilerType?: string | null
@@ -68,6 +68,12 @@ function getCategoryContent(category: string) {
         title: 'Thank You for Sharing Your Solar Needs With Us!',
         description: (count: number) => `We found ${count} solar system${count !== 1 ? 's' : ''} tailored for you. Find information, customer testimonials, and easy online purchase options all in one place.`,
         productLabel: 'solar system'
+      }
+    case 'ashp':
+      return {
+        title: 'Thank You for Sharing Your Heat Pump Needs With Us!',
+        description: (count: number) => `We found ${count} heat pump package${count !== 1 ? 's' : ''} tailored for you. Find information, customer testimonials, and easy online purchase options all in one place.`,
+        productLabel: 'heat pump'
       }
     case 'boiler':
     default:
@@ -141,7 +147,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
 
     window.addEventListener('openSaveQuoteDialog', handleOpenSaveQuoteDialog as EventListener)
     window.addEventListener('updateSaveQuoteData', handleUpdateSaveQuoteData as EventListener)
-    
+
     return () => {
       window.removeEventListener('openSaveQuoteDialog', handleOpenSaveQuoteDialog as EventListener)
       window.removeEventListener('updateSaveQuoteData', handleUpdateSaveQuoteData as EventListener)
@@ -175,14 +181,14 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
 
   return (
     <div className="max-w-[1500px] mx-auto md:px-6 px-4 py-6 ">
-              <div className="md:mb-7 mb-4">
-                <h1 className="md:text-2xl text-xl font-semibold text-gray-900 mb-2">
-                  {categoryContent.title}
-                </h1>
-                <p className="md:text-lg text-base text-gray-700">
-                  {categoryContent.description(count)}
-                </p>
-              </div>
+      <div className="md:mb-7 mb-4">
+        <h1 className="md:text-2xl text-xl font-semibold text-gray-900 mb-2">
+          {categoryContent.title}
+        </h1>
+        <p className="md:text-lg text-base text-gray-700">
+          {categoryContent.description(count)}
+        </p>
+      </div>
 
       <div className="flex gap-4 justify-between flex-wrap">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full md:w-auto">
@@ -191,7 +197,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
           {category === 'solar' && onPanelCountChange && (
             <div className="flex gap-2 items-center">
               <h3 className="">
-                  <span className="text-sm font-medium text-gray-700">Recommended system size</span>
+                <span className="text-sm font-medium text-gray-700">Recommended system size</span>
               </h3>
               <div className="flex items-center gap-2 bg-white rounded-full p-1 border border-gray-100">
                 <Button
@@ -235,7 +241,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                     <span className="sm:hidden">in {postcode ? postcode.substring(0, 4) : 'area'}</span>
                   </Badge>
                 )}
-                
+
                 <DropdownMenu onOpenChange={setIsFilterOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -251,7 +257,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                       )}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent 
+                  <DropdownMenuContent
                     className="w-[calc(100vw-2rem)] md:w-96 p-4 bg-white border border-gray-200 rounded-lg shadow-lg max-w-[320px] md:max-w-none"
                     sideOffset={8}
                     side="bottom"
@@ -318,8 +324,8 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                       {/* Action Buttons */}
                       <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100">
                         {resetFiltersToSubmission && (
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={resetFiltersToSubmission}
                             className="text-xs"
@@ -327,8 +333,8 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                             Reset to submission
                           </Button>
                         )}
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={clearFilters}
                           className="text-xs"
@@ -339,7 +345,7 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
-               
+
               </div>
             ) : (
               <div className="">
@@ -353,58 +359,56 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
             )}
           </div>
 
-          
+
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-            {/* Layout Toggle Controls */}
-            {onLayoutChange && (
-              <div className="flex rounded-lg border border-gray-200 bg-white shadow-sm hidden md:flex">
-                <button
-                  onClick={() => onLayoutChange(false)}
-                  className={`px-3 py-2 text-sm font-medium transition-colors border-r border-gray-200 rounded-l-lg ${
-                    !isHorizontalLayout 
-                      ? 'text-white' 
-                      : 'text-gray-700 hover:text-gray-900'
+          {/* Layout Toggle Controls */}
+          {onLayoutChange && (
+            <div className="flex rounded-lg border border-gray-200 bg-white shadow-sm hidden md:flex">
+              <button
+                onClick={() => onLayoutChange(false)}
+                className={`px-3 py-2 text-sm font-medium transition-colors border-r border-gray-200 rounded-l-lg ${!isHorizontalLayout
+                    ? 'text-white'
+                    : 'text-gray-700 hover:text-gray-900'
                   }`}
-                  style={!isHorizontalLayout ? { backgroundColor: brandColor } : {}}
-                  title="Grid view"
-                >
-                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z"/>
-                  </svg>
-                </button>
-                <button
-                  onClick={() => onLayoutChange(true)}
-                  className={`px-3 py-2 text-sm font-medium transition-colors rounded-r-lg ${
-                    isHorizontalLayout 
-                      ? 'text-white' 
-                      : 'text-gray-700 hover:text-gray-900'
+                style={!isHorizontalLayout ? { backgroundColor: brandColor } : {}}
+                title="Grid view"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => onLayoutChange(true)}
+                className={`px-3 py-2 text-sm font-medium transition-colors rounded-r-lg ${isHorizontalLayout
+                    ? 'text-white'
+                    : 'text-gray-700 hover:text-gray-900'
                   }`}
-                  style={isHorizontalLayout ? { backgroundColor: brandColor } : {}}
-                  title="List view"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-                  </svg>
-                </button>
-              </div>
-            )}
-            
-            <Button variant="outline" onClick={() => setShowIncluded(true)} className='bg-gray-200 text-gray-900 rounded-full'>
-              Service Details
-            </Button>
-           
-            <Button onClick={() => {
-              if (onSaveQuoteOpen) {
-                onSaveQuoteOpen();
-              }
-            }} style={{ backgroundColor: brandColor }} className='w-full'>
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Save for later
-            </Button>
-          </div>
+                style={isHorizontalLayout ? { backgroundColor: brandColor } : {}}
+                title="List view"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          <Button variant="outline" onClick={() => setShowIncluded(true)} className='bg-gray-200 text-gray-900 rounded-full'>
+            Service Details
+          </Button>
+
+          <Button onClick={() => {
+            if (onSaveQuoteOpen) {
+              onSaveQuoteOpen();
+            }
+          }} style={{ backgroundColor: brandColor }} className='w-full'>
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Save for later
+          </Button>
+        </div>
       </div>
 
       {showIncluded && (
