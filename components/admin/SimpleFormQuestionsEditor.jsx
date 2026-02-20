@@ -239,6 +239,8 @@ export default function SimpleFormQuestionsEditor({ initialCategories, initialPa
   
   // Get current category name
   const currentCategoryName = categories.find(c => c.service_category_id === selectedCategory)?.name || '';
+  const isEvChargersCategory = currentCategoryName.toLowerCase().includes('ev charger') || 
+                                currentCategoryName.toLowerCase() === 'ev chargers';
   
   return (
     <div className="flex flex-col h-full">
@@ -619,6 +621,31 @@ export default function SimpleFormQuestionsEditor({ initialCategories, initialPa
                     Add New Step
                   </button>
                 </div>
+
+                {/* Vehicle Type Button for EV Chargers */}
+                {isEvChargersCategory && (
+                  <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Vehicle Type Configuration</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Configure vehicle types for EV Charger installations. This allows you to specify which vehicle types 
+                          are compatible with different charger models and helps customers find the right charger for their vehicle.
+                        </p>
+                        <Link
+                          href="/admin/ev-vehicles"
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 shadow-sm"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                            <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+                          </svg>
+                          Manage Vehicle Brands & Models
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

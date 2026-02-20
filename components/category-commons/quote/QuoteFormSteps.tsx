@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FormQuestion } from '@/types/database.types';
 import { Check, DollarSign } from 'lucide-react';
+import EVTypeSelection from './EVTypeSelection';
 
 interface QuoteFormStepsProps {
   questions: FormQuestion[];
@@ -119,7 +120,21 @@ export default function QuoteFormSteps({
     questions.forEach(question => {
       if (question.is_required) {
         const value = formValues[question.question_id];
-        if (!value || (Array.isArray(value) && value.length === 0)) {
+        
+        // Special validation for EV type selection
+        if ((question as any).is_ev_type_selection) {
+          if (!value || !value.brand_id || !value.model_id) {
+            errors[question.question_id] = 'Please select both manufacturer and model';
+          }
+        } else if (Array.isArray(value)) {
+          if (value.length === 0) {
+            errors[question.question_id] = 'This field is required';
+          }
+        } else if (typeof value === 'string') {
+          if (!value.trim()) {
+            errors[question.question_id] = 'This field is required';
+          }
+        } else if (!value) {
           errors[question.question_id] = 'This field is required';
         }
       }
@@ -143,6 +158,20 @@ export default function QuoteFormSteps({
   const renderQuestionField = (question: FormQuestion) => {
     const value = formValues[question.question_id] || '';
     const hasError = localErrors[question.question_id];
+
+    // Check if this is an EV type selection question
+    if ((question as any).is_ev_type_selection) {
+      return (
+        <EVTypeSelection
+          questionId={question.question_id}
+          value={value}
+          onValueChange={onValueChange}
+          onContinue={handleNext}
+          companyColor={companyColor}
+          isRequired={question.is_required}
+        />
+      );
+    }
 
     if (question.is_multiple_choice && question.answer_options) {
       const options = Array.isArray(question.answer_options) 
@@ -610,16 +639,17 @@ export default function QuoteFormSteps({
           </motion.div>
         ))}
 
-        {/* Navigation buttons - only show for non-auto-advancing questions */}
-        {questions.some(q => !q.is_multiple_choice || q.allow_multiple_selections) && (
+        {/* Navigation buttons - only show for non-auto-advancing questions (excluding EV type selection which has its own Continue button) */}
+        {questions.some(q => (!q.is_multiple_choice || q.allow_multiple_selections) && !(q as any).is_ev_type_selection) && (
           <motion.div
             className="flex justify-center pt-6"
             variants={buttonVariants}
           >
             <AnimatePresence>
               {questions.some(q => {
+                if ((q as any).is_ev_type_selection) return false; // EV type selection has its own button
                 const value = formValues[q.question_id];
-                return value && (Array.isArray(value) ? value.length > 0 : value.trim());
+                return value && (Array.isArray(value) ? value.length > 0 : typeof value === 'string' ? value.trim() : value);
               }) && (
                 <motion.button
                   type="button"

@@ -19,6 +19,7 @@ const formSchema = z.object({
   display_order_in_step: z.number().min(1, 'Display order must be at least 1'),
   is_multiple_choice: z.boolean().optional(),
   allow_multiple_selections: z.boolean().optional(),
+  is_ev_type_selection: z.boolean().optional(),
   has_helper_video: z.boolean().optional(),
   helper_video_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
   is_required: z.boolean().optional(),
@@ -172,6 +173,7 @@ export function QuestionForm({
       display_order_in_step: question?.display_order_in_step || 1,
       is_multiple_choice: question?.is_multiple_choice || false,
       allow_multiple_selections: (question as any)?.allow_multiple_selections || false,
+      is_ev_type_selection: (question as any)?.is_ev_type_selection || false,
       has_helper_video: question?.has_helper_video || false,
       helper_video_url: question?.helper_video_url || '',
       is_required: question?.is_required !== undefined ? question.is_required : true,
@@ -193,6 +195,9 @@ export function QuestionForm({
   });
 
   const selectedCategoryId = watch('service_category_id');
+  const selectedCategory = categories.find(c => c.service_category_id === selectedCategoryId);
+  const isEvChargersCategory = selectedCategory?.name?.toLowerCase().includes('ev charger') || 
+                                selectedCategory?.slug === 'ev-chargers';
   const isMultipleChoice = watch('is_multiple_choice');
   const allowMultipleSelections = watch('allow_multiple_selections');
   const hasHelperVideo = watch('has_helper_video');
@@ -399,6 +404,7 @@ export function QuestionForm({
         display_order_in_step: data.display_order_in_step,
         is_multiple_choice: data.is_multiple_choice || false,
         allow_multiple_selections: data.is_multiple_choice ? data.allow_multiple_selections || false : false,
+        is_ev_type_selection: data.is_ev_type_selection || false,
         // Store the entire objects array as the answer_options
         answer_options: data.is_multiple_choice ? validOptions : null,
         // Also populate answer_images for compatibility
@@ -688,6 +694,18 @@ export function QuestionForm({
                         className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition duration-150"
                       />
                       <span className="ml-2 text-gray-700">Allow Multiple Selections</span>
+                    </label>
+                  )}
+
+                  {isEvChargersCategory && (
+                    <label className="inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        id="is_ev_type_selection"
+                        {...register('is_ev_type_selection')}
+                        className="w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500 focus:border-green-500 transition duration-150"
+                      />
+                      <span className="ml-2 text-gray-700">EV Type Selection</span>
                     </label>
                   )}
                 </div>

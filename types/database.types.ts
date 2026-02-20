@@ -135,6 +135,7 @@ export interface FormQuestion {
   created_at: string;
   updated_at: string;
   allow_multiple_selections?: boolean; // Add this property
+  is_ev_type_selection?: boolean; // Indicates if this question is for EV type selection
   answer_options?: any[];
   answer_images?: string[];
   conditional_display?: {
