@@ -158,9 +158,33 @@ export default function PostcodeStep({
           'Content-Type': 'application/json'
         }
       })
-      
+      console.log('Response:', response)
+      alert("stop");  
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        // Try to get error details from response
+        let errorMessage = `HTTP error! status: ${response.status}`
+        try {
+          const errorData = await response.json()
+          if (errorData.message || errorData.error) {
+            errorMessage = errorData.message || errorData.error || errorMessage
+          }
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        
+        // Provide user-friendly error messages
+        if (response.status === 401 || response.status === 403) {
+          errorMessage = 'Postcode service authentication failed. Please contact support.'
+        } else if (response.status === 404) {
+          errorMessage = 'Postcode service endpoint not found. Please contact support.'
+        } else if (response.status === 500 || response.status >= 500) {
+          errorMessage = 'Postcode service is temporarily unavailable. Please try again later or enter your address manually.'
+        } else if (response.status === 429) {
+          errorMessage = 'Too many requests. Please wait a moment and try again.'
+        }
+        
+        throw new Error(errorMessage)
       }
       
       const data = await response.json()
@@ -243,10 +267,12 @@ export default function PostcodeStep({
       setHighlightedIndex(-1)
       // Reset refs array for new addresses
       itemRefs.current = new Array(addresses.length).fill(null)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Address search error:', err)
       if (!isLiveSearch) {
-        setError('Failed to search addresses. Please try again.')
+        // Show the actual error message if available, otherwise show generic message
+        const errorMessage = err?.message || 'Failed to search addresses. Please try again or enter your address manually.'
+        setError(errorMessage)
       }
       setAddresses([])
       setShowDropdown(false)

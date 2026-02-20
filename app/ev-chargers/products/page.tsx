@@ -150,6 +150,7 @@ function EVchargersProductsPage() {
   const [submissionInfo, setSubmissionInfo] = useState<QuoteSubmission | null>(null)
   const [questionDetails, setQuestionDetails] = useState<Record<string, FormQuestion>>({})
   const [isHorizontalLayout, setIsHorizontalLayout] = useState(false)
+  const [filterChargerType, setFilterChargerType] = useState<string | null>(null)
 
   const submissionId = searchParams?.get('submission') ?? null
   const brandColor = partnerInfo?.company_color || '#0057A0'
@@ -159,6 +160,16 @@ function EVchargersProductsPage() {
     return partnerSettings?.review_section?.enabled && (partnerSettings.review_section.reviews?.length || 0) > 0
   }
   const isMainCtaEnabled = () => partnerSettings?.main_cta?.enabled || false
+
+  // Filter products by charger type
+  const filteredProducts = useMemo(() => {
+    if (!filterChargerType) return products
+    
+    return products.filter((product) => {
+      const chargerType = (product.product_fields as any)?.charger_type
+      return chargerType === filterChargerType
+    })
+  }, [products, filterChargerType])
 
   const handleRestart = () => {
     router.push('/ev-chargers/quote')
@@ -174,12 +185,13 @@ function EVchargersProductsPage() {
   }
 
   const productsForEmail = useMemo(() => {
-    return products.map(p => ({
+    const productsToUse = filterChargerType ? filteredProducts : products
+    return productsToUse.map((p: PartnerProduct) => ({
       id: p.partner_product_id,
       name: p.name,
       priceLabel: p.price ? formatPrice(p.price) : 'Contact for Price'
     }))
-  }, [products])
+  }, [filteredProducts, products, filterChargerType])
 
   const fetchQuestionDetails = async (questionIds: string[]) => {
     if (questionIds.length === 0) return;
@@ -355,10 +367,13 @@ function EVchargersProductsPage() {
       <IframeNavigationTracker categorySlug="ev-chargers" />
 
       <ProductHeaderTile
-        count={products.length}
+        count={filteredProducts.length}
         postcode={submissionInfo?.postcode || null}
         category="ev-chargers"
         brandColor={brandColor}
+        filterChargerType={filterChargerType}
+        setFilterChargerType={setFilterChargerType}
+        clearFilters={() => setFilterChargerType(null)}
         includedItems={partnerSettings?.included_items || null}
         nonIncludedItems={partnerSettings?.non_included_items || null}
         defaultFirstName={submissionInfo?.first_name || null}
@@ -374,15 +389,21 @@ function EVchargersProductsPage() {
       />
 
       <main className="max-w-[1600px] mx-auto px-4 py-10 mb-20">
-        {products.length === 0 ? (
+        {filteredProducts.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
             <Info className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-slate-900 mb-2">No Products Available</h3>
-            <p className="text-slate-500">We couldn't find any heat pump products for this partner.</p>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">
+              {products.length === 0 ? 'No Products Available' : 'No Products Match Your Filter'}
+            </h3>
+            <p className="text-slate-500">
+              {products.length === 0 
+                ? "We couldn't find any EV charger products for this partner."
+                : "Try selecting a different charger type filter."}
+            </p>
           </div>
         ) : (
           <div className={isHorizontalLayout ? "grid grid-cols-1 xl:grid-cols-2 gap-6" : "grid grid-cols-1 xl:grid-cols-2 gap-10"}>
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <EVchargersProductCard
                 key={product.partner_product_id}
                 product={product}
@@ -396,7 +417,7 @@ function EVchargersProductsPage() {
       </main>
 
       {/* Trust & FAQ Sections */}
-      {products.length > 0 && (
+      {filteredProducts.length > 0 && (
         <>
           {isReviewSectionEnabled() && (
             <div className="w-full">

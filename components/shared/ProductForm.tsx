@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { Loader2, PlusCircle, X, Upload, Save, AlertTriangle, Settings, ImageIcon } from 'lucide-react';
 import { SubmitButton } from '@/components/submit-button';
 import { uploadProductImage } from '@/lib/product-image-upload';
+import ChargerTypeSelector from '@/components/partner/ChargerTypeSelector';
 
 type ProductFormProps = {
   product?: Product;
@@ -39,12 +40,20 @@ export function ProductForm({
   const [dynamicFieldValues, setDynamicFieldValues] = useState<Record<string, any>>(
     product?.product_fields || {}
   );
+  const [chargerType, setChargerType] = useState<string>(
+    product?.product_fields?.charger_type || ''
+  );
   const [isFetchingFields, setIsFetchingFields] = useState<boolean>(false);
   const [imageUrl, setImageUrl] = useState<string>(product?.image_url || '');
   const [imagePreview, setImagePreview] = useState<string>(product?.image_url || '');
   const [isSessionValid, setIsSessionValid] = useState<boolean>(true);
   const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
+
+  // Check if selected category is EV Chargers
+  const selectedCategoryData = categories.find(c => c.service_category_id === selectedCategory);
+  const isEvChargers = selectedCategoryData?.name?.toLowerCase() === 'ev chargers' || 
+                       selectedCategoryData?.slug === 'ev-chargers';
   
   // Fetch category fields when category changes
   useEffect(() => {
@@ -101,6 +110,16 @@ export function ProductForm({
     
     fetchCategoryFields();
   }, [selectedCategory, isEditing, product]);
+
+  // Update charger type in dynamicFieldValues when it changes
+  useEffect(() => {
+    if (chargerType) {
+      setDynamicFieldValues(prev => ({
+        ...prev,
+        charger_type: chargerType
+      }));
+    }
+  }, [chargerType]);
 
   // Check session validity
   useEffect(() => {
@@ -795,6 +814,38 @@ export function ProductForm({
               </select>
             </div>
 
+            {/* Charger Type - Only for EV Chargers */}
+            {(() => {
+              if (isEvChargers) {
+                return (
+                  <div>
+                    <label htmlFor="charger_type" className="block text-sm font-medium text-gray-700 mb-2">
+                      Charger Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="charger_type"
+                      name="charger_type"
+                      value={chargerType}
+                      onChange={(e) => {
+                        setChargerType(e.target.value);
+                        setDynamicFieldValues(prev => ({
+                          ...prev,
+                          charger_type: e.target.value
+                        }));
+                      }}
+                      className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    >
+                      <option value="">Select charger type</option>
+                      <option value="Tethered Charger">Tethered Charger</option>
+                      <option value="Untethered Chargers">Untethered Chargers</option>
+                    </select>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
                {/* Main Image */}
                <div>
               <label htmlFor="image_url" className="block text-sm font-medium text-gray-700 mb-2">
@@ -880,7 +931,16 @@ export function ProductForm({
                 required
               />
             </div>
-            
+            {/* Charger Type Selector for EV Chargers */}
+            {isEvChargers && isPartner && product?.product_id && (
+              <div className="pt-6 px-6">
+                <ChargerTypeSelector
+                  productId={product.product_id}
+                  initialChargerType={(product.product_fields as any)?.charger_type || chargerType}
+                />
+              </div>
+            )}
+          
             {/* Slug */}
             <div>
               <label htmlFor="slug" className="block text-sm font-medium text-gray-700 mb-2">

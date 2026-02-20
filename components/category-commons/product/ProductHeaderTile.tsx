@@ -27,9 +27,11 @@ interface ProductHeaderTileProps {
   filterBedroom?: string | null
   filterBathroom?: string | null
   filterBoilerType?: string | null
+  filterChargerType?: string | null
   setFilterBedroom?: (value: string | null) => void
   setFilterBathroom?: (value: string | null) => void
   setFilterBoilerType?: (value: string | null) => void
+  setFilterChargerType?: (value: string | null) => void
   clearFilters?: () => void
   resetFiltersToSubmission?: () => void
   includedItems?: Array<any> | null
@@ -95,13 +97,15 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
   const {
     count,
     postcode,
-    category = 'boiler',
+    category: categoryProp = 'boiler',
     filterBedroom,
     filterBathroom,
     filterBoilerType,
+    filterChargerType,
     setFilterBedroom,
     setFilterBathroom,
     setFilterBoilerType,
+    setFilterChargerType,
     clearFilters,
     resetFiltersToSubmission,
     includedItems,
@@ -120,6 +124,11 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
     panelCount = 9,
     onPanelCountChange,
   } = props
+
+  // Ensure category is properly typed
+  const category = categoryProp as 'boiler' | 'solar' | 'ashp' | 'ev-chargers'
+  const isEvChargers = category === 'ev-chargers'
+  const isBoiler = category === 'boiler'
 
   const [showIncluded, setShowIncluded] = useState(false)
   const [showSaveQuote, setShowSaveQuote] = useState(false)
@@ -198,6 +207,68 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
 
       <div className="flex gap-4 justify-between flex-wrap">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 w-full md:w-auto">
+          {/* Filter Button for EV Chargers */}
+          {isEvChargers && setFilterChargerType && (
+            <div className="flex items-center gap-2">
+              <DropdownMenu onOpenChange={setIsFilterOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    aria-label="Filter by charger type"
+                    variant="outline"
+                    size="sm"
+                    className="px-4 py-2 rounded-full text-sm font-medium border-gray-300 hover:bg-gray-50"
+                  >
+                    <FilterIcon className="w-4 h-4 mr-2" />
+                    {filterChargerType || 'Filter'}
+                    {isFilterOpen ? (
+                      <ChevronDown className="w-4 h-4 ml-2" />
+                    ) : null}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-[calc(100vw-2rem)] md:w-96 p-4 bg-white border border-gray-200 rounded-lg shadow-lg max-w-[320px] md:max-w-none"
+                  sideOffset={8}
+                  side="bottom"
+                  align="start"
+                >
+                  <div className="space-y-4">
+                    {/* Charger Type - Only for EV Chargers */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Charger Type:</label>
+                      <div className="flex gap-2">
+                        {['Tethered Charger', 'Untethered Chargers'].map((type) => (
+                          <Button
+                            key={type}
+                            onClick={() => setFilterChargerType(filterChargerType === type ? null : type)}
+                            variant={filterChargerType === type ? "default" : "outline"}
+                            size="sm"
+                            className="px-4 py-2 rounded-full text-xs font-medium flex-1"
+                            style={filterChargerType === type ? { backgroundColor: brandColor } : {}}
+                          >
+                            {type}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100">
+                      {clearFilters && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={clearFilters}
+                          className="text-xs"
+                        >
+                          Clear filters
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
 
           {/* Panel Count Selector for Solar */}
           {category === 'solar' && onPanelCountChange && (
@@ -270,24 +341,47 @@ export default function ProductHeaderTile(props: ProductHeaderTileProps) {
                     align="start"
                   >
                     <div className="space-y-4">
-                      {/* Boiler Type */}
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Boiler type:</label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {['combi', 'regular', 'system'].map((type) => (
-                            <Button
-                              key={type}
-                              onClick={() => setFilterBoilerType?.(filterBoilerType === type ? null : type)}
-                              variant={filterBoilerType === type ? "default" : "outline"}
-                              size="sm"
-                              className="px-2 py-1 rounded-full text-xs font-medium"
-                              style={filterBoilerType === type ? { backgroundColor: brandColor } : {}}
-                            >
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
-                            </Button>
-                          ))}
+                      {/* Charger Type - Only for EV Chargers */}
+                      {isEvChargers && setFilterChargerType && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Charger Type:</label>
+                          <div className="flex gap-2">
+                            {['Tethered Charger', 'Untethered Chargers'].map((type) => (
+                              <Button
+                                key={type}
+                                onClick={() => setFilterChargerType(filterChargerType === type ? null : type)}
+                                variant={filterChargerType === type ? "default" : "outline"}
+                                size="sm"
+                                className="px-4 py-2 rounded-full text-xs font-medium flex-1"
+                                style={filterChargerType === type ? { backgroundColor: brandColor } : {}}
+                              >
+                                {type}
+                              </Button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
+
+                      {/* Boiler Type - Only for Boiler */}
+                      {isBoiler && setFilterBoilerType && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Boiler type:</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {['combi', 'regular', 'system'].map((type) => (
+                              <Button
+                                key={type}
+                                onClick={() => setFilterBoilerType?.(filterBoilerType === type ? null : type)}
+                                variant={filterBoilerType === type ? "default" : "outline"}
+                                size="sm"
+                                className="px-2 py-1 rounded-full text-xs font-medium"
+                                style={filterBoilerType === type ? { backgroundColor: brandColor } : {}}
+                              >
+                                {type.charAt(0).toUpperCase() + type.slice(1)}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Bedrooms */}
                       <div className="space-y-2">

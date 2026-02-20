@@ -1,0 +1,42 @@
+-- Insert EV vehicle brands data
+-- This migration inserts initial brand data into the ev_vehicle_brand table
+
+INSERT INTO public."ev_vehicle_brand" (brand_id, brand_name, brand_image_url, is_active, created_at, updated_at, created_by)
+VALUES
+  (gen_random_uuid(), 'BMW', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/bmw-logo.png', true, '2025-06-26 07:55:04+00', '2025-09-02 07:54:27+00', NULL),
+  (gen_random_uuid(), 'Audi', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/audi.png', true, '2025-06-26 08:17:21+00', '2025-09-02 07:54:11+00', NULL),
+  (gen_random_uuid(), 'BYD Auto', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/byd.png', true, '2025-09-02 07:54:44+00', '2025-09-02 07:54:44+00', NULL),
+  (gen_random_uuid(), 'Chevrolet', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/chevrolet.png', true, '2025-09-02 07:55:29+00', '2025-09-02 07:55:29+00', NULL),
+  (gen_random_uuid(), 'Citroen', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/citreon.png', true, '2025-09-02 07:56:04+00', '2025-09-02 07:56:04+00', NULL),
+  (gen_random_uuid(), 'CUPRA', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/cupra-logo.png', true, '2025-09-02 07:56:39+00', '2025-09-02 07:56:39+00', NULL),
+  (gen_random_uuid(), 'DS Automobiles', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/ds.png', true, '2025-09-02 07:57:24+00', '2025-09-02 07:57:24+00', NULL),
+  (gen_random_uuid(), 'Energica', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/Energica.png', true, '2025-09-02 07:58:15+00', '2025-09-02 07:58:15+00', NULL),
+  (gen_random_uuid(), 'Fiat', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/fiat-logo.png', true, '2025-09-02 07:58:37+00', '2025-09-02 07:58:37+00', NULL),
+  (gen_random_uuid(), 'Ford', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/ford.png', true, '2025-09-02 07:58:53+00', '2025-09-02 07:58:53+00', NULL),
+  (gen_random_uuid(), 'Fuso', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/Fuso.png', true, '2025-09-02 07:59:12+00', '2025-09-02 07:59:12+00', NULL),
+  (gen_random_uuid(), 'Honda', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/honda.png', true, '2025-09-02 09:40:47+00', '2025-09-02 09:40:47+00', NULL),
+  (gen_random_uuid(), 'Hyundai', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/hyundai.png', true, '2025-09-02 09:42:28+00', '2025-09-02 09:42:28+00', NULL),
+  (gen_random_uuid(), 'Jaguar', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/jaguar.png', true, '2025-09-02 09:45:11+00', '2025-09-02 09:45:11+00', NULL),
+  (gen_random_uuid(), 'Jeep', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/jeep.png', true, '2025-09-02 09:45:29+00', '2025-09-02 09:45:29+00', NULL),
+  (gen_random_uuid(), 'Kia', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/kia.png', true, '2025-09-02 09:45:42+00', '2025-09-02 09:45:42+00', NULL),
+  (gen_random_uuid(), 'Land Rover', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/land-rover.png', true, '2025-09-02 09:46:06+00', '2025-09-02 09:46:06+00', NULL),
+  (gen_random_uuid(), 'LDV', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/ldv-car-logo.png', true, '2025-09-02 09:57:43+00', '2025-09-02 09:57:43+00', NULL),
+  (gen_random_uuid(), 'LEXUS', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/lexus-logo.png', true, '2025-09-02 09:58:10+00', '2025-09-02 09:58:10+00', NULL),
+  (gen_random_uuid(), 'Mahindra', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/mahindra.png', true, '2025-09-02 09:58:34+00', '2025-09-02 09:58:34+00', NULL),
+  (gen_random_uuid(), 'Mercedes-Benz', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/mercedes.png', true, '2025-09-02 10:00:12+00', '2025-09-02 10:00:12+00', NULL),
+  (gen_random_uuid(), 'MG', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/mg.png', true, '2025-09-02 10:02:29+00', '2025-09-02 10:02:29+00', NULL),
+  (gen_random_uuid(), 'Mini', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/mini.png', true, '2025-09-02 10:02:47+00', '2025-09-02 10:02:47+00', NULL),
+  (gen_random_uuid(), 'Mitsubishi', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/mitsubishi.png', true, '2025-09-02 10:03:45+00', '2025-09-02 10:03:45+00', NULL),
+  (gen_random_uuid(), 'Nissan', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/nissan.png', true, '2025-09-02 10:04:16+00', '2025-09-02 10:04:16+00', NULL),
+  (gen_random_uuid(), 'Peugeot', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/peugeot.png', true, '2025-09-02 10:05:04+00', '2025-09-02 10:05:04+00', NULL),
+  (gen_random_uuid(), 'Porsche', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/porsche.png', true, '2025-09-02 10:07:23+00', '2025-09-02 10:07:23+00', NULL),
+  (gen_random_uuid(), 'Range Rover', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/range-rover.png', true, '2025-09-02 10:07:53+00', '2025-09-02 10:07:53+00', NULL),
+  (gen_random_uuid(), 'Renault', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/renault.png', true, '2025-09-02 10:08:14+00', '2025-09-02 10:08:14+00', NULL),
+  (gen_random_uuid(), 'Seat', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/seat.png', true, '2025-09-02 10:08:33+00', '2025-09-02 10:08:33+00', NULL),
+  (gen_random_uuid(), 'Skoda', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/skoda.png', true, '2025-09-02 10:08:46+00', '2025-09-02 10:08:46+00', NULL),
+  (gen_random_uuid(), 'Smart EQ', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/smart.png', true, '2025-09-02 10:09:13+00', '2025-09-02 10:09:13+00', NULL),
+  (gen_random_uuid(), 'Toyota', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/toyota.png', true, '2025-09-02 10:09:29+00', '2025-09-02 10:09:29+00', NULL),
+  (gen_random_uuid(), 'Vauxhall', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/vauxhall.png', true, '2025-09-02 10:09:46+00', '2025-09-02 10:09:46+00', NULL),
+  (gen_random_uuid(), 'Volkswagen', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/Volkswagen.png', true, '2025-09-02 10:10:02+00', '2025-09-02 10:10:02+00', NULL),
+  (gen_random_uuid(), 'Volvo', 'https://ev-charger-images.b-cdn.net/Car_Brand_Logo/volvo.png', true, '2025-09-02 10:11:11+00', '2025-09-02 10:11:11+00', NULL)
+ON CONFLICT (brand_name) DO NOTHING;

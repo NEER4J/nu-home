@@ -6,6 +6,7 @@ import { ProductForm } from "@/components/shared/ProductForm";
 import { Product } from "@/types/product.types";
 import { ServiceCategory } from "@/types/database.types";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import ChargerTypeSelector from "@/components/partner/ChargerTypeSelector";
 
 type SupabaseCategoryResponse = {
   ServiceCategories: {
@@ -68,6 +69,16 @@ export default async function EditProductPage({
   if (productError || !product) {
     notFound();
   }
+
+  // Get the service category to check if it's EV Chargers
+  const { data: serviceCategory } = await supabase
+    .from("ServiceCategories")
+    .select("name, slug")
+    .eq("service_category_id", product.service_category_id)
+    .single();
+
+  const isEvChargers = serviceCategory?.name?.toLowerCase() === 'ev chargers' || 
+                       serviceCategory?.slug === 'ev-chargers';
   
   // Get approved categories for this partner
   const { data: approvedCategories, error: categoriesError } = await supabase
@@ -183,6 +194,7 @@ export default async function EditProductPage({
         </div>
         
         <div className="border-t border-gray-200">
+         
           <ProductForm
             product={formattedProduct}
             categories={transformedCategories}

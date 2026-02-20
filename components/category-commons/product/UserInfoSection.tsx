@@ -397,6 +397,29 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
                 {submissionInfo.form_answers && (Array.isArray(submissionInfo.form_answers) ? submissionInfo.form_answers.length > 0 : Object.keys(submissionInfo.form_answers).length > 0) ? (
                   (Array.isArray(submissionInfo.form_answers) ? submissionInfo.form_answers : Object.values(submissionInfo.form_answers)).map((answer: any, index) => {
                     const answerCost = getAnswerCost(answer.question_id, answer.answer);
+                    
+                    // Format answer for display - handle objects (like EV type selection), arrays, and strings
+                    const formatAnswer = (ans: any): string => {
+                      if (ans === null || ans === undefined) return 'N/A';
+                      
+                      // Check if it's an EV type selection object
+                      if (typeof ans === 'object' && ans !== null && !Array.isArray(ans)) {
+                        if (ans.brand_name && ans.model_name) {
+                          return `${ans.brand_name} - ${ans.model_name}`;
+                        }
+                        // Fallback for other objects
+                        return JSON.stringify(ans);
+                      }
+                      
+                      // Handle arrays
+                      if (Array.isArray(ans)) {
+                        return ans.join(', ');
+                      }
+                      
+                      // Handle strings and other primitives
+                      return String(ans);
+                    };
+                    
                     return (
                       <div key={index} className="flex md:flex-row flex-col justify-between items-start py-2 border-b border-gray-200 last:border-b-0">
                         <div className="flex-1 pr-4">
@@ -405,7 +428,7 @@ export default function UserInfoSection({ submissionInfo, partnerInfo, onRestart
                         <div className="flex-1 text-right">
                           <div className="flex flex-col items-end">
                             <p className="text-sm text-gray-900 font-medium">
-                              {Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer}
+                              {formatAnswer(answer.answer)}
                             </p>
                             {answerCost > 0 && (
                               <p className="text-xs text-green-600 font-medium mt-1">
