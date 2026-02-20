@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Handle protected paths that need subdomain/custom domain processing
-  const isProtectedPath = (path.includes('/boiler') || path.includes('/solar')) || path.includes('/ashp') && 
+  const isProtectedPath = (path.includes('/boiler') || path.includes('/solar') || path.includes('/ashp') || path.includes('/ev-chargers')) && 
     !path.includes('/products/addons');
   
   if (isProtectedPath) {

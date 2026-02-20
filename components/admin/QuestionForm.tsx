@@ -785,7 +785,7 @@ export function QuestionForm({
                           </label>
 
                           {option.hasAdditionalCost && (
-                            <div className="transition-all duration-300">
+                            <div className="mt-3">
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Cost Amount (£)
                               </label>

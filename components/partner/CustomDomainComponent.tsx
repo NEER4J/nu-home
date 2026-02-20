@@ -32,6 +32,9 @@ export default function CustomDomainComponent() {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [isRemovingDomain, setIsRemovingDomain] = useState(false);
+  const [subdomainError, setSubdomainError] = useState<string | null>(null);
+  const [isCheckingSubdomain, setIsCheckingSubdomain] = useState(false);
+  const [originalSubdomain, setOriginalSubdomain] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -45,6 +48,21 @@ export default function CustomDomainComponent() {
       checkDomainVerificationStatus();
     }
   }, [data.custom_domain]);
+
+  // Debounce subdomain validation
+  useEffect(() => {
+    if (!data.subdomain || data.subdomain.trim() === '') {
+      setSubdomainError(null);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      checkSubdomainAvailability(data.subdomain!);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.subdomain]);
 
   const loadDomainData = async () => {
     setLoading(true);
@@ -69,6 +87,7 @@ export default function CustomDomainComponent() {
           custom_domain: profile.custom_domain,
           domain_verified: profile.domain_verified,
         });
+        setOriginalSubdomain(profile.subdomain); // Store original subdomain for comparison
       }
     } catch (error) {
       console.error('Unexpected error loading domain data:', error);
@@ -78,6 +97,35 @@ export default function CustomDomainComponent() {
   };
 
   const saveDomainData = async () => {
+    // Check for subdomain validation errors before saving
+    if (subdomainError) {
+      toast.error('Please fix the subdomain error before saving.');
+      return;
+    }
+
+    // If subdomain has changed, do a final check before saving
+    if (data.subdomain && data.subdomain !== originalSubdomain) {
+      const normalizedSubdomain = data.subdomain.trim().toLowerCase();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: existingProfile, error: checkError } = await supabase
+          .from('UserProfiles')
+          .select('user_id, subdomain')
+          .eq('subdomain', normalizedSubdomain)
+          .neq('user_id', user.id)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error('Error checking subdomain:', checkError);
+        } else if (existingProfile) {
+          setSubdomainError('This subdomain is already taken. Please choose a different one.');
+          toast.error('This subdomain is already taken. Please choose a different one.');
+          return;
+        }
+      }
+    }
+
     setSaving(true);
 
     try {
@@ -94,9 +142,20 @@ export default function CustomDomainComponent() {
 
       if (error) {
         console.error('Error saving domain data:', error);
-        throw error;
+        
+        // Check if it's a duplicate subdomain error
+        if (error.message.includes('duplicate key') && error.message.includes('subdomain')) {
+          setSubdomainError('This subdomain is already taken. Please choose a different one.');
+          toast.error('This subdomain is already taken. Please choose a different one.');
+        } else {
+          throw error;
+        }
+        return;
       }
 
+      // Update original subdomain after successful save
+      setOriginalSubdomain(data.subdomain);
+      setSubdomainError(null);
       toast.success('Domain settings saved successfully!');
     } catch (error) {
       console.error('Unexpected error saving domain data:', error);
@@ -106,8 +165,60 @@ export default function CustomDomainComponent() {
     }
   };
 
+  const checkSubdomainAvailability = async (subdomain: string) => {
+    if (!subdomain || subdomain.trim() === '') {
+      setSubdomainError(null);
+      return;
+    }
+
+    // Normalize subdomain (lowercase, trim)
+    const normalizedSubdomain = subdomain.trim().toLowerCase();
+
+    // If it's the same as the original subdomain, it's valid
+    if (normalizedSubdomain === originalSubdomain?.toLowerCase()) {
+      setSubdomainError(null);
+      return;
+    }
+
+    setIsCheckingSubdomain(true);
+    setSubdomainError(null);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsCheckingSubdomain(false);
+        return;
+      }
+
+      // Check if subdomain exists for another user
+      const { data: existingProfile, error } = await supabase
+        .from('UserProfiles')
+        .select('user_id, subdomain')
+        .eq('subdomain', normalizedSubdomain)
+        .neq('user_id', user.id) // Exclude current user
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking subdomain:', error);
+        setIsCheckingSubdomain(false);
+        return;
+      }
+
+      if (existingProfile) {
+        setSubdomainError('This subdomain is already taken. Please choose a different one.');
+      } else {
+        setSubdomainError(null);
+      }
+    } catch (error) {
+      console.error('Unexpected error checking subdomain:', error);
+    } finally {
+      setIsCheckingSubdomain(false);
+    }
+  };
+
   const updateSubdomain = (value: string) => {
     setData(prev => ({ ...prev, subdomain: value }));
+    // Validation will be triggered by useEffect with debouncing
   };
 
   const updateCustomDomain = (value: string) => {
@@ -282,19 +393,32 @@ export default function CustomDomainComponent() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Subdomain
+                {isCheckingSubdomain && (
+                  <Loader2 className="inline-block h-3 w-3 animate-spin ml-2 text-gray-400" />
+                )}
               </label>
               <div className="flex rounded-md shadow-sm">
                 <input
                   type="text"
                   value={data.subdomain || ''}
                   onChange={(e) => updateSubdomain(e.target.value)}
-                  className="block w-full min-w-0 flex-1 rounded-none rounded-l-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2"
+                  className={`block w-full min-w-0 flex-1 rounded-none rounded-l-md sm:text-sm px-3 py-2 focus:ring-blue-500 ${
+                    subdomainError 
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:border-blue-500'
+                  }`}
                   placeholder="yourcompany"
                 />
                 <span className="inline-flex items-center rounded-r-md border border-l-0 border-gray-300 bg-gray-50 px-3 text-gray-500 sm:text-sm">
                   .aifortrades.co.uk
                 </span>
               </div>
+              {subdomainError && (
+                <div className="mt-2 flex items-center text-red-600">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  <p className="text-xs font-medium">{subdomainError}</p>
+                </div>
+              )}
               <p className="text-xs text-gray-500 mt-2">
                 Your subdomain will be accessible at: <span className="font-mono text-blue-600">
                   https://{data.subdomain || 'yourcompany'}.aifortrades.co.uk

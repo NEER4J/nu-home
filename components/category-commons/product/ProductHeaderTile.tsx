@@ -23,7 +23,7 @@ import { FilterIcon, RotateCcw, ChevronDown, CheckIcon, CheckCircle, CheckCircle
 interface ProductHeaderTileProps {
   count: number
   postcode?: string | null
-  category?: 'boiler' | 'solar' | 'ashp'
+  category?: 'boiler' | 'solar' | 'ashp' | 'ev-chargers'
   filterBedroom?: string | null
   filterBathroom?: string | null
   filterBoilerType?: string | null
@@ -74,6 +74,12 @@ function getCategoryContent(category: string) {
         title: 'Thank You for Sharing Your Heat Pump Needs With Us!',
         description: (count: number) => `We found ${count} heat pump package${count !== 1 ? 's' : ''} tailored for you. Find information, customer testimonials, and easy online purchase options all in one place.`,
         productLabel: 'heat pump'
+      }
+    case 'ev-chargers':
+      return {
+        title: 'Thank You for Sharing Your EV Charger Needs With Us!',
+        description: (count: number) => `We found ${count} EV charger${count !== 1 ? 's' : ''} tailored for you. Find information, customer testimonials, and easy online purchase options all in one place.`,
+        productLabel: 'EV charger'
       }
     case 'boiler':
     default:
